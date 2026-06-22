@@ -72,7 +72,6 @@ import { useOpenProject } from "@/hooks/use-open-project";
 import { useAppSettings } from "@/hooks/use-settings";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import { I18nProvider } from "@/i18n/provider";
-import { keyboardActionDispatcher } from "@/keyboard/keyboard-action-dispatcher";
 import { polyfillCrypto } from "@/polyfills/crypto";
 import { queryClient } from "@/query/query-client";
 import {
@@ -413,7 +412,6 @@ function AppContainer({
   const toggleDesktopAgentList = usePanelStore((state) => state.toggleDesktopAgentList);
   const openDesktopAgentList = usePanelStore((state) => state.openDesktopAgentList);
   const closeDesktopAgentList = usePanelStore((state) => state.closeDesktopAgentList);
-  const closeDesktopFileExplorer = usePanelStore((state) => state.closeDesktopFileExplorer);
   const toggleFocusMode = usePanelStore((state) => state.toggleFocusMode);
   const isFocusModeEnabled = usePanelStore((state) => state.desktop.focusModeEnabled);
 
@@ -436,17 +434,10 @@ function AppContainer({
     const { desktop } = usePanelStore.getState();
     toggleDesktopSidebarsWithCheckoutIntent({
       isAgentListOpen: desktop.agentListOpen,
-      isFileExplorerOpen: desktop.fileExplorerOpen,
       openAgentList: openDesktopAgentList,
       closeAgentList: closeDesktopAgentList,
-      closeFileExplorer: closeDesktopFileExplorer,
-      toggleFocusedFileExplorer: () =>
-        keyboardActionDispatcher.dispatch({
-          id: "sidebar.toggle.right",
-          scope: "sidebar",
-        }),
     });
-  }, [closeDesktopAgentList, closeDesktopFileExplorer, openDesktopAgentList]);
+  }, [closeDesktopAgentList, openDesktopAgentList]);
   // TODO: stop matching pathname here as a branch. `chromeEnabled` should not
   // conflate workspace/project-specific chrome (sidebar, mobile gesture) with
   // global concerns like keyboard shortcuts. Split those out so settings (and

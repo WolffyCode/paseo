@@ -492,13 +492,6 @@ export const ru: TranslationResources = {
         open: "Открыть панель инструментов",
         close: "Закрыть панель инструментов",
       },
-      explorer: {
-        open: "Открыть проводник",
-        close: "Закрыть проводник",
-        toggle: "Переключить проводник",
-        changes: "Изменения",
-        files: "Файлы",
-      },
       toasts: {
         copyFailed: "Не удалось скопировать",
         agentIdCopiedLabel: "AgentID",

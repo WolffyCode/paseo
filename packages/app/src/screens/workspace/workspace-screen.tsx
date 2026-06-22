@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 import { useIsFocused } from "@react-navigation/native";
-import { ActivityIndicator, BackHandler, Keyboard, Pressable, Text, View } from "react-native";
+import { ActivityIndicator, Keyboard, Pressable, Text, View } from "react-native";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, type Href } from "expo-router";
 import * as Clipboard from "expo-clipboard";
@@ -37,7 +37,6 @@ import {
   SquareTerminal,
   X,
 } from "lucide-react-native";
-import { GestureDetector } from "react-native-gesture-handler";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import type { Theme } from "@/styles/theme";
@@ -68,11 +67,8 @@ import { WorkspaceGitActions } from "@/git/workspace-actions";
 import { WorkspaceOpenInEditorButton } from "@/screens/workspace/workspace-open-in-editor-button";
 import { WorkspaceScriptsButton } from "@/screens/workspace/workspace-scripts-button";
 import { ImportSessionSheet } from "@/components/import-session-sheet";
-import { ExplorerSidebarAnimationProvider } from "@/contexts/explorer-sidebar-animation-context";
 import { useToast } from "@/contexts/toast-context";
-import { useExplorerOpenGesture } from "@/hooks/use-explorer-open-gesture";
-import { selectIsFileExplorerOpen, usePanelStore } from "@/stores/panel-store";
-import { type ExplorerCheckoutContext } from "@/stores/explorer-checkout-context";
+import { usePanelStore } from "@/stores/panel-store";
 import {
   useSessionStore,
   useWorkspaceRestoreStatus,
@@ -210,8 +206,6 @@ const EMPTY_UI_TABS: WorkspaceTab[] = [];
 const EMPTY_WORKSPACE_SCRIPTS: WorkspaceDescriptor["scripts"] = [];
 const EMPTY_PINNED_AGENT_IDS = new Set<string>();
 const EMPTY_SET = new Set<string>();
-const COMPACT_WEB_GESTURE_TOUCH_ACTION = isWeb ? "auto" : "pan-y";
-
 // Product: the workspace scripts (paseo.json service runner) button is hidden.
 // Flip to re-enable the ▷ run menu in the workspace header.
 const SHOW_WORKSPACE_SCRIPTS_BUTTON = false;
@@ -908,29 +902,6 @@ const MobileMountedTabSlot = memo(function MobileMountedTabSlot({
   );
 });
 
-interface MobileExplorerOpenGestureSurfaceProps {
-  children: ReactNode;
-  enabled: boolean;
-  onOpenExplorer: () => void;
-}
-
-function MobileExplorerOpenGestureSurface({
-  children,
-  enabled,
-  onOpenExplorer,
-}: MobileExplorerOpenGestureSurfaceProps) {
-  const explorerOpenGesture = useExplorerOpenGesture({
-    enabled,
-    onOpen: onOpenExplorer,
-  });
-
-  return (
-    <GestureDetector gesture={explorerOpenGesture} touchAction={COMPACT_WEB_GESTURE_TOUCH_ACTION}>
-      <View style={styles.content}>{children}</View>
-    </GestureDetector>
-  );
-}
-
 function useStableTabDescriptorMap(tabDescriptors: WorkspaceTabDescriptor[]) {
   const cacheRef = useRef(new Map<string, WorkspaceTabDescriptor>());
   const tabDescriptorMap = useMemo(() => {
@@ -966,13 +937,11 @@ export const WorkspaceScreen = memo(function WorkspaceScreen({
   const effectiveRouteFocused = isRouteFocused ?? navigationFocused;
 
   return (
-    <ExplorerSidebarAnimationProvider>
-      <WorkspaceScreenContent
-        serverId={serverId}
-        workspaceId={workspaceId}
-        isRouteFocused={effectiveRouteFocused}
-      />
-    </ExplorerSidebarAnimationProvider>
+    <WorkspaceScreenContent
+      serverId={serverId}
+      workspaceId={workspaceId}
+      isRouteFocused={effectiveRouteFocused}
+    />
   );
 });
 
@@ -2015,75 +1984,17 @@ function WorkspaceScreenContent({
     checkoutState: workspaceHeaderCheckoutState,
   });
 
-  const isExplorerOpen = usePanelStore((state) =>
-    selectIsFileExplorerOpen(state, { isCompact: isMobile }),
-  );
-  const openFileExplorerForCheckout = usePanelStore((state) => state.openFileExplorerForCheckout);
-  const toggleFileExplorerForCheckout = usePanelStore(
-    (state) => state.toggleFileExplorerForCheckout,
-  );
   const showMobileAgent = usePanelStore((state) => state.showMobileAgent);
 
-  const activeExplorerCheckout = useMemo<ExplorerCheckoutContext | null>(() => {
-    if (!normalizedServerId || !workspaceDirectory) {
-      return null;
-    }
-    return {
-      serverId: normalizedServerId,
-      cwd: workspaceDirectory,
-      isGit: isGitCheckout,
-    };
-  }, [isGitCheckout, normalizedServerId, workspaceDirectory]);
-
-  const openExplorerForWorkspace = useCallback(() => {
-    if (!activeExplorerCheckout) {
-      return;
-    }
-    openFileExplorerForCheckout({
-      isCompact: isMobile,
-      checkout: activeExplorerCheckout,
-    });
-  }, [activeExplorerCheckout, isMobile, openFileExplorerForCheckout]);
-
-  const handleToggleExplorer = useCallback(() => {
-    if (!activeExplorerCheckout) {
-      return;
-    }
-    toggleFileExplorerForCheckout({
-      isCompact: isMobile,
-      checkout: activeExplorerCheckout,
-    });
-  }, [activeExplorerCheckout, isMobile, toggleFileExplorerForCheckout]);
-
   const hasDiffStat = useMemo(() => Boolean(workspaceDescriptor?.diffStat), [workspaceDescriptor]);
-  const explorerToggleStyle = useCallback(
+  const reviewToggleStyle = useCallback(
     ({ hovered, pressed }: { hovered?: boolean; pressed?: boolean }) => [
       styles.sourceControlButton,
       hasDiffStat && styles.sourceControlButtonWithStats,
-      (Boolean(hovered) || Boolean(pressed) || isExplorerOpen) && styles.sourceControlButtonHovered,
+      (Boolean(hovered) || Boolean(pressed)) && styles.sourceControlButtonHovered,
     ],
-    [hasDiffStat, isExplorerOpen],
+    [hasDiffStat],
   );
-  const explorerToggleAccessibilityState = useMemo(
-    () => ({ expanded: isExplorerOpen }),
-    [isExplorerOpen],
-  );
-
-  useEffect(() => {
-    if (!isRouteFocused || isWeb || !isExplorerOpen) {
-      return;
-    }
-
-    const handler = BackHandler.addEventListener("hardwareBackPress", () => {
-      if (isExplorerOpen) {
-        showMobileAgent();
-        return true;
-      }
-      return false;
-    });
-
-    return () => handler.remove();
-  }, [isExplorerOpen, isRouteFocused, showMobileAgent]);
 
   const workspaceLayout = useWorkspaceLayoutStore((state) =>
     persistenceKey ? (state.layoutByWorkspace[persistenceKey] ?? null) : null,
@@ -2567,10 +2478,6 @@ function WorkspaceScreenContent({
     }),
     [t],
   );
-  const explorerToggleLabel = isExplorerOpen
-    ? t("workspace.tabs.explorer.close")
-    : t("workspace.tabs.explorer.open");
-
   const activeTabKey = useMemo(() => activeTabId ?? "", [activeTabId]);
   const tabFallbackLabels = useMemo(
     () => ({
@@ -3218,10 +3125,10 @@ function WorkspaceScreenContent({
       if (action.id !== "sidebar.toggle.right") {
         return false;
       }
-      handleToggleExplorer();
+      handleToggleRightToolPanel();
       return true;
     },
-    [handleToggleExplorer],
+    [handleToggleRightToolPanel],
   );
 
   const handleWorkspacePaneAction = useCallback(
@@ -3645,12 +3552,11 @@ function WorkspaceScreenContent({
                   testID="workspace-explorer-toggle"
                   onPress={handleToggleReviewFromChanges}
                   accessibilityRole="button"
-                  accessibilityLabel={explorerToggleLabel}
-                  accessibilityState={explorerToggleAccessibilityState}
-                  style={explorerToggleStyle}
+                  accessibilityLabel={t("workspace.header.actions.review")}
+                  style={reviewToggleStyle}
                 >
                   {({ hovered, pressed }) => {
-                    const active = isExplorerOpen || hovered || pressed;
+                    const active = hovered || pressed;
                     const colorMapping = active ? foregroundColorMapping : mutedColorMapping;
                     return (
                       <>
@@ -3674,33 +3580,13 @@ function WorkspaceScreenContent({
               >
                 <View style={styles.explorerTooltipRow}>
                   <Text style={styles.explorerTooltipText}>
-                    {t("workspace.tabs.explorer.toggle")}
+                    {t("workspace.header.actions.review")}
                   </Text>
-                  <Shortcut keys={EXPLORER_TOGGLE_KEYS} style={styles.explorerTooltipShortcut} />
+                  <Shortcut keys={REVIEW_TOGGLE_KEYS} style={styles.explorerTooltipShortcut} />
                 </View>
               </TooltipContent>
             </Tooltip>
           </>
-        ) : null}
-        {!isMobile && !isGitCheckout ? (
-          <HeaderToggleButton
-            testID="workspace-explorer-toggle"
-            onPress={handleToggleExplorer}
-            tooltipLabel={t("workspace.tabs.explorer.toggle")}
-            tooltipKeys={EXPLORER_TOGGLE_KEYS}
-            tooltipSide="left"
-            style={styles.compactHeaderActionButton}
-            accessible
-            accessibilityRole="button"
-            accessibilityLabel={explorerToggleLabel}
-            accessibilityState={explorerToggleAccessibilityState}
-          >
-            {({ hovered }) => {
-              const colorMapping =
-                isExplorerOpen || hovered ? foregroundColorMapping : mutedColorMapping;
-              return <ThemedPanelRight size={16} uniProps={colorMapping} />;
-            }}
-          </HeaderToggleButton>
         ) : null}
         {!isMobile && supportsDesktopPaneSplits() && !isRightToolPanelOpenForWorkspace ? (
           <WorkspaceToolPanelToggle isOpen={false} onToggle={handleToggleRightToolPanel} />
@@ -3708,19 +3594,25 @@ function WorkspaceScreenContent({
         {isMobile ? (
           <HeaderToggleButton
             testID="workspace-explorer-toggle"
-            onPress={handleToggleExplorer}
-            tooltipLabel={t("workspace.tabs.explorer.toggle")}
-            tooltipKeys={EXPLORER_TOGGLE_KEYS}
+            onPress={isGitCheckout ? handleOpenReviewFromChanges : handleOpenFileTool}
+            tooltipLabel={
+              isGitCheckout
+                ? t("workspace.header.actions.review")
+                : t("workspace.header.actions.newFile")
+            }
+            tooltipKeys={REVIEW_TOGGLE_KEYS}
             tooltipSide="left"
             style={styles.headerActionButton}
             accessible
             accessibilityRole="button"
-            accessibilityLabel={explorerToggleLabel}
-            accessibilityState={explorerToggleAccessibilityState}
+            accessibilityLabel={
+              isGitCheckout
+                ? t("workspace.header.actions.review")
+                : t("workspace.header.actions.newFile")
+            }
           >
             {({ hovered }) => {
-              const colorMapping =
-                isExplorerOpen || hovered ? foregroundColorMapping : mutedColorMapping;
+              const colorMapping = hovered ? foregroundColorMapping : mutedColorMapping;
               return isGitCheckout ? (
                 <ThemedSourceControlPanelIcon
                   size={20}
@@ -3748,11 +3640,9 @@ function WorkspaceScreenContent({
       handleOpenUrlInBrowserTab,
       showCompactButtonLabels,
       isGitCheckout,
-      handleToggleExplorer,
-      isExplorerOpen,
-      explorerToggleLabel,
-      explorerToggleAccessibilityState,
-      explorerToggleStyle,
+      reviewToggleStyle,
+      handleOpenFileTool,
+      handleOpenReviewFromChanges,
       isRightToolPanelOpenForWorkspace,
       handleToggleRightToolPanel,
       handleToggleReviewFromChanges,
@@ -3969,12 +3859,7 @@ function WorkspaceScreenContent({
 
       <View style={styles.centerContent}>
         {isMobile ? (
-          <MobileExplorerOpenGestureSurface
-            enabled={Boolean(activeExplorerCheckout)}
-            onOpenExplorer={openExplorerForWorkspace}
-          >
-            {content}
-          </MobileExplorerOpenGestureSurface>
+          <View style={styles.content}>{content}</View>
         ) : (
           <View style={styles.content}>{desktopContent}</View>
         )}
@@ -4356,5 +4241,5 @@ const containerWithWorkspaceBackgroundStyle = [
   styles.containerWorkspaceBackground,
 ];
 
-const EXPLORER_TOGGLE_KEYS: ShortcutKey[] = ["mod", "E"];
+const REVIEW_TOGGLE_KEYS: ShortcutKey[] = ["mod", "shift", "G"];
 const TOOL_PANEL_TOGGLE_KEYS: ShortcutKey[] = ["mod", "alt", "B"];

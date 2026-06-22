@@ -493,13 +493,6 @@ export const fr: TranslationResources = {
         open: "Ouvrir le panneau d'outils",
         close: "Fermer le panneau d'outils",
       },
-      explorer: {
-        open: "Ouvrir l'explorateur",
-        close: "Fermer l'explorateur",
-        toggle: "Basculer l'explorateur",
-        changes: "Changements",
-        files: "Fichiers",
-      },
       toasts: {
         copyFailed: "Échec de la copie",
         agentIdCopiedLabel: "AgentID",

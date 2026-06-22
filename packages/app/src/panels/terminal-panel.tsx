@@ -11,9 +11,9 @@ import { usePaneContext, usePaneFocus } from "@/panels/pane-context";
 import type { PanelDescriptor, PanelRegistration } from "@/panels/panel-registry";
 import { queryClient } from "@/query/query-client";
 import { buildTerminalsQueryKey } from "@/screens/workspace/terminals/state";
-import { usePanelStore } from "@/stores/panel-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useWorkspaceDirectory, useWorkspaceFields } from "@/stores/session-store-hooks";
+import { createWorkspaceFilesTabTarget } from "@/workspace/file-open";
 
 type ListTerminalsPayload = ListTerminalsResponse["payload"];
 
@@ -75,24 +75,15 @@ function useTerminalPanelDescriptor(
 }
 
 function TerminalPanel() {
-  const { serverId, workspaceId, target, openFileInWorkspace } = usePaneContext();
+  const { serverId, workspaceId, target, openTab, openFileInWorkspace } = usePaneContext();
   const { isWorkspaceFocused, isPaneFocused } = usePaneFocus();
   const workspaceFields = useWorkspaceFields(serverId, workspaceId, (w) => ({
     workspaceDirectory: w.workspaceDirectory,
-    isGitCheckout: w.projectKind === "git",
   }));
   const workspaceDirectory = workspaceFields?.workspaceDirectory || null;
-  const isGitCheckout = workspaceFields?.isGitCheckout ?? false;
-  const openFileExplorerForCheckout = usePanelStore((state) => state.openFileExplorerForCheckout);
   const handleOpenFileExplorer = useCallback(() => {
-    if (!workspaceDirectory) {
-      return;
-    }
-    openFileExplorerForCheckout({
-      isCompact: true,
-      checkout: { serverId, cwd: workspaceDirectory, isGit: isGitCheckout },
-    });
-  }, [isGitCheckout, openFileExplorerForCheckout, serverId, workspaceDirectory]);
+    openTab(createWorkspaceFilesTabTarget(workspaceId));
+  }, [openTab, workspaceId]);
   invariant(target.kind === "terminal", "TerminalPanel requires terminal target");
 
   if (!isWorkspaceFocused) {

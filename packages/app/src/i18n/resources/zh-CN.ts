@@ -488,13 +488,6 @@ export const zhCN: TranslationResources = {
         open: "打开工具面板",
         close: "关闭工具面板",
       },
-      explorer: {
-        open: "打开 explorer",
-        close: "关闭 explorer",
-        toggle: "切换 explorer",
-        changes: "变更",
-        files: "文件",
-      },
       toasts: {
         copyFailed: "复制失败",
         agentIdCopiedLabel: "Agent ID",

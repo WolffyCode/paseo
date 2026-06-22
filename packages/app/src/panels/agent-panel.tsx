@@ -76,7 +76,6 @@ import {
 import { WorkspaceDraftAgentTab } from "@/composer/draft/workspace-tab";
 import { useCreateFlowStore } from "@/stores/create-flow-store";
 import { buildDraftStoreKey, generateDraftId } from "@/stores/draft-keys";
-import { usePanelStore } from "@/stores/panel-store";
 import { type Agent, useSessionStore } from "@/stores/session-store";
 import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 import { buildWorkspaceTabPersistenceKey } from "@/stores/workspace-tabs-store";
@@ -88,7 +87,11 @@ import type { StreamItem } from "@/types/stream";
 import { getInitDeferred, getInitKey } from "@/utils/agent-initialization";
 import { derivePendingPermissionKey, normalizeAgentSnapshot } from "@/utils/agent-snapshots";
 import { applyLegacyDaemonWorkspaceOwnership } from "@/workspace/legacy-daemon-workspaces";
-import type { WorkspaceFileOpenRequest } from "@/workspace/file-open";
+import {
+  createWorkspaceReviewTabTarget,
+  type WorkspaceFileOpenRequest,
+} from "@/workspace/file-open";
+import { navigateToPreparedWorkspaceTab } from "@/utils/workspace-navigation";
 import { navigateToAgent } from "@/utils/navigate-to-agent";
 import { deriveSidebarStateBucket } from "@/utils/sidebar-agent-state";
 import { buildDraftAgentSetup, type ClientSlashCommand } from "@/client-slash-commands";
@@ -1469,28 +1472,18 @@ function ActiveAgentComposer({
     workspaceId,
   });
   const workspaceAttachments = useWorkspaceAttachments(workspaceAttachmentScopeKey);
-  const openFileExplorerForCheckout = usePanelStore((state) => state.openFileExplorerForCheckout);
-  const setExplorerTabForCheckout = usePanelStore((state) => state.setExplorerTabForCheckout);
   const handleOpenWorkspaceAttachment = useCallback(
     (attachment: WorkspaceComposerAttachment) => {
       if (attachment.kind !== "review") {
         return;
       }
-      const checkout = {
+      navigateToPreparedWorkspaceTab({
         serverId,
-        cwd: attachment.attachment.cwd,
-        isGit: true,
-      };
-      openFileExplorerForCheckout({
-        checkout,
-        isCompact: isCompactFormFactor,
-      });
-      setExplorerTabForCheckout({
-        ...checkout,
-        tab: "changes",
+        workspaceId,
+        target: createWorkspaceReviewTabTarget(workspaceId),
       });
     },
-    [isCompactFormFactor, openFileExplorerForCheckout, serverId, setExplorerTabForCheckout],
+    [serverId, workspaceId],
   );
 
   const handleClientSlashCommand = useCallback(

@@ -488,13 +488,6 @@ export const en = {
         open: "Open tool panel",
         close: "Close tool panel",
       },
-      explorer: {
-        open: "Open explorer",
-        close: "Close explorer",
-        toggle: "Toggle explorer",
-        changes: "Changes",
-        files: "Files",
-      },
       toasts: {
         copyFailed: "Copy failed",
         agentIdCopiedLabel: "Agent ID",

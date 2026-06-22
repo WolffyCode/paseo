@@ -20,13 +20,16 @@ import { useDraftAgentCreateFlow, type DraftCreateAttempt } from "@/composer/dra
 import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-runtime";
 import { buildWorkspaceDraftAgentConfig } from "@/screens/workspace/workspace-draft-agent-config";
 import { buildDraftStoreKey } from "@/stores/draft-keys";
-import { usePanelStore } from "@/stores/panel-store";
 import { useCreateFlowStore } from "@/stores/create-flow-store";
 import type { Agent } from "@/stores/session-store";
 import { useWorkspaceFields } from "@/stores/session-store-hooks";
 import { useWorkspaceDraftSubmissionStore } from "@/stores/workspace-draft-submission-store";
 import { encodeImages } from "@/utils/encode-images";
-import type { WorkspaceFileOpenRequest } from "@/workspace/file-open";
+import {
+  createWorkspaceReviewTabTarget,
+  type WorkspaceFileOpenRequest,
+} from "@/workspace/file-open";
+import { navigateToPreparedWorkspaceTab } from "@/utils/workspace-navigation";
 import { shouldAutoFocusWorkspaceDraftComposer } from "@/screens/workspace/workspace-draft-pane-focus";
 import { validateDraftSubmission } from "@/composer/draft/workspace-tab-core";
 import type { AgentCapabilityFlags } from "@getpaseo/protocol/agent-types";
@@ -403,28 +406,18 @@ export function WorkspaceDraftAgentTab({
     workspaceId,
   });
   const workspaceAttachments = useWorkspaceAttachments(workspaceAttachmentScopeKey);
-  const openFileExplorerForCheckout = usePanelStore((state) => state.openFileExplorerForCheckout);
-  const setExplorerTabForCheckout = usePanelStore((state) => state.setExplorerTabForCheckout);
   const handleOpenWorkspaceAttachment = useCallback(
     (attachment: WorkspaceComposerAttachment) => {
       if (attachment.kind !== "review") {
         return;
       }
-      const checkout = {
+      navigateToPreparedWorkspaceTab({
         serverId,
-        cwd: attachment.attachment.cwd,
-        isGit: true,
-      };
-      openFileExplorerForCheckout({
-        checkout,
-        isCompact: isCompactFormFactor,
-      });
-      setExplorerTabForCheckout({
-        ...checkout,
-        tab: "changes",
+        workspaceId,
+        target: createWorkspaceReviewTabTarget(workspaceId),
       });
     },
-    [isCompactFormFactor, openFileExplorerForCheckout, serverId, setExplorerTabForCheckout],
+    [serverId, workspaceId],
   );
 
   const {

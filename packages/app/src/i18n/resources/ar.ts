@@ -488,13 +488,6 @@ export const ar: TranslationResources = {
         open: "فتح لوحة الأدوات",
         close: "إغلاق لوحة الأدوات",
       },
-      explorer: {
-        open: "افتح المستكشف",
-        close: "إغلاق المستكشف",
-        toggle: "تبديل المستكشف",
-        changes: "التغييرات",
-        files: "ملفات",
-      },
       toasts: {
         copyFailed: "فشل النسخ",
         agentIdCopiedLabel: "AgentID",
