@@ -56,6 +56,7 @@ import {
 import {
   WorkspaceDesktopTabsRow,
   type WorkspaceDesktopTabRowItem,
+  type WorkspaceToolsAddHandlers,
 } from "@/screens/workspace/workspace-desktop-tabs-row";
 import type { TerminalProfileInput } from "@/screens/workspace/terminals/use-workspace-terminals";
 import {
@@ -64,11 +65,13 @@ import {
 } from "@/screens/workspace/workspace-tab-presentation";
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
 import {
+  paneShowsTabBar,
   useWorkspaceLayoutStore,
   type SplitNode,
   type SplitPane,
   type WorkspaceLayout,
 } from "@/stores/workspace-layout-store";
+import { RIGHT_PANEL_PANE_ID } from "@/workspace-tabs/tab-surface";
 import type { WorkspaceTab } from "@/stores/workspace-tabs-store";
 import { RenderProfile } from "@/utils/render-profiler";
 import { workspaceTabTargetsEqual } from "@/workspace-tabs/identity";
@@ -101,6 +104,7 @@ interface SplitContainerProps {
   onCreateDraftTab: (input: { paneId?: string }) => void;
   onCreateTerminalTab: (input: { paneId?: string; profile?: TerminalProfileInput }) => void;
   onCreateBrowserTab: (input: { paneId?: string }) => void;
+  toolsAddHandlers: WorkspaceToolsAddHandlers;
   showCreateBrowserTab?: boolean;
   buildPaneContentModel: (input: {
     paneId: string;
@@ -382,6 +386,7 @@ export function SplitContainer({
   onCreateDraftTab,
   onCreateTerminalTab,
   onCreateBrowserTab,
+  toolsAddHandlers,
   showCreateBrowserTab,
   buildPaneContentModel,
   onFocusPane,
@@ -599,6 +604,7 @@ export function SplitContainer({
           onCreateDraftTab={onCreateDraftTab}
           onCreateTerminalTab={onCreateTerminalTab}
           onCreateBrowserTab={onCreateBrowserTab}
+          toolsAddHandlers={toolsAddHandlers}
           showCreateBrowserTab={showCreateBrowserTab}
           buildPaneContentModel={buildPaneContentModel}
           onFocusPane={onFocusPane}
@@ -742,6 +748,7 @@ function SplitNodeView({
   onCreateDraftTab,
   onCreateTerminalTab,
   onCreateBrowserTab,
+  toolsAddHandlers,
   showCreateBrowserTab,
   buildPaneContentModel,
   onFocusPane,
@@ -795,6 +802,7 @@ function SplitNodeView({
         onCreateDraftTab={onCreateDraftTab}
         onCreateTerminalTab={onCreateTerminalTab}
         onCreateBrowserTab={onCreateBrowserTab}
+        toolsAddHandlers={toolsAddHandlers}
         showCreateBrowserTab={showCreateBrowserTab}
         buildPaneContentModel={buildPaneContentModel}
         onFocusPane={onFocusPane}
@@ -841,6 +849,7 @@ function SplitNodeView({
               onCreateDraftTab={onCreateDraftTab}
               onCreateTerminalTab={onCreateTerminalTab}
               onCreateBrowserTab={onCreateBrowserTab}
+              toolsAddHandlers={toolsAddHandlers}
               showCreateBrowserTab={showCreateBrowserTab}
               buildPaneContentModel={buildPaneContentModel}
               onFocusPane={onFocusPane}
@@ -893,6 +902,7 @@ function SplitPaneView({
   onCreateDraftTab,
   onCreateTerminalTab,
   onCreateBrowserTab,
+  toolsAddHandlers,
   showCreateBrowserTab,
   buildPaneContentModel,
   onFocusPane,
@@ -976,6 +986,8 @@ function SplitPaneView({
   }, [stableOnFocusPane, pane.id]);
 
   const paneId = pane.id;
+  const showTabBar = paneShowsTabBar(pane);
+  const addMenuVariant = pane.id === RIGHT_PANEL_PANE_ID ? "tools" : "main";
   const handleCloseTabsToLeft = useCallback(
     (tabId: string) => onCloseTabsToLeft(tabId, paneTabs),
     [onCloseTabsToLeft, paneTabs],
@@ -1013,39 +1025,44 @@ function SplitPaneView({
   return (
     <RenderProfile id={`SplitPaneView:${pane.id}`}>
       <View ref={paneRef} collapsable={false} style={styles.pane}>
-        <View style={paneTabsStyle}>
-          <TitlebarDragRegion />
-          <WorkspaceDesktopTabsRow
-            paneId={pane.id}
-            isFocused={isFocused}
-            tabs={desktopTabRowItems}
-            normalizedServerId={normalizedServerId}
-            normalizedWorkspaceId={normalizedWorkspaceId}
-            setHoveredCloseTabKey={setHoveredCloseTabKey}
-            onNavigateTab={onNavigateTab}
-            onCloseTab={onCloseTab}
-            onCopyResumeCommand={onCopyResumeCommand}
-            onCopyAgentId={onCopyAgentId}
-            onCopyFilePath={onCopyFilePath}
-            onReloadAgent={onReloadAgent}
-            onRenameTab={onRenameTab}
-            onCloseTabsToLeft={handleCloseTabsToLeft}
-            onCloseTabsToRight={handleCloseTabsToRight}
-            onCloseOtherTabs={handleCloseOtherTabs}
-            onCreateDraftTab={onCreateDraftTab}
-            onCreateTerminalTab={onCreateTerminalTab}
-            onCreateBrowserTab={onCreateBrowserTab}
-            showCreateBrowserTab={showCreateBrowserTab}
-            onReorderTabs={handleReorderTabs}
-            onSplitRight={handleSplitRight}
-            onSplitDown={handleSplitDown}
-            externalDndContext
-            activeDragTabId={activeDragTabId}
-            tabDropPreviewIndex={
-              tabDropPreview?.paneId === pane.id ? tabDropPreview.indicatorIndex : null
-            }
-          />
-        </View>
+        {showTabBar ? (
+          <View style={paneTabsStyle}>
+            <TitlebarDragRegion />
+            <WorkspaceDesktopTabsRow
+              paneId={pane.id}
+              isFocused={isFocused}
+              tabs={desktopTabRowItems}
+              normalizedServerId={normalizedServerId}
+              normalizedWorkspaceId={normalizedWorkspaceId}
+              setHoveredCloseTabKey={setHoveredCloseTabKey}
+              onNavigateTab={onNavigateTab}
+              onCloseTab={onCloseTab}
+              onCopyResumeCommand={onCopyResumeCommand}
+              onCopyAgentId={onCopyAgentId}
+              onCopyFilePath={onCopyFilePath}
+              onReloadAgent={onReloadAgent}
+              onRenameTab={onRenameTab}
+              onCloseTabsToLeft={handleCloseTabsToLeft}
+              onCloseTabsToRight={handleCloseTabsToRight}
+              onCloseOtherTabs={handleCloseOtherTabs}
+              onCreateDraftTab={onCreateDraftTab}
+              onCreateTerminalTab={onCreateTerminalTab}
+              onCreateBrowserTab={onCreateBrowserTab}
+              addMenuVariant={addMenuVariant}
+              toolsAddHandlers={toolsAddHandlers}
+              showCreateBrowserTab={showCreateBrowserTab}
+              onReorderTabs={handleReorderTabs}
+              onSplitRight={handleSplitRight}
+              onSplitDown={handleSplitDown}
+              showPaneSplitActions={false}
+              externalDndContext
+              activeDragTabId={activeDragTabId}
+              tabDropPreviewIndex={
+                tabDropPreview?.paneId === pane.id ? tabDropPreview.indicatorIndex : null
+              }
+            />
+          </View>
+        ) : null}
 
         <View style={styles.paneContent}>
           {mountedPaneTabIds.length > 0

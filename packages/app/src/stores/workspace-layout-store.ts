@@ -14,6 +14,7 @@ import {
 import {
   clampNormalizedSizes,
   closeTabInLayout,
+  coerceToCanonicalLayout,
   collectAllPanes,
   collectAllTabs,
   convertDraftToAgentInLayout,
@@ -23,14 +24,18 @@ import {
   focusPaneInLayout,
   focusTabInLayout,
   getFocusedBrowserId,
+  getMainPaneId,
+  getRightToolPane,
   getTreeDepth,
   insertSplit,
+  isRightToolPanelOpen,
   moveTabToPaneInLayout,
   normalizeLayout,
-  openTabInLayoutBackground,
-  openTabInLayoutFocused,
+  openTabOnSurface,
+  paneShowsTabBar,
   reconcileWorkspaceTabs,
   removePaneFromTree,
+  removeRightToolPanelFromLayout,
   removeTabFromTree,
   reorderFocusedPaneTabsInLayout,
   reorderPaneTabsInLayout,
@@ -44,6 +49,7 @@ import {
   type WorkspaceTabSnapshot,
   type WorkspaceLayout,
 } from "@/stores/workspace-layout-actions";
+import { type TabSurface } from "@/workspace-tabs/tab-surface";
 import { normalizeWorkspaceTabTarget } from "@/workspace-tabs/identity";
 
 export { buildWorkspaceTabPersistenceKey };
@@ -54,9 +60,13 @@ export {
   findPaneById,
   findPaneContainingTab,
   getFocusedBrowserId,
+  getMainPaneId,
+  getRightToolPane,
   getTreeDepth,
   insertSplit,
+  isRightToolPanelOpen,
   normalizeLayout,
+  paneShowsTabBar,
   removePaneFromTree,
   removeTabFromTree,
 };
@@ -64,6 +74,7 @@ export type {
   SplitGroup,
   SplitNode,
   SplitPane,
+  TabSurface,
   WorkspaceLayout,
   WorkspaceTabReconcileState,
   WorkspaceTabSnapshot,
@@ -75,13 +86,18 @@ interface WorkspaceLayoutStore {
   pinnedAgentIdsByWorkspace: Record<string, Set<string>>;
   hiddenAgentIdsByWorkspace: Record<string, Set<string>>;
   focusRestorationByWorkspace: Record<string, WorkspaceFocusRestorationState>;
-  openTabFocused: (workspaceKey: string, target: WorkspaceTabTarget) => string | null;
+  openTabFocused: (
+    workspaceKey: string,
+    target: WorkspaceTabTarget,
+    surface?: TabSurface,
+  ) => string | null;
   openChildTabFocused: (
     workspaceKey: string,
     target: WorkspaceTabTarget,
     parentTabId: string,
   ) => string | null;
   openTabInBackground: (workspaceKey: string, target: WorkspaceTabTarget) => string | null;
+  closeRightToolPanel: (workspaceKey: string) => void;
   closeTab: (workspaceKey: string, tabId: string) => void;
   focusTab: (workspaceKey: string, tabId: string) => void;
   retargetTab: (workspaceKey: string, tabId: string, target: WorkspaceTabTarget) => string | null;
@@ -229,17 +245,21 @@ export function createWorkspaceLayoutStore(
         pinnedAgentIdsByWorkspace: {},
         hiddenAgentIdsByWorkspace: {},
         focusRestorationByWorkspace: {},
-        openTabFocused: (workspaceKey, target) => {
+        openTabFocused: (workspaceKey, target, surface) => {
           const normalizedWorkspaceKey = trimNonEmpty(workspaceKey);
           const normalizedTarget = normalizeWorkspaceTabTarget(target);
           if (!normalizedWorkspaceKey || !normalizedTarget) {
             return null;
           }
 
-          const result = openTabInLayoutFocused({
+          const result = openTabOnSurface({
             layout: getWorkspaceLayout(get().layoutByWorkspace, normalizedWorkspaceKey),
             target: normalizedTarget,
             now: Date.now(),
+            focus: true,
+            surface,
+            maxTreeDepth: MAX_TREE_DEPTH,
+            createNodeId: ids.createNodeId,
           });
 
           set((state) => ({
@@ -268,10 +288,13 @@ export function createWorkspaceLayoutStore(
             return null;
           }
 
-          const result = openTabInLayoutFocused({
+          const result = openTabOnSurface({
             layout: getWorkspaceLayout(get().layoutByWorkspace, normalizedWorkspaceKey),
             target: normalizedTarget,
             now: Date.now(),
+            focus: true,
+            maxTreeDepth: MAX_TREE_DEPTH,
+            createNodeId: ids.createNodeId,
           });
 
           set((state) => {
@@ -306,10 +329,13 @@ export function createWorkspaceLayoutStore(
             return null;
           }
 
-          const result = openTabInLayoutBackground({
+          const result = openTabOnSurface({
             layout: getWorkspaceLayout(get().layoutByWorkspace, normalizedWorkspaceKey),
             target: normalizedTarget,
             now: Date.now(),
+            focus: false,
+            maxTreeDepth: MAX_TREE_DEPTH,
+            createNodeId: ids.createNodeId,
           });
 
           set((state) => ({
@@ -328,6 +354,27 @@ export function createWorkspaceLayoutStore(
           }));
 
           return result.tabId;
+        },
+        closeRightToolPanel: (workspaceKey) => {
+          const normalizedWorkspaceKey = trimNonEmpty(workspaceKey);
+          if (!normalizedWorkspaceKey) {
+            return;
+          }
+
+          set((state) => {
+            const current = getWorkspaceLayout(state.layoutByWorkspace, normalizedWorkspaceKey);
+            const nextLayout = removeRightToolPanelFromLayout(current);
+            if (nextLayout === current) {
+              return state;
+            }
+            return {
+              ...withoutFocusRestoration(state, normalizedWorkspaceKey),
+              layoutByWorkspace: {
+                ...state.layoutByWorkspace,
+                [normalizedWorkspaceKey]: nextLayout,
+              },
+            };
+          });
         },
         closeTab: (workspaceKey, tabId) => {
           const normalizedWorkspaceKey = trimNonEmpty(workspaceKey);
@@ -897,8 +944,22 @@ export function createWorkspaceLayoutStore(
       }),
       {
         name: "workspace-layout-state",
-        version: 1,
+        version: 2,
         storage: createJSONStorage(() => AsyncStorage),
+        migrate: (persistedState) => {
+          // v1 → v2: collapse any legacy multi-split layout into the canonical
+          // single-conversation + right-tool-panel shape, once, on load.
+          const prior = (persistedState ?? {}) as {
+            layoutByWorkspace?: Record<string, unknown>;
+            splitSizesByWorkspace?: Record<string, Record<string, number[]>>;
+          };
+          const priorLayouts = prior.layoutByWorkspace ?? {};
+          const layoutByWorkspace: Record<string, WorkspaceLayout> = {};
+          for (const key in priorLayouts) {
+            layoutByWorkspace[key] = coerceToCanonicalLayout(priorLayouts[key]);
+          }
+          return { ...prior, layoutByWorkspace };
+        },
         partialize: (state) => {
           const layoutByWorkspace: Record<string, WorkspaceLayout> = {};
           for (const key in state.layoutByWorkspace) {

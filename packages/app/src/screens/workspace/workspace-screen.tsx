@@ -24,9 +24,13 @@ import {
   Copy,
   Ellipsis,
   EllipsisVertical,
+  FileCode,
+  GitCompare,
   Globe,
   Import as ImportIcon,
+  MessageSquarePlus,
   PanelRight,
+  PanelRightOpen,
   Pencil,
   RotateCw,
   Settings,
@@ -80,13 +84,17 @@ import {
   buildWorkspaceTabPersistenceKey,
   collectAllTabs,
   getFocusedBrowserId,
+  isRightToolPanelOpen,
   type WorkspaceLayout,
   useWorkspaceLayoutStore,
   useWorkspaceLayoutStoreHydrated,
 } from "@/stores/workspace-layout-store";
 import type { WorkspaceTab, WorkspaceTabTarget } from "@/stores/workspace-tabs-store";
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
-import type { KeyboardActionDefinition } from "@/keyboard/keyboard-action-dispatcher";
+import type {
+  KeyboardActionDefinition,
+  KeyboardActionId,
+} from "@/keyboard/keyboard-action-dispatcher";
 import { useCreateFlowStore } from "@/stores/create-flow-store";
 import {
   buildDeterministicWorkspaceTabId,
@@ -127,7 +135,9 @@ import {
 } from "@/screens/workspace/use-workspace-tab-rename";
 import {
   WorkspaceDesktopTabsRow,
+  WorkspaceToolsAddMenuItems,
   type WorkspaceDesktopTabRowItem,
+  type WorkspaceToolsAddHandlers,
 } from "@/screens/workspace/workspace-desktop-tabs-row";
 import {
   buildWorkspaceTabMenuEntries,
@@ -150,10 +160,7 @@ import {
   deriveWorkspaceAgentVisibility,
   workspaceAgentVisibilityEqual,
 } from "@/workspace-tabs/agent-visibility";
-import {
-  deriveWorkspacePaneState,
-  resolveSideFileOpenPlacement,
-} from "@/screens/workspace/workspace-pane-state";
+import { deriveWorkspacePaneState } from "@/screens/workspace/workspace-pane-state";
 import {
   buildWorkspacePaneContentModel,
   WorkspacePaneContent,
@@ -250,9 +257,13 @@ const ThemedX = withUnistyles(X);
 const ThemedSquarePen = withUnistyles(SquarePen);
 const ThemedSquareTerminal = withUnistyles(SquareTerminal);
 const ThemedGlobe = withUnistyles(Globe);
+const ThemedGitCompare = withUnistyles(GitCompare);
+const ThemedFileCode = withUnistyles(FileCode);
+const ThemedMessageSquarePlus = withUnistyles(MessageSquarePlus);
 const ThemedImport = withUnistyles(ImportIcon);
 const ThemedSettings = withUnistyles(Settings);
 const ThemedPanelRight = withUnistyles(PanelRight);
+const ThemedPanelRightOpen = withUnistyles(PanelRightOpen);
 const ThemedSourceControlPanelIcon = withUnistyles(SourceControlPanelIcon);
 
 interface DynamicProviderIconProps {
@@ -276,10 +287,15 @@ const sourceControlPanelStrokeWidth15 = { strokeWidth: 1.5 };
 const MENU_NEW_AGENT_ICON = <ThemedSquarePen size={16} uniProps={mutedColorMapping} />;
 const MENU_NEW_TERMINAL_ICON = <ThemedSquareTerminal size={16} uniProps={mutedColorMapping} />;
 const MENU_NEW_BROWSER_ICON = <ThemedGlobe size={16} uniProps={mutedColorMapping} />;
+const MENU_REVIEW_ICON = <ThemedGitCompare size={16} uniProps={mutedColorMapping} />;
+const MENU_FILE_ICON = <ThemedFileCode size={16} uniProps={mutedColorMapping} />;
+const MENU_SIDE_CHAT_ICON = <ThemedMessageSquarePlus size={16} uniProps={mutedColorMapping} />;
 const MENU_IMPORT_ICON = <ThemedImport size={16} uniProps={mutedColorMapping} />;
 const MENU_COPY_ICON = <ThemedCopy size={16} uniProps={mutedColorMapping} />;
 const MENU_SETTINGS_ICON = <ThemedSettings size={16} uniProps={mutedColorMapping} />;
 const GATED_WORKSPACE_HEADER_LEFT = <SidebarMenuToggle />;
+const TOOL_PANEL_TOGGLE_OPEN_STATE = { expanded: true } as const;
+const TOOL_PANEL_TOGGLE_CLOSED_STATE = { expanded: false } as const;
 
 interface WorkspaceScreenProps {
   serverId: string;
@@ -968,6 +984,7 @@ interface WorkspaceHeaderMenuProps {
   currentBranchName: string | null;
   showWorkspaceSetup: boolean;
   showCreateBrowserTab: boolean;
+  showReviewAction: boolean;
   isMobile: boolean;
   createTerminalDisabled: boolean;
   importAgentDisabled: boolean;
@@ -975,6 +992,9 @@ interface WorkspaceHeaderMenuProps {
   menuNewAgentIcon: ReactElement;
   menuNewTerminalIcon: ReactElement;
   menuNewBrowserIcon: ReactElement;
+  menuReviewIcon: ReactElement;
+  menuFileIcon: ReactElement;
+  menuSideChatIcon: ReactElement;
   menuImportIcon: ReactElement;
   menuCopyIcon: ReactElement;
   menuSettingsIcon: ReactElement;
@@ -982,6 +1002,9 @@ interface WorkspaceHeaderMenuProps {
   onCreateTerminal: () => void;
   onCreateTerminalWithProfile: (profile: TerminalProfileInput) => void;
   onCreateBrowser: () => void;
+  onOpenReview: () => void;
+  onOpenFile: () => void;
+  onCreateSideChat: () => void;
   onOpenImportSheet: () => void;
   onCopyWorkspacePath: () => void;
   onCopyBranchName: () => void;
@@ -1049,6 +1072,7 @@ function WorkspaceHeaderMenu({
   currentBranchName,
   showWorkspaceSetup,
   showCreateBrowserTab,
+  showReviewAction,
   isMobile,
   createTerminalDisabled,
   importAgentDisabled,
@@ -1056,6 +1080,9 @@ function WorkspaceHeaderMenu({
   menuNewAgentIcon,
   menuNewTerminalIcon,
   menuNewBrowserIcon,
+  menuReviewIcon,
+  menuFileIcon,
+  menuSideChatIcon,
   menuImportIcon,
   menuCopyIcon,
   menuSettingsIcon,
@@ -1063,6 +1090,9 @@ function WorkspaceHeaderMenu({
   onCreateTerminal,
   onCreateTerminalWithProfile,
   onCreateBrowser,
+  onOpenReview,
+  onOpenFile,
+  onCreateSideChat,
   onOpenImportSheet,
   onCopyWorkspacePath,
   onCopyBranchName,
@@ -1114,6 +1144,29 @@ function WorkspaceHeaderMenu({
             {t("workspace.header.actions.newBrowser")}
           </DropdownMenuItem>
         ) : null}
+        <DropdownMenuItem
+          testID="workspace-header-new-side-chat"
+          leading={menuSideChatIcon}
+          onSelect={onCreateSideChat}
+        >
+          {t("workspace.header.actions.newSideChat")}
+        </DropdownMenuItem>
+        {showReviewAction ? (
+          <DropdownMenuItem
+            testID="workspace-header-review"
+            leading={menuReviewIcon}
+            onSelect={onOpenReview}
+          >
+            {t("workspace.header.actions.review")}
+          </DropdownMenuItem>
+        ) : null}
+        <DropdownMenuItem
+          testID="workspace-header-open-file"
+          leading={menuFileIcon}
+          onSelect={onOpenFile}
+        >
+          {t("workspace.header.actions.newFile")}
+        </DropdownMenuItem>
         <DropdownMenuItem
           testID="workspace-header-import-agent"
           leading={menuImportIcon}
@@ -1193,6 +1246,7 @@ interface WorkspaceHeaderTitleBarProps {
   liveTerminalIds: string[];
   showWorkspaceSetup: boolean;
   showCreateBrowserTab: boolean;
+  showReviewAction: boolean;
   isMobile: boolean;
   createTerminalDisabled: boolean;
   importAgentDisabled: boolean;
@@ -1200,6 +1254,9 @@ interface WorkspaceHeaderTitleBarProps {
   menuNewAgentIcon: ReactElement;
   menuNewTerminalIcon: ReactElement;
   menuNewBrowserIcon: ReactElement;
+  menuReviewIcon: ReactElement;
+  menuFileIcon: ReactElement;
+  menuSideChatIcon: ReactElement;
   menuImportIcon: ReactElement;
   menuCopyIcon: ReactElement;
   menuSettingsIcon: ReactElement;
@@ -1207,6 +1264,9 @@ interface WorkspaceHeaderTitleBarProps {
   onCreateTerminal: () => void;
   onCreateTerminalWithProfile: (profile: TerminalProfileInput) => void;
   onCreateBrowser: () => void;
+  onOpenReview: () => void;
+  onOpenFile: () => void;
+  onCreateSideChat: () => void;
   onOpenImportSheet: () => void;
   onCopyWorkspacePath: () => void;
   onCopyBranchName: () => void;
@@ -1228,6 +1288,7 @@ function WorkspaceHeaderTitleBar({
   liveTerminalIds,
   showWorkspaceSetup,
   showCreateBrowserTab,
+  showReviewAction,
   isMobile,
   createTerminalDisabled,
   importAgentDisabled,
@@ -1235,6 +1296,9 @@ function WorkspaceHeaderTitleBar({
   menuNewAgentIcon,
   menuNewTerminalIcon,
   menuNewBrowserIcon,
+  menuReviewIcon,
+  menuFileIcon,
+  menuSideChatIcon,
   menuImportIcon,
   menuCopyIcon,
   menuSettingsIcon,
@@ -1242,6 +1306,9 @@ function WorkspaceHeaderTitleBar({
   onCreateTerminal,
   onCreateTerminalWithProfile,
   onCreateBrowser,
+  onOpenReview,
+  onOpenFile,
+  onCreateSideChat,
   onOpenImportSheet,
   onCopyWorkspacePath,
   onCopyBranchName,
@@ -1276,6 +1343,7 @@ function WorkspaceHeaderTitleBar({
           currentBranchName={currentBranchName}
           showWorkspaceSetup={showWorkspaceSetup}
           showCreateBrowserTab={showCreateBrowserTab}
+          showReviewAction={showReviewAction}
           isMobile={isMobile}
           createTerminalDisabled={createTerminalDisabled}
           importAgentDisabled={importAgentDisabled}
@@ -1283,6 +1351,9 @@ function WorkspaceHeaderTitleBar({
           menuNewAgentIcon={menuNewAgentIcon}
           menuNewTerminalIcon={menuNewTerminalIcon}
           menuNewBrowserIcon={menuNewBrowserIcon}
+          menuReviewIcon={menuReviewIcon}
+          menuFileIcon={menuFileIcon}
+          menuSideChatIcon={menuSideChatIcon}
           menuImportIcon={menuImportIcon}
           menuCopyIcon={menuCopyIcon}
           menuSettingsIcon={menuSettingsIcon}
@@ -1290,6 +1361,9 @@ function WorkspaceHeaderTitleBar({
           onCreateTerminal={onCreateTerminal}
           onCreateTerminalWithProfile={onCreateTerminalWithProfile}
           onCreateBrowser={onCreateBrowser}
+          onOpenReview={onOpenReview}
+          onOpenFile={onOpenFile}
+          onCreateSideChat={onCreateSideChat}
           onOpenImportSheet={onOpenImportSheet}
           onCopyWorkspacePath={onCopyWorkspacePath}
           onCopyBranchName={onCopyBranchName}
@@ -1311,6 +1385,101 @@ function WorkspaceHeaderTitleBar({
       </View>
     </View>
   );
+}
+
+function toolPanelToggleButtonStyle({
+  hovered,
+  pressed,
+}: {
+  hovered?: boolean;
+  pressed?: boolean;
+}) {
+  return [
+    styles.compactHeaderActionButton,
+    (Boolean(hovered) || Boolean(pressed)) && styles.toolPanelToggleHovered,
+  ];
+}
+
+function WorkspaceToolPanelToggle({
+  isOpen,
+  onClose,
+  toolsAddHandlers,
+  showCreateBrowserTab,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  toolsAddHandlers: WorkspaceToolsAddHandlers;
+  showCreateBrowserTab: boolean;
+}) {
+  const { t } = useTranslation();
+  const label = isOpen ? t("workspace.tabs.toolPanel.close") : t("workspace.tabs.toolPanel.open");
+  const colorMappingFor = (active: boolean) =>
+    active || isOpen ? foregroundColorMapping : mutedColorMapping;
+
+  if (isOpen) {
+    return (
+      <HeaderToggleButton
+        testID="workspace-tool-panel-toggle"
+        onPress={onClose}
+        tooltipLabel={label}
+        tooltipKeys={TOOL_PANEL_TOGGLE_KEYS}
+        tooltipSide="left"
+        style={styles.compactHeaderActionButton}
+        accessible
+        accessibilityRole="button"
+        accessibilityLabel={label}
+        accessibilityState={TOOL_PANEL_TOGGLE_OPEN_STATE}
+      >
+        {({ hovered }) => <ThemedPanelRightOpen size={16} uniProps={colorMappingFor(hovered)} />}
+      </HeaderToggleButton>
+    );
+  }
+
+  return (
+    <DropdownMenu>
+      <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile={false}>
+        <TooltipTrigger asChild triggerRefProp="triggerRef">
+          <DropdownMenuTrigger
+            testID="workspace-tool-panel-toggle"
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            accessibilityState={TOOL_PANEL_TOGGLE_CLOSED_STATE}
+            style={toolPanelToggleButtonStyle}
+          >
+            {({ hovered, pressed }) => (
+              <ThemedPanelRightOpen size={16} uniProps={colorMappingFor(hovered || pressed)} />
+            )}
+          </DropdownMenuTrigger>
+        </TooltipTrigger>
+        <TooltipContent side="left" align="center" offset={8}>
+          <View style={styles.explorerTooltipRow}>
+            <Text style={styles.explorerTooltipText}>{label}</Text>
+            <Shortcut keys={TOOL_PANEL_TOGGLE_KEYS} style={styles.explorerTooltipShortcut} />
+          </View>
+        </TooltipContent>
+      </Tooltip>
+      <DropdownMenuContent side="bottom" align="end" offset={4} minWidth={200}>
+        <WorkspaceToolsAddMenuItems
+          handlers={toolsAddHandlers}
+          showCreateBrowserTab={showCreateBrowserTab}
+        />
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
+function resolveRelativeTabId(
+  tabs: WorkspaceTabDescriptor[],
+  activeTabId: string | null,
+  delta: number,
+): string | null {
+  if (tabs.length === 0) {
+    return null;
+  }
+  const currentIndex = tabs.findIndex((tab) => tab.tabId === activeTabId);
+  const fromIndex = currentIndex >= 0 ? currentIndex : 0;
+  const nextIndex = (fromIndex + delta + tabs.length) % tabs.length;
+  return tabs[nextIndex]?.tabId ?? null;
 }
 
 type PaneDirection = "left" | "right" | "up" | "down";
@@ -1894,6 +2063,7 @@ function WorkspaceScreenContent({
   const toggleFileExplorerForCheckout = usePanelStore(
     (state) => state.toggleFileExplorerForCheckout,
   );
+  const setExplorerTabForCheckout = usePanelStore((state) => state.setExplorerTabForCheckout);
   const showMobileAgent = usePanelStore((state) => state.showMobileAgent);
 
   const activeExplorerCheckout = useMemo<ExplorerCheckoutContext | null>(() => {
@@ -1986,6 +2156,9 @@ function WorkspaceScreenContent({
   const paneFocusSuppressedRef = useRef(false);
   const resizeWorkspaceSplit = useWorkspaceLayoutStore((state) => state.resizeSplit);
   const reorderWorkspaceTabsInPane = useWorkspaceLayoutStore((state) => state.reorderTabsInPane);
+  const closeRightToolPanel = useWorkspaceLayoutStore((state) => state.closeRightToolPanel);
+  const isRightToolPanelOpenForWorkspace = isRightToolPanelOpen(workspaceLayout);
+  const showCreateBrowserTab = getIsElectron();
   const _pinnedAgentIds = useWorkspaceLayoutStore((state) =>
     persistenceKey
       ? (state.pinnedAgentIdsByWorkspace[persistenceKey] ?? EMPTY_PINNED_AGENT_IDS)
@@ -2341,50 +2514,11 @@ function WorkspaceScreenContent({
       sourcePaneId?: string;
       parentTabId?: string | null;
     }) => {
-      const location = normalizeWorkspaceFileLocation(input.location);
-      if (!location) {
-        return;
-      }
-      if (!persistenceKey || isMobile || !input.sourcePaneId) {
-        handleOpenFileFromChat(location, { parentTabId: input.parentTabId });
-        return;
-      }
-
-      const target: WorkspaceTabTarget = createWorkspaceFileTabTarget(location);
-      const placement = resolveSideFileOpenPlacement({
-        layout: workspaceLayout,
-        sourcePaneId: input.sourcePaneId,
-        tabs: uiTabs,
-        target,
-      });
-      if (placement.kind === "focus-side-pane") {
-        focusWorkspacePane(persistenceKey, placement.paneId);
-      } else if (placement.kind === "split-side-pane") {
-        splitWorkspacePaneEmpty(persistenceKey, {
-          targetPaneId: placement.paneId,
-          position: "right",
-        });
-      }
-
-      const tabId = input.parentTabId
-        ? openWorkspaceChildTabFocused(persistenceKey, target, input.parentTabId)
-        : openWorkspaceTabFocused(persistenceKey, target);
-      if (tabId) {
-        navigateToTabId(tabId);
-      }
+      // Files route to the right tool panel by surface, so opening "in a side
+      // pane" is just a normal file open — the tool panel is the side surface.
+      handleOpenFileFromChat(input.location, { parentTabId: input.parentTabId });
     },
-    [
-      handleOpenFileFromChat,
-      isMobile,
-      focusWorkspacePane,
-      navigateToTabId,
-      openWorkspaceChildTabFocused,
-      openWorkspaceTabFocused,
-      persistenceKey,
-      splitWorkspacePaneEmpty,
-      uiTabs,
-      workspaceLayout,
-    ],
+    [handleOpenFileFromChat],
   );
 
   const handleOpenWorkspaceFileFromPane = useStableEvent(function handleOpenWorkspaceFileFromPane({
@@ -2527,6 +2661,81 @@ function WorkspaceScreenContent({
       openWorkspaceTabFocused(persistenceKey, { kind: "browser", browserId });
     },
     [focusWorkspacePane, openWorkspaceTabFocused, persistenceKey],
+  );
+
+  const handleOpenSideChatTab = useCallback(
+    function handleOpenSideChatTab() {
+      if (!persistenceKey) {
+        return;
+      }
+      const target = normalizeWorkspaceTabTarget({ kind: "draft", draftId: generateDraftId() });
+      invariant(target?.kind === "draft", "Side chat draft target must be valid");
+      const tabId = openWorkspaceTabFocused(persistenceKey, target, "right");
+      if (tabId) {
+        navigateToTabId(tabId);
+      }
+    },
+    [navigateToTabId, openWorkspaceTabFocused, persistenceKey],
+  );
+
+  const handleOpenReviewTool = useCallback(
+    function handleOpenReviewTool() {
+      if (!activeExplorerCheckout) {
+        return;
+      }
+      setExplorerTabForCheckout({ ...activeExplorerCheckout, tab: "changes" });
+      openFileExplorerForCheckout({ isCompact: isMobile, checkout: activeExplorerCheckout });
+    },
+    [activeExplorerCheckout, isMobile, openFileExplorerForCheckout, setExplorerTabForCheckout],
+  );
+
+  const handleOpenFileTool = useCallback(
+    function handleOpenFileTool() {
+      if (!activeExplorerCheckout) {
+        return;
+      }
+      setExplorerTabForCheckout({ ...activeExplorerCheckout, tab: "files" });
+      openFileExplorerForCheckout({ isCompact: isMobile, checkout: activeExplorerCheckout });
+    },
+    [activeExplorerCheckout, isMobile, openFileExplorerForCheckout, setExplorerTabForCheckout],
+  );
+
+  const handleCloseRightToolPanel = useCallback(
+    function handleCloseRightToolPanel() {
+      if (!persistenceKey) {
+        return;
+      }
+      closeRightToolPanel(persistenceKey);
+    },
+    [closeRightToolPanel, persistenceKey],
+  );
+
+  const handleToggleRightToolPanel = useCallback(
+    function handleToggleRightToolPanel() {
+      if (isRightToolPanelOpenForWorkspace) {
+        handleCloseRightToolPanel();
+        return;
+      }
+      handleCreateTerminal();
+    },
+    [handleCloseRightToolPanel, handleCreateTerminal, isRightToolPanelOpenForWorkspace],
+  );
+
+  const toolsAddHandlers = useMemo<WorkspaceToolsAddHandlers>(
+    () => ({
+      onCreateReview: handleOpenReviewTool,
+      onCreateTerminal: handleCreateTerminal,
+      onCreateBrowser: handleCreateBrowserTab,
+      onCreateFile: handleOpenFileTool,
+      onCreateSideChat: handleOpenSideChatTab,
+    }),
+    [
+      handleCreateBrowserTab,
+      handleCreateTerminal,
+      handleOpenFileTool,
+      handleOpenReviewTool,
+      handleOpenSideChatTab,
+    ],
   );
 
   const handleOpenUrlInBrowserTab = useCallback(
@@ -2930,51 +3139,55 @@ function WorkspaceScreenContent({
     [handleCloseOtherTabsInPane, tabs],
   );
 
-  const handleWorkspaceTabAction = useCallback(
-    (action: KeyboardActionDefinition): boolean => {
-      switch (action.id) {
-        case "workspace.tab.new":
-          handleCreateDraftTab();
-          return true;
-        case "workspace.terminal.new":
-          handleCreateTerminal();
-          return true;
-        case "workspace.tab.close-current":
-          if (activeTabId) {
-            void handleCloseTabById(activeTabId);
-          }
-          return true;
-        case "workspace.tab.navigate-index": {
-          const next = tabs[action.index - 1] ?? null;
-          if (next?.tabId) {
-            navigateToTabId(next.tabId);
-          }
-          return true;
-        }
-        case "workspace.tab.navigate-relative": {
-          if (tabs.length > 0) {
-            const currentIndex = tabs.findIndex((tab) => tab.tabId === activeTabId);
-            const fromIndex = currentIndex >= 0 ? currentIndex : 0;
-            const nextIndex = (fromIndex + action.delta + tabs.length) % tabs.length;
-            const next = tabs[nextIndex] ?? null;
-            if (next?.tabId) {
-              navigateToTabId(next.tabId);
-            }
-          }
-          return true;
-        }
-        default:
-          return false;
-      }
-    },
+  const simpleWorkspaceTabActions = useMemo<Partial<Record<KeyboardActionId, () => void>>>(
+    () => ({
+      "workspace.tab.new": handleCreateDraftTab,
+      "workspace.terminal.new": handleCreateTerminal,
+      "workspace.review.open": handleOpenReviewTool,
+      "workspace.file.open": handleOpenFileTool,
+      "workspace.side-chat.open": handleOpenSideChatTab,
+      "workspace.tool-panel.toggle": handleToggleRightToolPanel,
+    }),
     [
-      activeTabId,
-      handleCloseTabById,
       handleCreateDraftTab,
       handleCreateTerminal,
-      navigateToTabId,
-      tabs,
+      handleOpenFileTool,
+      handleOpenReviewTool,
+      handleOpenSideChatTab,
+      handleToggleRightToolPanel,
     ],
+  );
+
+  const handleWorkspaceTabAction = useCallback(
+    (action: KeyboardActionDefinition): boolean => {
+      const simpleHandler = simpleWorkspaceTabActions[action.id];
+      if (simpleHandler) {
+        simpleHandler();
+        return true;
+      }
+      if (action.id === "workspace.tab.close-current") {
+        if (activeTabId) {
+          void handleCloseTabById(activeTabId);
+        }
+        return true;
+      }
+      if (action.id === "workspace.tab.navigate-index") {
+        const nextTabId = tabs[action.index - 1]?.tabId;
+        if (nextTabId) {
+          navigateToTabId(nextTabId);
+        }
+        return true;
+      }
+      if (action.id === "workspace.tab.navigate-relative") {
+        const nextTabId = resolveRelativeTabId(tabs, activeTabId, action.delta);
+        if (nextTabId) {
+          navigateToTabId(nextTabId);
+        }
+        return true;
+      }
+      return false;
+    },
+    [activeTabId, handleCloseTabById, navigateToTabId, simpleWorkspaceTabActions, tabs],
   );
 
   const handleWorkspaceSidebarAction = useCallback(
@@ -3075,6 +3288,10 @@ function WorkspaceScreenContent({
       "workspace.tab.navigate-index",
       "workspace.tab.navigate-relative",
       "workspace.terminal.new",
+      "workspace.review.open",
+      "workspace.file.open",
+      "workspace.side-chat.open",
+      "workspace.tool-panel.toggle",
     ] as const,
     enabled: Boolean(isRouteFocused && normalizedServerId && normalizedWorkspaceId),
     priority: 100,
@@ -3441,6 +3658,14 @@ function WorkspaceScreenContent({
             }}
           </HeaderToggleButton>
         ) : null}
+        {!isMobile && supportsDesktopPaneSplits() ? (
+          <WorkspaceToolPanelToggle
+            isOpen={isRightToolPanelOpenForWorkspace}
+            onClose={handleCloseRightToolPanel}
+            toolsAddHandlers={toolsAddHandlers}
+            showCreateBrowserTab={showCreateBrowserTab}
+          />
+        ) : null}
         {isMobile ? (
           <HeaderToggleButton
             testID="workspace-explorer-toggle"
@@ -3489,6 +3714,10 @@ function WorkspaceScreenContent({
       explorerToggleLabel,
       explorerToggleAccessibilityState,
       explorerToggleStyle,
+      isRightToolPanelOpenForWorkspace,
+      handleCloseRightToolPanel,
+      toolsAddHandlers,
+      showCreateBrowserTab,
       t,
     ],
   );
@@ -3505,7 +3734,6 @@ function WorkspaceScreenContent({
     () => createTerminalMutation.isPending || pendingTerminalCreateInput !== null,
     [createTerminalMutation.isPending, pendingTerminalCreateInput],
   );
-  const showCreateBrowserTab = getIsElectron();
   const focusedPaneIdOrUndefined = useMemo(() => focusedPaneId ?? undefined, [focusedPaneId]);
   const desktopFocusModeEnabled = useMemo(
     () => isFocusModeEnabled && !isMobile,
@@ -3545,6 +3773,7 @@ function WorkspaceScreenContent({
         onCreateDraftTab={handleCreateDraftTab}
         onCreateTerminalTab={handleCreateTerminal}
         onCreateBrowserTab={handleCreateBrowserTab}
+        toolsAddHandlers={toolsAddHandlers}
         showCreateBrowserTab={showCreateBrowserTab}
         buildPaneContentModel={buildDesktopPaneContentModel}
         onFocusPane={handleFocusPane}
@@ -3580,6 +3809,7 @@ function WorkspaceScreenContent({
     handleCreateDraftTab,
     handleCreateTerminal,
     handleCreateBrowserTab,
+    toolsAddHandlers,
     showCreateBrowserTab,
     buildDesktopPaneContentModel,
     handleFocusPane,
@@ -3612,6 +3842,7 @@ function WorkspaceScreenContent({
                 liveTerminalIds={liveTerminalIds}
                 showWorkspaceSetup={showWorkspaceSetup}
                 showCreateBrowserTab={showCreateBrowserTab}
+                showReviewAction={isGitCheckout}
                 isMobile={isMobile}
                 createTerminalDisabled={createTerminalDisabled}
                 importAgentDisabled={!canOpenImportSheet}
@@ -3619,6 +3850,9 @@ function WorkspaceScreenContent({
                 menuNewAgentIcon={menuNewAgentIcon}
                 menuNewTerminalIcon={menuNewTerminalIcon}
                 menuNewBrowserIcon={MENU_NEW_BROWSER_ICON}
+                menuReviewIcon={MENU_REVIEW_ICON}
+                menuFileIcon={MENU_FILE_ICON}
+                menuSideChatIcon={MENU_SIDE_CHAT_ICON}
                 menuImportIcon={MENU_IMPORT_ICON}
                 menuCopyIcon={menuCopyIcon}
                 menuSettingsIcon={menuSettingsIcon}
@@ -3626,6 +3860,9 @@ function WorkspaceScreenContent({
                 onCreateTerminal={handleCreateTerminal}
                 onCreateTerminalWithProfile={handleCreateTerminalWithProfile}
                 onCreateBrowser={handleCreateBrowserTab}
+                onOpenReview={handleOpenReviewTool}
+                onOpenFile={handleOpenFileTool}
+                onCreateSideChat={handleOpenSideChatTab}
                 onOpenImportSheet={openImportSheet}
                 onCopyWorkspacePath={handleCopyWorkspacePath}
                 onCopyBranchName={handleCopyBranchName}
@@ -3881,6 +4118,9 @@ const styles = StyleSheet.create((theme) => ({
   sourceControlButtonHovered: {
     backgroundColor: theme.colors.surface2,
   },
+  toolPanelToggleHovered: {
+    backgroundColor: theme.colors.surface2,
+  },
   newTabActions: {
     flexDirection: "row",
     alignItems: "center",
@@ -4090,3 +4330,4 @@ const containerWithWorkspaceBackgroundStyle = [
 ];
 
 const EXPLORER_TOGGLE_KEYS: ShortcutKey[] = ["mod", "E"];
+const TOOL_PANEL_TOGGLE_KEYS: ShortcutKey[] = ["mod", "alt", "B"];

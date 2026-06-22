@@ -14,6 +14,15 @@ For testing rules, see [testing.md](testing.md).
 - **`interface`** over `type` when both work.
 - **No `index.ts` barrel files** that only re-export — they create indirection and circular-dep risk. Import from the source.
 
+## UI and model separation
+
+New code separates UI from model. Legacy code may stay as-is until it's touched.
+
+- The model owns state, derivation, routing, and every transition — Zustand stores, pure helper modules, selectors. The UI is a pure function of the model.
+- Components render model-derived state and dispatch model actions. No business logic, no transition computation, no branching policy inside a component.
+- Never hold a UI-only copy of something the model already knows — derive it with a selector. Two sources of truth is a bug waiting for the next render.
+- A new behavior lands as a store action (or a pure function the store calls); the component calls that. If you can't test the behavior without rendering, it's in the wrong layer.
+
 ## Comments and noise
 
 - Delete any comment where removing it loses zero information. Comments explain _why_, not _what_.

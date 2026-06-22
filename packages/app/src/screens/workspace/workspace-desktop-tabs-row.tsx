@@ -26,7 +26,10 @@ import {
   Pencil,
   RotateCw,
   Rows2,
+  FileCode,
+  GitCompare,
   Globe,
+  MessageSquarePlus,
   Plus,
   SquarePen,
   SquareTerminal,
@@ -109,12 +112,18 @@ const ThemedGlobe = withUnistyles(Globe);
 const ThemedColumns2 = withUnistyles(Columns2);
 const ThemedRows2 = withUnistyles(Rows2);
 const ThemedPlus = withUnistyles(Plus);
+const ThemedGitCompare = withUnistyles(GitCompare);
+const ThemedFileCode = withUnistyles(FileCode);
+const ThemedMessageSquarePlus = withUnistyles(MessageSquarePlus);
 const foregroundColorMapping = (theme: Theme) => ({ color: theme.colors.foreground });
 const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
 const AGENT_ICON = <ThemedSquarePen size={14} uniProps={mutedColorMapping} />;
 const TERMINAL_ICON = <ThemedSquareTerminal size={14} uniProps={mutedColorMapping} />;
 const BROWSER_ICON = <ThemedGlobe size={14} uniProps={mutedColorMapping} />;
+const REVIEW_ICON = <ThemedGitCompare size={14} uniProps={mutedColorMapping} />;
+const FILE_ICON = <ThemedFileCode size={14} uniProps={mutedColorMapping} />;
+const SIDE_CHAT_ICON = <ThemedMessageSquarePlus size={14} uniProps={mutedColorMapping} />;
 
 const DRAFT_TARGET: PinnedTabTarget = { kind: "draft" };
 const TERMINAL_TARGET: PinnedTabTarget = { kind: "terminal" };
@@ -204,6 +213,156 @@ function WorkspaceInlineAddTabButton({
           </View>
         </TooltipContent>
       </Tooltip>
+    </View>
+  );
+}
+
+export interface WorkspaceToolsAddHandlers {
+  onCreateReview: () => void;
+  onCreateTerminal: () => void;
+  onCreateBrowser: () => void;
+  onCreateFile: () => void;
+  onCreateSideChat: () => void;
+}
+
+interface ToolMenuItemModel {
+  key: string;
+  testID: string;
+  label: string;
+  leading: React.ReactElement;
+  shortcutKeys: ShortcutKey[][] | null;
+  onSelect: () => void;
+}
+
+function ToolMenuItem({ item }: { item: ToolMenuItemModel }) {
+  const trailing = useMemo(
+    () =>
+      item.shortcutKeys ? (
+        <Shortcut chord={item.shortcutKeys} style={styles.menuItemShortcut} />
+      ) : undefined,
+    [item.shortcutKeys],
+  );
+  return (
+    <DropdownMenuItem
+      testID={item.testID}
+      leading={item.leading}
+      trailing={trailing}
+      onSelect={item.onSelect}
+    >
+      {item.label}
+    </DropdownMenuItem>
+  );
+}
+
+export function WorkspaceToolsAddMenuItems({
+  handlers,
+  showCreateBrowserTab,
+}: {
+  handlers: WorkspaceToolsAddHandlers;
+  showCreateBrowserTab: boolean;
+}) {
+  const { t } = useTranslation();
+  const reviewKeys = useShortcutKeys("workspace-review-open");
+  const browserKeys = useShortcutKeys("workspace-tab-new");
+  const fileKeys = useShortcutKeys("workspace-file-open");
+  const sideChatKeys = useShortcutKeys("workspace-side-chat-open");
+
+  const items = useMemo<ToolMenuItemModel[]>(() => {
+    const next: ToolMenuItemModel[] = [
+      {
+        key: "review",
+        testID: "workspace-tools-add-review",
+        label: t("workspace.tabs.toolsMenu.review"),
+        leading: REVIEW_ICON,
+        shortcutKeys: reviewKeys,
+        onSelect: handlers.onCreateReview,
+      },
+      {
+        key: "terminal",
+        testID: "workspace-tools-add-terminal",
+        label: t("workspace.tabs.toolsMenu.terminal"),
+        leading: TERMINAL_ICON,
+        shortcutKeys: null,
+        onSelect: handlers.onCreateTerminal,
+      },
+    ];
+    if (showCreateBrowserTab) {
+      next.push({
+        key: "browser",
+        testID: "workspace-tools-add-browser",
+        label: t("workspace.tabs.toolsMenu.browser"),
+        leading: BROWSER_ICON,
+        shortcutKeys: browserKeys,
+        onSelect: handlers.onCreateBrowser,
+      });
+    }
+    next.push(
+      {
+        key: "file",
+        testID: "workspace-tools-add-file",
+        label: t("workspace.tabs.toolsMenu.file"),
+        leading: FILE_ICON,
+        shortcutKeys: fileKeys,
+        onSelect: handlers.onCreateFile,
+      },
+      {
+        key: "side-chat",
+        testID: "workspace-tools-add-side-chat",
+        label: t("workspace.tabs.toolsMenu.sideChat"),
+        leading: SIDE_CHAT_ICON,
+        shortcutKeys: sideChatKeys,
+        onSelect: handlers.onCreateSideChat,
+      },
+    );
+    return next;
+  }, [browserKeys, fileKeys, handlers, reviewKeys, showCreateBrowserTab, sideChatKeys, t]);
+
+  return (
+    <>
+      {items.map((item) => (
+        <ToolMenuItem key={item.key} item={item} />
+      ))}
+    </>
+  );
+}
+
+function WorkspaceToolsAddMenu({
+  handlers,
+  showCreateBrowserTab,
+  onLayout,
+}: {
+  handlers: WorkspaceToolsAddHandlers;
+  showCreateBrowserTab: boolean;
+  onLayout: (event: LayoutChangeEvent) => void;
+}) {
+  const { t } = useTranslation();
+  const addToolLabel = t("workspace.tabs.toolsMenu.addTool");
+
+  return (
+    <View style={styles.inlineAddButton} onLayout={onLayout}>
+      <DropdownMenu>
+        <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile={false}>
+          <TooltipTrigger asChild triggerRefProp="triggerRef">
+            <DropdownMenuTrigger
+              testID="workspace-tools-add-menu-trigger"
+              accessibilityRole="button"
+              accessibilityLabel={addToolLabel}
+              style={inlineAddActionButtonStyle}
+            >
+              <ThemedPlus size={14} uniProps={mutedColorMapping} />
+            </DropdownMenuTrigger>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center" offset={8}>
+            <Text style={styles.newTabTooltipText}>{addToolLabel}</Text>
+          </TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent side="bottom" align="end" offset={4} minWidth={200}>
+          <WorkspaceToolsAddMenuItems
+            handlers={handlers}
+            showCreateBrowserTab={showCreateBrowserTab}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>
     </View>
   );
 }
@@ -428,6 +587,13 @@ interface WorkspaceDesktopTabsRowProps {
   onCreateDraftTab: (input: { paneId?: string }) => void;
   onCreateTerminalTab: (input: { paneId?: string; profile?: TerminalProfileInput }) => void;
   onCreateBrowserTab: (input: { paneId?: string }) => void;
+  /**
+   * `"main"` (default) shows the new-agent "+" with split actions. `"tools"`
+   * turns the inline "+" into the tool-panel add menu (review/terminal/browser/
+   * file/side-chat). The tools variant requires `toolsAddHandlers`.
+   */
+  addMenuVariant?: "main" | "tools";
+  toolsAddHandlers?: WorkspaceToolsAddHandlers;
   showCreateBrowserTab?: boolean;
   disableCreateTerminal?: boolean;
   isWaitingOnTerminalReadiness?: boolean;
@@ -748,6 +914,8 @@ export function WorkspaceDesktopTabsRow({
   onCreateDraftTab,
   onCreateTerminalTab,
   onCreateBrowserTab,
+  addMenuVariant = "main",
+  toolsAddHandlers,
   showCreateBrowserTab = false,
   disableCreateTerminal = false,
   isWaitingOnTerminalReadiness = false,
@@ -962,6 +1130,8 @@ export function WorkspaceDesktopTabsRow({
     [layout.requiresHorizontalScrollFallback],
   );
 
+  const isToolsVariant = addMenuVariant === "tools" && toolsAddHandlers !== undefined;
+
   const row = (
     <View
       style={styles.tabsContainer}
@@ -987,24 +1157,34 @@ export function WorkspaceDesktopTabsRow({
           getItemData={getTabDragData}
           renderItem={renderTab}
         />
-        <WorkspaceInlineAddTabButton
-          shortcutKeys={newTabKeys}
-          onCreateAgentTab={handleCreateAgentTab}
-          onLayout={handleInlineAddButtonLayout}
-        />
+        {isToolsVariant && toolsAddHandlers ? (
+          <WorkspaceToolsAddMenu
+            handlers={toolsAddHandlers}
+            showCreateBrowserTab={showCreateBrowserTab}
+            onLayout={handleInlineAddButtonLayout}
+          />
+        ) : (
+          <WorkspaceInlineAddTabButton
+            shortcutKeys={newTabKeys}
+            onCreateAgentTab={handleCreateAgentTab}
+            onLayout={handleInlineAddButtonLayout}
+          />
+        )}
       </ScrollView>
       <View style={styles.tabsActions} onLayout={handleTabsActionsLayout}>
-        <WorkspaceTabRowExtras
-          onCreateAgentTab={handleCreateAgentTab}
-          onCreateTerminal={handleCreateTerminal}
-          onCreateBrowser={handleCreateBrowser}
-          onCreateTerminalWithProfile={handleCreateTerminalWithProfile}
-          onEditProfiles={handleEditProfiles}
-          normalizedServerId={normalizedServerId}
-          showCreateBrowserTab={showCreateBrowserTab}
-          terminalDisabled={terminalDisabled}
-        />
-        {showPaneSplitActions ? (
+        {isToolsVariant ? null : (
+          <WorkspaceTabRowExtras
+            onCreateAgentTab={handleCreateAgentTab}
+            onCreateTerminal={handleCreateTerminal}
+            onCreateBrowser={handleCreateBrowser}
+            onCreateTerminalWithProfile={handleCreateTerminalWithProfile}
+            onEditProfiles={handleEditProfiles}
+            normalizedServerId={normalizedServerId}
+            showCreateBrowserTab={showCreateBrowserTab}
+            terminalDisabled={terminalDisabled}
+          />
+        )}
+        {!isToolsVariant && showPaneSplitActions ? (
           <>
             <SplitActionButton
               icon="split-right"
@@ -1324,6 +1504,9 @@ const styles = StyleSheet.create((theme) => ({
   menuItemHint: {
     color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.xs,
+  },
+  menuItemShortcut: {
+    backgroundColor: "transparent",
   },
   terminalProfileIconWrapper: {
     width: 14,
