@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
   type Dispatch,
+  type ReactNode,
   type SetStateAction,
 } from "react";
 import {
@@ -254,20 +255,20 @@ function ToolMenuItem({ item }: { item: ToolMenuItemModel }) {
   );
 }
 
-export function WorkspaceToolsAddMenuItems({
+function useWorkspaceToolMenuItems({
   handlers,
   showCreateBrowserTab,
 }: {
   handlers: WorkspaceToolsAddHandlers;
   showCreateBrowserTab: boolean;
-}) {
+}): ToolMenuItemModel[] {
   const { t } = useTranslation();
   const reviewKeys = useShortcutKeys("workspace-review-open");
   const browserKeys = useShortcutKeys("workspace-tab-new");
   const fileKeys = useShortcutKeys("workspace-file-open");
   const sideChatKeys = useShortcutKeys("workspace-side-chat-open");
 
-  const items = useMemo<ToolMenuItemModel[]>(() => {
+  return useMemo<ToolMenuItemModel[]>(() => {
     const next: ToolMenuItemModel[] = [
       {
         key: "review",
@@ -316,13 +317,52 @@ export function WorkspaceToolsAddMenuItems({
     );
     return next;
   }, [browserKeys, fileKeys, handlers, reviewKeys, showCreateBrowserTab, sideChatKeys, t]);
+}
 
+export function WorkspaceToolsAddMenuItems({
+  handlers,
+  showCreateBrowserTab,
+}: {
+  handlers: WorkspaceToolsAddHandlers;
+  showCreateBrowserTab: boolean;
+}) {
+  const items = useWorkspaceToolMenuItems({ handlers, showCreateBrowserTab });
   return (
     <>
       {items.map((item) => (
         <ToolMenuItem key={item.key} item={item} />
       ))}
     </>
+  );
+}
+
+export function WorkspaceToolPicker({
+  handlers,
+  showCreateBrowserTab,
+}: {
+  handlers: WorkspaceToolsAddHandlers;
+  showCreateBrowserTab: boolean;
+}) {
+  const items = useWorkspaceToolMenuItems({ handlers, showCreateBrowserTab });
+  return (
+    <View style={styles.toolPickerContainer}>
+      <View style={styles.toolPickerCard}>
+        {items.map((item) => (
+          <Pressable
+            key={item.key}
+            testID={item.testID}
+            onPress={item.onSelect}
+            style={styles.toolPickerRow}
+          >
+            {item.leading}
+            <Text style={styles.toolPickerLabel}>{item.label}</Text>
+            {item.shortcutKeys ? (
+              <Shortcut chord={item.shortcutKeys} style={styles.menuItemShortcut} />
+            ) : null}
+          </Pressable>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -569,6 +609,8 @@ function SplitActionButton({ onPress, label, shortcutKeys, icon }: SplitActionBu
 
 interface WorkspaceDesktopTabsRowProps {
   paneId?: string;
+  /** Optional element rendered at the leading (left) edge of the tab bar, before the tabs. */
+  leading?: ReactNode;
   isFocused?: boolean;
   tabs: WorkspaceDesktopTabRowItem[];
   normalizedServerId: string;
@@ -896,6 +938,7 @@ function TabChip({
 
 export function WorkspaceDesktopTabsRow({
   paneId,
+  leading,
   isFocused = false,
   tabs,
   normalizedServerId,
@@ -1138,6 +1181,7 @@ export function WorkspaceDesktopTabsRow({
       testID="workspace-tabs-row"
       onLayout={handleTabsContainerLayout}
     >
+      {leading}
       <ScrollView
         horizontal
         scrollEnabled={layout.requiresHorizontalScrollFallback}
@@ -1507,6 +1551,34 @@ const styles = StyleSheet.create((theme) => ({
   },
   menuItemShortcut: {
     backgroundColor: "transparent",
+  },
+  toolPickerContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: theme.spacing[4],
+  },
+  toolPickerCard: {
+    width: 320,
+    maxWidth: "100%",
+    borderWidth: theme.borderWidth[1],
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.xl,
+    backgroundColor: theme.colors.surface0,
+    padding: theme.spacing[1],
+  },
+  toolPickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[3],
+    paddingVertical: theme.spacing[2],
+    paddingHorizontal: theme.spacing[3],
+    borderRadius: theme.borderRadius.lg,
+  },
+  toolPickerLabel: {
+    flex: 1,
+    fontSize: theme.fontSize.base,
+    color: theme.colors.foreground,
   },
   terminalProfileIconWrapper: {
     width: 14,

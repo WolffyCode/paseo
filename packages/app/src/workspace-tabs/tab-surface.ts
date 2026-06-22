@@ -31,6 +31,8 @@ export function tabSurfaceForKind(kind: WorkspaceTabTarget["kind"]): TabSurface 
     case "terminal":
     case "browser":
     case "file":
+    case "review":
+    case "files":
       return "right";
     case "agent":
     case "draft":

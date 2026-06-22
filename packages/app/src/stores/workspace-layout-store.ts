@@ -35,6 +35,7 @@ import {
   paneShowsTabBar,
   reconcileWorkspaceTabs,
   removePaneFromTree,
+  ensureRightToolPaneInLayout,
   removeRightToolPanelFromLayout,
   removeTabFromTree,
   reorderFocusedPaneTabsInLayout,
@@ -49,7 +50,7 @@ import {
   type WorkspaceTabSnapshot,
   type WorkspaceLayout,
 } from "@/stores/workspace-layout-actions";
-import { type TabSurface } from "@/workspace-tabs/tab-surface";
+import { tabSurfaceForKind, type TabSurface } from "@/workspace-tabs/tab-surface";
 import { normalizeWorkspaceTabTarget } from "@/workspace-tabs/identity";
 
 export { buildWorkspaceTabPersistenceKey };
@@ -83,6 +84,12 @@ export type {
 interface WorkspaceLayoutStore {
   layoutByWorkspace: Record<string, WorkspaceLayout>;
   splitSizesByWorkspace: Record<string, Record<string, number[]>>;
+  /**
+   * Collapsed-but-kept state for the right tool panel, per workspace. Collapsing hides the panel
+   * without removing its pane/tabs from the layout, so re-expanding restores the same tabs. Only an
+   * explicit tab close (×) removes a tab. See docs/specs/2026-06-23-unified-topbar-redesign.md.
+   */
+  rightToolPanelCollapsedByWorkspace: Record<string, boolean>;
   pinnedAgentIdsByWorkspace: Record<string, Set<string>>;
   hiddenAgentIdsByWorkspace: Record<string, Set<string>>;
   focusRestorationByWorkspace: Record<string, WorkspaceFocusRestorationState>;
@@ -97,7 +104,10 @@ interface WorkspaceLayoutStore {
     parentTabId: string,
   ) => string | null;
   openTabInBackground: (workspaceKey: string, target: WorkspaceTabTarget) => string | null;
+  openRightToolPanel: (workspaceKey: string) => void;
   closeRightToolPanel: (workspaceKey: string) => void;
+  /** Clears the right tool panel entirely (removes its pane + tabs + collapsed flag). Used when switching workspaces. */
+  clearRightToolPanel: (workspaceKey: string) => void;
   closeTab: (workspaceKey: string, tabId: string) => void;
   focusTab: (workspaceKey: string, tabId: string) => void;
   retargetTab: (workspaceKey: string, tabId: string, target: WorkspaceTabTarget) => string | null;
@@ -242,6 +252,7 @@ export function createWorkspaceLayoutStore(
       (set, get) => ({
         layoutByWorkspace: {},
         splitSizesByWorkspace: {},
+        rightToolPanelCollapsedByWorkspace: {},
         pinnedAgentIdsByWorkspace: {},
         hiddenAgentIdsByWorkspace: {},
         focusRestorationByWorkspace: {},
@@ -272,6 +283,14 @@ export function createWorkspaceLayoutStore(
                     normalizedWorkspaceKey,
                     normalizedTarget.agentId,
                   ),
+            // Opening a right-surface tab un-collapses the panel so the new tab is visible (see D).
+            rightToolPanelCollapsedByWorkspace:
+              tabSurfaceForKind(normalizedTarget.kind) === "right"
+                ? {
+                    ...state.rightToolPanelCollapsedByWorkspace,
+                    [normalizedWorkspaceKey]: false,
+                  }
+                : state.rightToolPanelCollapsedByWorkspace,
             layoutByWorkspace: {
               ...state.layoutByWorkspace,
               [normalizedWorkspaceKey]: result.layout,
@@ -355,7 +374,52 @@ export function createWorkspaceLayoutStore(
 
           return result.tabId;
         },
+        openRightToolPanel: (workspaceKey) => {
+          const normalizedWorkspaceKey = trimNonEmpty(workspaceKey);
+          if (!normalizedWorkspaceKey) {
+            return;
+          }
+
+          set((state) => {
+            const current = getWorkspaceLayout(state.layoutByWorkspace, normalizedWorkspaceKey);
+            const nextLayout = ensureRightToolPaneInLayout({
+              layout: current,
+              maxTreeDepth: MAX_TREE_DEPTH,
+            });
+            return {
+              ...withoutFocusRestoration(state, normalizedWorkspaceKey),
+              rightToolPanelCollapsedByWorkspace: {
+                ...state.rightToolPanelCollapsedByWorkspace,
+                [normalizedWorkspaceKey]: false,
+              },
+              layoutByWorkspace: {
+                ...state.layoutByWorkspace,
+                [normalizedWorkspaceKey]: nextLayout,
+              },
+            };
+          });
+        },
         closeRightToolPanel: (workspaceKey) => {
+          const normalizedWorkspaceKey = trimNonEmpty(workspaceKey);
+          if (!normalizedWorkspaceKey) {
+            return;
+          }
+
+          set((state) => {
+            // Collapse-but-keep: hide the panel without dropping its pane/tabs, so re-expanding
+            // restores the same tabs. The layout tree is left intact.
+            if (state.rightToolPanelCollapsedByWorkspace[normalizedWorkspaceKey]) {
+              return state;
+            }
+            return {
+              rightToolPanelCollapsedByWorkspace: {
+                ...state.rightToolPanelCollapsedByWorkspace,
+                [normalizedWorkspaceKey]: true,
+              },
+            };
+          });
+        },
+        clearRightToolPanel: (workspaceKey) => {
           const normalizedWorkspaceKey = trimNonEmpty(workspaceKey);
           if (!normalizedWorkspaceKey) {
             return;
@@ -364,11 +428,15 @@ export function createWorkspaceLayoutStore(
           set((state) => {
             const current = getWorkspaceLayout(state.layoutByWorkspace, normalizedWorkspaceKey);
             const nextLayout = removeRightToolPanelFromLayout(current);
-            if (nextLayout === current) {
+            const hadCollapsed = normalizedWorkspaceKey in state.rightToolPanelCollapsedByWorkspace;
+            if (nextLayout === current && !hadCollapsed) {
               return state;
             }
+            const nextCollapsed = { ...state.rightToolPanelCollapsedByWorkspace };
+            delete nextCollapsed[normalizedWorkspaceKey];
             return {
               ...withoutFocusRestoration(state, normalizedWorkspaceKey),
+              rightToolPanelCollapsedByWorkspace: nextCollapsed,
               layoutByWorkspace: {
                 ...state.layoutByWorkspace,
                 [normalizedWorkspaceKey]: nextLayout,
@@ -968,6 +1036,7 @@ export function createWorkspaceLayoutStore(
           return {
             layoutByWorkspace,
             splitSizesByWorkspace: state.splitSizesByWorkspace,
+            rightToolPanelCollapsedByWorkspace: state.rightToolPanelCollapsedByWorkspace,
           };
         },
       },

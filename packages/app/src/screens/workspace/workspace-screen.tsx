@@ -30,7 +30,6 @@ import {
   Import as ImportIcon,
   MessageSquarePlus,
   PanelRight,
-  PanelRightOpen,
   Pencil,
   RotateCw,
   Settings,
@@ -63,7 +62,6 @@ import {
   FloatingPanelPortalHost,
   FloatingPanelPortalHostNameProvider,
 } from "@/components/ui/floating-panel-portal";
-import { ExplorerSidebar } from "@/components/explorer-sidebar";
 import { MountedTabActiveContext, SplitContainer } from "@/components/split-container";
 import { SourceControlPanelIcon } from "@/components/icons/source-control-panel-icon";
 import { WorkspaceGitActions } from "@/git/workspace-actions";
@@ -89,6 +87,7 @@ import {
   useWorkspaceLayoutStore,
   useWorkspaceLayoutStoreHydrated,
 } from "@/stores/workspace-layout-store";
+import { removeRightToolPanelFromLayout } from "@/stores/workspace-layout-actions";
 import type { WorkspaceTab, WorkspaceTabTarget } from "@/stores/workspace-tabs-store";
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
 import type {
@@ -135,10 +134,11 @@ import {
 } from "@/screens/workspace/use-workspace-tab-rename";
 import {
   WorkspaceDesktopTabsRow,
-  WorkspaceToolsAddMenuItems,
+  WorkspaceToolPicker,
   type WorkspaceDesktopTabRowItem,
   type WorkspaceToolsAddHandlers,
 } from "@/screens/workspace/workspace-desktop-tabs-row";
+import { RIGHT_PANEL_PANE_ID } from "@/workspace-tabs/tab-surface";
 import {
   buildWorkspaceTabMenuEntries,
   type WorkspaceTabMenuEntry,
@@ -212,6 +212,10 @@ const EMPTY_PINNED_AGENT_IDS = new Set<string>();
 const EMPTY_SET = new Set<string>();
 const COMPACT_WEB_GESTURE_TOUCH_ACTION = isWeb ? "auto" : "pan-y";
 
+// Product: the workspace scripts (paseo.json service runner) button is hidden.
+// Flip to re-enable the ▷ run menu in the workspace header.
+const SHOW_WORKSPACE_SCRIPTS_BUTTON = false;
+
 function getWorkspaceScripts(
   workspaceDescriptor: WorkspaceDescriptor | null | undefined,
 ): WorkspaceDescriptor["scripts"] {
@@ -263,7 +267,6 @@ const ThemedMessageSquarePlus = withUnistyles(MessageSquarePlus);
 const ThemedImport = withUnistyles(ImportIcon);
 const ThemedSettings = withUnistyles(Settings);
 const ThemedPanelRight = withUnistyles(PanelRight);
-const ThemedPanelRightOpen = withUnistyles(PanelRightOpen);
 const ThemedSourceControlPanelIcon = withUnistyles(SourceControlPanelIcon);
 
 interface DynamicProviderIconProps {
@@ -349,6 +352,8 @@ function getFallbackTabOptionLabel(
     terminal: string;
     browser: string;
     agent: string;
+    review: string;
+    files: string;
   },
 ): string {
   if (tab.target.kind === "draft") {
@@ -362,6 +367,12 @@ function getFallbackTabOptionLabel(
   }
   if (tab.target.kind === "browser") {
     return labels.browser;
+  }
+  if (tab.target.kind === "review") {
+    return labels.review;
+  }
+  if (tab.target.kind === "files") {
+    return labels.files;
   }
   if (tab.target.kind === "file") {
     return tab.target.path.split("/").findLast(Boolean) ?? tab.target.path;
@@ -377,6 +388,8 @@ function getFallbackTabOptionDescription(
     agent: string;
     terminal: string;
     browser: string;
+    review: string;
+    files: string;
   },
 ): string {
   if (tab.target.kind === "draft") {
@@ -394,7 +407,16 @@ function getFallbackTabOptionDescription(
   if (tab.target.kind === "browser") {
     return labels.browser;
   }
-  return tab.target.path;
+  if (tab.target.kind === "review") {
+    return labels.review;
+  }
+  if (tab.target.kind === "files") {
+    return labels.files;
+  }
+  if (tab.target.kind === "file") {
+    return tab.target.path;
+  }
+  return labels.agent;
 }
 
 interface MobileWorkspaceTabSwitcherProps {
@@ -666,6 +688,8 @@ function MobileWorkspaceTabOption({
       terminal: t("workspace.tabs.fallback.terminal"),
       browser: t("workspace.tabs.fallback.browser"),
       agent: t("workspace.tabs.fallback.agent"),
+      review: t("workspace.tabs.toolsMenu.review"),
+      files: t("workspace.tabs.toolsMenu.file"),
     }),
     [t],
   );
@@ -1369,7 +1393,7 @@ function WorkspaceHeaderTitleBar({
           onCopyBranchName={onCopyBranchName}
           onOpenSetupTab={onOpenSetupTab}
         />
-        {isMobile && workspaceScripts.length > 0 ? (
+        {SHOW_WORKSPACE_SCRIPTS_BUTTON && isMobile && workspaceScripts.length > 0 ? (
           <WorkspaceScriptsButton
             serverId={normalizedServerId}
             workspaceId={normalizedWorkspaceId}
@@ -1387,84 +1411,27 @@ function WorkspaceHeaderTitleBar({
   );
 }
 
-function toolPanelToggleButtonStyle({
-  hovered,
-  pressed,
-}: {
-  hovered?: boolean;
-  pressed?: boolean;
-}) {
-  return [
-    styles.compactHeaderActionButton,
-    (Boolean(hovered) || Boolean(pressed)) && styles.toolPanelToggleHovered,
-  ];
-}
-
-function WorkspaceToolPanelToggle({
-  isOpen,
-  onClose,
-  toolsAddHandlers,
-  showCreateBrowserTab,
-}: {
-  isOpen: boolean;
-  onClose: () => void;
-  toolsAddHandlers: WorkspaceToolsAddHandlers;
-  showCreateBrowserTab: boolean;
-}) {
+function WorkspaceToolPanelToggle({ isOpen, onToggle }: { isOpen: boolean; onToggle: () => void }) {
   const { t } = useTranslation();
   const label = isOpen ? t("workspace.tabs.toolPanel.close") : t("workspace.tabs.toolPanel.open");
   const colorMappingFor = (active: boolean) =>
     active || isOpen ? foregroundColorMapping : mutedColorMapping;
 
-  if (isOpen) {
-    return (
-      <HeaderToggleButton
-        testID="workspace-tool-panel-toggle"
-        onPress={onClose}
-        tooltipLabel={label}
-        tooltipKeys={TOOL_PANEL_TOGGLE_KEYS}
-        tooltipSide="left"
-        style={styles.compactHeaderActionButton}
-        accessible
-        accessibilityRole="button"
-        accessibilityLabel={label}
-        accessibilityState={TOOL_PANEL_TOGGLE_OPEN_STATE}
-      >
-        {({ hovered }) => <ThemedPanelRightOpen size={16} uniProps={colorMappingFor(hovered)} />}
-      </HeaderToggleButton>
-    );
-  }
-
   return (
-    <DropdownMenu>
-      <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile={false}>
-        <TooltipTrigger asChild triggerRefProp="triggerRef">
-          <DropdownMenuTrigger
-            testID="workspace-tool-panel-toggle"
-            accessibilityRole="button"
-            accessibilityLabel={label}
-            accessibilityState={TOOL_PANEL_TOGGLE_CLOSED_STATE}
-            style={toolPanelToggleButtonStyle}
-          >
-            {({ hovered, pressed }) => (
-              <ThemedPanelRightOpen size={16} uniProps={colorMappingFor(hovered || pressed)} />
-            )}
-          </DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="left" align="center" offset={8}>
-          <View style={styles.explorerTooltipRow}>
-            <Text style={styles.explorerTooltipText}>{label}</Text>
-            <Shortcut keys={TOOL_PANEL_TOGGLE_KEYS} style={styles.explorerTooltipShortcut} />
-          </View>
-        </TooltipContent>
-      </Tooltip>
-      <DropdownMenuContent side="bottom" align="end" offset={4} minWidth={200}>
-        <WorkspaceToolsAddMenuItems
-          handlers={toolsAddHandlers}
-          showCreateBrowserTab={showCreateBrowserTab}
-        />
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <HeaderToggleButton
+      testID="workspace-tool-panel-toggle"
+      onPress={onToggle}
+      tooltipLabel={label}
+      tooltipKeys={TOOL_PANEL_TOGGLE_KEYS}
+      tooltipSide="left"
+      style={styles.compactHeaderActionButton}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={isOpen ? TOOL_PANEL_TOGGLE_OPEN_STATE : TOOL_PANEL_TOGGLE_CLOSED_STATE}
+    >
+      {({ hovered }) => <ThemedPanelRight size={16} uniProps={colorMappingFor(hovered)} />}
+    </HeaderToggleButton>
   );
 }
 
@@ -1756,14 +1723,6 @@ function shouldShowWorkspaceScreenHeader(input: {
   isMobile: boolean;
 }): boolean {
   return !input.isFocusModeEnabled || input.isMobile;
-}
-
-function shouldShowWorkspaceExplorerSidebar(input: {
-  isRouteFocused: boolean;
-  isFocusModeEnabled: boolean;
-  isMobile: boolean;
-}): boolean {
-  return input.isRouteFocused && shouldShowWorkspaceScreenHeader(input);
 }
 
 function buildWorkspaceTerminalScopeKey(serverId: string, workspaceId: string): string | null {
@@ -2063,7 +2022,6 @@ function WorkspaceScreenContent({
   const toggleFileExplorerForCheckout = usePanelStore(
     (state) => state.toggleFileExplorerForCheckout,
   );
-  const setExplorerTabForCheckout = usePanelStore((state) => state.setExplorerTabForCheckout);
   const showMobileAgent = usePanelStore((state) => state.showMobileAgent);
 
   const activeExplorerCheckout = useMemo<ExplorerCheckoutContext | null>(() => {
@@ -2156,8 +2114,34 @@ function WorkspaceScreenContent({
   const paneFocusSuppressedRef = useRef(false);
   const resizeWorkspaceSplit = useWorkspaceLayoutStore((state) => state.resizeSplit);
   const reorderWorkspaceTabsInPane = useWorkspaceLayoutStore((state) => state.reorderTabsInPane);
+  const openRightToolPanel = useWorkspaceLayoutStore((state) => state.openRightToolPanel);
   const closeRightToolPanel = useWorkspaceLayoutStore((state) => state.closeRightToolPanel);
-  const isRightToolPanelOpenForWorkspace = isRightToolPanelOpen(workspaceLayout);
+  const clearRightToolPanel = useWorkspaceLayoutStore((state) => state.clearRightToolPanel);
+  const isRightToolPanelCollapsed = useWorkspaceLayoutStore((state) =>
+    persistenceKey ? (state.rightToolPanelCollapsedByWorkspace[persistenceKey] ?? false) : false,
+  );
+  const isRightToolPanelOpenForWorkspace =
+    isRightToolPanelOpen(workspaceLayout) && !isRightToolPanelCollapsed;
+  // When collapsed, render the layout without the tools pane (keeps its tabs in the store so
+  // re-expanding restores them). See docs/specs/2026-06-23-unified-topbar-redesign.md.
+  const workspaceRenderLayout = useMemo(
+    () =>
+      workspaceLayout && isRightToolPanelCollapsed
+        ? removeRightToolPanelFromLayout(workspaceLayout)
+        : workspaceLayout,
+    [workspaceLayout, isRightToolPanelCollapsed],
+  );
+  // E: switching workspaces clears the right panel — leaving a workspace removes its tools tabs so
+  // re-entering starts fresh. Within a session collapse keeps tabs (D); only switch / manual close clears.
+  useEffect(() => {
+    if (!isRouteFocused || !persistenceKey) {
+      return;
+    }
+    // Cleared when this workspace stops being the active route (switched away) or unmounts — E.
+    return () => {
+      clearRightToolPanel(persistenceKey);
+    };
+  }, [isRouteFocused, persistenceKey, clearRightToolPanel]);
   const showCreateBrowserTab = getIsElectron();
   const _pinnedAgentIds = useWorkspaceLayoutStore((state) =>
     persistenceKey
@@ -2458,26 +2442,6 @@ function WorkspaceScreenContent({
     workspaceSetupSnapshot,
   ]);
 
-  const handleOpenFileFromExplorer = useCallback(
-    function handleOpenFileFromExplorer(filePath: string) {
-      if (isMobile) {
-        showMobileAgent();
-      }
-      if (!persistenceKey) {
-        return;
-      }
-      const location = normalizeWorkspaceFileLocation({ path: filePath });
-      if (!location) {
-        return;
-      }
-      const tabId = openWorkspaceTabFocused(persistenceKey, createWorkspaceFileTabTarget(location));
-      if (tabId) {
-        navigateToTabId(tabId);
-      }
-    },
-    [isMobile, navigateToTabId, openWorkspaceTabFocused, persistenceKey, showMobileAgent],
-  );
-
   const handleOpenFileFromChat = useCallback(
     (location: WorkspaceFileLocation, options?: { parentTabId?: string | null }) => {
       const normalizedLocation = normalizeWorkspaceFileLocation(location);
@@ -2616,6 +2580,8 @@ function WorkspaceScreenContent({
       terminal: t("workspace.tabs.fallback.terminal"),
       browser: t("workspace.tabs.fallback.browser"),
       agent: t("workspace.tabs.fallback.agent"),
+      review: t("workspace.tabs.toolsMenu.review"),
+      files: t("workspace.tabs.toolsMenu.file"),
     }),
     [t],
   );
@@ -2680,24 +2646,34 @@ function WorkspaceScreenContent({
 
   const handleOpenReviewTool = useCallback(
     function handleOpenReviewTool() {
-      if (!activeExplorerCheckout) {
+      if (!persistenceKey) {
         return;
       }
-      setExplorerTabForCheckout({ ...activeExplorerCheckout, tab: "changes" });
-      openFileExplorerForCheckout({ isCompact: isMobile, checkout: activeExplorerCheckout });
+      const tabId = openWorkspaceTabFocused(persistenceKey, {
+        kind: "review",
+        workspaceId: normalizedWorkspaceId,
+      });
+      if (tabId) {
+        navigateToTabId(tabId);
+      }
     },
-    [activeExplorerCheckout, isMobile, openFileExplorerForCheckout, setExplorerTabForCheckout],
+    [navigateToTabId, normalizedWorkspaceId, openWorkspaceTabFocused, persistenceKey],
   );
 
   const handleOpenFileTool = useCallback(
     function handleOpenFileTool() {
-      if (!activeExplorerCheckout) {
+      if (!persistenceKey) {
         return;
       }
-      setExplorerTabForCheckout({ ...activeExplorerCheckout, tab: "files" });
-      openFileExplorerForCheckout({ isCompact: isMobile, checkout: activeExplorerCheckout });
+      const tabId = openWorkspaceTabFocused(persistenceKey, {
+        kind: "files",
+        workspaceId: normalizedWorkspaceId,
+      });
+      if (tabId) {
+        navigateToTabId(tabId);
+      }
     },
-    [activeExplorerCheckout, isMobile, openFileExplorerForCheckout, setExplorerTabForCheckout],
+    [navigateToTabId, normalizedWorkspaceId, openWorkspaceTabFocused, persistenceKey],
   );
 
   const handleCloseRightToolPanel = useCallback(
@@ -2712,13 +2688,60 @@ function WorkspaceScreenContent({
 
   const handleToggleRightToolPanel = useCallback(
     function handleToggleRightToolPanel() {
+      if (!persistenceKey) {
+        return;
+      }
       if (isRightToolPanelOpenForWorkspace) {
         handleCloseRightToolPanel();
         return;
       }
-      handleCreateTerminal();
+      openRightToolPanel(persistenceKey);
     },
-    [handleCloseRightToolPanel, handleCreateTerminal, isRightToolPanelOpenForWorkspace],
+    [
+      handleCloseRightToolPanel,
+      isRightToolPanelOpenForWorkspace,
+      openRightToolPanel,
+      persistenceKey,
+    ],
+  );
+
+  const handleOpenReviewFromChanges = useCallback(
+    function handleOpenReviewFromChanges() {
+      if (!persistenceKey) {
+        return;
+      }
+      openWorkspaceTabInBackground(persistenceKey, {
+        kind: "files",
+        workspaceId: normalizedWorkspaceId,
+      });
+      const reviewTabId = openWorkspaceTabFocused(persistenceKey, {
+        kind: "review",
+        workspaceId: normalizedWorkspaceId,
+      });
+      if (reviewTabId) {
+        navigateToTabId(reviewTabId);
+      }
+    },
+    [
+      navigateToTabId,
+      normalizedWorkspaceId,
+      openWorkspaceTabFocused,
+      openWorkspaceTabInBackground,
+      persistenceKey,
+    ],
+  );
+
+  // Diff badge in the header: click toggles the right panel via review — open review (+ files) when
+  // closed, collapse when already open (collapse keeps the tabs; see D).
+  const handleToggleReviewFromChanges = useCallback(
+    function handleToggleReviewFromChanges() {
+      if (isRightToolPanelOpenForWorkspace) {
+        handleCloseRightToolPanel();
+        return;
+      }
+      handleOpenReviewFromChanges();
+    },
+    [handleCloseRightToolPanel, handleOpenReviewFromChanges, isRightToolPanelOpenForWorkspace],
   );
 
   const toolsAddHandlers = useMemo<WorkspaceToolsAddHandlers>(
@@ -3534,14 +3557,32 @@ function WorkspaceScreenContent({
   );
 
   const renderSplitPaneEmptyState = useCallback(
-    function renderSplitPaneEmptyState() {
+    function renderSplitPaneEmptyState(paneId: string) {
+      if (paneId === RIGHT_PANEL_PANE_ID) {
+        return (
+          <WorkspaceToolPicker
+            handlers={toolsAddHandlers}
+            showCreateBrowserTab={showCreateBrowserTab}
+          />
+        );
+      }
       return (
         <View style={styles.emptyState}>
           <Text style={styles.emptyStateText}>{t("workspace.tabs.emptyPane")}</Text>
         </View>
       );
     },
-    [t],
+    [showCreateBrowserTab, t, toolsAddHandlers],
+  );
+
+  const renderSplitPaneTabBarLeading = useCallback(
+    function renderSplitPaneTabBarLeading(paneId: string) {
+      if (paneId === RIGHT_PANEL_PANE_ID) {
+        return <WorkspaceToolPanelToggle isOpen onToggle={handleToggleRightToolPanel} />;
+      }
+      return null;
+    },
+    [handleToggleRightToolPanel],
   );
 
   const containerStyle = containerWithWorkspaceBackgroundStyle;
@@ -3566,7 +3607,10 @@ function WorkspaceScreenContent({
   const headerRight = useMemo(
     () => (
       <View style={styles.headerRight}>
-        {!isMobile && workspaceDescriptor && workspaceDescriptor.scripts.length > 0 ? (
+        {SHOW_WORKSPACE_SCRIPTS_BUTTON &&
+        !isMobile &&
+        workspaceDescriptor &&
+        workspaceDescriptor.scripts.length > 0 ? (
           <WorkspaceScriptsButton
             serverId={normalizedServerId}
             workspaceId={normalizedWorkspaceId}
@@ -3599,7 +3643,7 @@ function WorkspaceScreenContent({
               <TooltipTrigger asChild>
                 <Pressable
                   testID="workspace-explorer-toggle"
-                  onPress={handleToggleExplorer}
+                  onPress={handleToggleReviewFromChanges}
                   accessibilityRole="button"
                   accessibilityLabel={explorerToggleLabel}
                   accessibilityState={explorerToggleAccessibilityState}
@@ -3658,13 +3702,8 @@ function WorkspaceScreenContent({
             }}
           </HeaderToggleButton>
         ) : null}
-        {!isMobile && supportsDesktopPaneSplits() ? (
-          <WorkspaceToolPanelToggle
-            isOpen={isRightToolPanelOpenForWorkspace}
-            onClose={handleCloseRightToolPanel}
-            toolsAddHandlers={toolsAddHandlers}
-            showCreateBrowserTab={showCreateBrowserTab}
-          />
+        {!isMobile && supportsDesktopPaneSplits() && !isRightToolPanelOpenForWorkspace ? (
+          <WorkspaceToolPanelToggle isOpen={false} onToggle={handleToggleRightToolPanel} />
         ) : null}
         {isMobile ? (
           <HeaderToggleButton
@@ -3715,9 +3754,8 @@ function WorkspaceScreenContent({
       explorerToggleAccessibilityState,
       explorerToggleStyle,
       isRightToolPanelOpenForWorkspace,
-      handleCloseRightToolPanel,
-      toolsAddHandlers,
-      showCreateBrowserTab,
+      handleToggleRightToolPanel,
+      handleToggleReviewFromChanges,
       t,
     ],
   );
@@ -3725,10 +3763,6 @@ function WorkspaceScreenContent({
   const showScreenHeader = useMemo(
     () => shouldShowWorkspaceScreenHeader({ isFocusModeEnabled, isMobile }),
     [isFocusModeEnabled, isMobile],
-  );
-  const showExplorerSidebar = useMemo(
-    () => shouldShowWorkspaceExplorerSidebar({ isRouteFocused, isFocusModeEnabled, isMobile }),
-    [isRouteFocused, isFocusModeEnabled, isMobile],
   );
   const createTerminalDisabled = useMemo(
     () => createTerminalMutation.isPending || pendingTerminalCreateInput !== null,
@@ -3745,12 +3779,12 @@ function WorkspaceScreenContent({
     [normalizedServerId, normalizedWorkspaceId],
   );
   const desktopSplitContent = useMemo(() => {
-    if (!canRenderDesktopPaneSplits || !workspaceLayout || !persistenceKey) {
+    if (!canRenderDesktopPaneSplits || !workspaceRenderLayout || !persistenceKey) {
       return null;
     }
     return (
       <SplitContainer
-        layout={workspaceLayout}
+        layout={workspaceRenderLayout}
         focusModeEnabled={desktopFocusModeEnabled}
         workspaceKey={persistenceKey}
         normalizedServerId={normalizedServerId}
@@ -3783,11 +3817,12 @@ function WorkspaceScreenContent({
         onResizeSplit={handleResizePaneSplit}
         onReorderTabsInPane={handleReorderTabsInPane}
         renderPaneEmptyState={renderSplitPaneEmptyState}
+        renderPaneTabBarLeading={renderSplitPaneTabBarLeading}
       />
     );
   }, [
     canRenderDesktopPaneSplits,
-    workspaceLayout,
+    workspaceRenderLayout,
     persistenceKey,
     desktopFocusModeEnabled,
     normalizedServerId,
@@ -3819,6 +3854,7 @@ function WorkspaceScreenContent({
     handleResizePaneSplit,
     handleReorderTabsInPane,
     renderSplitPaneEmptyState,
+    renderSplitPaneTabBarLeading,
   ]);
   const desktopContent = desktopSplitContent ?? content;
 
@@ -3827,6 +3863,7 @@ function WorkspaceScreenContent({
       {showScreenHeader && (
         <ScreenHeader
           onRowLayout={onHeaderLayout}
+          borderless
           left={
             <>
               <SidebarMenuToggle />
@@ -3962,16 +3999,6 @@ function WorkspaceScreenContent({
               </FloatingPanelPortalHostNameProvider>
 
               <FloatingPanelPortalHost name={workspaceFloatingPanelPortalHostName} />
-
-              {showExplorerSidebar && workspaceDirectory ? (
-                <ExplorerSidebar
-                  serverId={normalizedServerId}
-                  workspaceId={normalizedWorkspaceId}
-                  workspaceRoot={workspaceDirectory}
-                  isGit={isGitCheckout}
-                  onOpenFile={handleOpenFileFromExplorer}
-                />
-              ) : null}
             </View>
             <ImportSessionSheet
               visible={isImportSheetVisible}

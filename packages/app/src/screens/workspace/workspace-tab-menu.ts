@@ -138,6 +138,12 @@ function getCloseButtonTestId(tab: WorkspaceTabDescriptor): string {
   if (tab.target.kind === "setup") {
     return `workspace-setup-close-${encodeWorkspaceIdForPathSegment(tab.target.workspaceId)}`;
   }
+  if (tab.target.kind === "review") {
+    return `workspace-review-close-${encodeWorkspaceIdForPathSegment(tab.target.workspaceId)}`;
+  }
+  if (tab.target.kind === "files") {
+    return `workspace-files-close-${encodeWorkspaceIdForPathSegment(tab.target.workspaceId)}`;
+  }
   return `workspace-file-close-${encodeFilePathForPathSegment(tab.target.path)}`;
 }
 

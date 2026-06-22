@@ -123,7 +123,8 @@ interface SplitContainerProps {
   onMoveTabToPane: (tabId: string, toPaneId: string) => void;
   onResizeSplit: (groupId: string, sizes: number[]) => void;
   onReorderTabsInPane: (paneId: string, tabIds: string[]) => void;
-  renderPaneEmptyState?: () => ReactNode;
+  renderPaneEmptyState?: (paneId: string) => ReactNode;
+  renderPaneTabBarLeading?: (paneId: string) => ReactNode;
   focusModeEnabled?: boolean;
 }
 
@@ -396,6 +397,7 @@ export function SplitContainer({
   onResizeSplit,
   onReorderTabsInPane,
   renderPaneEmptyState = () => null,
+  renderPaneTabBarLeading,
   focusModeEnabled,
 }: SplitContainerProps) {
   const [activeDragTabId, setActiveDragTabId] = useState<string | null>(null);
@@ -613,6 +615,7 @@ export function SplitContainer({
           onResizeSplit={onResizeSplit}
           onReorderTabsInPane={onReorderTabsInPane}
           renderPaneEmptyState={renderPaneEmptyState}
+          renderPaneTabBarLeading={renderPaneTabBarLeading}
           activeDragTabId={activeDragTabId}
           showDropZones={activeDragTabId !== null}
           dropPreview={dropPreview}
@@ -757,6 +760,7 @@ function SplitNodeView({
   onResizeSplit,
   onReorderTabsInPane,
   renderPaneEmptyState,
+  renderPaneTabBarLeading,
   activeDragTabId,
   showDropZones,
   dropPreview,
@@ -810,6 +814,7 @@ function SplitNodeView({
         onSplitPaneEmpty={onSplitPaneEmpty}
         onReorderTabsInPane={onReorderTabsInPane}
         renderPaneEmptyState={renderPaneEmptyState}
+        renderPaneTabBarLeading={renderPaneTabBarLeading}
         activeDragTabId={activeDragTabId}
         showDropZones={showDropZones}
         dropPreview={dropPreview}
@@ -858,6 +863,7 @@ function SplitNodeView({
               onResizeSplit={onResizeSplit}
               onReorderTabsInPane={onReorderTabsInPane}
               renderPaneEmptyState={renderPaneEmptyState}
+              renderPaneTabBarLeading={renderPaneTabBarLeading}
               activeDragTabId={activeDragTabId}
               showDropZones={showDropZones}
               dropPreview={dropPreview}
@@ -910,6 +916,7 @@ function SplitPaneView({
   onSplitPaneEmpty,
   onReorderTabsInPane,
   renderPaneEmptyState,
+  renderPaneTabBarLeading,
   activeDragTabId,
   showDropZones,
   dropPreview,
@@ -1030,6 +1037,7 @@ function SplitPaneView({
             <TitlebarDragRegion />
             <WorkspaceDesktopTabsRow
               paneId={pane.id}
+              leading={renderPaneTabBarLeading?.(pane.id)}
               isFocused={isFocused}
               tabs={desktopTabRowItems}
               normalizedServerId={normalizedServerId}
@@ -1085,7 +1093,7 @@ function SplitPaneView({
                   />
                 );
               })
-            : (renderPaneEmptyState?.() ?? null)}
+            : (renderPaneEmptyState?.(pane.id) ?? null)}
           <SplitDropZone paneId={pane.id} active={showDropZones} preview={dropPreview} />
         </View>
       </View>

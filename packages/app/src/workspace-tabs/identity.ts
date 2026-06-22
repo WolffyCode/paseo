@@ -36,6 +36,14 @@ export function normalizeWorkspaceTabTarget(
     const workspaceId = trimNonEmpty(value.workspaceId);
     return workspaceId ? { kind: "setup", workspaceId } : null;
   }
+  if (value.kind === "review") {
+    const workspaceId = trimNonEmpty(value.workspaceId);
+    return workspaceId ? { kind: "review", workspaceId } : null;
+  }
+  if (value.kind === "files") {
+    const workspaceId = trimNonEmpty(value.workspaceId);
+    return workspaceId ? { kind: "files", workspaceId } : null;
+  }
   return null;
 }
 
@@ -86,6 +94,12 @@ export function workspaceTabTargetsEqual(
     return workspaceFileLocationsEqual(left, right);
   }
   if (left.kind === "setup" && right.kind === "setup") {
+    return left.workspaceId === right.workspaceId;
+  }
+  if (left.kind === "review" && right.kind === "review") {
+    return left.workspaceId === right.workspaceId;
+  }
+  if (left.kind === "files" && right.kind === "files") {
     return left.workspaceId === right.workspaceId;
   }
   return false;
@@ -139,6 +153,12 @@ export function buildDeterministicWorkspaceTabId(target: WorkspaceTabTarget): st
   }
   if (target.kind === "setup") {
     return `setup_${target.workspaceId}`;
+  }
+  if (target.kind === "review") {
+    return `review_${target.workspaceId}`;
+  }
+  if (target.kind === "files") {
+    return `files_${target.workspaceId}`;
   }
   return `file_${target.path}`;
 }

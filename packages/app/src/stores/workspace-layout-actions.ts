@@ -1507,6 +1507,35 @@ export function removeRightToolPanelFromLayout(layout: WorkspaceLayout): Workspa
   });
 }
 
+interface EnsureRightToolPaneInput {
+  layout: WorkspaceLayout;
+  maxTreeDepth: number;
+  createNodeId?: (prefix: WorkspaceLayoutNodeIdPrefix) => string;
+}
+
+/**
+ * Opens the right tool panel as an empty pane (so the in-panel tool picker can
+ * render), or focuses it if already present. Used by the header toggle; tools
+ * are then chosen from the picker, which fills the pane.
+ */
+export function ensureRightToolPaneInLayout(input: EnsureRightToolPaneInput): WorkspaceLayout {
+  if (findPaneById(input.layout.root, RIGHT_PANEL_PANE_ID)) {
+    return focusPaneInLayout({ layout: input.layout, paneId: RIGHT_PANEL_PANE_ID }) ?? input.layout;
+  }
+  const createNodeId = input.createNodeId ?? defaultWorkspaceLayoutIds.createNodeId;
+  const mainId = getMainPaneId(input.layout) ?? MAIN_PANE_ID;
+  const createToolsPaneId = (prefix: WorkspaceLayoutNodeIdPrefix): string =>
+    prefix === "pane" ? RIGHT_PANEL_PANE_ID : createNodeId(prefix);
+  const created = splitPaneEmptyInLayout({
+    layout: input.layout,
+    targetPaneId: mainId,
+    position: "right",
+    createNodeId: createToolsPaneId,
+    maxTreeDepth: input.maxTreeDepth,
+  });
+  return created?.layout ?? input.layout;
+}
+
 interface OpenTabOnSurfaceInput {
   layout: WorkspaceLayout;
   target: WorkspaceTabTarget;
