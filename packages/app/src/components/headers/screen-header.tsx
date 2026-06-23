@@ -20,6 +20,8 @@ interface ScreenHeaderProps {
   borderless?: boolean;
   windowControlsPaddingRole?: "header" | "detailHeader";
   onRowLayout?: (event: LayoutChangeEvent) => void;
+  /** Override the row height (e.g. to align the workspace header with the tools tab bar). */
+  rowHeight?: number;
 }
 
 /**
@@ -34,6 +36,7 @@ export function ScreenHeader({
   borderless,
   windowControlsPaddingRole = "header",
   onRowLayout,
+  rowHeight,
 }: ScreenHeaderProps) {
   const { theme } = useUnistyles();
   const insets = useSafeAreaInsets();
@@ -55,8 +58,9 @@ export function ScreenHeader({
         paddingRight: baseHorizontalPadding + padding.right,
       },
       borderless && styles.borderless,
+      rowHeight != null && { height: rowHeight },
     ],
-    [baseHorizontalPadding, padding.left, padding.right, borderless],
+    [baseHorizontalPadding, padding.left, padding.right, borderless, rowHeight],
   );
   const leftCombinedStyle = useMemo(() => [styles.left, leftStyle], [leftStyle]);
   const rightCombinedStyle = useMemo(() => [styles.right, rightStyle], [rightStyle]);

@@ -173,7 +173,11 @@ import {
 } from "@/screens/workspace/workspace-bulk-close";
 import { resolveCloseAgentTabPolicy } from "@/subagents";
 import { findAdjacentPane } from "@/utils/split-navigation";
-import { useIsCompactFormFactor, supportsDesktopPaneSplits } from "@/constants/layout";
+import {
+  useIsCompactFormFactor,
+  supportsDesktopPaneSplits,
+  WORKSPACE_SECONDARY_HEADER_HEIGHT,
+} from "@/constants/layout";
 import { getIsElectron, isNative, isWeb } from "@/constants/platform";
 import { useContainerWidthBelow } from "@/hooks/use-container-width";
 import {
@@ -3760,11 +3764,12 @@ function WorkspaceScreenContent({
         <ScreenHeader
           onRowLayout={onHeaderLayout}
           borderless
+          rowHeight={isMobile ? undefined : WORKSPACE_SECONDARY_HEADER_HEIGHT}
           left={headerLeft}
           right={headerRight}
         />
       ) : null,
-    [showScreenHeader, onHeaderLayout, headerLeft, headerRight],
+    [showScreenHeader, onHeaderLayout, headerLeft, headerRight, isMobile],
   );
   const renderSplitPaneHeader = useCallback(
     function renderSplitPaneHeader(paneId: string) {

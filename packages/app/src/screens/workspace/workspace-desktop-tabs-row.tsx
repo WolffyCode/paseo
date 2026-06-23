@@ -1414,8 +1414,8 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.spacing[1],
   },
   tab: {
-    paddingHorizontal: theme.spacing[3],
-    paddingVertical: theme.spacing[2],
+    paddingHorizontal: theme.spacing[2],
+    paddingVertical: theme.spacing[1],
     borderRightWidth: 1,
     borderRightColor: theme.colors.border,
     flexDirection: "row",
