@@ -492,6 +492,8 @@ export const fr: TranslationResources = {
       toolPanel: {
         open: "Ouvrir le panneau d'outils",
         close: "Fermer le panneau d'outils",
+        maximize: "Agrandir le panneau d'outils",
+        restore: "Restaurer le panneau d'outils",
       },
       toasts: {
         copyFailed: "Échec de la copie",

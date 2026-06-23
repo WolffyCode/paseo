@@ -487,6 +487,8 @@ export const ar: TranslationResources = {
       toolPanel: {
         open: "فتح لوحة الأدوات",
         close: "إغلاق لوحة الأدوات",
+        maximize: "تكبير لوحة الأدوات",
+        restore: "استعادة لوحة الأدوات",
       },
       toasts: {
         copyFailed: "فشل النسخ",

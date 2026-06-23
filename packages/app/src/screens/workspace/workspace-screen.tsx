@@ -29,6 +29,8 @@ import {
   Globe,
   Import as ImportIcon,
   MessageSquarePlus,
+  Maximize2,
+  Minimize2,
   PanelRight,
   Pencil,
   RotateCw,
@@ -83,7 +85,10 @@ import {
   useWorkspaceLayoutStore,
   useWorkspaceLayoutStoreHydrated,
 } from "@/stores/workspace-layout-store";
-import { removeRightToolPanelFromLayout } from "@/stores/workspace-layout-actions";
+import {
+  removeRightToolPanelFromLayout,
+  keepOnlyRightToolPanelInLayout,
+} from "@/stores/workspace-layout-actions";
 import type { WorkspaceTab, WorkspaceTabTarget } from "@/stores/workspace-tabs-store";
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
 import type {
@@ -265,6 +270,8 @@ const ThemedMessageSquarePlus = withUnistyles(MessageSquarePlus);
 const ThemedImport = withUnistyles(ImportIcon);
 const ThemedSettings = withUnistyles(Settings);
 const ThemedPanelRight = withUnistyles(PanelRight);
+const ThemedMaximize2 = withUnistyles(Maximize2);
+const ThemedMinimize2 = withUnistyles(Minimize2);
 const ThemedSourceControlPanelIcon = withUnistyles(SourceControlPanelIcon);
 
 interface DynamicProviderIconProps {
@@ -1408,6 +1415,46 @@ function WorkspaceToolPanelToggle({ isOpen, onToggle }: { isOpen: boolean; onTog
   );
 }
 
+function WorkspaceMaximizeToggle({
+  isMaximized,
+  onToggle,
+}: {
+  isMaximized: boolean;
+  onToggle: () => void;
+}) {
+  const { t } = useTranslation();
+  const label = isMaximized
+    ? t("workspace.tabs.toolPanel.restore")
+    : t("workspace.tabs.toolPanel.maximize");
+  return (
+    <HeaderToggleButton
+      testID="workspace-tool-panel-maximize"
+      onPress={onToggle}
+      tooltipLabel={label}
+      tooltipKeys={EMPTY_SHORTCUT_KEYS}
+      tooltipSide="left"
+      style={styles.compactHeaderActionButton}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      {({ hovered }) =>
+        isMaximized ? (
+          <ThemedMinimize2
+            size={16}
+            uniProps={hovered ? foregroundColorMapping : mutedColorMapping}
+          />
+        ) : (
+          <ThemedMaximize2
+            size={16}
+            uniProps={hovered ? foregroundColorMapping : mutedColorMapping}
+          />
+        )
+      }
+    </HeaderToggleButton>
+  );
+}
+
 function resolveRelativeTabId(
   tabs: WorkspaceTabDescriptor[],
   activeTabId: string | null,
@@ -2032,20 +2079,31 @@ function WorkspaceScreenContent({
   const openRightToolPanel = useWorkspaceLayoutStore((state) => state.openRightToolPanel);
   const closeRightToolPanel = useWorkspaceLayoutStore((state) => state.closeRightToolPanel);
   const clearRightToolPanel = useWorkspaceLayoutStore((state) => state.clearRightToolPanel);
+  const setRightToolPanelMaximized = useWorkspaceLayoutStore(
+    (state) => state.setRightToolPanelMaximized,
+  );
   const isRightToolPanelCollapsed = useWorkspaceLayoutStore((state) =>
     persistenceKey ? (state.rightToolPanelCollapsedByWorkspace[persistenceKey] ?? false) : false,
+  );
+  const isRightToolPanelMaximized = useWorkspaceLayoutStore((state) =>
+    persistenceKey ? (state.rightToolPanelMaximizedByWorkspace[persistenceKey] ?? false) : false,
   );
   const isRightToolPanelOpenForWorkspace =
     isRightToolPanelOpen(workspaceLayout) && !isRightToolPanelCollapsed;
   // When collapsed, render the layout without the tools pane (keeps its tabs in the store so
   // re-expanding restores them). See docs/specs/2026-06-23-unified-topbar-redesign.md.
-  const workspaceRenderLayout = useMemo(
-    () =>
-      workspaceLayout && isRightToolPanelCollapsed
-        ? removeRightToolPanelFromLayout(workspaceLayout)
-        : workspaceLayout,
-    [workspaceLayout, isRightToolPanelCollapsed],
-  );
+  const workspaceRenderLayout = useMemo(() => {
+    if (!workspaceLayout) {
+      return workspaceLayout;
+    }
+    if (isRightToolPanelMaximized) {
+      return keepOnlyRightToolPanelInLayout(workspaceLayout);
+    }
+    if (isRightToolPanelCollapsed) {
+      return removeRightToolPanelFromLayout(workspaceLayout);
+    }
+    return workspaceLayout;
+  }, [workspaceLayout, isRightToolPanelCollapsed, isRightToolPanelMaximized]);
   // E: switching workspaces clears the right panel — leaving a workspace removes its tools tabs so
   // re-entering starts fresh. Within a session collapse keeps tabs (D); only switch / manual close clears.
   useEffect(() => {
@@ -2602,6 +2660,8 @@ function WorkspaceScreenContent({
       if (!persistenceKey) {
         return;
       }
+      // Closing always exits the maximized state.
+      setRightToolPanelMaximized(persistenceKey, false);
       // Keep the panel mounted briefly so it slides out, then remove it from the layout.
       if (rightPanelExitTimerRef.current) {
         clearTimeout(rightPanelExitTimerRef.current);
@@ -2613,7 +2673,7 @@ function WorkspaceScreenContent({
         rightPanelExitTimerRef.current = null;
       }, 180);
     },
-    [closeRightToolPanel, persistenceKey],
+    [closeRightToolPanel, persistenceKey, setRightToolPanelMaximized],
   );
 
   const handleToggleRightToolPanel = useCallback(
@@ -2633,6 +2693,21 @@ function WorkspaceScreenContent({
       openRightToolPanel,
       persistenceKey,
     ],
+  );
+
+  const handleToggleRightToolPanelMaximized = useCallback(
+    function handleToggleRightToolPanelMaximized() {
+      if (!persistenceKey) {
+        return;
+      }
+      const next = !isRightToolPanelMaximized;
+      if (next) {
+        // Maximizing implies the panel is open + uncollapsed.
+        openRightToolPanel(persistenceKey);
+      }
+      setRightToolPanelMaximized(persistenceKey, next);
+    },
+    [isRightToolPanelMaximized, openRightToolPanel, persistenceKey, setRightToolPanelMaximized],
   );
 
   const handleOpenReviewFromChanges = useCallback(
@@ -3508,11 +3583,19 @@ function WorkspaceScreenContent({
   const renderSplitPaneTabBarTrailing = useCallback(
     function renderSplitPaneTabBarTrailing(paneId: string) {
       if (paneId === RIGHT_PANEL_PANE_ID) {
-        return <WorkspaceToolPanelToggle isOpen onToggle={handleToggleRightToolPanel} />;
+        return (
+          <>
+            <WorkspaceMaximizeToggle
+              isMaximized={isRightToolPanelMaximized}
+              onToggle={handleToggleRightToolPanelMaximized}
+            />
+            <WorkspaceToolPanelToggle isOpen onToggle={handleToggleRightToolPanel} />
+          </>
+        );
       }
       return null;
     },
-    [handleToggleRightToolPanel],
+    [handleToggleRightToolPanel, handleToggleRightToolPanelMaximized, isRightToolPanelMaximized],
   );
 
   const containerStyle = containerWithWorkspaceBackgroundStyle;
@@ -4323,3 +4406,4 @@ const containerWithWorkspaceBackgroundStyle = [
 
 const REVIEW_TOGGLE_KEYS: ShortcutKey[] = ["mod", "shift", "G"];
 const TOOL_PANEL_TOGGLE_KEYS: ShortcutKey[] = ["mod", "alt", "B"];
+const EMPTY_SHORTCUT_KEYS: ShortcutKey[] = [];

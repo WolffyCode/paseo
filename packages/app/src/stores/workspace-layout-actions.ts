@@ -1507,6 +1507,22 @@ export function removeRightToolPanelFromLayout(layout: WorkspaceLayout): Workspa
   });
 }
 
+/**
+ * Render-time transform for the maximized right tool panel: drop the MAIN pane so the tools pane
+ * fills the canvas. Only the *rendered* layout loses MAIN — the persisted layout is untouched, so
+ * restoring brings the conversation back.
+ */
+export function keepOnlyRightToolPanelInLayout(layout: WorkspaceLayout): WorkspaceLayout {
+  if (!findPaneById(layout.root, RIGHT_PANEL_PANE_ID) || !findPaneById(layout.root, MAIN_PANE_ID)) {
+    return layout;
+  }
+  return normalizeLayout({
+    root: removePaneFromTree(layout.root, MAIN_PANE_ID),
+    focusedPaneId: RIGHT_PANEL_PANE_ID,
+    parentTabIdByTabId: layout.parentTabIdByTabId,
+  });
+}
+
 interface EnsureRightToolPaneInput {
   layout: WorkspaceLayout;
   maxTreeDepth: number;

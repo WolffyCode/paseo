@@ -487,6 +487,8 @@ export const en = {
       toolPanel: {
         open: "Open tool panel",
         close: "Close tool panel",
+        maximize: "Maximize tool panel",
+        restore: "Restore tool panel",
       },
       toasts: {
         copyFailed: "Copy failed",

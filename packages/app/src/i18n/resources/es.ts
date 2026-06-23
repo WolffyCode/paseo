@@ -492,6 +492,8 @@ export const es: TranslationResources = {
       toolPanel: {
         open: "Abrir panel de herramientas",
         close: "Cerrar panel de herramientas",
+        maximize: "Maximizar el panel de herramientas",
+        restore: "Restaurar el panel de herramientas",
       },
       toasts: {
         copyFailed: "Copia fallida",

@@ -487,6 +487,8 @@ export const zhCN: TranslationResources = {
       toolPanel: {
         open: "打开工具面板",
         close: "关闭工具面板",
+        maximize: "最大化工具面板",
+        restore: "还原工具面板",
       },
       toasts: {
         copyFailed: "复制失败",

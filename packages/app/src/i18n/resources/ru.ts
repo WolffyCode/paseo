@@ -491,6 +491,8 @@ export const ru: TranslationResources = {
       toolPanel: {
         open: "Открыть панель инструментов",
         close: "Закрыть панель инструментов",
+        maximize: "Развернуть панель инструментов",
+        restore: "Восстановить панель инструментов",
       },
       toasts: {
         copyFailed: "Не удалось скопировать",
