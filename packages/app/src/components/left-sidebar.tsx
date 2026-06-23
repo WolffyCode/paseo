@@ -1,9 +1,18 @@
 import { router, usePathname } from "expo-router";
-import { Search, Settings, SquarePen, X } from "lucide-react-native";
+import {
+  ChevronsDownUp,
+  ChevronsUpDown,
+  FolderPlus,
+  Search,
+  Settings,
+  SquarePen,
+  X,
+} from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
+  type PressableStateCallbackType,
   StyleSheet as RNStyleSheet,
   Text,
   useWindowDimensions,
@@ -25,7 +34,7 @@ import { SidebarDisplayPreferencesMenu } from "@/components/sidebar/sidebar-disp
 import { Shortcut } from "@/components/ui/shortcut";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsCompactFormFactor } from "@/constants/layout";
-import { isWeb } from "@/constants/platform";
+import { isNative, isWeb } from "@/constants/platform";
 import { useSidebarAnimation } from "@/contexts/sidebar-animation-context";
 import { useOpenProjectPicker } from "@/hooks/use-open-project-picker";
 import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
@@ -72,6 +81,8 @@ interface SidebarSharedProps {
   collapsedProjectKeys: SidebarShortcutModel["collapsedProjectKeys"];
   shortcutIndexByWorkspaceKey: SidebarShortcutModel["shortcutIndexByWorkspaceKey"];
   toggleProjectCollapsed: SidebarShortcutModel["toggleProjectCollapsed"];
+  allProjectsCollapsed: boolean;
+  handleToggleCollapseAll: () => void;
   handleRefresh: () => void;
   handleNewWorkspaceNavigate: () => void;
   handleOpenCommandCenter: () => void;
@@ -126,8 +137,25 @@ export const LeftSidebar = memo(function LeftSidebar({
     serverId: activeServerId,
     enabled: isCompactLayout || isOpen,
   });
-  const { collapsedProjectKeys, shortcutIndexByWorkspaceKey, toggleProjectCollapsed } =
-    useSidebarShortcutModel({ projects });
+  const {
+    collapsedProjectKeys,
+    shortcutIndexByWorkspaceKey,
+    toggleProjectCollapsed,
+    setAllProjectsCollapsed,
+  } = useSidebarShortcutModel({ projects });
+
+  const allProjectsCollapsed = useMemo(
+    () =>
+      projects.length > 0 &&
+      projects.every((project) => collapsedProjectKeys.has(project.projectKey)),
+    [projects, collapsedProjectKeys],
+  );
+  const handleToggleCollapseAll = useCallback(() => {
+    setAllProjectsCollapsed(
+      projects.map((project) => project.projectKey),
+      !allProjectsCollapsed,
+    );
+  }, [projects, allProjectsCollapsed, setAllProjectsCollapsed]);
 
   const groupMode = useSidebarViewStore((state) =>
     activeServerId ? state.getGroupMode(activeServerId) : "project",
@@ -201,6 +229,8 @@ export const LeftSidebar = memo(function LeftSidebar({
     collapsedProjectKeys,
     shortcutIndexByWorkspaceKey,
     toggleProjectCollapsed,
+    allProjectsCollapsed,
+    handleToggleCollapseAll,
     handleRefresh,
     labels,
     newWorkspaceKeys,
@@ -282,6 +312,8 @@ function MobileSidebar({
   collapsedProjectKeys,
   shortcutIndexByWorkspaceKey,
   toggleProjectCollapsed,
+  allProjectsCollapsed,
+  handleToggleCollapseAll,
   handleRefresh,
   newWorkspaceKeys,
   commandCenterKeys,
@@ -489,7 +521,12 @@ function MobileSidebar({
                 shortcutKeys={commandCenterKeys}
               />
             </View>
-            <WorkspacesSectionHeader serverId={activeServerId} />
+            <WorkspacesSectionHeader
+              serverId={activeServerId}
+              allCollapsed={allProjectsCollapsed}
+              onToggleCollapseAll={handleToggleCollapseAll}
+              onSelectFolder={handleOpenProject}
+            />
             <Pressable
               style={styles.mobileCloseButton}
               onPress={closeSidebar}
@@ -546,6 +583,8 @@ function DesktopSidebar({
   collapsedProjectKeys,
   shortcutIndexByWorkspaceKey,
   toggleProjectCollapsed,
+  allProjectsCollapsed,
+  handleToggleCollapseAll,
   handleRefresh,
   newWorkspaceKeys,
   commandCenterKeys,
@@ -640,7 +679,12 @@ function DesktopSidebar({
             />
           </View>
         </View>
-        <WorkspacesSectionHeader serverId={activeServerId} />
+        <WorkspacesSectionHeader
+          serverId={activeServerId}
+          allCollapsed={allProjectsCollapsed}
+          onToggleCollapseAll={handleToggleCollapseAll}
+          onSelectFolder={handleOpenProject}
+        />
 
         {isInitialLoad ? (
           <SidebarAgentListSkeleton />
@@ -671,13 +715,71 @@ function DesktopSidebar({
   );
 }
 
-function WorkspacesSectionHeader({ serverId }: { serverId: string | null }) {
+function WorkspacesSectionHeader({
+  serverId,
+  allCollapsed,
+  onToggleCollapseAll,
+  onSelectFolder,
+}: {
+  serverId: string | null;
+  allCollapsed: boolean;
+  onToggleCollapseAll: () => void;
+  onSelectFolder: () => void;
+}) {
   const { t } = useTranslation();
+  const { theme } = useUnistyles();
+  const isCompact = useIsCompactFormFactor();
+  // Codex behavior: the project actions are revealed on hover (web) and always shown on
+  // touch/compact where hover is unreachable. Plain-View pointer tracking per docs/hover.md.
+  const [isHovered, setIsHovered] = useState(false);
+  const handlePointerEnter = useCallback(() => setIsHovered(true), []);
+  const handlePointerLeave = useCallback(() => setIsHovered(false), []);
+  const showActions = isHovered || isNative || isCompact;
+  const actionsStyle = useMemo(
+    () => [styles.workspacesSectionActions, { opacity: showActions ? 1 : 0 }],
+    [showActions],
+  );
+  const iconButtonStyle = useCallback(
+    ({ hovered = false, pressed }: PressableStateCallbackType & { hovered?: boolean }) => [
+      styles.workspacesHeaderIconButton,
+      (hovered || pressed) && styles.workspacesHeaderIconButtonHovered,
+    ],
+    [],
+  );
+  const collapseAllLabel = allCollapsed ? "Expand all" : "Collapse all";
+  const CollapseAllIcon = allCollapsed ? ChevronsUpDown : ChevronsDownUp;
 
   return (
-    <View style={styles.workspacesSectionHeader}>
+    <View
+      style={styles.workspacesSectionHeader}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
+    >
       <Text style={styles.workspacesSectionTitle}>{t("sidebar.sections.projects")}</Text>
-      <View style={styles.workspacesSectionActions}>
+      <View style={actionsStyle} pointerEvents={showActions ? "auto" : "none"}>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={collapseAllLabel}
+              testID="sidebar-projects-collapse-all"
+              style={iconButtonStyle}
+              onPress={onToggleCollapseAll}
+            >
+              {({ hovered, pressed }) => (
+                <CollapseAllIcon
+                  size={14}
+                  color={
+                    hovered || pressed ? theme.colors.foreground : theme.colors.foregroundMuted
+                  }
+                />
+              )}
+            </Pressable>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center" offset={8}>
+            <HeaderIconTooltipContent label={collapseAllLabel} />
+          </TooltipContent>
+        </Tooltip>
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>
             <View>
@@ -686,6 +788,29 @@ function WorkspacesSectionHeader({ serverId }: { serverId: string | null }) {
           </TooltipTrigger>
           <TooltipContent side="bottom" align="center" offset={8}>
             <HeaderIconTooltipContent label="Display preferences" />
+          </TooltipContent>
+        </Tooltip>
+        <Tooltip delayDuration={300}>
+          <TooltipTrigger asChild>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Select folder"
+              testID="sidebar-projects-select-folder"
+              style={iconButtonStyle}
+              onPress={onSelectFolder}
+            >
+              {({ hovered, pressed }) => (
+                <FolderPlus
+                  size={14}
+                  color={
+                    hovered || pressed ? theme.colors.foreground : theme.colors.foregroundMuted
+                  }
+                />
+              )}
+            </Pressable>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="center" offset={8}>
+            <HeaderIconTooltipContent label="Select folder" />
           </TooltipContent>
         </Tooltip>
       </View>
@@ -745,6 +870,16 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[1],
+  },
+  workspacesHeaderIconButton: {
+    width: 24,
+    height: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.borderRadius.md,
+  },
+  workspacesHeaderIconButtonHovered: {
+    backgroundColor: theme.colors.surfaceSidebarHover,
   },
   sidebarContent: {
     flex: 1,
