@@ -134,7 +134,7 @@ import {
   type WorkspaceDesktopTabRowItem,
   type WorkspaceToolsAddHandlers,
 } from "@/screens/workspace/workspace-desktop-tabs-row";
-import { RIGHT_PANEL_PANE_ID } from "@/workspace-tabs/tab-surface";
+import { MAIN_PANE_ID, RIGHT_PANEL_PANE_ID } from "@/workspace-tabs/tab-surface";
 import {
   buildWorkspaceTabMenuEntries,
   type WorkspaceTabMenuEntry,
@@ -3668,6 +3668,110 @@ function WorkspaceScreenContent({
       `${WORKSPACE_FLOATING_PANEL_PORTAL_HOST_PREFIX}:${normalizedServerId}:${normalizedWorkspaceId}`,
     [normalizedServerId, normalizedWorkspaceId],
   );
+  // Unified top bar: the workspace header is rendered as the MAIN pane's header (inside the
+  // split) so it tracks the pane width/resize. Memoized so SplitContainer stays stable.
+  const headerLeft = useMemo(
+    () => (
+      <>
+        <SidebarMenuToggle />
+        <WorkspaceHeaderTitleBar
+          isLoading={isWorkspaceHeaderLoading}
+          title={workspaceHeaderTitle}
+          subtitle={workspaceHeaderSubtitle}
+          showSubtitle={shouldShowWorkspaceHeaderSubtitle}
+          currentBranchName={currentBranchName}
+          normalizedServerId={normalizedServerId}
+          normalizedWorkspaceId={normalizedWorkspaceId}
+          workspaceScripts={workspaceScripts}
+          liveTerminalIds={liveTerminalIds}
+          showWorkspaceSetup={showWorkspaceSetup}
+          showCreateBrowserTab={showCreateBrowserTab}
+          showReviewAction={isGitCheckout}
+          isMobile={isMobile}
+          createTerminalDisabled={createTerminalDisabled}
+          importAgentDisabled={!canOpenImportSheet}
+          copyPathDisabled={!workspaceDirectory}
+          menuNewAgentIcon={menuNewAgentIcon}
+          menuNewTerminalIcon={menuNewTerminalIcon}
+          menuNewBrowserIcon={MENU_NEW_BROWSER_ICON}
+          menuReviewIcon={MENU_REVIEW_ICON}
+          menuFileIcon={MENU_FILE_ICON}
+          menuSideChatIcon={MENU_SIDE_CHAT_ICON}
+          menuImportIcon={MENU_IMPORT_ICON}
+          menuCopyIcon={menuCopyIcon}
+          menuSettingsIcon={menuSettingsIcon}
+          onCreateDraftTab={handleCreateDraftTab}
+          onCreateTerminal={handleCreateTerminal}
+          onCreateTerminalWithProfile={handleCreateTerminalWithProfile}
+          onCreateBrowser={handleCreateBrowserTab}
+          onOpenReview={handleOpenReviewTool}
+          onOpenFile={handleOpenFileTool}
+          onCreateSideChat={handleOpenSideChatTab}
+          onOpenImportSheet={openImportSheet}
+          onCopyWorkspacePath={handleCopyWorkspacePath}
+          onCopyBranchName={handleCopyBranchName}
+          onOpenSetupTab={handleOpenSetupTab}
+          onScriptTerminalStarted={handleScriptTerminalStarted}
+          onViewScriptTerminal={handleViewScriptTerminal}
+          onOpenUrlInBrowserTab={handleOpenUrlInBrowserTab}
+        />
+      </>
+    ),
+    [
+      isWorkspaceHeaderLoading,
+      workspaceHeaderTitle,
+      workspaceHeaderSubtitle,
+      shouldShowWorkspaceHeaderSubtitle,
+      currentBranchName,
+      normalizedServerId,
+      normalizedWorkspaceId,
+      workspaceScripts,
+      liveTerminalIds,
+      showWorkspaceSetup,
+      showCreateBrowserTab,
+      isGitCheckout,
+      isMobile,
+      createTerminalDisabled,
+      canOpenImportSheet,
+      workspaceDirectory,
+      menuNewAgentIcon,
+      menuNewTerminalIcon,
+      menuCopyIcon,
+      menuSettingsIcon,
+      handleCreateDraftTab,
+      handleCreateTerminal,
+      handleCreateTerminalWithProfile,
+      handleCreateBrowserTab,
+      handleOpenReviewTool,
+      handleOpenFileTool,
+      handleOpenSideChatTab,
+      openImportSheet,
+      handleCopyWorkspacePath,
+      handleCopyBranchName,
+      handleOpenSetupTab,
+      handleScriptTerminalStarted,
+      handleViewScriptTerminal,
+      handleOpenUrlInBrowserTab,
+    ],
+  );
+  const workspaceHeaderNode = useMemo(
+    () =>
+      showScreenHeader ? (
+        <ScreenHeader
+          onRowLayout={onHeaderLayout}
+          borderless
+          left={headerLeft}
+          right={headerRight}
+        />
+      ) : null,
+    [showScreenHeader, onHeaderLayout, headerLeft, headerRight],
+  );
+  const renderSplitPaneHeader = useCallback(
+    function renderSplitPaneHeader(paneId: string) {
+      return paneId === MAIN_PANE_ID ? workspaceHeaderNode : null;
+    },
+    [workspaceHeaderNode],
+  );
   const desktopSplitContent = useMemo(() => {
     if (!canRenderDesktopPaneSplits || !workspaceRenderLayout || !persistenceKey) {
       return null;
@@ -3708,6 +3812,7 @@ function WorkspaceScreenContent({
         onReorderTabsInPane={handleReorderTabsInPane}
         renderPaneEmptyState={renderSplitPaneEmptyState}
         renderPaneTabBarLeading={renderSplitPaneTabBarLeading}
+        renderPaneHeader={renderSplitPaneHeader}
       />
     );
   }, [
@@ -3745,64 +3850,13 @@ function WorkspaceScreenContent({
     handleReorderTabsInPane,
     renderSplitPaneEmptyState,
     renderSplitPaneTabBarLeading,
+    renderSplitPaneHeader,
   ]);
   const desktopContent = desktopSplitContent ?? content;
 
   const workspaceCenterColumn = (
     <View style={styles.centerColumn}>
-      {showScreenHeader && (
-        <ScreenHeader
-          onRowLayout={onHeaderLayout}
-          borderless
-          left={
-            <>
-              <SidebarMenuToggle />
-              <WorkspaceHeaderTitleBar
-                isLoading={isWorkspaceHeaderLoading}
-                title={workspaceHeaderTitle}
-                subtitle={workspaceHeaderSubtitle}
-                showSubtitle={shouldShowWorkspaceHeaderSubtitle}
-                currentBranchName={currentBranchName}
-                normalizedServerId={normalizedServerId}
-                normalizedWorkspaceId={normalizedWorkspaceId}
-                workspaceScripts={workspaceScripts}
-                liveTerminalIds={liveTerminalIds}
-                showWorkspaceSetup={showWorkspaceSetup}
-                showCreateBrowserTab={showCreateBrowserTab}
-                showReviewAction={isGitCheckout}
-                isMobile={isMobile}
-                createTerminalDisabled={createTerminalDisabled}
-                importAgentDisabled={!canOpenImportSheet}
-                copyPathDisabled={!workspaceDirectory}
-                menuNewAgentIcon={menuNewAgentIcon}
-                menuNewTerminalIcon={menuNewTerminalIcon}
-                menuNewBrowserIcon={MENU_NEW_BROWSER_ICON}
-                menuReviewIcon={MENU_REVIEW_ICON}
-                menuFileIcon={MENU_FILE_ICON}
-                menuSideChatIcon={MENU_SIDE_CHAT_ICON}
-                menuImportIcon={MENU_IMPORT_ICON}
-                menuCopyIcon={menuCopyIcon}
-                menuSettingsIcon={menuSettingsIcon}
-                onCreateDraftTab={handleCreateDraftTab}
-                onCreateTerminal={handleCreateTerminal}
-                onCreateTerminalWithProfile={handleCreateTerminalWithProfile}
-                onCreateBrowser={handleCreateBrowserTab}
-                onOpenReview={handleOpenReviewTool}
-                onOpenFile={handleOpenFileTool}
-                onCreateSideChat={handleOpenSideChatTab}
-                onOpenImportSheet={openImportSheet}
-                onCopyWorkspacePath={handleCopyWorkspacePath}
-                onCopyBranchName={handleCopyBranchName}
-                onOpenSetupTab={handleOpenSetupTab}
-                onScriptTerminalStarted={handleScriptTerminalStarted}
-                onViewScriptTerminal={handleViewScriptTerminal}
-                onOpenUrlInBrowserTab={handleOpenUrlInBrowserTab}
-              />
-            </>
-          }
-          right={headerRight}
-        />
-      )}
+      {isMobile ? workspaceHeaderNode : null}
 
       {isMobile ? (
         <MobileWorkspaceTabSwitcher
