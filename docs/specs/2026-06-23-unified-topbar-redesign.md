@@ -1,7 +1,12 @@
 # Unified Top Bar Redesign (Codex-style) — Design + Behaviors
 
-**Status:** design approved 2026-06-23 (chairman). Mockup: `/tmp/paseo-shot/topbar-mockup.png`.
-Implementation pending.
+**Status:** **IMPLEMENTED + live-verified 2026-06-23.** Mockup: `/tmp/paseo-shot/topbar-mockup.png`.
+M1 `f6199720` (renderPaneHeader) · M2 `37a0b8a8` (header → main pane, narrows on expand: Commit CTA
+1383→801px) · M3 `bd45a783` (toggle pinned top-right, identical X 1672=1672 collapsed/expanded). M4
+needed **no code** — diff-badge toggle already existed (`handleToggleReviewFromChanges`), collapse-keeps-tabs
+works (`rightToolPanelCollapsedByWorkspace`), switch-clears works (fresh per workspace), and the top-bar↔canvas
+divider was already removed by M2 (the header is a `borderless` `ScreenHeader` rendered inside the main pane).
+Desktop-only change; mobile keeps the standalone header. All verified via Playwright at :8082.
 
 ## Goal
 
