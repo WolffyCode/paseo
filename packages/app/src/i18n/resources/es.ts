@@ -1,6 +1,17 @@
 import type { TranslationResources } from "./en";
 
 export const es: TranslationResources = {
+  time: {
+    short: {
+      justNow: "ahora",
+      minutes: "{{n}}min",
+      hours: "{{n}}h",
+      days: "{{n}}d",
+      weeks: "{{n}}sem",
+      months: "{{n}}mes",
+      years: "{{n}}a",
+    },
+  },
   common: {
     back: "Atrás",
     loading: "Cargando...",
@@ -742,6 +753,7 @@ export const es: TranslationResources = {
     project: {
       actions: {
         menu: "Acciones del proyecto",
+        rename: "Cambiar nombre",
         openSettings: "Abrir la configuración del proyecto",
         openNewWindow: "Open in new window",
         openNewWindowFailed: "Couldn't open a new window",

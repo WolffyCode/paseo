@@ -1,6 +1,17 @@
 import type { TranslationResources } from "./en";
 
 export const ru: TranslationResources = {
+  time: {
+    short: {
+      justNow: "сейчас",
+      minutes: "{{n}}м",
+      hours: "{{n}}ч",
+      days: "{{n}}д",
+      weeks: "{{n}}нед",
+      months: "{{n}}мес",
+      years: "{{n}}г",
+    },
+  },
   common: {
     back: "Назад",
     loading: "Загрузка...",
@@ -738,6 +749,7 @@ export const ru: TranslationResources = {
     project: {
       actions: {
         menu: "Действия проекта",
+        rename: "Переименовать",
         openSettings: "Открыть настройки проекта",
         openNewWindow: "Open in new window",
         openNewWindowFailed: "Couldn't open a new window",

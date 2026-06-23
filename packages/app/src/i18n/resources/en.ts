@@ -1,4 +1,15 @@
 export const en = {
+  time: {
+    short: {
+      justNow: "now",
+      minutes: "{{n}}m",
+      hours: "{{n}}h",
+      days: "{{n}}d",
+      weeks: "{{n}}w",
+      months: "{{n}}mo",
+      years: "{{n}}y",
+    },
+  },
   common: {
     back: "Back",
     loading: "Loading...",
@@ -731,6 +742,7 @@ export const en = {
     project: {
       actions: {
         menu: "Project actions",
+        rename: "Rename",
         openSettings: "Open project settings",
         openNewWindow: "Open in new window",
         openNewWindowFailed: "Couldn't open a new window",

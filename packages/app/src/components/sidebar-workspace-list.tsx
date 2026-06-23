@@ -6,9 +6,7 @@ import {
   ScrollView,
   type GestureResponderEvent,
   type PressableStateCallbackType,
-  type ViewStyle,
 } from "react-native";
-import { ProjectIconView } from "@/components/project-icon-view";
 import {
   memo,
   useCallback,
@@ -31,11 +29,12 @@ import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import type { Theme } from "@/styles/theme";
 import { type GestureType } from "react-native-gesture-handler";
 import {
-  CircleAlert,
   ChevronDown,
   ChevronRight,
   ExternalLink,
+  Folder,
   GitPullRequest,
+  Pencil,
   Settings,
   MoreVertical,
   Plus,
@@ -67,16 +66,17 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
 } from "@/components/ui/dropdown-menu";
-import { SyncedLoader } from "@/components/synced-loader";
 import { useToast } from "@/contexts/toast-context";
 import { hasVisibleOrderChanged, mergeWithRemainder } from "@/utils/sidebar-reorder";
 import { SidebarWorkspaceRow } from "@/components/sidebar/sidebar-workspace-row";
 import { useLongPressDragInteraction } from "@/components/sidebar/use-long-press-drag-interaction";
 import { confirmDialog } from "@/utils/confirm-dialog";
-import { projectIconPlaceholderLabelFromDisplayName } from "@/utils/project-display-name";
-import { shouldRenderSyncedStatusLoader } from "@/utils/status-loader";
-import { isEmphasizedStatusDotBucket } from "@/utils/status-dot-color";
-import type { SidebarStateBucket } from "@/utils/sidebar-agent-state";
+import { AdaptiveRenameModal } from "@/components/rename-modal";
+import {
+  projectDisplayNameFromProjectId,
+  projectIconPlaceholderLabelFromDisplayName,
+  resolveProjectTreeName,
+} from "@/utils/project-display-name";
 import { SidebarStatusWorkspaceList } from "@/components/sidebar/sidebar-status-list";
 import { SidebarWorkspaceShortcutBadge } from "@/components/sidebar/sidebar-workspace-row-content";
 import {
@@ -101,19 +101,15 @@ const workspaceKeyExtractor = (workspace: SidebarWorkspaceEntry) => workspace.wo
 
 const projectKeyExtractor = (project: SidebarProjectEntry) => project.projectKey;
 
-const DEFAULT_STATUS_DOT_SIZE = 7;
-const EMPHASIZED_STATUS_DOT_SIZE = 9;
-const DEFAULT_STATUS_DOT_OFFSET = 0;
-const EMPHASIZED_STATUS_DOT_OFFSET = -1;
+const ThemedFolder = withUnistyles(Folder);
 const ThemedExternalLink = withUnistyles(ExternalLink);
 const ThemedGitPullRequest = withUnistyles(GitPullRequest);
 const ThemedActivityIndicator = withUnistyles(ActivityIndicator);
-const ThemedCircleAlert = withUnistyles(CircleAlert);
-const ThemedSyncedLoader = withUnistyles(SyncedLoader);
 const ThemedPlus = withUnistyles(Plus);
 const ThemedMoreVertical = withUnistyles(MoreVertical);
 const ThemedTrash2 = withUnistyles(Trash2);
 const ThemedSettings = withUnistyles(Settings);
+const ThemedPencil = withUnistyles(Pencil);
 
 const foregroundColorMapping = (theme: Theme) => ({
   color: theme.colors.foreground,
@@ -124,20 +120,11 @@ const foregroundMutedColorMapping = (theme: Theme) => ({
 const redColorMapping = (theme: Theme) => ({
   color: theme.colors.palette.red[500],
 });
-const amberColorMapping = (theme: Theme) => ({
-  color: theme.colors.palette.amber[500],
-});
 const greenColorMapping = (theme: Theme) => ({
   color: theme.colors.palette.green[500],
 });
 const purpleColorMapping = (theme: Theme) => ({
   color: theme.colors.palette.purple[500],
-});
-const syncedLoaderColorMapping = (theme: Theme) => ({
-  color:
-    theme.colorScheme === "light"
-      ? theme.colors.palette.amber[700]
-      : theme.colors.palette.amber[500],
 });
 
 function getPrIconUniMapping(state: PrHint["state"]) {
@@ -221,7 +208,6 @@ interface ProjectHeaderRowProps {
   project: SidebarProjectEntry;
   displayName: string;
   iconDataUri: string | null;
-  workspace: SidebarWorkspaceEntry | null;
   selected?: boolean;
   chevron: "expand" | "collapse" | null;
   onPress: () => void;
@@ -234,7 +220,6 @@ interface ProjectHeaderRowProps {
   showShortcutBadge?: boolean;
   drag: () => void;
   isDragging: boolean;
-  isArchiving?: boolean;
   menuController: ReturnType<typeof useContextMenu> | null;
   onRemoveProject?: () => void;
   removeProjectStatus?: "idle" | "pending";
@@ -322,56 +307,21 @@ const prBadgeStyles = StyleSheet.create((theme) => ({
 
 const prBadgeTextHoveredCombined = [prBadgeStyles.text, prBadgeStyles.textHovered];
 
-function StatusDotOverlay({
-  dotColorStyle,
-  size,
-  offset,
-}: {
-  dotColorStyle: ViewStyle;
-  size: number;
-  offset: number;
-}) {
-  const overlayStyle = useMemo(
-    () => [
-      styles.statusDotOverlay,
-      dotColorStyle,
-      {
-        width: size,
-        height: size,
-        right: offset,
-        bottom: offset,
-      },
-    ],
-    [dotColorStyle, size, offset],
-  );
-  return <View style={overlayStyle} />;
-}
-
 function ProjectLeadingVisual({
   displayName,
   iconDataUri,
-  workspace,
   projectKey,
   chevron = null,
   showChevron = false,
-  isArchiving = false,
 }: {
   displayName: string;
   iconDataUri: string | null;
-  workspace: SidebarWorkspaceEntry | null;
   projectKey: string;
   chevron?: "expand" | "collapse" | null;
   showChevron?: boolean;
-  isArchiving?: boolean;
 }) {
   const placeholderLabel = projectIconPlaceholderLabelFromDisplayName(displayName);
   const placeholderInitial = placeholderLabel.charAt(0).toUpperCase();
-  const activeWorkspace = workspace;
-  const shouldShowWorkspaceStatus =
-    activeWorkspace !== null && (isArchiving || activeWorkspace.statusBucket !== "done");
-  const shouldShowSyncedLoader = activeWorkspace
-    ? shouldRenderSyncedStatusLoader({ bucket: activeWorkspace.statusBucket })
-    : false;
 
   if (showChevron && chevron !== null) {
     return (
@@ -381,33 +331,22 @@ function ProjectLeadingVisual({
     );
   }
 
-  if (!shouldShowWorkspaceStatus || !activeWorkspace) {
-    return (
-      <View style={styles.projectLeadingVisualSlot}>
-        <ProjectIcon
-          iconDataUri={iconDataUri}
-          placeholderInitial={placeholderInitial}
-          projectKey={projectKey}
-        />
-      </View>
-    );
-  }
-
+  // Codex-style file tree: always a plain folder icon — no agent-status dot/spinner/alert.
   return (
-    <ProjectLeadingVisualStatus
-      iconDataUri={iconDataUri}
-      placeholderInitial={placeholderInitial}
-      projectKey={projectKey}
-      isArchiving={isArchiving}
-      shouldShowSyncedLoader={shouldShowSyncedLoader}
-      activeWorkspace={activeWorkspace}
-    />
+    <View style={styles.projectLeadingVisualSlot}>
+      <ProjectIcon
+        iconDataUri={iconDataUri}
+        placeholderInitial={placeholderInitial}
+        projectKey={projectKey}
+      />
+    </View>
   );
 }
 
 function ProjectRowTrailingActions({
   project,
   displayName,
+  serverId,
   canCreateWorktree,
   isHovered,
   isMobileBreakpoint,
@@ -418,6 +357,7 @@ function ProjectRowTrailingActions({
 }: {
   project: SidebarProjectEntry;
   displayName: string;
+  serverId: string | null;
   canCreateWorktree: boolean;
   isHovered: boolean;
   isMobileBreakpoint: boolean;
@@ -446,6 +386,8 @@ function ProjectRowTrailingActions({
           <ProjectKebabMenu
             projectKey={project.projectKey}
             projectPath={project.iconWorkingDir}
+            displayName={displayName}
+            serverId={serverId}
             onRemoveProject={onRemoveProject}
             removeProjectStatus={removeProjectStatus}
           />
@@ -457,6 +399,7 @@ function ProjectRowTrailingActions({
 
 const trash2LeadingIcon = <ThemedTrash2 size={14} uniProps={foregroundMutedColorMapping} />;
 const settingsLeadingIcon = <ThemedSettings size={14} uniProps={foregroundMutedColorMapping} />;
+const projectRenameLeadingIcon = <ThemedPencil size={14} uniProps={foregroundMutedColorMapping} />;
 const openInNewWindowLeadingIcon = (
   <ThemedExternalLink size={14} uniProps={foregroundMutedColorMapping} />
 );
@@ -473,21 +416,48 @@ function renderKebabTriggerIcon({ hovered }: { hovered?: boolean }) {
 function ProjectKebabMenu({
   projectKey,
   projectPath,
+  displayName,
+  serverId,
   onRemoveProject,
   removeProjectStatus,
 }: {
   projectKey: string;
   projectPath: string;
+  displayName: string;
+  serverId: string | null;
   onRemoveProject: () => void;
   removeProjectStatus: "idle" | "pending" | "success";
 }) {
   const { t } = useTranslation();
   const toast = useToast();
+  const [isRenameOpen, setIsRenameOpen] = useState(false);
   const handleOpenProjectSettings = useCallback(() => {
     if (projectKey.trim().length === 0) return;
     router.navigate(buildProjectSettingsRoute(projectKey));
   }, [projectKey]);
   const canOpenProjectSettings = projectKey.trim().length > 0;
+  const canRename = Boolean(serverId) && projectKey.trim().length > 0;
+  const handleOpenRename = useCallback(() => {
+    setIsRenameOpen(true);
+  }, []);
+  const handleCloseRename = useCallback(() => {
+    setIsRenameOpen(false);
+  }, []);
+  const handleSubmitRename = useCallback(
+    async (value: string) => {
+      if (!serverId) {
+        return;
+      }
+      const client = getHostRuntimeStore().getClient(serverId);
+      if (!client) {
+        toast.error(t("sidebar.project.toasts.hostDisconnected"));
+        return;
+      }
+      const trimmed = value.trim();
+      await client.renameProject(projectKey, trimmed.length === 0 ? null : trimmed);
+    },
+    [projectKey, serverId, t, toast],
+  );
   // Desktop-only: open a second window that lands on this project via the same
   // open-project flow as a CLI launch. The project stays visible here too — no
   // ownership, no move.
@@ -503,134 +473,85 @@ function ProjectKebabMenu({
       });
   }, [projectPath, t, toast]);
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        hitSlop={8}
-        style={projectKebabStyle}
-        accessibilityRole={platformIsWeb ? undefined : "button"}
-        accessibilityLabel={t("sidebar.project.actions.menu")}
-        testID={`sidebar-project-kebab-${projectKey}`}
-      >
-        {renderKebabTriggerIcon}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" width={220}>
-        {canOpenProjectSettings ? (
-          <DropdownMenuItem
-            testID={`sidebar-project-menu-open-settings-${projectKey}`}
-            leading={settingsLeadingIcon}
-            onSelect={handleOpenProjectSettings}
-          >
-            {t("sidebar.project.actions.openSettings")}
-          </DropdownMenuItem>
-        ) : null}
-        {canOpenInNewWindow ? (
-          <DropdownMenuItem
-            testID={`sidebar-project-menu-open-new-window-${projectKey}`}
-            leading={openInNewWindowLeadingIcon}
-            onSelect={handleOpenInNewWindow}
-          >
-            {t("sidebar.project.actions.openNewWindow")}
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem
-          testID={`sidebar-project-menu-remove-${projectKey}`}
-          leading={trash2LeadingIcon}
-          status={removeProjectStatus}
-          pendingLabel={t("sidebar.project.actions.removing")}
-          onSelect={onRemoveProject}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          hitSlop={8}
+          style={projectKebabStyle}
+          accessibilityRole={platformIsWeb ? undefined : "button"}
+          accessibilityLabel={t("sidebar.project.actions.menu")}
+          testID={`sidebar-project-kebab-${projectKey}`}
         >
-          {t("sidebar.project.actions.remove")}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {renderKebabTriggerIcon}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" width={220}>
+          {canRename ? (
+            <DropdownMenuItem
+              testID={`sidebar-project-menu-rename-${projectKey}`}
+              leading={projectRenameLeadingIcon}
+              onSelect={handleOpenRename}
+            >
+              {t("sidebar.project.actions.rename")}
+            </DropdownMenuItem>
+          ) : null}
+          {canOpenProjectSettings ? (
+            <DropdownMenuItem
+              testID={`sidebar-project-menu-open-settings-${projectKey}`}
+              leading={settingsLeadingIcon}
+              onSelect={handleOpenProjectSettings}
+            >
+              {t("sidebar.project.actions.openSettings")}
+            </DropdownMenuItem>
+          ) : null}
+          {canOpenInNewWindow ? (
+            <DropdownMenuItem
+              testID={`sidebar-project-menu-open-new-window-${projectKey}`}
+              leading={openInNewWindowLeadingIcon}
+              onSelect={handleOpenInNewWindow}
+            >
+              {t("sidebar.project.actions.openNewWindow")}
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuItem
+            testID={`sidebar-project-menu-remove-${projectKey}`}
+            leading={trash2LeadingIcon}
+            status={removeProjectStatus}
+            pendingLabel={t("sidebar.project.actions.removing")}
+            onSelect={onRemoveProject}
+          >
+            {t("sidebar.project.actions.remove")}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <AdaptiveRenameModal
+        visible={isRenameOpen}
+        title={t("sidebar.project.actions.rename")}
+        initialValue={displayName}
+        placeholder={displayName}
+        onClose={handleCloseRename}
+        onSubmit={handleSubmitRename}
+        testID={`sidebar-project-rename-modal-${projectKey}`}
+      />
+    </>
   );
 }
 
 function ProjectIcon({
-  iconDataUri,
-  placeholderInitial,
-  projectKey,
+  iconDataUri: _iconDataUri,
+  placeholderInitial: _placeholderInitial,
+  projectKey: _projectKey,
 }: {
   iconDataUri: string | null;
   placeholderInitial: string;
   projectKey: string;
 }) {
-  return (
-    <ProjectIconView
-      iconDataUri={iconDataUri}
-      initial={placeholderInitial}
-      projectKey={projectKey}
-      imageStyle={styles.projectIcon}
-      fallbackStyle={styles.projectIconFallback}
-      textStyle={styles.projectIconFallbackText}
-    />
-  );
-}
-
-function ProjectLeadingVisualStatus({
-  iconDataUri,
-  placeholderInitial,
-  projectKey,
-  isArchiving,
-  shouldShowSyncedLoader,
-  activeWorkspace,
-}: {
-  iconDataUri: string | null;
-  placeholderInitial: string;
-  projectKey: string;
-  isArchiving: boolean;
-  shouldShowSyncedLoader: boolean;
-  activeWorkspace: SidebarWorkspaceEntry;
-}) {
-  if (isArchiving) {
-    return (
-      <View style={styles.projectLeadingVisualSlot}>
-        <ThemedActivityIndicator size={8} uniProps={foregroundMutedColorMapping} />
-      </View>
-    );
-  }
-
-  if (shouldShowSyncedLoader) {
-    return (
-      <View style={styles.projectLeadingVisualSlot}>
-        <ThemedSyncedLoader size={11} uniProps={syncedLoaderColorMapping} />
-      </View>
-    );
-  }
-
-  if (activeWorkspace.statusBucket === "needs_input") {
-    return (
-      <View style={styles.projectLeadingVisualSlot}>
-        <ThemedCircleAlert size={14} uniProps={amberColorMapping} />
-      </View>
-    );
-  }
-
-  const dotColorStyle = getStatusDotColorStyle(activeWorkspace.statusBucket);
-  const statusDotSize = isEmphasizedStatusDotBucket(activeWorkspace.statusBucket)
-    ? EMPHASIZED_STATUS_DOT_SIZE
-    : DEFAULT_STATUS_DOT_SIZE;
-  const statusDotOffset =
-    statusDotSize === EMPHASIZED_STATUS_DOT_SIZE
-      ? EMPHASIZED_STATUS_DOT_OFFSET
-      : DEFAULT_STATUS_DOT_OFFSET;
-
-  return (
-    <View style={styles.projectLeadingVisualSlot}>
-      <ProjectIcon
-        iconDataUri={iconDataUri}
-        placeholderInitial={placeholderInitial}
-        projectKey={projectKey}
-      />
-      {dotColorStyle ? (
-        <StatusDotOverlay
-          dotColorStyle={dotColorStyle}
-          size={statusDotSize}
-          offset={statusDotOffset}
-        />
-      ) : null}
-    </View>
-  );
+  // Codex-style file tree: every project renders as a generic folder icon instead of its
+  // repo logo / colored initial. The icon-data props are kept (threaded from the row model)
+  // for a later cleanup pass.
+  void _iconDataUri;
+  void _placeholderInitial;
+  void _projectKey;
+  return <ThemedFolder size={16} uniProps={foregroundMutedColorMapping} />;
 }
 
 function ProjectInlineChevron({ chevron }: { chevron: "expand" | "collapse" | null }) {
@@ -725,7 +646,6 @@ function ProjectHeaderRow({
   project,
   displayName,
   iconDataUri,
-  workspace,
   selected = false,
   chevron,
   onPress,
@@ -738,7 +658,6 @@ function ProjectHeaderRow({
   showShortcutBadge = false,
   drag,
   isDragging,
-  isArchiving = false,
   menuController,
   onRemoveProject,
   removeProjectStatus = "idle",
@@ -788,11 +707,9 @@ function ProjectHeaderRow({
         <ProjectLeadingVisual
           displayName={displayName}
           iconDataUri={iconDataUri}
-          workspace={workspace}
           projectKey={project.projectKey}
           chevron={chevron}
           showChevron={isHovered && chevron !== null}
-          isArchiving={isArchiving}
         />
 
         <View style={styles.projectTitleGroup}>
@@ -804,6 +721,7 @@ function ProjectHeaderRow({
       <ProjectRowTrailingActions
         project={project}
         displayName={displayName}
+        serverId={serverId}
         canCreateWorktree={canCreateWorktree}
         isHovered={isHovered}
         isMobileBreakpoint={isMobileBreakpoint}
@@ -1004,63 +922,6 @@ function WorkspaceRow({
   );
 }
 
-function NewWorkspaceGhostRow({
-  project,
-  displayName,
-  serverId,
-  onWorkspacePress,
-}: {
-  project: SidebarProjectEntry;
-  displayName: string;
-  serverId: string | null;
-  onWorkspacePress?: () => void;
-}) {
-  const { t } = useTranslation();
-  const handlePress = useCallback(() => {
-    navigateToNewWorkspaceForProject({ serverId, project, displayName, onWorkspacePress });
-  }, [displayName, onWorkspacePress, project, serverId]);
-  const rowStyle = useCallback(
-    ({ hovered = false, pressed }: PressableStateCallbackType & { hovered?: boolean }) => [
-      styles.newWorkspaceGhostRow,
-      (Boolean(hovered) || pressed) && styles.newWorkspaceGhostRowHovered,
-    ],
-    [],
-  );
-
-  return (
-    <Pressable
-      accessibilityRole={platformIsWeb ? undefined : "button"}
-      accessibilityLabel={t("sidebar.workspace.actions.createWorkspaceFor", {
-        projectName: displayName,
-      })}
-      onPress={handlePress}
-      style={rowStyle}
-      testID={`sidebar-project-new-workspace-row-${project.projectKey}`}
-    >
-      {({ hovered, pressed }) => (
-        <>
-          <View style={styles.newWorkspaceGhostIconSlot}>
-            <ThemedPlus
-              size={14}
-              uniProps={hovered || pressed ? foregroundColorMapping : foregroundMutedColorMapping}
-            />
-          </View>
-          <Text
-            style={
-              hovered || pressed
-                ? styles.newWorkspaceGhostTextHovered
-                : styles.newWorkspaceGhostText
-            }
-            numberOfLines={1}
-          >
-            {t("sidebar.workspace.actions.newWorkspace")}
-          </Text>
-        </>
-      )}
-    </Pressable>
-  );
-}
-
 function ProjectBlock({
   project,
   collapsed,
@@ -1230,34 +1091,26 @@ function ProjectBlock({
     onToggleCollapsed(project.projectKey);
   }, [onToggleCollapsed, project.projectKey]);
 
+  // Codex-style file tree: a project with no workspaces renders as a bare folder row with
+  // no children (no "new workspace" ghost row). Creating a workspace still happens via the
+  // header's "+" action.
   let projectChildren = null;
-  if (!collapsed) {
-    if (project.workspaces.length > 0) {
-      projectChildren = (
-        <DraggableList
-          testID={`sidebar-workspace-list-${project.projectKey}`}
-          data={project.workspaces}
-          keyExtractor={workspaceKeyExtractor}
-          renderItem={renderWorkspace}
-          onDragEnd={handleWorkspaceDragEnd}
-          extraData={activeWorkspaceSelectionKey(activeWorkspaceSelection)}
-          scrollEnabled={false}
-          useDragHandle
-          nestable={useNestable}
-          simultaneousGestureRef={parentGestureRef}
-          containerStyle={styles.workspaceListContainer}
-        />
-      );
-    } else {
-      projectChildren = (
-        <NewWorkspaceGhostRow
-          project={project}
-          displayName={displayName}
-          serverId={serverId}
-          onWorkspacePress={onWorkspacePress}
-        />
-      );
-    }
+  if (!collapsed && project.workspaces.length > 0) {
+    projectChildren = (
+      <DraggableList
+        testID={`sidebar-workspace-list-${project.projectKey}`}
+        data={project.workspaces}
+        keyExtractor={workspaceKeyExtractor}
+        renderItem={renderWorkspace}
+        onDragEnd={handleWorkspaceDragEnd}
+        extraData={activeWorkspaceSelectionKey(activeWorkspaceSelection)}
+        scrollEnabled={false}
+        useDragHandle
+        nestable={useNestable}
+        simultaneousGestureRef={parentGestureRef}
+        containerStyle={styles.workspaceListContainer}
+      />
+    );
   }
 
   return (
@@ -1266,7 +1119,6 @@ function ProjectBlock({
         project={project}
         displayName={displayName}
         iconDataUri={iconDataUri}
-        workspace={null}
         selected={false}
         chevron={rowModel.chevron}
         onPress={handleToggleCollapsed}
@@ -1277,7 +1129,6 @@ function ProjectBlock({
         onWorktreeCreated={onWorktreeCreated}
         drag={drag}
         isDragging={isDragging}
-        isArchiving={isRemovingProject}
         menuController={null}
         onRemoveProject={handleRemoveProject}
         removeProjectStatus={isRemovingProject ? "pending" : "idle"}
@@ -1604,11 +1455,22 @@ function ProjectModeList({
 
   const renderProject = useCallback(
     ({ item, drag, isActive, dragHandleProps }: DraggableRenderItemInfo<SidebarProjectEntry>) => {
+      // Codex-style file tree: default the project label to the physical directory
+      // basename, with a user-set custom name overriding it. `item.projectName` already
+      // resolves to the custom name when present (else the project-id label), so we only
+      // treat it as a custom override when it diverges from that derived fallback.
+      const derivedFallback = projectDisplayNameFromProjectId(item.projectKey);
+      const customName = item.projectName === derivedFallback ? null : item.projectName;
+      const treeDisplayName = resolveProjectTreeName({
+        customName,
+        workingDir: item.iconWorkingDir,
+        projectId: item.projectKey,
+      });
       return (
         <MemoProjectBlock
           project={item}
           collapsed={collapsedProjectKeys.has(item.projectKey)}
-          displayName={item.projectName}
+          displayName={treeDisplayName}
           iconDataUri={projectIconByProjectKey.get(item.projectKey) ?? null}
           serverId={serverId}
           canRemoveProject={canRemoveProject}
@@ -1721,40 +1583,6 @@ const styles = StyleSheet.create((theme) => ({
     marginBottom: theme.spacing[1],
   },
   workspaceListContainer: {},
-  newWorkspaceGhostRow: {
-    minHeight: 32,
-    marginLeft: theme.spacing[6],
-    marginRight: theme.spacing[1],
-    paddingVertical: theme.spacing[1],
-    paddingHorizontal: theme.spacing[2],
-    borderRadius: theme.borderRadius.md,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[2],
-    userSelect: "none",
-  },
-  newWorkspaceGhostRowHovered: {
-    backgroundColor: theme.colors.surfaceSidebarHover,
-  },
-  newWorkspaceGhostIconSlot: {
-    width: theme.iconSize.sm,
-    height: theme.iconSize.sm,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  newWorkspaceGhostText: {
-    color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.sm,
-    minWidth: 0,
-    flexShrink: 1,
-  },
-  newWorkspaceGhostTextHovered: {
-    fontSize: theme.fontSize.sm,
-    minWidth: 0,
-    flexShrink: 1,
-    color: theme.colors.foreground,
-  },
   emptyContainer: {
     marginHorizontal: theme.spacing[2],
     marginTop: theme.spacing[4],
@@ -1923,44 +1751,4 @@ const styles = StyleSheet.create((theme) => ({
   sidebarRowSelected: {
     backgroundColor: theme.colors.surfaceSidebarHover,
   },
-  statusDotOverlay: {
-    position: "absolute",
-    right: DEFAULT_STATUS_DOT_OFFSET,
-    bottom: DEFAULT_STATUS_DOT_OFFSET,
-    width: DEFAULT_STATUS_DOT_SIZE,
-    height: DEFAULT_STATUS_DOT_SIZE,
-    borderRadius: theme.borderRadius.full,
-    borderWidth: 1,
-  },
-  statusDotNeedsInput: {
-    backgroundColor: theme.colors.palette.amber[500],
-    borderColor: theme.colors.surface0,
-  },
-  statusDotFailed: {
-    backgroundColor: theme.colors.palette.red[500],
-    borderColor: theme.colors.surface0,
-  },
-  statusDotRunning: {
-    backgroundColor: theme.colors.palette.blue[500],
-    borderColor: theme.colors.surface0,
-  },
-  statusDotAttention: {
-    backgroundColor: theme.colors.palette.green[500],
-    borderColor: theme.colors.surface0,
-  },
 }));
-
-function getStatusDotColorStyle(bucket: SidebarStateBucket): ViewStyle | null {
-  switch (bucket) {
-    case "needs_input":
-      return styles.statusDotNeedsInput;
-    case "failed":
-      return styles.statusDotFailed;
-    case "running":
-      return styles.statusDotRunning;
-    case "attention":
-      return styles.statusDotAttention;
-    case "done":
-      return null;
-  }
-}

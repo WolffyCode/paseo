@@ -1,3 +1,26 @@
+import type { TFunction } from "i18next";
+
+/**
+ * Compact, locale-aware "time ago" for the sidebar file tree (Codex-style).
+ * No "ago"/"前" suffix — just the largest unit: "刚刚" / "5分钟" / "2小时" / "3天" /
+ * "1周" / "2个月" / "1年" (and the equivalent terse forms per locale).
+ * `n` (not `count`) is used for interpolation to avoid i18next pluralization.
+ */
+export function formatTimeAgoShort(date: Date, t: TFunction): string {
+  const diffSec = Math.max(0, Math.floor((new Date().getTime() - date.getTime()) / 1000));
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHour = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHour / 24);
+
+  if (diffMin < 1) return t("time.short.justNow");
+  if (diffHour < 1) return t("time.short.minutes", { n: diffMin });
+  if (diffDay < 1) return t("time.short.hours", { n: diffHour });
+  if (diffDay < 7) return t("time.short.days", { n: diffDay });
+  if (diffDay < 30) return t("time.short.weeks", { n: Math.floor(diffDay / 7) });
+  if (diffDay < 365) return t("time.short.months", { n: Math.floor(diffDay / 30) });
+  return t("time.short.years", { n: Math.floor(diffDay / 365) });
+}
+
 /**
  * Format a date as a human-friendly relative time string
  * Examples: "just now", "5m ago", "2h ago", "3d ago", "Jan 15"

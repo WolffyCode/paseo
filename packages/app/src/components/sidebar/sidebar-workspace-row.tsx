@@ -9,7 +9,7 @@ import type { Theme } from "@/styles/theme";
 import type { SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
 import type { DraggableListDragHandleProps } from "@/components/draggable-list.types";
 import type { ShortcutKey } from "@/utils/format-shortcut";
-import { DiffStat } from "@/components/diff-stat";
+import { formatTimeAgoShort } from "@/utils/time";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -437,7 +437,12 @@ function WorkspaceRowTrailingActions({
   const showShortcut = showShortcutBadge && shortcutNumber !== null;
   const showKebab = Boolean(onArchive && (isHovered || isTouchPlatform));
   const showKebabInSlot = showKebab && !showShortcut;
-  const shouldRenderActionSlot = Boolean(onArchive || workspace.diffStat);
+  // Codex-style file tree: the trailing slot shows a relative "time ago" label sourced from
+  // when the workspace entered its current status, in place of the old +/- diff stat.
+  const timeAgoLabel = workspace.statusEnteredAt
+    ? formatTimeAgoShort(workspace.statusEnteredAt, t)
+    : null;
+  const shouldRenderActionSlot = Boolean(onArchive || timeAgoLabel);
 
   return (
     <>
@@ -447,13 +452,14 @@ function WorkspaceRowTrailingActions({
       {shouldRenderActionSlot ? (
         <SidebarWorkspaceTrailingActionSlot>
           <SidebarWorkspaceTrailingActionBase
-            visible={Boolean(workspace.diffStat && !showKebabInSlot && !showShortcut)}
+            visible={Boolean(timeAgoLabel && !showKebabInSlot && !showShortcut)}
           >
-            {workspace.diffStat ? (
-              <DiffStat
-                additions={workspace.diffStat.additions}
-                deletions={workspace.diffStat.deletions}
-              />
+            {timeAgoLabel ? (
+              <View style={styles.timeAgoContainer}>
+                <Text style={styles.timeAgoText} numberOfLines={1}>
+                  {timeAgoLabel}
+                </Text>
+              </View>
             ) : null}
           </SidebarWorkspaceTrailingActionBase>
           <SidebarWorkspaceTrailingActionOverlay visible={showKebabInSlot}>
@@ -629,6 +635,17 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.xs,
     flexShrink: 0,
+  },
+  timeAgoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 20,
+    flexShrink: 0,
+  },
+  timeAgoText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.normal,
+    color: theme.colors.foregroundMuted,
   },
   kebabButton: {
     padding: 2,

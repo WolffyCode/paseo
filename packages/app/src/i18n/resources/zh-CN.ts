@@ -1,6 +1,17 @@
 import type { TranslationResources } from "./en";
 
 export const zhCN: TranslationResources = {
+  time: {
+    short: {
+      justNow: "刚刚",
+      minutes: "{{n}}分钟",
+      hours: "{{n}}小时",
+      days: "{{n}}天",
+      weeks: "{{n}}周",
+      months: "{{n}}个月",
+      years: "{{n}}年",
+    },
+  },
   common: {
     back: "返回",
     loading: "加载中...",
@@ -719,6 +730,7 @@ export const zhCN: TranslationResources = {
     project: {
       actions: {
         menu: "Project 操作",
+        rename: "重命名",
         openSettings: "打开 project 设置",
         openNewWindow: "在新窗口中打开",
         openNewWindowFailed: "无法打开新窗口",
