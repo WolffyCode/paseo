@@ -88,6 +88,19 @@ the tools-pane toggle. Typecheck only — no visual change yet.
 collapsed**. Stop rendering the standalone `ScreenHeader` on desktop/focused (keep mobile path). Header height
 must equal the tools tab-bar height so the strip reads as one bar. Live: collapsed top bar = mockup “收起”.
 
+- **M1 done** (`f6199720`): `SplitContainer` now accepts `renderPaneHeader`, rendered above each pane.
+- **Gotcha (must get right, else stale header / TDZ crash = broken top bar):** the header must be a
+  **stable** node — `desktopSplitContent` is a `useMemo`, and an unstable `renderPaneHeader` makes the whole
+  split chrome re-render every keystroke. So memoize: `headerLeft` (mirror the existing `headerRight`
+  `useMemo` at ~l.3514) → `workspaceHeaderNode` `useMemo` → `renderSplitPaneHeader` `useCallback`, inserted
+  **after** `headerRight`/`showScreenHeader`/`createTerminalDisabled` (l.3651/3653/3657) and **before**
+  `desktopSplitContent` (l.3671). `headerLeft`'s ~35 deps are the `WorkspaceHeaderTitleBar` props
+  (l.3760–3800); most come from a **hook-destructured bundle** (`isWorkspaceHeaderLoading` /
+  `workspaceHeaderTitle` / `workspaceHeaderSubtitle` / `shouldShowWorkspaceHeaderSubtitle` /
+  `currentBranchName` are fields on a status object — find the destructure and confirm it's < l.3671).
+  Over-list deps (safe); the danger is _under_-listing → stale header. Then `renderPaneHeader` flows into
+  `desktopSplitContent`'s dep array, and the standalone header becomes `{isMobile ? workspaceHeaderNode : null}`.
+
 **M3 — tools-pane header = tab bar + trailing toggle (expanded state matches mockup).** Put the toggle in the
 tools tab-bar **trailing** slot (shown when expanded); **revert** `renderSplitPaneTabBarLeading`. The toggle’s
 screen-X must be identical collapsed-vs-expanded (window right corner). On expand, main pane narrows →
