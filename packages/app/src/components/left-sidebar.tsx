@@ -1,5 +1,5 @@
 import { router, usePathname } from "expo-router";
-import { FolderPlus, History, Home, Plus, Search, Settings, X } from "lucide-react-native";
+import { FolderPlus, Home, Search, Settings, SquarePen, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   type Dispatch,
@@ -65,7 +65,6 @@ import { canCloseLeftSidebarGesture } from "@/utils/sidebar-animation-state";
 import {
   buildHostOpenProjectRoute,
   buildHostNewWorkspaceRoute,
-  buildHostSessionsRoute,
   buildSettingsRoute,
   mapPathnameToServer,
 } from "@/utils/host-routes";
@@ -103,6 +102,7 @@ interface SidebarSharedProps {
   handleRefresh: () => void;
   handleHostSelect: (nextServerId: string) => void;
   handleNewWorkspaceNavigate: () => void;
+  handleOpenCommandCenter: () => void;
   handleOpenProject: () => void;
   handleHome: () => void;
   handleSettings: () => void;
@@ -114,16 +114,17 @@ interface SidebarSharedProps {
     onPress: () => void;
   }) => ReactElement;
   newWorkspaceKeys: ShortcutKey[][] | null;
+  commandCenterKeys: ShortcutKey[][] | null;
 }
 
 interface SidebarLabels {
   addProject: string;
-  newWorkspace: string;
+  newConversation: string;
+  search: string;
   home: string;
   settings: string;
   switchHost: string;
   searchHosts: string;
-  sessions: string;
   closeSidebar: string;
 }
 
@@ -132,13 +133,11 @@ interface MobileSidebarProps extends SidebarSharedProps {
   insetsBottom: number;
   isOpen: boolean;
   closeSidebar: () => void;
-  handleViewMoreNavigate: () => void;
 }
 
 interface DesktopSidebarProps extends SidebarSharedProps {
   insetsTop: number;
   isOpen: boolean;
-  handleViewMore: () => void;
 }
 
 export const LeftSidebar = memo(function LeftSidebar({
@@ -268,12 +267,11 @@ export const LeftSidebar = memo(function LeftSidebar({
     router.push(buildHostOpenProjectRoute(activeServerId));
   }, [activeServerId]);
 
-  const handleViewMoreNavigate = useCallback(() => {
-    if (!activeServerId) {
-      return;
-    }
-    router.push(buildHostSessionsRoute(activeServerId));
-  }, [activeServerId]);
+  const setCommandCenterOpen = useKeyboardShortcutsStore((state) => state.setCommandCenterOpen);
+  const handleOpenCommandCenter = useCallback(
+    () => setCommandCenterOpen(true),
+    [setCommandCenterOpen],
+  );
 
   const handleHostSelect = useCallback(
     (nextServerId: string) => {
@@ -288,16 +286,17 @@ export const LeftSidebar = memo(function LeftSidebar({
   );
 
   const newWorkspaceKeys = useShortcutKeys("new-workspace");
+  const commandCenterKeys = useShortcutKeys("toggle-command-center");
 
   const labels = useMemo(
     (): SidebarLabels => ({
       addProject: t("sidebar.actions.addProject"),
-      newWorkspace: t("sidebar.actions.newWorkspace"),
+      newConversation: t("sidebar.actions.newConversation"),
+      search: t("sidebar.actions.search"),
       home: t("sidebar.actions.home"),
       settings: t("sidebar.actions.settings"),
       switchHost: t("sidebar.host.switchTitle"),
       searchHosts: t("sidebar.host.searchPlaceholder"),
-      sessions: t("sidebar.sections.sessions"),
       closeSidebar: t("sidebar.actions.closeSidebar"),
     }),
     [t],
@@ -325,6 +324,7 @@ export const LeftSidebar = memo(function LeftSidebar({
     renderHostOption,
     labels,
     newWorkspaceKeys,
+    commandCenterKeys,
   };
 
   if (isCompactLayout) {
@@ -336,10 +336,10 @@ export const LeftSidebar = memo(function LeftSidebar({
         isOpen={isOpen}
         closeSidebar={showMobileAgent}
         handleNewWorkspaceNavigate={handleNewWorkspaceNavigate}
+        handleOpenCommandCenter={handleOpenCommandCenter}
         handleOpenProject={handleOpenProjectMobile}
         handleHome={handleHomeMobile}
         handleSettings={handleSettingsMobile}
-        handleViewMoreNavigate={handleViewMoreNavigate}
       />
     );
   }
@@ -350,10 +350,10 @@ export const LeftSidebar = memo(function LeftSidebar({
       insetsTop={insets.top}
       isOpen={isOpen}
       handleNewWorkspaceNavigate={handleNewWorkspaceNavigate}
+      handleOpenCommandCenter={handleOpenCommandCenter}
       handleOpenProject={handleOpenProjectDesktop}
       handleHome={handleHomeDesktop}
       handleSettings={handleSettingsDesktop}
-      handleViewMore={handleViewMoreNavigate}
     />
   );
 });
@@ -604,7 +604,9 @@ function MobileSidebar({
   handleHostSelect,
   renderHostOption,
   newWorkspaceKeys,
+  commandCenterKeys,
   handleNewWorkspaceNavigate,
+  handleOpenCommandCenter,
   handleOpenProject,
   handleHome,
   handleSettings,
@@ -613,10 +615,7 @@ function MobileSidebar({
   insetsBottom,
   isOpen,
   closeSidebar,
-  handleViewMoreNavigate,
 }: MobileSidebarProps) {
-  const pathname = usePathname();
-  const isSessionsActive = pathname.includes("/sessions");
   const {
     translateX,
     backdropOpacity,
@@ -637,22 +636,12 @@ function MobileSidebar({
     closeSidebar();
   }, [closeSidebar, gestureAnimatingRef]);
 
-  const handleViewMore = useCallback(() => {
-    if (!activeServerId) {
-      return;
-    }
+  const handleSearch = useCallback(() => {
     translateX.value = -windowWidth;
     backdropOpacity.value = 0;
     closeSidebar();
-    handleViewMoreNavigate();
-  }, [
-    activeServerId,
-    backdropOpacity,
-    closeSidebar,
-    handleViewMoreNavigate,
-    translateX,
-    windowWidth,
-  ]);
+    handleOpenCommandCenter();
+  }, [backdropOpacity, closeSidebar, handleOpenCommandCenter, translateX, windowWidth]);
 
   const handleWorkspacePress = useCallback(() => {
     closeSidebar();
@@ -810,20 +799,20 @@ function MobileSidebar({
           <View style={styles.sidebarContent} pointerEvents="auto">
             <View style={styles.sidebarHeaderGroup}>
               <SidebarHeaderRow
-                icon={Plus}
-                label={labels.newWorkspace}
+                icon={SquarePen}
+                label={labels.newConversation}
                 onPress={handleNewWorkspace}
                 testID="sidebar-global-new-workspace"
                 variant="compact"
                 shortcutKeys={newWorkspaceKeys}
               />
               <SidebarHeaderRow
-                icon={History}
-                label={labels.sessions}
-                onPress={handleViewMore}
-                isActive={isSessionsActive}
-                testID="sidebar-sessions"
+                icon={Search}
+                label={labels.search}
+                onPress={handleSearch}
+                testID="sidebar-search"
                 variant="compact"
+                shortcutKeys={commandCenterKeys}
               />
             </View>
             <WorkspacesSectionHeader serverId={activeServerId} />
@@ -909,17 +898,16 @@ function DesktopSidebar({
   handleHostSelect,
   renderHostOption,
   newWorkspaceKeys,
+  commandCenterKeys,
   handleNewWorkspaceNavigate,
+  handleOpenCommandCenter,
   handleOpenProject,
   handleHome,
   handleSettings,
   labels,
   insetsTop,
   isOpen,
-  handleViewMore,
 }: DesktopSidebarProps) {
-  const pathname = usePathname();
-  const isSessionsActive = pathname.includes("/sessions");
   const padding = useWindowControlsPadding("sidebar");
   const sidebarWidth = usePanelStore((state) => state.sidebarWidth);
   const setSidebarWidth = usePanelStore((state) => state.setSidebarWidth);
@@ -990,20 +978,20 @@ function DesktopSidebar({
           {padding.top > 0 ? <View style={paddingTopSpacerStyle} /> : null}
           <View style={styles.sidebarHeaderGroup}>
             <SidebarHeaderRow
-              icon={Plus}
-              label={labels.newWorkspace}
+              icon={SquarePen}
+              label={labels.newConversation}
               onPress={handleNewWorkspaceNavigate}
               testID="sidebar-global-new-workspace"
               variant="compact"
               shortcutKeys={newWorkspaceKeys}
             />
             <SidebarHeaderRow
-              icon={History}
-              label={labels.sessions}
-              onPress={handleViewMore}
-              isActive={isSessionsActive}
-              testID="sidebar-sessions"
+              icon={Search}
+              label={labels.search}
+              onPress={handleOpenCommandCenter}
+              testID="sidebar-search"
               variant="compact"
+              shortcutKeys={commandCenterKeys}
             />
           </View>
         </View>
@@ -1054,45 +1042,12 @@ function DesktopSidebar({
 }
 
 function WorkspacesSectionHeader({ serverId }: { serverId: string | null }) {
-  const { theme } = useUnistyles();
-  const setCommandCenterOpen = useKeyboardShortcutsStore((state) => state.setCommandCenterOpen);
-  const commandCenterKeys = useShortcutKeys("toggle-command-center");
-  const handleSearchPress = useCallback(() => setCommandCenterOpen(true), [setCommandCenterOpen]);
-  const searchButtonStyle = useCallback(
-    ({ hovered = false, pressed }: PressableStateCallbackType & { hovered?: boolean }) => [
-      styles.workspacesHeaderIconButton,
-      (hovered || pressed) && styles.workspacesHeaderIconButtonHovered,
-    ],
-    [],
-  );
+  const { t } = useTranslation();
 
   return (
     <View style={styles.workspacesSectionHeader}>
-      <Text style={styles.workspacesSectionTitle}>Workspaces</Text>
+      <Text style={styles.workspacesSectionTitle}>{t("sidebar.sections.projects")}</Text>
       <View style={styles.workspacesSectionActions}>
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Open command center"
-              testID="sidebar-command-center-search"
-              style={searchButtonStyle}
-              onPress={handleSearchPress}
-            >
-              {({ hovered, pressed }) => (
-                <Search
-                  size={14}
-                  color={
-                    hovered || pressed ? theme.colors.foreground : theme.colors.foregroundMuted
-                  }
-                />
-              )}
-            </Pressable>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="center" offset={8}>
-            <HeaderIconTooltipContent label="Search" shortcutKeys={commandCenterKeys} />
-          </TooltipContent>
-        </Tooltip>
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>
             <View>
@@ -1165,16 +1120,6 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[1],
-  },
-  workspacesHeaderIconButton: {
-    width: 28,
-    height: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: theme.borderRadius.md,
-  },
-  workspacesHeaderIconButtonHovered: {
-    backgroundColor: theme.colors.surfaceSidebarHover,
   },
   sidebarContent: {
     flex: 1,

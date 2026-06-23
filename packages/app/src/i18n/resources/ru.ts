@@ -720,13 +720,14 @@ export const ru: TranslationResources = {
     },
     actions: {
       addProject: "Добавить проект",
-      newWorkspace: "Новое рабочее пространство",
+      newConversation: "Новый чат",
+      search: "Поиск",
       home: "Дом",
       settings: "Настройки",
       closeSidebar: "Закрыть боковую панель",
     },
     sections: {
-      sessions: "История",
+      projects: "Проекты",
     },
     worktreeSetup: {
       title: "Настройка сценариев рабочего дерева",

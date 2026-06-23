@@ -713,13 +713,14 @@ export const en = {
     },
     actions: {
       addProject: "Add project",
-      newWorkspace: "New workspace",
+      newConversation: "New conversation",
+      search: "Search",
       home: "Home",
       settings: "Settings",
       closeSidebar: "Close sidebar",
     },
     sections: {
-      sessions: "History",
+      projects: "Projects",
     },
     worktreeSetup: {
       title: "Set up worktree scripts",

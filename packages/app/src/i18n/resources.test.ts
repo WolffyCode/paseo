@@ -354,10 +354,12 @@ describe("translation resources", () => {
     expect(en.sidebar.host.switchTitle).toBe("Switch host");
     expect(en.sidebar.host.searchPlaceholder).toBe("Search hosts...");
     expect(en.sidebar.actions.addProject).toBe("Add project");
+    expect(en.sidebar.actions.newConversation).toBe("New conversation");
+    expect(en.sidebar.actions.search).toBe("Search");
     expect(en.sidebar.actions.home).toBe("Home");
     expect(en.sidebar.actions.settings).toBe("Settings");
     expect(en.sidebar.actions.closeSidebar).toBe("Close sidebar");
-    expect(en.sidebar.sections.sessions).toBe("History");
+    expect(en.sidebar.sections.projects).toBe("Projects");
     expect(en.sidebar.workspace.actions.newWorkspace).toBe("New workspace");
     expect(en.sidebar.workspace.actions.createWorkspaceFor).toBe(
       "Create a new workspace for {{projectName}}",

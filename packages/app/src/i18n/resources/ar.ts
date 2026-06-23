@@ -708,13 +708,14 @@ export const ar: TranslationResources = {
     },
     actions: {
       addProject: "إضافة مشروع",
-      newWorkspace: "مساحة عمل جديدة",
+      newConversation: "محادثة جديدة",
+      search: "بحث",
       home: "بيت",
       settings: "إعدادات",
       closeSidebar: "إغلاق الشريط الجانبي",
     },
     sections: {
-      sessions: "السجل",
+      projects: "المشاريع",
     },
     worktreeSetup: {
       title: "إعداد البرامج النصية لشجرة العمل",

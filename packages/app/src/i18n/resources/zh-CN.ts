@@ -702,13 +702,14 @@ export const zhCN: TranslationResources = {
     },
     actions: {
       addProject: "添加 project",
-      newWorkspace: "新建工作区",
+      newConversation: "新对话",
+      search: "搜索",
       home: "首页",
       settings: "设置",
       closeSidebar: "关闭侧边栏",
     },
     sections: {
-      sessions: "历史",
+      projects: "项目",
     },
     worktreeSetup: {
       title: "设置 worktree scripts",

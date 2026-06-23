@@ -724,13 +724,14 @@ export const fr: TranslationResources = {
     },
     actions: {
       addProject: "Ajouter un projet",
-      newWorkspace: "Nouvel espace de travail",
+      newConversation: "Nouvelle conversation",
+      search: "Rechercher",
       home: "Maison",
       settings: "Paramètres",
       closeSidebar: "Fermer la barre latérale",
     },
     sections: {
-      sessions: "Historique",
+      projects: "Projets",
     },
     worktreeSetup: {
       title: "Configurer les scripts d'arbre de travail",

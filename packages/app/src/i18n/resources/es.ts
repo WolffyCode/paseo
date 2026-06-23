@@ -724,13 +724,14 @@ export const es: TranslationResources = {
     },
     actions: {
       addProject: "Agregar proyecto",
-      newWorkspace: "Nuevo espacio de trabajo",
+      newConversation: "Nueva conversación",
+      search: "Buscar",
       home: "Hogar",
       settings: "Ajustes",
       closeSidebar: "Cerrar barra lateral",
     },
     sections: {
-      sessions: "Historial",
+      projects: "Proyectos",
     },
     worktreeSetup: {
       title: "Configurar secuencias de comandos del árbol de trabajo",
