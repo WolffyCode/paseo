@@ -3482,8 +3482,8 @@ function WorkspaceScreenContent({
     [showCreateBrowserTab, t, toolsAddHandlers],
   );
 
-  const renderSplitPaneTabBarLeading = useCallback(
-    function renderSplitPaneTabBarLeading(paneId: string) {
+  const renderSplitPaneTabBarTrailing = useCallback(
+    function renderSplitPaneTabBarTrailing(paneId: string) {
       if (paneId === RIGHT_PANEL_PANE_ID) {
         return <WorkspaceToolPanelToggle isOpen onToggle={handleToggleRightToolPanel} />;
       }
@@ -3811,7 +3811,7 @@ function WorkspaceScreenContent({
         onResizeSplit={handleResizePaneSplit}
         onReorderTabsInPane={handleReorderTabsInPane}
         renderPaneEmptyState={renderSplitPaneEmptyState}
-        renderPaneTabBarLeading={renderSplitPaneTabBarLeading}
+        renderPaneTabBarTrailing={renderSplitPaneTabBarTrailing}
         renderPaneHeader={renderSplitPaneHeader}
       />
     );
@@ -3849,7 +3849,7 @@ function WorkspaceScreenContent({
     handleResizePaneSplit,
     handleReorderTabsInPane,
     renderSplitPaneEmptyState,
-    renderSplitPaneTabBarLeading,
+    renderSplitPaneTabBarTrailing,
     renderSplitPaneHeader,
   ]);
   const desktopContent = desktopSplitContent ?? content;

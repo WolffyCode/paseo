@@ -609,8 +609,8 @@ function SplitActionButton({ onPress, label, shortcutKeys, icon }: SplitActionBu
 
 interface WorkspaceDesktopTabsRowProps {
   paneId?: string;
-  /** Optional element rendered at the leading (left) edge of the tab bar, before the tabs. */
-  leading?: ReactNode;
+  /** Optional element rendered at the trailing (right) edge of the tab bar, after the tabs. */
+  trailing?: ReactNode;
   isFocused?: boolean;
   tabs: WorkspaceDesktopTabRowItem[];
   normalizedServerId: string;
@@ -938,7 +938,7 @@ function TabChip({
 
 export function WorkspaceDesktopTabsRow({
   paneId,
-  leading,
+  trailing,
   isFocused = false,
   tabs,
   normalizedServerId,
@@ -1181,7 +1181,6 @@ export function WorkspaceDesktopTabsRow({
       testID="workspace-tabs-row"
       onLayout={handleTabsContainerLayout}
     >
-      {leading}
       <ScrollView
         horizontal
         scrollEnabled={layout.requiresHorizontalScrollFallback}
@@ -1244,6 +1243,7 @@ export function WorkspaceDesktopTabsRow({
             />
           </>
         ) : null}
+        {trailing}
       </View>
     </View>
   );
