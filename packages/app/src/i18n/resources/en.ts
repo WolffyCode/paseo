@@ -589,12 +589,6 @@ export const en = {
           pending: "Pulling and pushing...",
           success: "Pulled and pushed",
         },
-        viewPr: "View PR",
-        createPr: {
-          label: "Create PR",
-          pending: "Creating PR...",
-          success: "PR Created",
-        },
         mergeBranch: {
           label: "Merge locally",
           pending: "Merging...",
@@ -610,24 +604,7 @@ export const en = {
           pending: "Archiving...",
           success: "Archived",
         },
-        mergePr: {
-          squash: "Merge PR (squash)",
-          merge: "Merge PR (merge)",
-          rebase: "Merge PR (rebase)",
-          pending: "Merging PR...",
-          success: "PR merged",
-        },
-        autoMerge: {
-          enableSquash: "Auto merge (squash)",
-          enableMerge: "Auto merge (merge)",
-          enableRebase: "Auto merge (rebase)",
-          enabled: "Auto-merge enabled",
-          enabling: "Enabling auto-merge...",
-          disabling: "Disabling auto-merge...",
-          disabled: "Auto-merge disabled",
-        },
         unavailable: {
-          viewPrNoGithub: "View PR isn't available right now because GitHub isn't connected",
           pullNoRemote:
             "Pull isn't available here because this branch is not connected to a remote yet",
           pullDirty:
@@ -642,9 +619,6 @@ export const en = {
           pullAndPushDirty:
             "Pull and push isn't available while you have local changes so commit or stash them first",
           pullAndPushInSync: "Pull and push isn't available because this branch is already in sync",
-          createPrNoGithub: "Create PR isn't available right now because GitHub isn't connected",
-          createPrNoCommits:
-            "Create PR isn't available because this branch doesn't have any new commits yet",
           mergeNoBase: "Merge isn't available because we couldn't determine the base branch",
           mergeDirty:
             "Merge isn't available while you have local changes so commit or stash them first",
@@ -657,24 +631,12 @@ export const en = {
             "Update isn't available because this branch is already up to date with {{baseRef}}",
           archiveNotWorktree:
             "Archive isn't available here because this workspace was not created as a Paseo worktree",
-          mergePrNoGithub: "Merge PR isn't available right now because GitHub isn't connected",
-          mergePrMissing: "Merge PR isn't available because there isn't a pull request yet",
-          mergePrDraft: "Merge PR isn't available because the pull request is still a draft",
-          mergePrMerged: "Merge PR isn't available because the pull request is already merged",
-          mergePrClosed: "Merge PR isn't available because the pull request is closed",
-          mergePrConflicts: "Merge PR isn't available because the pull request has conflicts",
-          mergePrQueue: "Merge PR isn't available here because this repository uses a merge queue",
-          mergePrNotReady:
-            "Merge PR isn't available until GitHub reports the pull request is ready to merge",
-          autoMergeCannotDisable: "Auto-merge is enabled, but this account can't disable it",
         },
         toasts: {
           failedCommit: "Failed to commit",
           failedPull: "Failed to pull",
           failedPush: "Failed to push",
           failedPullAndPush: "Failed to pull and push",
-          failedCreatePr: "Failed to create PR",
-          failedMergePr: "Failed to merge PR",
           failedEnableAutoMerge: "Failed to enable auto-merge",
           failedDisableAutoMerge: "Failed to disable auto-merge",
           baseRefUnavailable: "Base ref unavailable",

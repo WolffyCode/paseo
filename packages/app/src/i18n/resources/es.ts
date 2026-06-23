@@ -596,12 +596,6 @@ export const es: TranslationResources = {
           pending: "Tirando y empujando...",
           success: "Tirado y empujado",
         },
-        viewPr: "VerPR",
-        createPr: {
-          label: "CrearPR",
-          pending: "CreandoPR...",
-          success: "PRcreado",
-        },
         mergeBranch: {
           label: "Fusionar localmente",
           pending: "Fusionando...",
@@ -617,24 +611,7 @@ export const es: TranslationResources = {
           pending: "Archivando...",
           success: "Archivado",
         },
-        mergePr: {
-          squash: "Fusionar PR (squash)",
-          merge: "Fusionar PR (merge)",
-          rebase: "Fusionar PR (rebase)",
-          pending: "Fusionando PR...",
-          success: "PR fusionado",
-        },
-        autoMerge: {
-          enableSquash: "Fusión automática (squash)",
-          enableMerge: "Fusión automática (merge)",
-          enableRebase: "Fusión automática (rebase)",
-          enabled: "Combinación automática habilitada",
-          enabling: "Habilitando la fusión automática...",
-          disabling: "Desactivando la fusión automática...",
-          disabled: "Fusión automática deshabilitada",
-        },
         unavailable: {
-          viewPrNoGithub: "VerPRno está disponible en este momento porqueGitHubno está conectado",
           pullNoRemote:
             "Pull no está disponible aquí porque esta rama aún no está conectada a un control remoto",
           pullDirty:
@@ -651,10 +628,6 @@ export const es: TranslationResources = {
             "Tirar y empujar no está disponible mientras tenga cambios locales, así que confírmelos o guárdelos primero",
           pullAndPushInSync:
             "Pull and push no está disponible porque esta rama ya está sincronizada",
-          createPrNoGithub:
-            "CrearPRno está disponible en este momento porqueGitHubno está conectado",
-          createPrNoCommits:
-            "CrearPRno está disponible porque esta rama aún no tiene nuevas confirmaciones",
           mergeNoBase:
             "La combinación no está disponible porque no pudimos determinar la rama base",
           mergeDirty:
@@ -669,32 +642,12 @@ export const es: TranslationResources = {
             "La actualización no está disponible porque esta rama ya está actualizada con{{baseRef}}",
           archiveNotWorktree:
             "El archivo no está disponible aquí porque este espacio de trabajo no se creó como un árbol de trabajoPaseo",
-          mergePrNoGithub:
-            "FusionarPRno está disponible en este momento porqueGitHubno está conectado",
-          mergePrMissing:
-            "FusionarPRno está disponible porque aún no hay una solicitud de extracción",
-          mergePrDraft:
-            "FusionarPRno está disponible porque la solicitud de extracción aún es un borrador",
-          mergePrMerged:
-            "FusionarPRno está disponible porque la solicitud de extracción ya está fusionada",
-          mergePrClosed:
-            "FusionarPRno está disponible porque la solicitud de extracción está cerrada",
-          mergePrConflicts:
-            "FusionarPRno está disponible porque la solicitud de extracción tiene conflictos",
-          mergePrQueue:
-            "FusionarPRno está disponible aquí porque este repositorio utiliza una cola de fusión",
-          mergePrNotReady:
-            "FusionarPRno está disponible hasta queGitHubinforme que la solicitud de extracción está lista para fusionarse",
-          autoMergeCannotDisable:
-            "La combinación automática está habilitada, pero esta cuenta no puede deshabilitarla",
         },
         toasts: {
           failedCommit: "No se pudo comprometer",
           failedPull: "No se pudo tirar",
           failedPush: "No se pudo empujar",
           failedPullAndPush: "No se pudo tirar y empujar",
-          failedCreatePr: "No se pudo crearPR",
-          failedMergePr: "No se pudo fusionarPR",
           failedEnableAutoMerge: "No se pudo habilitar la combinación automática",
           failedDisableAutoMerge: "No se pudo deshabilitar la combinación automática",
           baseRefUnavailable: "Referencia base no disponible",

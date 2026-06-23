@@ -596,12 +596,6 @@ export const fr: TranslationResources = {
           pending: "Tirer et pousser...",
           success: "Tiré et poussé",
         },
-        viewPr: "VoirPR",
-        createPr: {
-          label: "CréerPR",
-          pending: "Création dePR...",
-          success: "PRcréé",
-        },
         mergeBranch: {
           label: "Fusionner localement",
           pending: "Fusion...",
@@ -617,24 +611,7 @@ export const fr: TranslationResources = {
           pending: "Archivage...",
           success: "Archivé",
         },
-        mergePr: {
-          squash: "Fusionner PR (squash)",
-          merge: "Fusionner PR (merge)",
-          rebase: "Fusionner PR (rebase)",
-          pending: "Fusion de PR...",
-          success: "PR fusionné",
-        },
-        autoMerge: {
-          enableSquash: "Fusion automatique (squash)",
-          enableMerge: "Fusion automatique (merge)",
-          enableRebase: "Fusion automatique (rebase)",
-          enabled: "Fusion automatique activée",
-          enabling: "Activation de la fusion automatique...",
-          disabling: "Désactivation de la fusion automatique...",
-          disabled: "Fusion automatique désactivée",
-        },
         unavailable: {
-          viewPrNoGithub: "ViewPRn'est pas disponible pour le moment carGitHubn'est pas connecté",
           pullNoRemote:
             "Pull n'est pas disponible ici car cette branche n'est pas encore connectée à une télécommande",
           pullDirty:
@@ -651,10 +628,6 @@ export const fr: TranslationResources = {
             "Pull et push ne sont pas disponibles tant que vous avez des modifications locales, alors validez-les ou cachez-les d'abord",
           pullAndPushInSync:
             "Les fonctions Pull et Push ne sont pas disponibles car cette branche est déjà synchronisée",
-          createPrNoGithub:
-            "CréerPRn'est pas disponible pour le moment carGitHubn'est pas connecté",
-          createPrNoCommits:
-            "CréerPRn'est pas disponible car cette branche n'a pas encore de nouveaux commits",
           mergeNoBase:
             "La fusion n'est pas disponible car nous n'avons pas pu déterminer la branche de base",
           mergeDirty:
@@ -669,31 +642,12 @@ export const fr: TranslationResources = {
             "La mise à jour n'est pas disponible car cette branche est déjà à jour avec{{baseRef}}",
           archiveNotWorktree:
             "L'archive n'est pas disponible ici car cet espace de travail n'a pas été créé en tant qu'arbre de travailPaseo",
-          mergePrNoGithub:
-            "La fusionPRn'est pas disponible pour le moment carGitHubn'est pas connecté",
-          mergePrMissing:
-            "La fusionPRn'est pas disponible car il n'y a pas encore de demande d'extraction",
-          mergePrDraft:
-            "La fusionPRn'est pas disponible car la demande d'extraction est encore un brouillon",
-          mergePrMerged:
-            "La fusionPRn'est pas disponible car la demande d'extraction est déjà fusionnée",
-          mergePrClosed: "La fusionPRn'est pas disponible car la demande d'extraction est fermée",
-          mergePrConflicts:
-            "La fusionPRn'est pas disponible car la demande d'extraction présente des conflits",
-          mergePrQueue:
-            "MergePRn'est pas disponible ici car ce référentiel utilise une file d'attente de fusion",
-          mergePrNotReady:
-            "La fusionPRn'est pas disponible jusqu'à ce queGitHubsignale que la demande d'extraction est prête à fusionner",
-          autoMergeCannotDisable:
-            "La fusion automatique est activée, mais ce compte ne peut pas la désactiver",
         },
         toasts: {
           failedCommit: "Échec de la validation",
           failedPull: "Échec de l'extraction",
           failedPush: "Échec de la poussée",
           failedPullAndPush: "Impossible de tirer et de pousser",
-          failedCreatePr: "Échec de la création dePR",
-          failedMergePr: "Échec de la fusion dePR",
           failedEnableAutoMerge: "Échec de l'activation de la fusion automatique",
           failedDisableAutoMerge: "Échec de la désactivation de la fusion automatique",
           baseRefUnavailable: "Réf de base indisponible",

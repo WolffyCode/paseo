@@ -1,7 +1,9 @@
 # PR / GitHub Integration Removal — Boundary Analysis
 
-**Status:** analysis done 2026-06-23; **deletion CONFIRMED by chairman.** Deferred to the overnight root
-cleanup. This file is the precise boundary.
+**Status:** **EXECUTED 2026-06-23** (app-side). Typecheck 0 / lint 0 / format clean / 36 git unit tests
+green / live smoke: app renders, `Commit` split-button present, zero PR·auto-merge entries anywhere.
+Original analysis + boundary below is unchanged. See "## Execution" at the bottom for what shipped,
+the one kept-feature decision, and the one deferred follow-up.
 
 **Rationale (clarified):** PRs are NOT created against paseo — the server derives the target repo from the
 workspace's own `git config --get remote.origin.url` (`github-service.ts` + `checkout-git.ts`), so a PR
@@ -78,3 +80,35 @@ cluster does not touch commit/pull/push.
 
 typecheck (all packages) + lint; live: the commit/pull/push split-button still works; no GitHub icon in
 the top bar; no PR entries in the dropdown; diff pane has no PR actions.
+
+## Execution (2026-06-23)
+
+**Removed (app-side):** the PR action cluster from `policy.ts` / `use-actions.tsx` / `actions-store.ts` /
+`workspace-actions.tsx` / `diff-pane.tsx` (PR ids, builders, handlers, `useCheckoutPrStatusQuery`,
+`computePrErrorMessage`, the PR ICONS); the whole `git/pull-request-panel/` directory (19 files); the PR
+pane timeline query plumbing (`prPaneTimelineQueryKind`, `invalidatePrPaneTimelineForCheckout`, and its
+caller in `checkout-status-cache.ts`); the `e2e/pr-pane.spec.ts` + `e2e/helpers/pr-pane.ts`; the PR test
+cases in `policy.test.ts` (35→18 it-blocks) and `actions-store.test.ts` (auto-merge cases); and the dead
+`workspace.git.actions` PR/auto-merge i18n keys across all 6 locales (108 entries).
+
+**KEPT — decision (spec said "delete `use-pr-status-query.ts` if no other consumer survives — verify"):**
+consumers survive, so the **sidebar PR hint** stays — `use-pr-status-query.ts`'s `PrHint` /
+`selectPrHintFromStatus` / `useWorkspacePrHint`, the `checkoutPrStatus` cache write in
+`checkout-status-cache.ts`, and the hover-card checks summary (`workspace.git.pr.sections.checks`). Only the
+now-dead `useCheckoutPrStatusQuery` hook was trimmed from that file. Rationale: it is a passive read-only
+indicator, lives in the chairman-protected left sidebar, and removing it would be a separate UI change — out
+of this boundary. **If you also want the sidebar PR hint gone, say so and it's a small follow-up.**
+
+**KEPT — not PR features:** `components/icons/github-icon.tsx` and the top-bar "Open workspace in GitHub"
+button (`workspace-open-in-editor-primary`) — that is the multi-target **open-in-editor** affordance
+(GitHub.dev is one target), not the PR action; `community-links` GitHub link; the sidebar repo remote-URL
+display. The top bar no longer renders the _PR action's_ GitHub icon.
+
+**DEFERRED follow-up — `workspace.git.pr.*` i18n namespace:** partially dead (the deleted pane used most of
+`sections`/`activity`/`time`/`errors`/`states`/`accessibility`; the surviving hover-card still uses
+`sections.checks`). It needs a per-key audit against the kept sidebar hint before removal across 6 locales —
+left intact now to avoid silently breaking a live string at 2am. Tagged here so it isn't lost.
+
+**Untouched (per chairman, app-side boundary only):** server `checkoutPr*` / `checkoutGithubSetAutoMerge`
+handlers + protocol messages. `commit/pull/push/pull-and-push/merge-branch/merge-from-base/refresh` and the
+**core `archive-worktree`** lifecycle are fully intact.

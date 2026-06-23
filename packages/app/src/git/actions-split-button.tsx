@@ -181,12 +181,7 @@ export function GitActionsSplitButton({ gitActions, hideLabels }: GitActionsSpli
                     archiveShortcutKeys={archiveShortcutKeys}
                     needsSeparator={action.startsGroup}
                     showSeparator={index > 0}
-                    closeOnSelect={
-                      action.status === "idle" &&
-                      action.id === "pr" &&
-                      action.label === action.pendingLabel &&
-                      action.label === action.successLabel
-                    }
+                    closeOnSelect={false}
                   />
                 ))}
               </DropdownMenuContent>
