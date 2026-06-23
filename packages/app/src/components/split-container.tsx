@@ -125,6 +125,7 @@ interface SplitContainerProps {
   onReorderTabsInPane: (paneId: string, tabIds: string[]) => void;
   renderPaneEmptyState?: (paneId: string) => ReactNode;
   renderPaneTabBarLeading?: (paneId: string) => ReactNode;
+  renderPaneHeader?: (paneId: string) => ReactNode;
   focusModeEnabled?: boolean;
 }
 
@@ -398,6 +399,7 @@ export function SplitContainer({
   onReorderTabsInPane,
   renderPaneEmptyState = () => null,
   renderPaneTabBarLeading,
+  renderPaneHeader,
   focusModeEnabled,
 }: SplitContainerProps) {
   const [activeDragTabId, setActiveDragTabId] = useState<string | null>(null);
@@ -616,6 +618,7 @@ export function SplitContainer({
           onReorderTabsInPane={onReorderTabsInPane}
           renderPaneEmptyState={renderPaneEmptyState}
           renderPaneTabBarLeading={renderPaneTabBarLeading}
+          renderPaneHeader={renderPaneHeader}
           activeDragTabId={activeDragTabId}
           showDropZones={activeDragTabId !== null}
           dropPreview={dropPreview}
@@ -761,6 +764,7 @@ function SplitNodeView({
   onReorderTabsInPane,
   renderPaneEmptyState,
   renderPaneTabBarLeading,
+  renderPaneHeader,
   activeDragTabId,
   showDropZones,
   dropPreview,
@@ -815,6 +819,7 @@ function SplitNodeView({
         onReorderTabsInPane={onReorderTabsInPane}
         renderPaneEmptyState={renderPaneEmptyState}
         renderPaneTabBarLeading={renderPaneTabBarLeading}
+        renderPaneHeader={renderPaneHeader}
         activeDragTabId={activeDragTabId}
         showDropZones={showDropZones}
         dropPreview={dropPreview}
@@ -864,6 +869,7 @@ function SplitNodeView({
               onReorderTabsInPane={onReorderTabsInPane}
               renderPaneEmptyState={renderPaneEmptyState}
               renderPaneTabBarLeading={renderPaneTabBarLeading}
+              renderPaneHeader={renderPaneHeader}
               activeDragTabId={activeDragTabId}
               showDropZones={showDropZones}
               dropPreview={dropPreview}
@@ -917,6 +923,7 @@ function SplitPaneView({
   onReorderTabsInPane,
   renderPaneEmptyState,
   renderPaneTabBarLeading,
+  renderPaneHeader,
   activeDragTabId,
   showDropZones,
   dropPreview,
@@ -1032,6 +1039,7 @@ function SplitPaneView({
   return (
     <RenderProfile id={`SplitPaneView:${pane.id}`}>
       <View ref={paneRef} collapsable={false} style={styles.pane}>
+        {renderPaneHeader?.(pane.id)}
         {showTabBar ? (
           <View style={paneTabsStyle}>
             <TitlebarDragRegion />
