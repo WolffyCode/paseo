@@ -121,9 +121,6 @@ const foregroundColorMapping = (theme: Theme) => ({
 const foregroundMutedColorMapping = (theme: Theme) => ({
   color: theme.colors.foregroundMuted,
 });
-const amberColorMapping = (theme: Theme) => ({
-  color: theme.colors.palette.amber[500],
-});
 const redColorMapping = (theme: Theme) => ({
   color: theme.colors.palette.red[500],
 });
@@ -455,7 +452,13 @@ function ProjectPinIndicatorButton({
       accessibilityLabel={t("sidebar.project.actions.unpin")}
       testID={`sidebar-project-pin-indicator-${projectKey}`}
     >
-      <ThemedPin size={14} fill="currentColor" uniProps={amberColorMapping} />
+      {({ hovered }) => (
+        <ThemedPin
+          size={14}
+          fill="currentColor"
+          uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
+        />
+      )}
     </Pressable>
   );
 }
@@ -471,7 +474,7 @@ const settingsLeadingIcon = <ThemedSettings size={14} uniProps={foregroundMutedC
 const projectRenameLeadingIcon = <ThemedPencil size={14} uniProps={foregroundMutedColorMapping} />;
 const projectPinLeadingIcon = <ThemedPin size={14} uniProps={foregroundMutedColorMapping} />;
 const projectUnpinLeadingIcon = (
-  <ThemedPin size={14} fill="currentColor" uniProps={amberColorMapping} />
+  <ThemedPin size={14} fill="currentColor" uniProps={foregroundMutedColorMapping} />
 );
 const openInNewWindowLeadingIcon = (
   <ThemedExternalLink size={14} uniProps={foregroundMutedColorMapping} />
