@@ -2587,12 +2587,31 @@ function WorkspaceScreenContent({
     [navigateToTabId, normalizedWorkspaceId, openWorkspaceTabFocused, persistenceKey],
   );
 
+  const rightPanelExitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [rightPanelExiting, setRightPanelExiting] = useState(false);
+  useEffect(
+    () => () => {
+      if (rightPanelExitTimerRef.current) {
+        clearTimeout(rightPanelExitTimerRef.current);
+      }
+    },
+    [],
+  );
   const handleCloseRightToolPanel = useCallback(
     function handleCloseRightToolPanel() {
       if (!persistenceKey) {
         return;
       }
-      closeRightToolPanel(persistenceKey);
+      // Keep the panel mounted briefly so it slides out, then remove it from the layout.
+      if (rightPanelExitTimerRef.current) {
+        clearTimeout(rightPanelExitTimerRef.current);
+      }
+      setRightPanelExiting(true);
+      rightPanelExitTimerRef.current = setTimeout(() => {
+        closeRightToolPanel(persistenceKey);
+        setRightPanelExiting(false);
+        rightPanelExitTimerRef.current = null;
+      }, 180);
     },
     [closeRightToolPanel, persistenceKey],
   );
@@ -3818,6 +3837,7 @@ function WorkspaceScreenContent({
         renderPaneEmptyState={renderSplitPaneEmptyState}
         renderPaneTabBarTrailing={renderSplitPaneTabBarTrailing}
         renderPaneHeader={renderSplitPaneHeader}
+        rightPanelCollapsing={rightPanelExiting}
       />
     );
   }, [
@@ -3856,6 +3876,7 @@ function WorkspaceScreenContent({
     renderSplitPaneEmptyState,
     renderSplitPaneTabBarTrailing,
     renderSplitPaneHeader,
+    rightPanelExiting,
   ]);
   const desktopContent = desktopSplitContent ?? content;
 
