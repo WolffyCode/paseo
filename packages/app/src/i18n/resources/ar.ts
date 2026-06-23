@@ -726,6 +726,7 @@ export const ar: TranslationResources = {
       closeSidebar: "إغلاق الشريط الجانبي",
     },
     sections: {
+      pinned: "المثبتة",
       projects: "المشاريع",
     },
     worktreeSetup: {
@@ -737,6 +738,8 @@ export const ar: TranslationResources = {
     project: {
       actions: {
         menu: "إجراءات المشروع",
+        pin: "تثبيت المشروع",
+        unpin: "إلغاء التثبيت",
         rename: "إعادة تسمية",
         openSettings: "افتح إعدادات المشروع",
         openNewWindow: "Open in new window",

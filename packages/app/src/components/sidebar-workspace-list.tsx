@@ -35,6 +35,7 @@ import {
   Folder,
   GitPullRequest,
   Pencil,
+  Pin,
   Settings,
   MoreVertical,
   Plus,
@@ -57,6 +58,7 @@ import {
   type SidebarWorkspaceEntry,
 } from "@/hooks/use-sidebar-workspaces-list";
 import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
+import { useSidebarPinsStore } from "@/stores/sidebar-pins-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useShowShortcutBadges } from "@/hooks/use-show-shortcut-badges";
 import { ContextMenuTrigger, useContextMenu } from "@/components/ui/context-menu";
@@ -69,6 +71,7 @@ import {
 import { useToast } from "@/contexts/toast-context";
 import { hasVisibleOrderChanged, mergeWithRemainder } from "@/utils/sidebar-reorder";
 import { SidebarWorkspaceRow } from "@/components/sidebar/sidebar-workspace-row";
+import { WorkspacesSectionHeader } from "@/components/sidebar/workspaces-section-header";
 import { useLongPressDragInteraction } from "@/components/sidebar/use-long-press-drag-interaction";
 import { confirmDialog } from "@/utils/confirm-dialog";
 import { AdaptiveRenameModal } from "@/components/rename-modal";
@@ -110,12 +113,16 @@ const ThemedMoreVertical = withUnistyles(MoreVertical);
 const ThemedTrash2 = withUnistyles(Trash2);
 const ThemedSettings = withUnistyles(Settings);
 const ThemedPencil = withUnistyles(Pencil);
+const ThemedPin = withUnistyles(Pin);
 
 const foregroundColorMapping = (theme: Theme) => ({
   color: theme.colors.foreground,
 });
 const foregroundMutedColorMapping = (theme: Theme) => ({
   color: theme.colors.foregroundMuted,
+});
+const amberColorMapping = (theme: Theme) => ({
+  color: theme.colors.palette.amber[500],
 });
 const redColorMapping = (theme: Theme) => ({
   color: theme.colors.palette.red[500],
@@ -188,8 +195,19 @@ function activeWorkspaceSelectionKey(selection: ActiveWorkspaceSelection | null)
   return selection ? `${selection.serverId}:${selection.workspaceId}` : "";
 }
 
+interface ProjectsHeaderModel {
+  allCollapsed: boolean;
+  onToggleCollapseAll: () => void;
+  onSelectFolder: () => void;
+}
+
 interface SidebarWorkspaceListProps {
-  projects: SidebarProjectEntry[];
+  /** Projects pinned to the top "置顶" section, in pin order. */
+  pinnedProjects: SidebarProjectEntry[];
+  /** Remaining projects under the "项目" section, in sidebar order. */
+  unpinnedProjects: SidebarProjectEntry[];
+  /** Inline "项目" header model (collapse-all + select-folder). */
+  projectsHeader: ProjectsHeaderModel;
   serverId: string | null;
   collapsedProjectKeys: ReadonlySet<string>;
   onToggleProjectCollapsed: (projectKey: string) => void;
@@ -369,6 +387,7 @@ function ProjectRowTrailingActions({
   const actionsVisible = isHovered || platformIsNative || isMobileBreakpoint;
   return (
     <View style={styles.projectTrailingActions}>
+      <ProjectPinIndicatorButton serverId={serverId} projectKey={project.projectKey} />
       {canCreateWorktree ? (
         <NewWorktreeButton
           displayName={displayName}
@@ -397,9 +416,63 @@ function ProjectRowTrailingActions({
   );
 }
 
+// When a project is pinned, a persistent amber pin sits in the row's trailing area
+// (left of +/kebab). It is a state indicator + one-tap unpin. Renders nothing when
+// the project is not pinned.
+function ProjectPinIndicatorButton({
+  serverId,
+  projectKey,
+}: {
+  serverId: string | null;
+  projectKey: string;
+}) {
+  const { t } = useTranslation();
+  const isProjectPinned = useSidebarPinsStore((state) =>
+    serverId ? state.isPinned(serverId, { kind: "project", projectKey }) : false,
+  );
+  const togglePin = useSidebarPinsStore((state) => state.togglePin);
+  const handlePress = useCallback(
+    (event: GestureResponderEvent) => {
+      event.stopPropagation();
+      if (!serverId) return;
+      togglePin(serverId, { kind: "project", projectKey });
+    },
+    [serverId, projectKey, togglePin],
+  );
+  const handlePressIn = useCallback((event: GestureResponderEvent) => {
+    event.stopPropagation();
+  }, []);
+
+  if (!isProjectPinned) return null;
+
+  return (
+    <Pressable
+      style={projectPinIndicatorStyle}
+      onPress={handlePress}
+      onPressIn={handlePressIn}
+      hitSlop={4}
+      accessibilityRole={platformIsWeb ? undefined : "button"}
+      accessibilityLabel={t("sidebar.project.actions.unpin")}
+      testID={`sidebar-project-pin-indicator-${projectKey}`}
+    >
+      <ThemedPin size={14} fill="currentColor" uniProps={amberColorMapping} />
+    </Pressable>
+  );
+}
+
+function projectPinIndicatorStyle({
+  hovered = false,
+}: PressableStateCallbackType & { hovered?: boolean }) {
+  return [styles.projectPinIndicator, hovered && styles.projectPinIndicatorHovered];
+}
+
 const trash2LeadingIcon = <ThemedTrash2 size={14} uniProps={foregroundMutedColorMapping} />;
 const settingsLeadingIcon = <ThemedSettings size={14} uniProps={foregroundMutedColorMapping} />;
 const projectRenameLeadingIcon = <ThemedPencil size={14} uniProps={foregroundMutedColorMapping} />;
+const projectPinLeadingIcon = <ThemedPin size={14} uniProps={foregroundMutedColorMapping} />;
+const projectUnpinLeadingIcon = (
+  <ThemedPin size={14} fill="currentColor" uniProps={amberColorMapping} />
+);
 const openInNewWindowLeadingIcon = (
   <ThemedExternalLink size={14} uniProps={foregroundMutedColorMapping} />
 );
@@ -472,6 +545,18 @@ function ProjectKebabMenu({
         toast.error(t("sidebar.project.actions.openNewWindowFailed"));
       });
   }, [projectPath, t, toast]);
+
+  // Pin/unpin moves the whole project (folder + children) into the "置顶" section.
+  const isProjectPinned = useSidebarPinsStore((state) =>
+    serverId ? state.isPinned(serverId, { kind: "project", projectKey }) : false,
+  );
+  const togglePin = useSidebarPinsStore((state) => state.togglePin);
+  const canPin = Boolean(serverId) && projectKey.trim().length > 0;
+  const handleTogglePin = useCallback(() => {
+    if (!serverId) return;
+    togglePin(serverId, { kind: "project", projectKey });
+  }, [serverId, projectKey, togglePin]);
+
   return (
     <>
       <DropdownMenu>
@@ -485,6 +570,17 @@ function ProjectKebabMenu({
           {renderKebabTriggerIcon}
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" width={220}>
+          {canPin ? (
+            <DropdownMenuItem
+              testID={`sidebar-project-menu-pin-${projectKey}`}
+              leading={isProjectPinned ? projectUnpinLeadingIcon : projectPinLeadingIcon}
+              onSelect={handleTogglePin}
+            >
+              {isProjectPinned
+                ? t("sidebar.project.actions.unpin")
+                : t("sidebar.project.actions.pin")}
+            </DropdownMenuItem>
+          ) : null}
           {canRename ? (
             <DropdownMenuItem
               testID={`sidebar-project-menu-rename-${projectKey}`}
@@ -1198,7 +1294,9 @@ function areProjectBlockSelectionsEqual(
 const MemoProjectBlock = memo(ProjectBlock, areProjectBlockPropsEqual);
 
 export function SidebarWorkspaceList({
-  projects,
+  pinnedProjects,
+  unpinnedProjects,
+  projectsHeader,
   serverId,
   collapsedProjectKeys,
   onToggleProjectCollapsed,
@@ -1212,12 +1310,18 @@ export function SidebarWorkspaceList({
   parentGestureRef,
 }: SidebarWorkspaceListProps) {
   const pathname = usePathname();
+  // Status mode is a single flat list across all projects, so pinning has no
+  // grouping effect here — recombine in pin-then-order sequence.
+  const allProjects = useMemo(
+    () => [...pinnedProjects, ...unpinnedProjects],
+    [pinnedProjects, unpinnedProjects],
+  );
 
   if (groupMode === "status") {
     return (
       <SidebarStatusModeWrapper
         serverId={serverId}
-        projects={projects}
+        projects={allProjects}
         shortcutIndexByWorkspaceKey={shortcutIndexByWorkspaceKey}
         onWorkspacePress={onWorkspacePress}
       />
@@ -1226,7 +1330,9 @@ export function SidebarWorkspaceList({
 
   return (
     <ProjectModeList
-      projects={projects}
+      pinnedProjects={pinnedProjects}
+      unpinnedProjects={unpinnedProjects}
+      projectsHeader={projectsHeader}
       serverId={serverId}
       collapsedProjectKeys={collapsedProjectKeys}
       onToggleProjectCollapsed={onToggleProjectCollapsed}
@@ -1271,7 +1377,9 @@ function SidebarStatusModeWrapper({
 }
 
 function ProjectModeList({
-  projects,
+  pinnedProjects,
+  unpinnedProjects,
+  projectsHeader,
   serverId,
   collapsedProjectKeys,
   onToggleProjectCollapsed,
@@ -1285,6 +1393,12 @@ function ProjectModeList({
   pathname: string;
 }) {
   const { t } = useTranslation();
+  // Cross-cutting concerns (icon data, creating-workspace tracking, etc.) don't
+  // care which section a project is in — operate over the union.
+  const allProjects = useMemo(
+    () => [...pinnedProjects, ...unpinnedProjects],
+    [pinnedProjects, unpinnedProjects],
+  );
   const [creatingWorkspaceIds, setCreatingWorkspaceIds] = useState<Set<string>>(() => new Set());
   const creatingWorkspaceTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
@@ -1321,7 +1435,7 @@ function ProjectModeList({
 
   const projectIconByProjectKey = useProjectIconDataByProjectKey({
     serverId,
-    projects,
+    projects: allProjects,
   });
 
   useEffect(() => {
@@ -1340,7 +1454,7 @@ function ProjectModeList({
     }
 
     const visibleWorkspaceIds = new Set<string>();
-    for (const project of projects) {
+    for (const project of allProjects) {
       for (const workspace of project.workspaces) {
         visibleWorkspaceIds.add(workspace.workspaceId);
       }
@@ -1368,7 +1482,7 @@ function ProjectModeList({
       }
       return next;
     });
-  }, [creatingWorkspaceIds, projects]);
+  }, [creatingWorkspaceIds, allProjects]);
 
   const handleProjectDragEnd = useCallback(
     (reorderedProjects: SidebarProjectEntry[]) => {
@@ -1453,8 +1567,15 @@ function ProjectModeList({
     );
   }, []);
 
-  const renderProject = useCallback(
-    ({ item, drag, isActive, dragHandleProps }: DraggableRenderItemInfo<SidebarProjectEntry>) => {
+  const renderProjectBlock = useCallback(
+    (
+      item: SidebarProjectEntry,
+      dragInfo: {
+        drag: () => void;
+        isDragging: boolean;
+        dragHandleProps?: DraggableListDragHandleProps;
+      },
+    ) => {
       // Codex-style file tree: default the project label to the physical directory
       // basename, with a user-set custom name overriding it. `item.projectName` already
       // resolves to the custom name when present (else the project-id label), so we only
@@ -1482,9 +1603,9 @@ function ProjectModeList({
           onWorkspacePress={onWorkspacePress}
           onWorkspaceReorder={handleWorkspaceReorder}
           onWorktreeCreated={handleWorktreeCreated}
-          drag={drag}
-          isDragging={isActive}
-          dragHandleProps={dragHandleProps}
+          drag={dragInfo.drag}
+          isDragging={dragInfo.isDragging}
+          dragHandleProps={dragInfo.dragHandleProps}
           useNestable={platformIsNative}
           creatingWorkspaceIds={creatingWorkspaceIds}
           activeWorkspaceSelection={activeWorkspaceSelection}
@@ -1509,9 +1630,18 @@ function ProjectModeList({
     ],
   );
 
+  const renderProject = useCallback(
+    ({ item, drag, isActive, dragHandleProps }: DraggableRenderItemInfo<SidebarProjectEntry>) =>
+      renderProjectBlock(item, { drag, isDragging: isActive, dragHandleProps }),
+    [renderProjectBlock],
+  );
+
+  const hasPinned = pinnedProjects.length > 0;
+  const hasUnpinned = unpinnedProjects.length > 0;
+
   const content = (
     <>
-      {projects.length === 0 ? (
+      {!hasPinned && !hasUnpinned ? (
         <View style={styles.emptyContainer} testID="sidebar-project-empty-state">
           <Text style={styles.emptyTitle}>{t("sidebar.project.empty.title")}</Text>
           <Text style={styles.emptyText}>{t("sidebar.project.empty.description")}</Text>
@@ -1520,19 +1650,39 @@ function ProjectModeList({
           </Button>
         </View>
       ) : (
-        <DraggableList
-          testID="sidebar-project-list"
-          data={projects}
-          keyExtractor={projectKeyExtractor}
-          renderItem={renderProject}
-          onDragEnd={handleProjectDragEnd}
-          extraData={activeWorkspaceSelectionKey(activeWorkspaceSelection)}
-          scrollEnabled={false}
-          useDragHandle
-          nestable={platformIsNative}
-          simultaneousGestureRef={parentGestureRef}
-          containerStyle={styles.projectListContainer}
-        />
+        <>
+          {hasPinned ? (
+            // Phase 1: the pinned group is a plain (non-draggable) mapped list. Pin
+            // order comes from the pin store; drag-reorder stays scoped to the
+            // unpinned "项目" list below.
+            <View testID="sidebar-pinned-project-list">
+              <Text style={styles.pinnedSectionTitle}>{t("sidebar.sections.pinned")}</Text>
+              {pinnedProjects.map((project) => (
+                <View key={project.projectKey}>
+                  {renderProjectBlock(project, { drag: noop, isDragging: false })}
+                </View>
+              ))}
+            </View>
+          ) : null}
+          <WorkspacesSectionHeader
+            allCollapsed={projectsHeader.allCollapsed}
+            onToggleCollapseAll={projectsHeader.onToggleCollapseAll}
+            onSelectFolder={projectsHeader.onSelectFolder}
+          />
+          <DraggableList
+            testID="sidebar-project-list"
+            data={unpinnedProjects}
+            keyExtractor={projectKeyExtractor}
+            renderItem={renderProject}
+            onDragEnd={handleProjectDragEnd}
+            extraData={activeWorkspaceSelectionKey(activeWorkspaceSelection)}
+            scrollEnabled={false}
+            useDragHandle
+            nestable={platformIsNative}
+            simultaneousGestureRef={parentGestureRef}
+            containerStyle={styles.projectListContainer}
+          />
+        </>
       )}
       {listFooterComponent}
     </>
@@ -1545,7 +1695,7 @@ function ProjectModeList({
           {...nativeScrollGestureProps}
           style={styles.list}
           contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator
           testID="sidebar-project-workspace-list-scroll"
         >
           {content}
@@ -1554,7 +1704,7 @@ function ProjectModeList({
         <ScrollView
           style={styles.list}
           contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
+          showsVerticalScrollIndicator
           testID="sidebar-project-workspace-list-scroll"
         >
           {content}
@@ -1567,9 +1717,24 @@ function ProjectModeList({
 const styles = StyleSheet.create((theme) => ({
   container: {
     flex: 1,
+    // Bounded height inside the sidebar's flex column so the single ScrollView
+    // (pinned + projects) actually scrolls when content overflows the viewport.
+    minHeight: 0,
   },
   list: {
     flex: 1,
+    minHeight: 0,
+  },
+  // Muted label for the inline "置顶" section header — mirrors the "项目" title
+  // styling but without the collapse-all / select-folder hover actions.
+  pinnedSectionTitle: {
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.normal,
+    paddingLeft: theme.spacing[2] + theme.spacing[2],
+    paddingRight: theme.spacing[2],
+    paddingTop: theme.spacing[1],
+    paddingBottom: theme.spacing[1],
   },
   listContent: {
     paddingHorizontal: theme.spacing[2],
@@ -1719,6 +1884,17 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
+  },
+  projectPinIndicator: {
+    width: 24,
+    height: 24,
+    borderRadius: theme.borderRadius.md,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+  projectPinIndicatorHovered: {
+    backgroundColor: theme.colors.surface2,
   },
   projectKebabButtonHidden: {
     opacity: 0,

@@ -742,6 +742,7 @@ export const fr: TranslationResources = {
       closeSidebar: "Fermer la barre latérale",
     },
     sections: {
+      pinned: "Épinglés",
       projects: "Projets",
     },
     worktreeSetup: {
@@ -753,6 +754,8 @@ export const fr: TranslationResources = {
     project: {
       actions: {
         menu: "Actions du projet",
+        pin: "Épingler le projet",
+        unpin: "Désépingler",
         rename: "Renommer",
         openSettings: "Ouvrir les paramètres du projet",
         openNewWindow: "Open in new window",

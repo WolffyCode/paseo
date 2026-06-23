@@ -720,6 +720,7 @@ export const zhCN: TranslationResources = {
       closeSidebar: "关闭侧边栏",
     },
     sections: {
+      pinned: "置顶",
       projects: "项目",
     },
     worktreeSetup: {
@@ -730,6 +731,8 @@ export const zhCN: TranslationResources = {
     project: {
       actions: {
         menu: "Project 操作",
+        pin: "置顶项目",
+        unpin: "取消置顶",
         rename: "重命名",
         openSettings: "打开 project 设置",
         openNewWindow: "在新窗口中打开",

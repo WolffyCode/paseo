@@ -731,6 +731,7 @@ export const en = {
       closeSidebar: "Close sidebar",
     },
     sections: {
+      pinned: "Pinned",
       projects: "Projects",
     },
     worktreeSetup: {
@@ -742,6 +743,8 @@ export const en = {
     project: {
       actions: {
         menu: "Project actions",
+        pin: "Pin",
+        unpin: "Unpin",
         rename: "Rename",
         openSettings: "Open project settings",
         openNewWindow: "Open in new window",

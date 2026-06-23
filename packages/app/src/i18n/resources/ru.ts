@@ -738,6 +738,7 @@ export const ru: TranslationResources = {
       closeSidebar: "Закрыть боковую панель",
     },
     sections: {
+      pinned: "Закреплённые",
       projects: "Проекты",
     },
     worktreeSetup: {
@@ -749,6 +750,8 @@ export const ru: TranslationResources = {
     project: {
       actions: {
         menu: "Действия проекта",
+        pin: "Закрепить проект",
+        unpin: "Открепить",
         rename: "Переименовать",
         openSettings: "Открыть настройки проекта",
         openNewWindow: "Open in new window",

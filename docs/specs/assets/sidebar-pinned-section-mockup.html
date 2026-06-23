@@ -1,0 +1,159 @@
+<!doctype html>
+<!-- Design mockup: sidebar "置顶 (Pinned)" section. Purpose: confirm the pin design
+     before implementing. Pinning a project pins the whole folder + its children; pinning a
+     single conversation breaks it out as a standalone row (with project/branch context). -->
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      :root {
+        --sidebar: #f4f4f5;
+        --hover: #e9e9ec;
+        --fg: #1a1a1e;
+        --muted: #71717a;
+        --border: #e4e4e7;
+        --green: #16a34a;
+        --red: #dc2626;
+        --accent: #2563eb;
+      }
+      body {
+        font-family: -apple-system, "SF Pro Text", "PingFang SC", "Helvetica Neue", sans-serif;
+        background: #ffffff;
+        display: flex;
+        width: 760px;
+      }
+      .sidebar {
+        width: 264px;
+        background: var(--sidebar);
+        height: 1040px;
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        padding-top: 14px;
+        position: relative;
+      }
+      .nav { padding: 0 8px; }
+      .navrow {
+        display: flex; align-items: center; gap: 10px;
+        height: 34px; padding: 0 10px; border-radius: 8px;
+        font-size: 14px; color: var(--fg);
+      }
+      .navrow svg { color: #52525b; }
+      .section {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 16px 12px 6px 16px;
+      }
+      .section .title { font-size: 12px; color: var(--muted); }
+      .row {
+        display: flex; align-items: center; gap: 8px;
+        height: 34px; padding: 0 10px 0 16px; border-radius: 8px; margin: 0 8px;
+        font-size: 14px; color: var(--fg); position: relative;
+      }
+      .row.sel { background: var(--hover); }
+      .row .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .row .meta { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+      .row svg.folder { color: #52525b; flex-shrink: 0; }
+      .child { padding-left: 40px; }
+      .pinicons { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+      .pinicons svg { color: #52525b; }
+      .pinicons svg.pinned { color: #f59e0b; }
+      .footer {
+        margin-top: auto; padding: 14px 8px;
+        display: flex; align-items: center; gap: 10px;
+      }
+      .footer .navrow { width: 100%; }
+      /* hover card for the standalone pinned conversation */
+      .card {
+        position: absolute; left: 250px; top: 470px; width: 250px;
+        background: #fff; border: 1px solid var(--border); border-radius: 12px;
+        box-shadow: 0 8px 28px rgba(0,0,0,0.12); padding: 12px 14px;
+      }
+      .card .ctitle { display: flex; justify-content: space-between; font-size: 14px; color: var(--fg); }
+      .card .cmeta { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); margin-top: 8px; }
+      .card .cmeta svg { color: #71717a; }
+      .legend { padding: 28px 22px; width: 496px; font-size: 13px; color: #3f3f46; line-height: 1.9; }
+      .legend h3 { font-size: 15px; margin-bottom: 8px; color: #18181b; }
+      .legend b { color: #b45309; }
+      .tag { display:inline-block; background:#fef3c7; color:#b45309; border-radius:6px; padding:1px 7px; font-size:12px; }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar">
+      <div class="nav">
+        <div class="navrow">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          新对话
+        </div>
+        <div class="navrow">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          搜索
+        </div>
+      </div>
+
+      <!-- 置顶 / Pinned -->
+      <div class="section"><span class="title">置顶</span></div>
+
+      <!-- a single PINNED CONVERSATION, broken out standalone -->
+      <div class="row sel">
+        <span class="name">claude --resume c80758b6…</span>
+        <span class="pinicons">
+          <svg class="pinned" width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M9 4v6l-2 4h10l-2-4V4z"/><path d="M12 14v6" stroke="currentColor" stroke-width="2"/></svg>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8"/><path d="M10 12h4"/></svg>
+        </span>
+      </div>
+
+      <!-- a PINNED PROJECT: folder + all its children come along -->
+      <div class="row">
+        <svg class="folder" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+        <span class="name">yoncode-skills-valida…</span>
+      </div>
+      <div class="row child"><span class="name">回复问候</span><span class="meta">8小时</span></div>
+      <div class="row child"><span class="name">你好</span><span class="meta">1天</span></div>
+      <div class="row child"><span class="name">你好</span><span class="meta">1周</span></div>
+      <div class="row child"><span class="name">/Users/wangbingkun/Deskt…</span><span class="meta">1周</span></div>
+
+      <!-- 项目 / Projects (unpinned) -->
+      <div class="section"><span class="title">项目</span></div>
+      <div class="row">
+        <svg class="folder" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+        <span class="name">UIMetadataDistillation</span>
+      </div>
+      <div class="row child"><span class="name">UIMetadataDistillation/xml-…</span><span class="meta">1周</span></div>
+
+      <!-- 对话 / Conversations -->
+      <div class="section"><span class="title">对话</span></div>
+      <div class="row"><span class="name" style="color:var(--muted)">暂无聊天</span></div>
+
+      <div class="footer">
+        <div class="navrow">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z"/></svg>
+          设置
+        </div>
+      </div>
+
+      <!-- hover card for the standalone pinned conversation -->
+      <div class="card">
+        <div class="ctitle"><span>claude --resume c8075…</span><span style="color:var(--muted);font-size:12px">1周</span></div>
+        <div class="cmeta">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z"/></svg>
+          UIMetadataDistillation
+        </div>
+        <div class="cmeta">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+          develop-v4
+        </div>
+      </div>
+    </div>
+
+    <div class="legend">
+      <h3>侧栏「置顶」分区设计</h3>
+      <p><span class="tag">新分区</span> <b>置顶</b> 区放在「项目」上方,持久化(per-host)。</p>
+      <p style="margin-top:14px"><b>① 置顶项目</b> = 整个目录 + 其下所有子项一起置顶,从「项目」区移到「置顶」区(图中 <i>yoncode-skills-valida…</i>)。</p>
+      <p style="margin-top:10px"><b>② 置顶单个对话</b> = 该对话从所属项目里<i>独立成一行</i>(图中 <i>claude --resume…</i>),hover 弹卡显示它的<b>项目 + 分支</b>上下文。</p>
+      <p style="margin-top:10px"><b>图标(hover/选中显示)</b>:<span style="color:#f59e0b">📌 已置顶</span>(点=取消置顶) · 📥 移除。</p>
+      <p style="margin-top:14px"><b>入口</b>:项目 kebab「置顶项目」;对话/工作区行菜单「置顶」。</p>
+      <p style="margin-top:10px;color:#71717a">配套:kebab 改为 置顶 / 在 Finder 中显示 / 重命名 / 移除;「归档」统一成「移除」。</p>
+    </div>
+  </body>
+</html>
