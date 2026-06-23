@@ -57,6 +57,7 @@ import {
   clearHistorySyncErrorAfterSuccessfulSync,
   reconcileMissingAgentStateWithPresentAgent,
 } from "@/panels/agent-panel-load-state";
+import { useIsComposerDock } from "@/panels/composer-dock-context";
 import { usePaneContext, usePaneFocus } from "@/panels/pane-context";
 import type { PanelDescriptor, PanelRegistration } from "@/panels/panel-registry";
 import { RenderProfile } from "@/utils/render-profiler";
@@ -1191,6 +1192,7 @@ const ChatAgentReadyContent = memo(function ChatAgentReadyContent({
   onOpenWorkspaceFile?: (request: WorkspaceFileOpenRequest) => void;
 }) {
   const { t } = useTranslation();
+  const isComposerDock = useIsComposerDock();
   const rawAgentInputDraft = useAgentInputDraft({
     draftKey: buildDraftStoreKey({
       serverId,
@@ -1251,6 +1253,17 @@ const ChatAgentReadyContent = memo(function ChatAgentReadyContent({
     <ReanimatedAnimated.View style={animatedContentStyle}>{streamSection}</ReanimatedAnimated.View>
   );
   const contentContainer = <View style={styles.contentContainer}>{streamContent}</View>;
+
+  // Composer dock (right tool panel maximized): render only the composer so the user can
+  // keep chatting while a tool fills the canvas. No stream, no overlays — those belong to
+  // the full conversation that restore brings back.
+  if (isComposerDock) {
+    return (
+      <RewindComposerRestoreProvider text={agentInputDraft.text} setText={agentInputDraft.setText}>
+        <View style={styles.composerDockRoot}>{composerSection}</View>
+      </RewindComposerRestoreProvider>
+    );
+  }
 
   return (
     <RewindComposerRestoreProvider text={agentInputDraft.text} setText={agentInputDraft.setText}>
@@ -1440,6 +1453,10 @@ function ActiveAgentComposer({
   onMessageSent: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  // In the maximized composer dock the user opens a tool deliberately; don't yank focus
+  // into the composer on mount. It stays fully interactive — they click to type.
+  const isComposerDock = useIsComposerDock();
+  const composerAutoFocus = isPaneFocused && !isComposerDock;
   const isCompactFormFactor = useIsCompactFormFactor();
   const { onLayout: onInputAreaLayout, isBelow: isCompactComposerLayout } = useContainerWidthBelow(
     COMPACT_FORM_FACTOR_WIDTH,
@@ -1567,7 +1584,7 @@ function ActiveAgentComposer({
         onChangeAttachments={agentInputDraft.setAttachments}
         cwd={cwd}
         clearDraft={agentInputDraft.clear}
-        autoFocus={isPaneFocused}
+        autoFocus={composerAutoFocus}
         isSubmitLoading={isSubmitLoading}
         onAttentionInputFocus={onAttentionInputFocus}
         onAttentionPromptSend={onAttentionPromptSend}
@@ -1657,6 +1674,11 @@ const foregroundColorMapping = (theme: Theme) => ({
 const styles = StyleSheet.create((theme) => ({
   root: {
     flex: 1,
+    backgroundColor: theme.colors.surface0,
+  },
+  // Composer-dock mode hugs the composer's content height (no flex:1) so it docks at the
+  // bottom of the maximized canvas instead of filling it.
+  composerDockRoot: {
     backgroundColor: theme.colors.surface0,
   },
   container: {

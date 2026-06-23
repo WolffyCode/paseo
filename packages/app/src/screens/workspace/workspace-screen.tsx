@@ -162,6 +162,7 @@ import {
   workspaceAgentVisibilityEqual,
 } from "@/workspace-tabs/agent-visibility";
 import { deriveWorkspacePaneState } from "@/screens/workspace/workspace-pane-state";
+import { ComposerDockProvider } from "@/panels/composer-dock-context";
 import {
   buildWorkspacePaneContentModel,
   WorkspacePaneContent,
@@ -3486,6 +3487,42 @@ function WorkspaceScreenContent({
     [buildPaneContentModel],
   );
 
+  // When the right tool panel is maximized the SplitContainer renders only the tool (the
+  // MAIN pane is dropped from the render layout). We re-mount the MAIN conversation's
+  // composer on its own at the bottom of the canvas — same agent, same draft, same send
+  // path — so "the dialog can still chat" (Image #2). Composer-only mode is signalled via
+  // ComposerDockProvider. Drafts have a full setup UI rather than a bare composer, so we
+  // only dock real agent conversations for now.
+  const maximizedComposerDock = useMemo(() => {
+    if (!isRightToolPanelMaximized || !workspaceLayout || !persistenceKey) {
+      return null;
+    }
+    const mainPaneState = deriveWorkspacePaneState({
+      layout: workspaceLayout,
+      paneId: MAIN_PANE_ID,
+      tabs: uiTabs,
+    });
+    const activeMainTab = mainPaneState.activeTab?.descriptor ?? null;
+    if (!activeMainTab || activeMainTab.target.kind !== "agent") {
+      return null;
+    }
+    const model = buildDesktopPaneContentModel({ paneId: MAIN_PANE_ID, tab: activeMainTab });
+    return (
+      <View style={styles.maximizedComposerDock}>
+        <ComposerDockProvider value={true}>
+          <WorkspacePaneContent content={model} isWorkspaceFocused={isRouteFocused} isPaneFocused />
+        </ComposerDockProvider>
+      </View>
+    );
+  }, [
+    isRightToolPanelMaximized,
+    workspaceLayout,
+    persistenceKey,
+    uiTabs,
+    buildDesktopPaneContentModel,
+    isRouteFocused,
+  ]);
+
   const desktopTabRowItems = useMemo<WorkspaceDesktopTabRowItem[]>(
     () =>
       tabs.map((tab) => ({
@@ -3883,7 +3920,7 @@ function WorkspaceScreenContent({
     if (!canRenderDesktopPaneSplits || !workspaceRenderLayout || !persistenceKey) {
       return null;
     }
-    return (
+    const splitContainer = (
       <SplitContainer
         layout={workspaceRenderLayout}
         focusModeEnabled={desktopFocusModeEnabled}
@@ -3923,9 +3960,20 @@ function WorkspaceScreenContent({
         rightPanelCollapsing={rightPanelExiting}
       />
     );
+    // Maximized: tool fills the canvas, conversation composer docks at the bottom.
+    if (maximizedComposerDock) {
+      return (
+        <View style={styles.maximizedCanvas}>
+          <View style={styles.maximizedToolArea}>{splitContainer}</View>
+          {maximizedComposerDock}
+        </View>
+      );
+    }
+    return splitContainer;
   }, [
     canRenderDesktopPaneSplits,
     workspaceRenderLayout,
+    maximizedComposerDock,
     persistenceKey,
     desktopFocusModeEnabled,
     normalizedServerId,
@@ -4071,6 +4119,20 @@ function WorkspaceScreenContent({
 const styles = StyleSheet.create((theme) => ({
   container: {
     flex: 1,
+    backgroundColor: theme.colors.surface0,
+  },
+  // Maximized tool panel: vertical stack of the full-canvas tool over the docked composer.
+  maximizedCanvas: {
+    flex: 1,
+    minHeight: 0,
+  },
+  maximizedToolArea: {
+    flex: 1,
+    minHeight: 0,
+  },
+  maximizedComposerDock: {
+    borderTopWidth: theme.borderWidth[1],
+    borderTopColor: theme.colors.border,
     backgroundColor: theme.colors.surface0,
   },
   containerWorkspaceBackground: {
