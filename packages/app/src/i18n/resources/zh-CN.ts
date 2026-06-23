@@ -685,29 +685,9 @@ export const zhCN: TranslationResources = {
       pr: {
         sections: {
           checks: "Checks",
-          reviews: "Reviews",
         },
         accessibility: {
           pullRequest: "Pull request #{{number}}",
-        },
-        states: {
-          draft: "Draft",
-          merged: "已 merge",
-          closed: "已关闭",
-          open: "Open",
-        },
-        activity: {
-          commented: "已评论",
-          approved: "已批准",
-          requestedChanges: "请求修改",
-          reviewed: "已 review",
-        },
-        time: {
-          justNow: "刚刚",
-        },
-        errors: {
-          statusLoadFailed: "无法加载 Pull Request 状态",
-          activityLoadFailed: "无法加载 Pull Request 活动",
         },
       },
     },

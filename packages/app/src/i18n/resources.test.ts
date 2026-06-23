@@ -432,10 +432,6 @@ describe("translation resources", () => {
       "Workspace setup composer state is required",
     );
     expect(en.workspaceSetup.title).toBe("Create workspace");
-    expect(en.workspace.git.pr.errors.statusLoadFailed).toBe("Unable to load pull request status");
-    expect(en.workspace.git.pr.errors.activityLoadFailed).toBe(
-      "Unable to load pull request activity",
-    );
     expect(en.desktop.settings.loadFailed).toBe("Unable to load desktop settings.");
     expect(en.desktop.settings.saveFailed).toBe("Unable to save desktop settings.");
     expect(en.toolCallDetails.input).toBe("Input");

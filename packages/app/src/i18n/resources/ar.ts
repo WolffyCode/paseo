@@ -691,29 +691,9 @@ export const ar: TranslationResources = {
       pr: {
         sections: {
           checks: "الشيكات",
-          reviews: "التعليقات",
         },
         accessibility: {
           pullRequest: "سحب الطلب #{{number}}",
-        },
-        states: {
-          draft: "مسودة",
-          merged: "تم الدمج",
-          closed: "مغلق",
-          open: "يفتح",
-        },
-        activity: {
-          commented: "علق",
-          approved: "موافقة",
-          requestedChanges: "التغييرات المطلوبة",
-          reviewed: "تمت المراجعة",
-        },
-        time: {
-          justNow: "الآن",
-        },
-        errors: {
-          statusLoadFailed: "غير قادر على تحميل حالة طلب السحب",
-          activityLoadFailed: "غير قادر على تحميل نشاط طلب السحب",
         },
       },
     },

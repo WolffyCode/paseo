@@ -707,29 +707,9 @@ export const fr: TranslationResources = {
       pr: {
         sections: {
           checks: "Chèques",
-          reviews: "Avis",
         },
         accessibility: {
           pullRequest: "Demande de tirage #{{number}}",
-        },
-        states: {
-          draft: "Brouillon",
-          merged: "Fusionné",
-          closed: "Fermé",
-          open: "Ouvrir",
-        },
-        activity: {
-          commented: "Commenté",
-          approved: "Approuvé",
-          requestedChanges: "Modifications demandées",
-          reviewed: "Révisé",
-        },
-        time: {
-          justNow: "tout à l' heure",
-        },
-        errors: {
-          statusLoadFailed: "Impossible de charger le statut de la demande d'extraction",
-          activityLoadFailed: "Impossible de charger l'activité de demande d'extraction",
         },
       },
     },

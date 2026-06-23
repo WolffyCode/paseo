@@ -696,29 +696,9 @@ export const en = {
       pr: {
         sections: {
           checks: "Checks",
-          reviews: "Reviews",
         },
         accessibility: {
           pullRequest: "Pull request #{{number}}",
-        },
-        states: {
-          draft: "Draft",
-          merged: "Merged",
-          closed: "Closed",
-          open: "Open",
-        },
-        activity: {
-          commented: "Commented",
-          approved: "Approved",
-          requestedChanges: "Requested changes",
-          reviewed: "Reviewed",
-        },
-        time: {
-          justNow: "just now",
-        },
-        errors: {
-          statusLoadFailed: "Unable to load pull request status",
-          activityLoadFailed: "Unable to load pull request activity",
         },
       },
     },

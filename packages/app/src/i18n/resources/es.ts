@@ -707,29 +707,9 @@ export const es: TranslationResources = {
       pr: {
         sections: {
           checks: "cheques",
-          reviews: "Reseñas",
         },
         accessibility: {
           pullRequest: "Solicitud de extracción n.°{{number}}",
-        },
-        states: {
-          draft: "Borrador",
-          merged: "Fusionado",
-          closed: "Cerrado",
-          open: "Abierto",
-        },
-        activity: {
-          commented: "Comentado",
-          approved: "Aprobado",
-          requestedChanges: "Cambios solicitados",
-          reviewed: "Revisado",
-        },
-        time: {
-          justNow: "En este momento",
-        },
-        errors: {
-          statusLoadFailed: "No se puede cargar el estado de la solicitud de extracción",
-          activityLoadFailed: "No se puede cargar la actividad de solicitud de extracción",
         },
       },
     },

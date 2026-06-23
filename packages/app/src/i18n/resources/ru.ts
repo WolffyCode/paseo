@@ -703,29 +703,9 @@ export const ru: TranslationResources = {
       pr: {
         sections: {
           checks: "Чеки",
-          reviews: "Отзывы",
         },
         accessibility: {
           pullRequest: "Запрос на извлечение №{{number}}",
-        },
-        states: {
-          draft: "Черновик",
-          merged: "Объединено",
-          closed: "Закрыто",
-          open: "Открыть",
-        },
-        activity: {
-          commented: "Прокомментировал",
-          approved: "Одобренный",
-          requestedChanges: "Запрошенные изменения",
-          reviewed: "Рассмотрено",
-        },
-        time: {
-          justNow: "прямо сейчас",
-        },
-        errors: {
-          statusLoadFailed: "Невозможно загрузить статус запроса на включение",
-          activityLoadFailed: "Невозможно загрузить активность запроса на включение",
         },
       },
     },
