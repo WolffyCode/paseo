@@ -57,7 +57,50 @@ Strict alignment is required → implement by rendering each pane's header **ins
 - Verify: typecheck/lint, then live (collapsed toggle at corner; expand → tabs in top bar aligned with
   panel; resize keeps alignment; diff badge toggles; collapse keeps tabs; switch clears).
 
+## Implementation milestones (code-anchored — current as of `1390526b`)
+
+Build in this order; each is a compilable + live-verifiable checkpoint commit. Never leave the top bar
+half-broken between milestones (chairman hard rule).
+
+**Current structure (what exists today):**
+
+- `components/split-container.tsx`: `SplitContainerProps` (l.84) already has `renderPaneEmptyState` (l.126)
+  - `renderPaneTabBarLeading` (l.127). `SplitPaneView` renders per pane (l.1032–1100): an optional
+    tab-bar row (`showTabBar`, l.1035) whose `WorkspaceDesktopTabsRow` takes `leading={renderPaneTabBarLeading}`
+    (l.1040), then `paneContent`. The MAIN pane has **no** tab bar (single conversation); the RIGHT_PANEL pane
+    has the review/files tab bar.
+- `screens/workspace/workspace-screen.tsx`: a full-width `ScreenHeader` (l.3753, `borderless`) with
+  `left` = `SidebarMenuToggle` + `WorkspaceHeaderTitleBar` (≡ title / repo / ··· menu) and `right` =
+  `headerRight` (Commit split-button `changes-primary-cta`, diff badge, `workspace-explorer-toggle`, and
+  `WorkspaceToolPanelToggle` l.1383). `SplitContainer` at l.3676. The interim right-panel toggle is injected
+  via `renderSplitPaneTabBarLeading` for `RIGHT_PANEL_PANE_ID` (l.3468–3488). Collapse-but-kept state
+  **already exists**: `rightToolPanelCollapsedByWorkspace` (l.2032) — verify it retains tabs.
+
+**M1 — split-container `renderPaneHeader` (additive, safe).** Add `renderPaneHeader?: (paneId) => ReactNode`
+to `SplitContainerProps` (mirror `renderPaneEmptyState`); thread it through `SplitNodeView`/`SplitPaneView`;
+render it inside `styles.pane` **above** the `showTabBar` block (l.1035) as the pane's top header, full pane
+width so it tracks resize. Add a `trailing` prop to `WorkspaceDesktopTabsRow` (mirror `leading`, l.1040) for
+the tools-pane toggle. Typecheck only — no visual change yet.
+
+**M2 — main-pane header + drop standalone `ScreenHeader` (collapsed state matches mockup).** Provide
+`renderPaneHeader(MAIN_PANE_ID)` = the current `ScreenHeader` content (`SidebarMenuToggle` +
+`WorkspaceHeaderTitleBar` + `headerRight` Commit/diff-badge) **plus** the toggle at far-right **when
+collapsed**. Stop rendering the standalone `ScreenHeader` on desktop/focused (keep mobile path). Header height
+must equal the tools tab-bar height so the strip reads as one bar. Live: collapsed top bar = mockup “收起”.
+
+**M3 — tools-pane header = tab bar + trailing toggle (expanded state matches mockup).** Put the toggle in the
+tools tab-bar **trailing** slot (shown when expanded); **revert** `renderSplitPaneTabBarLeading`. The toggle’s
+screen-X must be identical collapsed-vs-expanded (window right corner). On expand, main pane narrows →
+Commit/diff shift left; freed right space = tools tab bar. Live: expand → tabs in top bar, aligned + resize.
+
+**M4 — behaviors + chrome.** diff badge (`+2.4k −624`) = review **toggle** (open review+expand / re-click
+collapse), replacing open-only `handleOpenReviewFromChanges`. Remove the top-bar↔canvas **divider**
+(`borderBottom` at l.4076 / l.4124 — confirm which is the header rule). Verify collapse keeps tabs
+(`rightToolPanelCollapsedByWorkspace`) and workspace/conversation switch clears the right panel. GitHub jump
+icon already gone (Phase 2). Live: full mockup diff (toggle fixed, diff-toggle, collapse-keeps, switch-clears,
+seamless strip).
+
 ## Note
 
-The previous interim ("toggle at the tools tab-bar **leading** edge") is superseded by this design and
-will be reworked into the trailing-toggle + unified-top-bar layout.
+The previous interim ("toggle at the tools tab-bar **leading** edge", `renderSplitPaneTabBarLeading`) is
+superseded by this design and is reverted in **M3**.
