@@ -1,8 +1,8 @@
 import { router, usePathname } from "expo-router";
 import {
-  ChevronsDownUp,
-  ChevronsUpDown,
   FolderPlus,
+  Maximize2,
+  Minimize2,
   Search,
   Settings,
   SquarePen,
@@ -30,7 +30,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
-import { SidebarDisplayPreferencesMenu } from "@/components/sidebar/sidebar-display-preferences-menu";
 import { Shortcut } from "@/components/ui/shortcut";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useIsCompactFormFactor } from "@/constants/layout";
@@ -522,7 +521,6 @@ function MobileSidebar({
               />
             </View>
             <WorkspacesSectionHeader
-              serverId={activeServerId}
               allCollapsed={allProjectsCollapsed}
               onToggleCollapseAll={handleToggleCollapseAll}
               onSelectFolder={handleOpenProject}
@@ -680,7 +678,6 @@ function DesktopSidebar({
           </View>
         </View>
         <WorkspacesSectionHeader
-          serverId={activeServerId}
           allCollapsed={allProjectsCollapsed}
           onToggleCollapseAll={handleToggleCollapseAll}
           onSelectFolder={handleOpenProject}
@@ -716,12 +713,10 @@ function DesktopSidebar({
 }
 
 function WorkspacesSectionHeader({
-  serverId,
   allCollapsed,
   onToggleCollapseAll,
   onSelectFolder,
 }: {
-  serverId: string | null;
   allCollapsed: boolean;
   onToggleCollapseAll: () => void;
   onSelectFolder: () => void;
@@ -747,7 +742,7 @@ function WorkspacesSectionHeader({
     [],
   );
   const collapseAllLabel = allCollapsed ? "Expand all" : "Collapse all";
-  const CollapseAllIcon = allCollapsed ? ChevronsUpDown : ChevronsDownUp;
+  const CollapseAllIcon = allCollapsed ? Maximize2 : Minimize2;
 
   return (
     <View
@@ -778,16 +773,6 @@ function WorkspacesSectionHeader({
           </TooltipTrigger>
           <TooltipContent side="bottom" align="center" offset={8}>
             <HeaderIconTooltipContent label={collapseAllLabel} />
-          </TooltipContent>
-        </Tooltip>
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <View>
-              <SidebarDisplayPreferencesMenu serverId={serverId} />
-            </View>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="center" offset={8}>
-            <HeaderIconTooltipContent label="Display preferences" />
           </TooltipContent>
         </Tooltip>
         <Tooltip delayDuration={300}>
