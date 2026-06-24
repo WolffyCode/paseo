@@ -73,6 +73,25 @@ function renderKebabTriggerIcon({ hovered }: { hovered?: boolean }) {
   );
 }
 
+function renderPinIndicatorIcon({ hovered }: { hovered?: boolean }) {
+  return (
+    <ThemedPin
+      size={14}
+      fill="currentColor"
+      uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
+    />
+  );
+}
+
+function renderRemoveIcon({ hovered }: { hovered?: boolean }) {
+  return (
+    <ThemedArchive
+      size={14}
+      uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
+    />
+  );
+}
+
 function noop() {}
 
 interface SidebarWorkspaceRowProps {
@@ -443,6 +462,9 @@ function WorkspaceRowTrailingActions({
   onRename?: () => void;
 }) {
   const { t } = useTranslation();
+  const isPinned = useSidebarPinsStore((state) =>
+    state.isPinned(workspace.serverId, { kind: "workspace", workspaceId: workspace.workspaceId }),
+  );
   const showShortcut = showShortcutBadge && shortcutNumber !== null;
   const showKebab = Boolean(onArchive && (isHovered || isTouchPlatform));
   const showKebabInSlot = showKebab && !showShortcut;
@@ -452,6 +474,27 @@ function WorkspaceRowTrailingActions({
     ? formatTimeAgoShort(workspace.statusEnteredAt, t)
     : null;
   const shouldRenderActionSlot = Boolean(onArchive || timeAgoLabel);
+
+  // A pinned workspace lives standalone in the "置顶" section — its trailing
+  // controls (persistent pin + remove + kebab) live in their own component.
+  if (isPinned && onArchive) {
+    return (
+      <WorkspacePinnedTrailingActions
+        workspace={workspace}
+        isHovered={isHovered}
+        isTouchPlatform={isTouchPlatform}
+        isCreating={isCreating}
+        onArchive={onArchive}
+        onRevealInFinder={onRevealInFinder}
+        onRename={onRename}
+        onMarkAsRead={onMarkAsRead}
+        archiveLabel={archiveLabel}
+        archiveStatus={archiveStatus}
+        archivePendingLabel={archivePendingLabel}
+        archiveShortcutKeys={archiveShortcutKeys}
+      />
+    );
+  }
 
   return (
     <>
@@ -490,6 +533,90 @@ function WorkspaceRowTrailingActions({
           </SidebarWorkspaceTrailingActionOverlay>
         </SidebarWorkspaceTrailingActionSlot>
       ) : null}
+    </>
+  );
+}
+
+function WorkspacePinnedTrailingActions({
+  workspace,
+  isHovered,
+  isTouchPlatform,
+  isCreating,
+  onArchive,
+  onRevealInFinder,
+  onRename,
+  onMarkAsRead,
+  archiveLabel,
+  archiveStatus,
+  archivePendingLabel,
+  archiveShortcutKeys,
+}: {
+  workspace: SidebarWorkspaceEntry;
+  isHovered: boolean;
+  isTouchPlatform: boolean;
+  isCreating: boolean;
+  onArchive: () => void;
+  onRevealInFinder?: () => void;
+  onRename?: () => void;
+  onMarkAsRead?: () => void;
+  archiveLabel?: string;
+  archiveStatus?: "idle" | "pending" | "success";
+  archivePendingLabel?: string;
+  archiveShortcutKeys?: ShortcutKey[][] | null;
+}) {
+  const { t } = useTranslation();
+  const togglePinTarget = useSidebarPinsStore((state) => state.togglePin);
+  const handleUnpin = useCallback(() => {
+    togglePinTarget(workspace.serverId, {
+      kind: "workspace",
+      workspaceId: workspace.workspaceId,
+    });
+  }, [togglePinTarget, workspace.serverId, workspace.workspaceId]);
+  const quickActionsVisible = isHovered || isTouchPlatform;
+  return (
+    <>
+      {isCreating ? (
+        <Text style={styles.workspaceCreatingText}>{t("sidebar.workspace.status.creating")}</Text>
+      ) : null}
+      <View style={styles.pinnedTrailingActions}>
+        <Pressable
+          style={workspacePinButtonStyle}
+          onPress={handleUnpin}
+          hitSlop={4}
+          accessibilityRole={platformIsWeb ? undefined : "button"}
+          accessibilityLabel={t("sidebar.workspace.actions.unpin")}
+          testID={`sidebar-workspace-unpin-${workspace.workspaceKey}`}
+        >
+          {renderPinIndicatorIcon}
+        </Pressable>
+        {quickActionsVisible ? (
+          <Pressable
+            style={workspacePinButtonStyle}
+            onPress={onArchive}
+            hitSlop={4}
+            accessibilityRole={platformIsWeb ? undefined : "button"}
+            accessibilityLabel={archiveLabel ?? t("sidebar.workspace.actions.archive")}
+            testID={`sidebar-workspace-remove-${workspace.workspaceKey}`}
+          >
+            {renderRemoveIcon}
+          </Pressable>
+        ) : null}
+        {quickActionsVisible ? (
+          <WorkspaceKebabMenu
+            workspaceKey={workspace.workspaceKey}
+            serverId={workspace.serverId}
+            workspaceId={workspace.workspaceId}
+            onRevealInFinder={onRevealInFinder}
+            onRename={onRename}
+            onMarkAsRead={onMarkAsRead}
+            onArchive={onArchive}
+            archiveLabel={archiveLabel}
+            archiveStatus={archiveStatus}
+            archivePendingLabel={archivePendingLabel}
+            archiveShortcutKeys={archiveShortcutKeys}
+          />
+        ) : null}
+      </View>
     </>
   );
 }
@@ -600,6 +727,12 @@ function workspaceKebabStyle({
   return [styles.kebabButton, hovered && styles.kebabButtonHovered];
 }
 
+function workspacePinButtonStyle({
+  hovered = false,
+}: PressableStateCallbackType & { hovered?: boolean }) {
+  return [styles.pinButton, hovered && styles.pinButtonHovered];
+}
+
 function getWorkspaceRowStyle({
   isDragging,
   selected,
@@ -672,6 +805,19 @@ const styles = StyleSheet.create((theme) => ({
     marginLeft: 2,
   },
   kebabButtonHovered: {
+    backgroundColor: theme.colors.surface2,
+  },
+  pinnedTrailingActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+    flexShrink: 0,
+  },
+  pinButton: {
+    padding: 2,
+    borderRadius: 4,
+  },
+  pinButtonHovered: {
     backgroundColor: theme.colors.surface2,
   },
 }));
