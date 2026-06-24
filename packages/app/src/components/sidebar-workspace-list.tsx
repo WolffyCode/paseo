@@ -889,7 +889,6 @@ interface WorkspaceRowItemProps {
   workspace: SidebarWorkspaceEntry;
   shortcutNumber: number | null;
   showShortcutBadge: boolean;
-  canCopyBranchName: boolean;
   isCreating?: boolean;
   selectionEnabled: boolean;
   serverId: string | null;
@@ -904,7 +903,6 @@ function WorkspaceRowItem({
   workspace,
   shortcutNumber,
   showShortcutBadge,
-  canCopyBranchName,
   isCreating = false,
   selectionEnabled,
   serverId,
@@ -927,7 +925,6 @@ function WorkspaceRowItem({
       workspace={workspace}
       shortcutNumber={shortcutNumber}
       showShortcutBadge={showShortcutBadge}
-      canCopyBranchName={canCopyBranchName}
       isCreating={isCreating}
       selected={isWorkspaceSelected({
         selection: activeWorkspaceSelection,
@@ -963,7 +960,6 @@ function areWorkspaceRowItemPropsEqual(
     previous.workspace === next.workspace &&
     previous.shortcutNumber === next.shortcutNumber &&
     previous.showShortcutBadge === next.showShortcutBadge &&
-    previous.canCopyBranchName === next.canCopyBranchName &&
     previous.isCreating === next.isCreating &&
     previous.serverId === next.serverId &&
     previous.onWorkspacePress === next.onWorkspacePress &&
@@ -984,7 +980,6 @@ function WorkspaceRow({
   drag,
   isDragging,
   dragHandleProps,
-  canCopyBranchName,
   isCreating = false,
   selected,
 }: {
@@ -995,7 +990,6 @@ function WorkspaceRow({
   drag: () => void;
   isDragging: boolean;
   dragHandleProps?: DraggableListDragHandleProps;
-  canCopyBranchName: boolean;
   isCreating?: boolean;
   selected: boolean;
 }) {
@@ -1015,7 +1009,6 @@ function WorkspaceRow({
       drag={drag}
       isDragging={isDragging}
       dragHandleProps={dragHandleProps}
-      canCopyBranchName={canCopyBranchName}
       isCreating={isCreating}
     />
   );
@@ -1094,7 +1087,6 @@ function ProjectBlock({
           workspace={item}
           shortcutNumber={shortcutIndexByWorkspaceKey.get(item.workspaceKey) ?? null}
           showShortcutBadge={showShortcutBadges}
-          canCopyBranchName={project.projectKind === "git"}
           isCreating={creatingWorkspaceIds.has(item.workspaceId)}
           selectionEnabled={selectionEnabled}
           serverId={serverId}
@@ -1107,7 +1099,6 @@ function ProjectBlock({
       );
     },
     [
-      project.projectKind,
       activeWorkspaceSelection,
       creatingWorkspaceIds,
       onWorkspacePress,
@@ -1422,6 +1413,52 @@ function ProjectModeList({
   );
   const selectionEnabled = isWorkspaceRoute;
   const activeWorkspaceSelection = useActiveWorkspaceSelection();
+
+  // Phase 2: a single pinned conversation/workspace is lifted out of its project
+  // into the "置顶" section as a standalone row (project/branch shown on hover).
+  // Resolve workspace pins against the live project tree, then de-dupe them out of
+  // their (unpinned) project's child list so each appears in exactly one place.
+  const pinnedTargets = useSidebarPinsStore((state) =>
+    serverId ? state.pinnedByServerId[serverId] : undefined,
+  );
+  const { pinnedWorkspaces, dedupedUnpinnedProjects } = useMemo(() => {
+    const hasWorkspacePin = pinnedTargets?.some((target) => target.kind === "workspace") ?? false;
+    if (!hasWorkspacePin) {
+      return { pinnedWorkspaces: [], dedupedUnpinnedProjects: unpinnedProjects };
+    }
+    const workspaceById = new Map<string, SidebarWorkspaceEntry>();
+    for (const project of allProjects) {
+      for (const workspace of project.workspaces) {
+        workspaceById.set(workspace.workspaceId, workspace);
+      }
+    }
+    const pinnedProjectKeys = new Set(pinnedProjects.map((project) => project.projectKey));
+    const standalone: SidebarWorkspaceEntry[] = [];
+    const standaloneIds = new Set<string>();
+    for (const target of pinnedTargets ?? []) {
+      if (target.kind !== "workspace") continue;
+      const workspace = workspaceById.get(target.workspaceId);
+      // A workspace whose project is itself pinned already shows under that
+      // project block in "置顶" — don't render it a second time standalone.
+      if (!workspace || pinnedProjectKeys.has(workspace.projectKey)) continue;
+      if (standaloneIds.has(workspace.workspaceId)) continue;
+      standalone.push(workspace);
+      standaloneIds.add(workspace.workspaceId);
+    }
+    if (standaloneIds.size === 0) {
+      return { pinnedWorkspaces: standalone, dedupedUnpinnedProjects: unpinnedProjects };
+    }
+    const deduped = unpinnedProjects.map((project) => {
+      const remaining = project.workspaces.filter(
+        (workspace) => !standaloneIds.has(workspace.workspaceId),
+      );
+      return remaining.length === project.workspaces.length
+        ? project
+        : { ...project, workspaces: remaining };
+    });
+    return { pinnedWorkspaces: standalone, dedupedUnpinnedProjects: deduped };
+  }, [pinnedTargets, allProjects, pinnedProjects, unpinnedProjects]);
+
   const nativeScrollGestureProps = useMemo(
     () =>
       parentGestureRef
@@ -1639,7 +1676,34 @@ function ProjectModeList({
     [renderProjectBlock],
   );
 
-  const hasPinned = pinnedProjects.length > 0;
+  // A standalone pinned workspace row reuses the normal workspace row (so it keeps
+  // its hover card with project/branch context) but is never draggable.
+  const renderPinnedWorkspaceRow = useCallback(
+    (workspace: SidebarWorkspaceEntry) => (
+      <MemoWorkspaceRowItem
+        key={workspace.workspaceKey}
+        workspace={workspace}
+        shortcutNumber={shortcutIndexByWorkspaceKey.get(workspace.workspaceKey) ?? null}
+        showShortcutBadge={showShortcutBadges}
+        isCreating={creatingWorkspaceIds.has(workspace.workspaceId)}
+        selectionEnabled={selectionEnabled}
+        serverId={serverId}
+        activeWorkspaceSelection={activeWorkspaceSelection}
+        onWorkspacePress={onWorkspacePress}
+      />
+    ),
+    [
+      shortcutIndexByWorkspaceKey,
+      showShortcutBadges,
+      creatingWorkspaceIds,
+      selectionEnabled,
+      serverId,
+      activeWorkspaceSelection,
+      onWorkspacePress,
+    ],
+  );
+
+  const hasPinned = pinnedProjects.length > 0 || pinnedWorkspaces.length > 0;
   const hasUnpinned = unpinnedProjects.length > 0;
 
   const content = (
@@ -1655,11 +1719,13 @@ function ProjectModeList({
       ) : (
         <>
           {hasPinned ? (
-            // Phase 1: the pinned group is a plain (non-draggable) mapped list. Pin
-            // order comes from the pin store; drag-reorder stays scoped to the
-            // unpinned "项目" list below.
+            // The pinned group is a plain (non-draggable) mapped list. Pin order
+            // comes from the pin store; drag-reorder stays scoped to the unpinned
+            // "项目" list below. Standalone pinned conversations render above pinned
+            // projects, matching the design mockup.
             <View testID="sidebar-pinned-project-list">
               <Text style={styles.pinnedSectionTitle}>{t("sidebar.sections.pinned")}</Text>
+              {pinnedWorkspaces.map((workspace) => renderPinnedWorkspaceRow(workspace))}
               {pinnedProjects.map((project) => (
                 <View key={project.projectKey}>
                   {renderProjectBlock(project, { drag: noop, isDragging: false })}
@@ -1674,7 +1740,7 @@ function ProjectModeList({
           />
           <DraggableList
             testID="sidebar-project-list"
-            data={unpinnedProjects}
+            data={dedupedUnpinnedProjects}
             keyExtractor={projectKeyExtractor}
             renderItem={renderProject}
             onDragEnd={handleProjectDragEnd}

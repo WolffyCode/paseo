@@ -2,9 +2,8 @@ import { memo, useCallback, useMemo, useState, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { View, Text, Pressable, type PressableStateCallbackType } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { Archive, CircleCheck, Copy, MoreVertical, Pencil } from "lucide-react-native";
+import { Archive, CircleCheck, FolderOpen, MoreVertical, Pencil, Pin } from "lucide-react-native";
 import { useMutation } from "@tanstack/react-query";
-import * as Clipboard from "expo-clipboard";
 import type { Theme } from "@/styles/theme";
 import type { SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
 import type { DraggableListDragHandleProps } from "@/components/draggable-list.types";
@@ -28,6 +27,12 @@ import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
 import { useClearWorkspaceAttention } from "@/hooks/use-clear-workspace-attention";
 import { redirectIfArchivingActiveWorkspace } from "@/utils/sidebar-workspace-archive-redirect";
 import { requireWorkspaceDirectory, resolveWorkspaceDirectory } from "@/utils/workspace-directory";
+import { useSidebarPinsStore } from "@/stores/sidebar-pins-store";
+import {
+  hasDesktopOpenTargetsBridge,
+  listDesktopOpenTargets,
+  openDesktopTarget,
+} from "@/workspace/desktop-open-targets";
 import { isWeb as platformIsWeb, isNative as platformIsNative } from "@/constants/platform";
 import { useLongPressDragInteraction } from "@/components/sidebar/use-long-press-drag-interaction";
 import {
@@ -42,12 +47,17 @@ const foregroundColorMapping = (theme: Theme) => ({ color: theme.colors.foregrou
 const foregroundMutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
 const ThemedMoreVertical = withUnistyles(MoreVertical);
-const ThemedCopy = withUnistyles(Copy);
+const ThemedPin = withUnistyles(Pin);
+const ThemedFolderOpen = withUnistyles(FolderOpen);
 const ThemedArchive = withUnistyles(Archive);
 const ThemedPencil = withUnistyles(Pencil);
 const ThemedCircleCheck = withUnistyles(CircleCheck);
 
-const copyLeadingIcon = <ThemedCopy size={14} uniProps={foregroundMutedColorMapping} />;
+const pinLeadingIcon = <ThemedPin size={14} uniProps={foregroundMutedColorMapping} />;
+const pinnedLeadingIcon = (
+  <ThemedPin size={14} fill="currentColor" uniProps={foregroundMutedColorMapping} />
+);
+const revealLeadingIcon = <ThemedFolderOpen size={14} uniProps={foregroundMutedColorMapping} />;
 const renameLeadingIcon = <ThemedPencil size={14} uniProps={foregroundMutedColorMapping} />;
 const markAsReadLeadingIcon = (
   <ThemedCircleCheck size={14} uniProps={foregroundMutedColorMapping} />
@@ -70,7 +80,6 @@ interface SidebarWorkspaceRowProps {
   selected: boolean;
   shortcutNumber: number | null;
   showShortcutBadge: boolean;
-  canCopyBranchName: boolean;
   onPress: () => void;
   /** Secondary line under the name (status grouping shows the project name). */
   subtitle?: string | null;
@@ -87,7 +96,6 @@ export function SidebarWorkspaceRow({
   selected,
   shortcutNumber,
   showShortcutBadge,
-  canCopyBranchName,
   onPress,
   subtitle,
   isCreating = false,
@@ -142,10 +150,12 @@ export function SidebarWorkspaceRow({
     archiveController.archive();
   }, [archiveController, isArchiving]);
 
-  const handleCopyPath = useCallback(() => {
-    let copyTargetDirectory: string;
+  // "Reveal in Finder" (在 Finder 中显示) — desktop-only, routes the workspace directory
+  // through the Electron file-manager open target. Hidden on web/native (no bridge).
+  const handleRevealInFinder = useCallback(() => {
+    let revealTargetDirectory: string;
     try {
-      copyTargetDirectory = requireWorkspaceDirectory({
+      revealTargetDirectory = requireWorkspaceDirectory({
         workspaceId: workspace.workspaceId,
         workspaceDirectory: workspace.workspaceDirectory,
       });
@@ -157,17 +167,22 @@ export function SidebarWorkspaceRow({
       );
       return;
     }
-    void Clipboard.setStringAsync(copyTargetDirectory);
-    toast.copied(t("sidebar.workspace.toasts.pathCopied"));
+    void (async () => {
+      const targets = await listDesktopOpenTargets();
+      const fileManager = targets.find((target) => target.kind === "file-manager");
+      if (!fileManager) {
+        return;
+      }
+      await openDesktopTarget({
+        editorId: fileManager.id,
+        path: revealTargetDirectory,
+        mode: "reveal",
+      });
+    })().catch((error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to reveal in Finder");
+    });
   }, [t, toast, workspace.workspaceDirectory, workspace.workspaceId]);
-
-  const handleCopyBranchName = useCallback(() => {
-    if (!workspace.currentBranch) {
-      return;
-    }
-    void Clipboard.setStringAsync(workspace.currentBranch);
-    toast.copied(t("sidebar.workspace.toasts.branchNameCopied"));
-  }, [t, toast, workspace.currentBranch]);
+  const canRevealInFinder = hasDesktopOpenTargetsBridge();
 
   const renameMutation = useMutation({
     mutationFn: async (title: string) => {
@@ -241,8 +256,7 @@ export function SidebarWorkspaceRow({
         archiveStatus={archiveStatus}
         archivePendingLabel={t("sidebar.workspace.actions.archiving")}
         onArchive={handleArchive}
-        onCopyBranchName={canCopyBranchName ? handleCopyBranchName : undefined}
-        onCopyPath={handleCopyPath}
+        onRevealInFinder={canRevealInFinder ? handleRevealInFinder : undefined}
         onRename={handleOpenRename}
         onMarkAsRead={hasClearableAttention ? handleMarkAsRead : undefined}
         archiveShortcutKeys={selected ? archiveShortcutKeys : null}
@@ -277,8 +291,7 @@ interface WorkspaceRowBodyProps {
   archiveStatus?: "idle" | "pending" | "success";
   archivePendingLabel?: string;
   onArchive?: () => void;
-  onCopyBranchName?: () => void;
-  onCopyPath?: () => void;
+  onRevealInFinder?: () => void;
   onRename?: () => void;
   onMarkAsRead?: () => void;
   archiveShortcutKeys?: ShortcutKey[][] | null;
@@ -300,8 +313,7 @@ function WorkspaceRowBody({
   archiveStatus = "idle",
   archivePendingLabel,
   onArchive,
-  onCopyBranchName,
-  onCopyPath,
+  onRevealInFinder,
   onRename,
   onMarkAsRead,
   archiveShortcutKeys,
@@ -386,8 +398,7 @@ function WorkspaceRowBody({
                   archivePendingLabel={archivePendingLabel}
                   archiveShortcutKeys={archiveShortcutKeys}
                   onArchive={onArchive}
-                  onCopyBranchName={onCopyBranchName}
-                  onCopyPath={onCopyPath}
+                  onRevealInFinder={onRevealInFinder}
                   onRename={onRename}
                   onMarkAsRead={onMarkAsRead}
                 />
@@ -413,8 +424,7 @@ function WorkspaceRowTrailingActions({
   archiveShortcutKeys,
   onArchive,
   onMarkAsRead,
-  onCopyBranchName,
-  onCopyPath,
+  onRevealInFinder,
   onRename,
 }: {
   workspace: SidebarWorkspaceEntry;
@@ -429,8 +439,7 @@ function WorkspaceRowTrailingActions({
   archiveShortcutKeys?: ShortcutKey[][] | null;
   onArchive?: () => void;
   onMarkAsRead?: () => void;
-  onCopyBranchName?: () => void;
-  onCopyPath?: () => void;
+  onRevealInFinder?: () => void;
   onRename?: () => void;
 }) {
   const { t } = useTranslation();
@@ -466,8 +475,9 @@ function WorkspaceRowTrailingActions({
             {onArchive ? (
               <WorkspaceKebabMenu
                 workspaceKey={workspace.workspaceKey}
-                onCopyPath={onCopyPath}
-                onCopyBranchName={onCopyBranchName}
+                serverId={workspace.serverId}
+                workspaceId={workspace.workspaceId}
+                onRevealInFinder={onRevealInFinder}
                 onRename={onRename}
                 onMarkAsRead={onMarkAsRead}
                 onArchive={onArchive}
@@ -486,8 +496,9 @@ function WorkspaceRowTrailingActions({
 
 function WorkspaceKebabMenu({
   workspaceKey,
-  onCopyPath,
-  onCopyBranchName,
+  serverId,
+  workspaceId,
+  onRevealInFinder,
   onRename,
   onMarkAsRead,
   onArchive,
@@ -497,8 +508,9 @@ function WorkspaceKebabMenu({
   archiveShortcutKeys,
 }: {
   workspaceKey: string;
-  onCopyPath?: () => void;
-  onCopyBranchName?: () => void;
+  serverId: string;
+  workspaceId: string;
+  onRevealInFinder?: () => void;
   onRename?: () => void;
   onMarkAsRead?: () => void;
   onArchive: () => void;
@@ -508,6 +520,15 @@ function WorkspaceKebabMenu({
   archiveShortcutKeys?: ShortcutKey[][] | null;
 }) {
   const { t } = useTranslation();
+  // Pinning a single workspace breaks it out as a standalone row in the sidebar's
+  // "置顶" section (with project/branch context on hover).
+  const isPinned = useSidebarPinsStore((state) =>
+    state.isPinned(serverId, { kind: "workspace", workspaceId }),
+  );
+  const togglePin = useSidebarPinsStore((state) => state.togglePin);
+  const handleTogglePin = useCallback(() => {
+    togglePin(serverId, { kind: "workspace", workspaceId });
+  }, [togglePin, serverId, workspaceId]);
   const archiveTrailing = useMemo(
     () => (archiveShortcutKeys ? <Shortcut chord={archiveShortcutKeys} /> : null),
     [archiveShortcutKeys],
@@ -524,22 +545,29 @@ function WorkspaceKebabMenu({
         {renderKebabTriggerIcon}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" width={260}>
-        {onCopyPath ? (
+        {onMarkAsRead ? (
           <DropdownMenuItem
-            testID={`sidebar-workspace-menu-copy-path-${workspaceKey}`}
-            leading={copyLeadingIcon}
-            onSelect={onCopyPath}
+            testID={`sidebar-workspace-menu-mark-as-read-${workspaceKey}`}
+            leading={markAsReadLeadingIcon}
+            onSelect={onMarkAsRead}
           >
-            {t("sidebar.workspace.actions.copyPath")}
+            Mark as read
           </DropdownMenuItem>
         ) : null}
-        {onCopyBranchName ? (
+        <DropdownMenuItem
+          testID={`sidebar-workspace-menu-pin-${workspaceKey}`}
+          leading={isPinned ? pinnedLeadingIcon : pinLeadingIcon}
+          onSelect={handleTogglePin}
+        >
+          {isPinned ? t("sidebar.workspace.actions.unpin") : t("sidebar.workspace.actions.pin")}
+        </DropdownMenuItem>
+        {onRevealInFinder ? (
           <DropdownMenuItem
-            testID={`sidebar-workspace-menu-copy-branch-name-${workspaceKey}`}
-            leading={copyLeadingIcon}
-            onSelect={onCopyBranchName}
+            testID={`sidebar-workspace-menu-reveal-${workspaceKey}`}
+            leading={revealLeadingIcon}
+            onSelect={onRevealInFinder}
           >
-            {t("sidebar.workspace.actions.copyBranchName")}
+            {t("sidebar.workspace.actions.revealInFinder")}
           </DropdownMenuItem>
         ) : null}
         {onRename ? (
@@ -549,15 +577,6 @@ function WorkspaceKebabMenu({
             onSelect={onRename}
           >
             {t("sidebar.workspace.actions.rename")}
-          </DropdownMenuItem>
-        ) : null}
-        {onMarkAsRead ? (
-          <DropdownMenuItem
-            testID={`sidebar-workspace-menu-mark-as-read-${workspaceKey}`}
-            leading={markAsReadLeadingIcon}
-            onSelect={onMarkAsRead}
-          >
-            Mark as read
           </DropdownMenuItem>
         ) : null}
         <DropdownMenuItem
