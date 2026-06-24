@@ -475,27 +475,6 @@ function WorkspaceRowTrailingActions({
     : null;
   const shouldRenderActionSlot = Boolean(onArchive || timeAgoLabel);
 
-  // A pinned workspace lives standalone in the "置顶" section — its trailing
-  // controls (persistent pin + remove + kebab) live in their own component.
-  if (isPinned && onArchive) {
-    return (
-      <WorkspacePinnedTrailingActions
-        workspace={workspace}
-        isHovered={isHovered}
-        isTouchPlatform={isTouchPlatform}
-        isCreating={isCreating}
-        onArchive={onArchive}
-        onRevealInFinder={onRevealInFinder}
-        onRename={onRename}
-        onMarkAsRead={onMarkAsRead}
-        archiveLabel={archiveLabel}
-        archiveStatus={archiveStatus}
-        archivePendingLabel={archivePendingLabel}
-        archiveShortcutKeys={archiveShortcutKeys}
-      />
-    );
-  }
-
   return (
     <>
       {isCreating ? (
@@ -515,21 +494,18 @@ function WorkspaceRowTrailingActions({
             ) : null}
           </SidebarWorkspaceTrailingActionBase>
           <SidebarWorkspaceTrailingActionOverlay visible={showKebabInSlot}>
-            {onArchive ? (
-              <WorkspaceKebabMenu
-                workspaceKey={workspace.workspaceKey}
-                serverId={workspace.serverId}
-                workspaceId={workspace.workspaceId}
-                onRevealInFinder={onRevealInFinder}
-                onRename={onRename}
-                onMarkAsRead={onMarkAsRead}
-                onArchive={onArchive}
-                archiveLabel={archiveLabel}
-                archiveStatus={archiveStatus}
-                archivePendingLabel={archivePendingLabel}
-                archiveShortcutKeys={archiveShortcutKeys}
-              />
-            ) : null}
+            <WorkspaceRowOverlayActions
+              isPinned={isPinned}
+              workspace={workspace}
+              onArchive={onArchive}
+              onRevealInFinder={onRevealInFinder}
+              onRename={onRename}
+              onMarkAsRead={onMarkAsRead}
+              archiveLabel={archiveLabel}
+              archiveStatus={archiveStatus}
+              archivePendingLabel={archivePendingLabel}
+              archiveShortcutKeys={archiveShortcutKeys}
+            />
           </SidebarWorkspaceTrailingActionOverlay>
         </SidebarWorkspaceTrailingActionSlot>
       ) : null}
@@ -537,11 +513,67 @@ function WorkspaceRowTrailingActions({
   );
 }
 
-function WorkspacePinnedTrailingActions({
+function WorkspaceRowOverlayActions({
+  isPinned,
   workspace,
-  isHovered,
-  isTouchPlatform,
-  isCreating,
+  onArchive,
+  onRevealInFinder,
+  onRename,
+  onMarkAsRead,
+  archiveLabel,
+  archiveStatus,
+  archivePendingLabel,
+  archiveShortcutKeys,
+}: {
+  isPinned: boolean;
+  workspace: SidebarWorkspaceEntry;
+  onArchive?: () => void;
+  onRevealInFinder?: () => void;
+  onRename?: () => void;
+  onMarkAsRead?: () => void;
+  archiveLabel?: string;
+  archiveStatus?: "idle" | "pending" | "success";
+  archivePendingLabel?: string;
+  archiveShortcutKeys?: ShortcutKey[][] | null;
+}) {
+  if (!onArchive) return null;
+  if (isPinned) {
+    return (
+      <WorkspacePinnedOverlayActions
+        workspace={workspace}
+        onArchive={onArchive}
+        onRevealInFinder={onRevealInFinder}
+        onRename={onRename}
+        onMarkAsRead={onMarkAsRead}
+        archiveLabel={archiveLabel}
+        archiveStatus={archiveStatus}
+        archivePendingLabel={archivePendingLabel}
+        archiveShortcutKeys={archiveShortcutKeys}
+      />
+    );
+  }
+  return (
+    <WorkspaceKebabMenu
+      workspaceKey={workspace.workspaceKey}
+      serverId={workspace.serverId}
+      workspaceId={workspace.workspaceId}
+      onRevealInFinder={onRevealInFinder}
+      onRename={onRename}
+      onMarkAsRead={onMarkAsRead}
+      onArchive={onArchive}
+      archiveLabel={archiveLabel}
+      archiveStatus={archiveStatus}
+      archivePendingLabel={archivePendingLabel}
+      archiveShortcutKeys={archiveShortcutKeys}
+    />
+  );
+}
+
+// On hover, a pinned conversation's trailing area shows its quick actions — a pin
+// (click = unpin) and a remove — alongside the full kebab. At rest nothing shows;
+// the "置顶" section placement is the pinned indicator (Codex-style).
+function WorkspacePinnedOverlayActions({
+  workspace,
   onArchive,
   onRevealInFinder,
   onRename,
@@ -552,9 +584,6 @@ function WorkspacePinnedTrailingActions({
   archiveShortcutKeys,
 }: {
   workspace: SidebarWorkspaceEntry;
-  isHovered: boolean;
-  isTouchPlatform: boolean;
-  isCreating: boolean;
   onArchive: () => void;
   onRevealInFinder?: () => void;
   onRename?: () => void;
@@ -572,52 +601,42 @@ function WorkspacePinnedTrailingActions({
       workspaceId: workspace.workspaceId,
     });
   }, [togglePinTarget, workspace.serverId, workspace.workspaceId]);
-  const quickActionsVisible = isHovered || isTouchPlatform;
   return (
-    <>
-      {isCreating ? (
-        <Text style={styles.workspaceCreatingText}>{t("sidebar.workspace.status.creating")}</Text>
-      ) : null}
-      <View style={styles.pinnedTrailingActions}>
-        <Pressable
-          style={workspacePinButtonStyle}
-          onPress={handleUnpin}
-          hitSlop={4}
-          accessibilityRole={platformIsWeb ? undefined : "button"}
-          accessibilityLabel={t("sidebar.workspace.actions.unpin")}
-          testID={`sidebar-workspace-unpin-${workspace.workspaceKey}`}
-        >
-          {renderPinIndicatorIcon}
-        </Pressable>
-        {quickActionsVisible ? (
-          <Pressable
-            style={workspacePinButtonStyle}
-            onPress={onArchive}
-            hitSlop={4}
-            accessibilityRole={platformIsWeb ? undefined : "button"}
-            accessibilityLabel={archiveLabel ?? t("sidebar.workspace.actions.archive")}
-            testID={`sidebar-workspace-remove-${workspace.workspaceKey}`}
-          >
-            {renderRemoveIcon}
-          </Pressable>
-        ) : null}
-        {quickActionsVisible ? (
-          <WorkspaceKebabMenu
-            workspaceKey={workspace.workspaceKey}
-            serverId={workspace.serverId}
-            workspaceId={workspace.workspaceId}
-            onRevealInFinder={onRevealInFinder}
-            onRename={onRename}
-            onMarkAsRead={onMarkAsRead}
-            onArchive={onArchive}
-            archiveLabel={archiveLabel}
-            archiveStatus={archiveStatus}
-            archivePendingLabel={archivePendingLabel}
-            archiveShortcutKeys={archiveShortcutKeys}
-          />
-        ) : null}
-      </View>
-    </>
+    <View style={styles.pinnedTrailingActions}>
+      <Pressable
+        style={workspacePinButtonStyle}
+        onPress={handleUnpin}
+        hitSlop={4}
+        accessibilityRole={platformIsWeb ? undefined : "button"}
+        accessibilityLabel={t("sidebar.workspace.actions.unpin")}
+        testID={`sidebar-workspace-unpin-${workspace.workspaceKey}`}
+      >
+        {renderPinIndicatorIcon}
+      </Pressable>
+      <Pressable
+        style={workspacePinButtonStyle}
+        onPress={onArchive}
+        hitSlop={4}
+        accessibilityRole={platformIsWeb ? undefined : "button"}
+        accessibilityLabel={archiveLabel ?? t("sidebar.workspace.actions.archive")}
+        testID={`sidebar-workspace-remove-${workspace.workspaceKey}`}
+      >
+        {renderRemoveIcon}
+      </Pressable>
+      <WorkspaceKebabMenu
+        workspaceKey={workspace.workspaceKey}
+        serverId={workspace.serverId}
+        workspaceId={workspace.workspaceId}
+        onRevealInFinder={onRevealInFinder}
+        onRename={onRename}
+        onMarkAsRead={onMarkAsRead}
+        onArchive={onArchive}
+        archiveLabel={archiveLabel}
+        archiveStatus={archiveStatus}
+        archivePendingLabel={archivePendingLabel}
+        archiveShortcutKeys={archiveShortcutKeys}
+      />
+    </View>
   );
 }
 
