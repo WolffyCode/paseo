@@ -790,7 +790,7 @@ export const ru: TranslationResources = {
         createWorkspaceFor: "Создайте новое рабочее пространство для{{projectName}}.",
         copyPath: "Копировать путь",
         copyBranchName: "Скопировать название ветки",
-        rename: "Переименовать рабочую область",
+        rename: "Переименовать",
         archive: "Удалить",
         archiveWorktree: "Архив рабочего дерева",
         hideFromSidebar: "Скрыть с боковой панели",

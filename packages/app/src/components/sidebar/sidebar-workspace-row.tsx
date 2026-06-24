@@ -2,7 +2,7 @@ import { memo, useCallback, useMemo, useState, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { View, Text, Pressable, type PressableStateCallbackType } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { Archive, CircleCheck, FolderOpen, MoreVertical, Pencil, Pin } from "lucide-react-native";
+import { Archive, CircleCheck, FolderOpen, Pencil, Pin } from "lucide-react-native";
 import { useMutation } from "@tanstack/react-query";
 import type { Theme } from "@/styles/theme";
 import type { SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
@@ -10,11 +10,12 @@ import type { DraggableListDragHandleProps } from "@/components/draggable-list.t
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import { formatTimeAgoShort } from "@/utils/time";
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  useContextMenu,
+} from "@/components/ui/context-menu";
 import { Shortcut } from "@/components/ui/shortcut";
 import { AdaptiveRenameModal } from "@/components/rename-modal";
 import { useToast } from "@/contexts/toast-context";
@@ -46,7 +47,6 @@ import {
 const foregroundColorMapping = (theme: Theme) => ({ color: theme.colors.foreground });
 const foregroundMutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
-const ThemedMoreVertical = withUnistyles(MoreVertical);
 const ThemedPin = withUnistyles(Pin);
 const ThemedFolderOpen = withUnistyles(FolderOpen);
 const ThemedArchive = withUnistyles(Archive);
@@ -63,15 +63,6 @@ const markAsReadLeadingIcon = (
   <ThemedCircleCheck size={14} uniProps={foregroundMutedColorMapping} />
 );
 const archiveLeadingIcon = <ThemedArchive size={14} uniProps={foregroundMutedColorMapping} />;
-
-function renderKebabTriggerIcon({ hovered }: { hovered?: boolean }) {
-  return (
-    <ThemedMoreVertical
-      size={14}
-      uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
-    />
-  );
-}
 
 // The pin glyph is tilted 45° (Codex-style). Outline (hollow) = not pinned →
 // click to pin; filled = pinned → click to unpin.
@@ -272,8 +263,10 @@ export function SidebarWorkspaceRow({
     archiveStatus = "pending";
   }
 
+  // Right-click (web) / long-press (native) opens the row's actions; there is no
+  // kebab button. The provider wraps the row trigger and the menu content.
   return (
-    <>
+    <ContextMenu>
       <WorkspaceRowBody
         workspace={workspace}
         selected={selected}
@@ -287,12 +280,17 @@ export function SidebarWorkspaceRow({
         isDragging={isDragging}
         dragHandleProps={dragHandleProps}
         archiveLabel={t("sidebar.workspace.actions.archive")}
-        archiveStatus={archiveStatus}
-        archivePendingLabel={t("sidebar.workspace.actions.archiving")}
+        onArchive={handleArchive}
+      />
+      <WorkspaceRowContextMenu
+        workspace={workspace}
         onArchive={handleArchive}
         onRevealInFinder={canRevealInFinder ? handleRevealInFinder : undefined}
         onRename={handleOpenRename}
         onMarkAsRead={hasClearableAttention ? handleMarkAsRead : undefined}
+        archiveLabel={t("sidebar.workspace.actions.archive")}
+        archiveStatus={archiveStatus}
+        archivePendingLabel={t("sidebar.workspace.actions.archiving")}
         archiveShortcutKeys={selected ? archiveShortcutKeys : null}
       />
       <AdaptiveRenameModal
@@ -305,7 +303,7 @@ export function SidebarWorkspaceRow({
         onSubmit={handleSubmitRename}
         testID={`sidebar-workspace-rename-modal-${workspace.workspaceKey}`}
       />
-    </>
+    </ContextMenu>
   );
 }
 
@@ -322,13 +320,7 @@ interface WorkspaceRowBodyProps {
   isDragging: boolean;
   dragHandleProps?: DraggableListDragHandleProps;
   archiveLabel?: string;
-  archiveStatus?: "idle" | "pending" | "success";
-  archivePendingLabel?: string;
   onArchive?: () => void;
-  onRevealInFinder?: () => void;
-  onRename?: () => void;
-  onMarkAsRead?: () => void;
-  archiveShortcutKeys?: ShortcutKey[][] | null;
 }
 
 function WorkspaceRowBody({
@@ -344,19 +336,14 @@ function WorkspaceRowBody({
   isDragging,
   dragHandleProps,
   archiveLabel,
-  archiveStatus = "idle",
-  archivePendingLabel,
   onArchive,
-  onRevealInFinder,
-  onRename,
-  onMarkAsRead,
-  archiveShortcutKeys,
 }: WorkspaceRowBodyProps) {
   const isTouchPlatform = platformIsNative;
   const draggable = Boolean(drag);
+  const menuController = useContextMenu();
   const interaction = useLongPressDragInteraction({
     drag: drag ?? noop,
-    menuController: null,
+    menuController,
   });
   const {
     role: _dragRole,
@@ -398,15 +385,16 @@ function WorkspaceRowBody({
             style={styles.workspaceRowContainer}
             {...hoverHandlers}
           >
-            <Pressable
+            <ContextMenuTrigger
+              enabledOnMobile={false}
               disabled={isArchiving}
               aria-selected={selected}
               accessibilityRole="button"
               accessibilityState={accessibilityState}
               style={workspaceRowStyle}
-              onPressIn={draggable ? interaction.handlePressIn : undefined}
-              onTouchMove={draggable ? interaction.handleTouchMove : undefined}
-              onPressOut={draggable ? interaction.handlePressOut : undefined}
+              onPressIn={interaction.handlePressIn}
+              onTouchMove={interaction.handleTouchMove}
+              onPressOut={interaction.handlePressOut}
               onPress={handlePress}
               testID={`sidebar-workspace-row-${workspace.workspaceKey}`}
             >
@@ -428,16 +416,10 @@ function WorkspaceRowBody({
                   showShortcutBadge={showShortcutBadge}
                   shortcutNumber={shortcutNumber}
                   archiveLabel={archiveLabel}
-                  archiveStatus={archiveStatus}
-                  archivePendingLabel={archivePendingLabel}
-                  archiveShortcutKeys={archiveShortcutKeys}
                   onArchive={onArchive}
-                  onRevealInFinder={onRevealInFinder}
-                  onRename={onRename}
-                  onMarkAsRead={onMarkAsRead}
                 />
               </SidebarWorkspaceRowContent>
-            </Pressable>
+            </ContextMenuTrigger>
           </View>
         );
       }}
@@ -453,13 +435,7 @@ function WorkspaceRowTrailingActions({
   showShortcutBadge,
   shortcutNumber,
   archiveLabel,
-  archiveStatus,
-  archivePendingLabel,
-  archiveShortcutKeys,
   onArchive,
-  onMarkAsRead,
-  onRevealInFinder,
-  onRename,
 }: {
   workspace: SidebarWorkspaceEntry;
   isHovered: boolean;
@@ -468,21 +444,15 @@ function WorkspaceRowTrailingActions({
   showShortcutBadge: boolean;
   shortcutNumber: number | null;
   archiveLabel?: string;
-  archiveStatus?: "idle" | "pending" | "success";
-  archivePendingLabel?: string;
-  archiveShortcutKeys?: ShortcutKey[][] | null;
   onArchive?: () => void;
-  onMarkAsRead?: () => void;
-  onRevealInFinder?: () => void;
-  onRename?: () => void;
 }) {
   const { t } = useTranslation();
   const isPinned = useSidebarPinsStore((state) =>
     state.isPinned(workspace.serverId, { kind: "workspace", workspaceId: workspace.workspaceId }),
   );
   const showShortcut = showShortcutBadge && shortcutNumber !== null;
-  const showKebab = Boolean(onArchive && (isHovered || isTouchPlatform));
-  const showKebabInSlot = showKebab && !showShortcut;
+  const showActions = Boolean(onArchive && (isHovered || isTouchPlatform));
+  const showActionsInSlot = showActions && !showShortcut;
   // Codex-style file tree: the trailing slot shows a relative "time ago" label sourced from
   // when the workspace entered its current status, in place of the old +/- diff stat.
   const timeAgoLabel = workspace.statusEnteredAt
@@ -498,7 +468,7 @@ function WorkspaceRowTrailingActions({
       {shouldRenderActionSlot ? (
         <SidebarWorkspaceTrailingActionSlot>
           <SidebarWorkspaceTrailingActionBase
-            visible={Boolean(timeAgoLabel && !showKebabInSlot && !showShortcut)}
+            visible={Boolean(timeAgoLabel && !showActionsInSlot && !showShortcut)}
           >
             {timeAgoLabel ? (
               <View style={styles.timeAgoContainer}>
@@ -508,18 +478,12 @@ function WorkspaceRowTrailingActions({
               </View>
             ) : null}
           </SidebarWorkspaceTrailingActionBase>
-          <SidebarWorkspaceTrailingActionOverlay visible={showKebabInSlot}>
+          <SidebarWorkspaceTrailingActionOverlay visible={showActionsInSlot}>
             <WorkspaceRowOverlayActions
               isPinned={isPinned}
               workspace={workspace}
               onArchive={onArchive}
-              onRevealInFinder={onRevealInFinder}
-              onRename={onRename}
-              onMarkAsRead={onMarkAsRead}
               archiveLabel={archiveLabel}
-              archiveStatus={archiveStatus}
-              archivePendingLabel={archivePendingLabel}
-              archiveShortcutKeys={archiveShortcutKeys}
             />
           </SidebarWorkspaceTrailingActionOverlay>
         </SidebarWorkspaceTrailingActionSlot>
@@ -528,28 +492,18 @@ function WorkspaceRowTrailingActions({
   );
 }
 
+// Inline hover quick-actions: a pin toggle (outline = pin, filled = unpin) and a
+// remove. Everything else lives in the right-click context menu.
 function WorkspaceRowOverlayActions({
   isPinned,
   workspace,
   onArchive,
-  onRevealInFinder,
-  onRename,
-  onMarkAsRead,
   archiveLabel,
-  archiveStatus,
-  archivePendingLabel,
-  archiveShortcutKeys,
 }: {
   isPinned: boolean;
   workspace: SidebarWorkspaceEntry;
   onArchive?: () => void;
-  onRevealInFinder?: () => void;
-  onRename?: () => void;
-  onMarkAsRead?: () => void;
   archiveLabel?: string;
-  archiveStatus?: "idle" | "pending" | "success";
-  archivePendingLabel?: string;
-  archiveShortcutKeys?: ShortcutKey[][] | null;
 }) {
   const { t } = useTranslation();
   const togglePinTarget = useSidebarPinsStore((state) => state.togglePin);
@@ -560,8 +514,6 @@ function WorkspaceRowOverlayActions({
     });
   }, [togglePinTarget, workspace.serverId, workspace.workspaceId]);
   if (!onArchive) return null;
-  // Every row's hover overlay carries a pin toggle (outline = pin it, filled =
-  // unpin it) and a remove quick-action; the kebab holds the rest.
   return (
     <View style={styles.pinnedTrailingActions}>
       <Pressable
@@ -586,127 +538,96 @@ function WorkspaceRowOverlayActions({
       >
         {renderRemoveIcon}
       </Pressable>
-      <WorkspaceKebabMenu
-        workspaceKey={workspace.workspaceKey}
-        serverId={workspace.serverId}
-        workspaceId={workspace.workspaceId}
-        onRevealInFinder={onRevealInFinder}
-        onRename={onRename}
-        onMarkAsRead={onMarkAsRead}
-        onArchive={onArchive}
-        archiveLabel={archiveLabel}
-        archiveStatus={archiveStatus}
-        archivePendingLabel={archivePendingLabel}
-        archiveShortcutKeys={archiveShortcutKeys}
-      />
     </View>
   );
 }
 
-function WorkspaceKebabMenu({
-  workspaceKey,
-  serverId,
-  workspaceId,
+// The row's right-click / long-press menu. Mirrors the old kebab's items.
+function WorkspaceRowContextMenu({
+  workspace,
+  onArchive,
   onRevealInFinder,
   onRename,
   onMarkAsRead,
-  onArchive,
   archiveLabel,
   archiveStatus,
   archivePendingLabel,
   archiveShortcutKeys,
 }: {
-  workspaceKey: string;
-  serverId: string;
-  workspaceId: string;
+  workspace: SidebarWorkspaceEntry;
+  onArchive: () => void;
   onRevealInFinder?: () => void;
   onRename?: () => void;
   onMarkAsRead?: () => void;
-  onArchive: () => void;
   archiveLabel?: string;
   archiveStatus?: "idle" | "pending" | "success";
   archivePendingLabel?: string;
   archiveShortcutKeys?: ShortcutKey[][] | null;
 }) {
   const { t } = useTranslation();
-  // Pinning a single workspace breaks it out as a standalone row in the sidebar's
-  // "置顶" section (with project/branch context on hover).
   const isPinned = useSidebarPinsStore((state) =>
-    state.isPinned(serverId, { kind: "workspace", workspaceId }),
+    state.isPinned(workspace.serverId, { kind: "workspace", workspaceId: workspace.workspaceId }),
   );
   const togglePin = useSidebarPinsStore((state) => state.togglePin);
   const handleTogglePin = useCallback(() => {
-    togglePin(serverId, { kind: "workspace", workspaceId });
-  }, [togglePin, serverId, workspaceId]);
+    togglePin(workspace.serverId, { kind: "workspace", workspaceId: workspace.workspaceId });
+  }, [togglePin, workspace.serverId, workspace.workspaceId]);
   const archiveTrailing = useMemo(
     () => (archiveShortcutKeys ? <Shortcut chord={archiveShortcutKeys} /> : null),
     [archiveShortcutKeys],
   );
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        hitSlop={8}
-        style={workspaceKebabStyle}
-        accessibilityRole={platformIsWeb ? undefined : "button"}
-        accessibilityLabel={t("sidebar.workspace.actions.menu")}
-        testID={`sidebar-workspace-kebab-${workspaceKey}`}
+    <ContextMenuContent
+      align="start"
+      width={220}
+      testID={`sidebar-workspace-context-menu-${workspace.workspaceKey}`}
+    >
+      {onMarkAsRead ? (
+        <ContextMenuItem
+          testID={`sidebar-workspace-menu-mark-as-read-${workspace.workspaceKey}`}
+          leading={markAsReadLeadingIcon}
+          onSelect={onMarkAsRead}
+        >
+          Mark as read
+        </ContextMenuItem>
+      ) : null}
+      <ContextMenuItem
+        testID={`sidebar-workspace-menu-pin-${workspace.workspaceKey}`}
+        leading={isPinned ? pinnedLeadingIcon : pinLeadingIcon}
+        onSelect={handleTogglePin}
       >
-        {renderKebabTriggerIcon}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" width={260}>
-        {onMarkAsRead ? (
-          <DropdownMenuItem
-            testID={`sidebar-workspace-menu-mark-as-read-${workspaceKey}`}
-            leading={markAsReadLeadingIcon}
-            onSelect={onMarkAsRead}
-          >
-            Mark as read
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem
-          testID={`sidebar-workspace-menu-pin-${workspaceKey}`}
-          leading={isPinned ? pinnedLeadingIcon : pinLeadingIcon}
-          onSelect={handleTogglePin}
+        {isPinned ? t("sidebar.workspace.actions.unpin") : t("sidebar.workspace.actions.pin")}
+      </ContextMenuItem>
+      {onRevealInFinder ? (
+        <ContextMenuItem
+          testID={`sidebar-workspace-menu-reveal-${workspace.workspaceKey}`}
+          leading={revealLeadingIcon}
+          onSelect={onRevealInFinder}
         >
-          {isPinned ? t("sidebar.workspace.actions.unpin") : t("sidebar.workspace.actions.pin")}
-        </DropdownMenuItem>
-        {onRevealInFinder ? (
-          <DropdownMenuItem
-            testID={`sidebar-workspace-menu-reveal-${workspaceKey}`}
-            leading={revealLeadingIcon}
-            onSelect={onRevealInFinder}
-          >
-            {t("sidebar.workspace.actions.revealInFinder")}
-          </DropdownMenuItem>
-        ) : null}
-        {onRename ? (
-          <DropdownMenuItem
-            testID={`sidebar-workspace-menu-rename-${workspaceKey}`}
-            leading={renameLeadingIcon}
-            onSelect={onRename}
-          >
-            {t("sidebar.workspace.actions.rename")}
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem
-          testID={`sidebar-workspace-menu-archive-${workspaceKey}`}
-          leading={archiveLeadingIcon}
-          trailing={archiveTrailing}
-          status={archiveStatus}
-          pendingLabel={archivePendingLabel}
-          onSelect={onArchive}
+          {t("sidebar.workspace.actions.revealInFinder")}
+        </ContextMenuItem>
+      ) : null}
+      {onRename ? (
+        <ContextMenuItem
+          testID={`sidebar-workspace-menu-rename-${workspace.workspaceKey}`}
+          leading={renameLeadingIcon}
+          onSelect={onRename}
         >
-          {archiveLabel ?? t("sidebar.workspace.actions.archive")}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          {t("sidebar.workspace.actions.rename")}
+        </ContextMenuItem>
+      ) : null}
+      <ContextMenuItem
+        testID={`sidebar-workspace-menu-archive-${workspace.workspaceKey}`}
+        leading={archiveLeadingIcon}
+        trailing={archiveTrailing}
+        status={archiveStatus}
+        pendingLabel={archivePendingLabel}
+        onSelect={onArchive}
+      >
+        {archiveLabel ?? t("sidebar.workspace.actions.archive")}
+      </ContextMenuItem>
+    </ContextMenuContent>
   );
-}
-
-function workspaceKebabStyle({
-  hovered = false,
-}: PressableStateCallbackType & { hovered?: boolean }) {
-  return [styles.kebabButton, hovered && styles.kebabButtonHovered];
 }
 
 function workspacePinButtonStyle({
@@ -780,14 +701,6 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.xs,
     fontWeight: theme.fontWeight.normal,
     color: theme.colors.foregroundMuted,
-  },
-  kebabButton: {
-    padding: 2,
-    borderRadius: 4,
-    marginLeft: 2,
-  },
-  kebabButtonHovered: {
-    backgroundColor: theme.colors.surface2,
   },
   pinnedTrailingActions: {
     flexDirection: "row",

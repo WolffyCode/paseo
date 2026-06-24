@@ -37,7 +37,6 @@ import {
   Pencil,
   Pin,
   Settings,
-  MoreVertical,
   Plus,
   Trash2,
 } from "lucide-react-native";
@@ -61,13 +60,13 @@ import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
 import { useSidebarPinsStore } from "@/stores/sidebar-pins-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useShowShortcutBadges } from "@/hooks/use-show-shortcut-badges";
-import { ContextMenuTrigger, useContextMenu } from "@/components/ui/context-menu";
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  useContextMenu,
+} from "@/components/ui/context-menu";
 import { useToast } from "@/contexts/toast-context";
 import { hasVisibleOrderChanged, mergeWithRemainder } from "@/utils/sidebar-reorder";
 import { SidebarWorkspaceRow } from "@/components/sidebar/sidebar-workspace-row";
@@ -109,7 +108,6 @@ const ThemedExternalLink = withUnistyles(ExternalLink);
 const ThemedGitPullRequest = withUnistyles(GitPullRequest);
 const ThemedActivityIndicator = withUnistyles(ActivityIndicator);
 const ThemedPlus = withUnistyles(Plus);
-const ThemedMoreVertical = withUnistyles(MoreVertical);
 const ThemedTrash2 = withUnistyles(Trash2);
 const ThemedSettings = withUnistyles(Settings);
 const ThemedPencil = withUnistyles(Pencil);
@@ -235,7 +233,6 @@ interface ProjectHeaderRowProps {
   showShortcutBadge?: boolean;
   drag: () => void;
   isDragging: boolean;
-  menuController: ReturnType<typeof useContextMenu> | null;
   onRemoveProject?: () => void;
   removeProjectStatus?: "idle" | "pending";
   dragHandleProps?: DraggableListDragHandleProps;
@@ -290,12 +287,6 @@ export function PrBadge({ hint }: { hint: PrHint }) {
 
 function prBadgePressableStyle({ pressed }: PressableStateCallbackType) {
   return [prBadgeStyles.badge, pressed && prBadgeStyles.badgePressed];
-}
-
-function projectKebabStyle({
-  hovered = false,
-}: PressableStateCallbackType & { hovered?: boolean }) {
-  return [styles.projectKebabButton, hovered && styles.projectKebabButtonHovered];
 }
 
 function noop() {}
@@ -367,8 +358,6 @@ function ProjectRowTrailingActions({
   isMobileBreakpoint,
   isProjectActive,
   onBeginWorkspaceSetup,
-  onRemoveProject,
-  removeProjectStatus,
 }: {
   project: SidebarProjectEntry;
   displayName: string;
@@ -378,8 +367,6 @@ function ProjectRowTrailingActions({
   isMobileBreakpoint: boolean;
   isProjectActive: boolean;
   onBeginWorkspaceSetup: () => void;
-  onRemoveProject?: () => void;
-  removeProjectStatus: "idle" | "pending" | "success";
 }) {
   const actionsVisible = isHovered || platformIsNative || isMobileBreakpoint;
   return (
@@ -398,21 +385,6 @@ function ProjectRowTrailingActions({
           showShortcutHint={isProjectActive}
           testID={`sidebar-project-new-worktree-${project.projectKey}`}
         />
-      ) : null}
-      {onRemoveProject ? (
-        <View
-          style={!actionsVisible && styles.projectKebabButtonHidden}
-          pointerEvents={actionsVisible ? "auto" : "none"}
-        >
-          <ProjectKebabMenu
-            projectKey={project.projectKey}
-            projectPath={project.iconWorkingDir}
-            displayName={displayName}
-            serverId={serverId}
-            onRemoveProject={onRemoveProject}
-            removeProjectStatus={removeProjectStatus}
-          />
-        </View>
       ) : null}
     </View>
   );
@@ -504,16 +476,9 @@ const openInNewWindowLeadingIcon = (
   <ThemedExternalLink size={14} uniProps={foregroundMutedColorMapping} />
 );
 
-function renderKebabTriggerIcon({ hovered }: { hovered?: boolean }) {
-  return (
-    <ThemedMoreVertical
-      size={14}
-      uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
-    />
-  );
-}
-
-function ProjectKebabMenu({
+// The project row's right-click / long-press menu (mirrors the old kebab). There
+// is no kebab button; the row itself is the trigger.
+function ProjectRowContextMenu({
   projectKey,
   projectPath,
   displayName,
@@ -525,8 +490,8 @@ function ProjectKebabMenu({
   projectPath: string;
   displayName: string;
   serverId: string | null;
-  onRemoveProject: () => void;
-  removeProjectStatus: "idle" | "pending" | "success";
+  onRemoveProject?: () => void;
+  removeProjectStatus?: "idle" | "pending" | "success";
 }) {
   const { t } = useTranslation();
   const toast = useToast();
@@ -586,56 +551,51 @@ function ProjectKebabMenu({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          hitSlop={8}
-          style={projectKebabStyle}
-          accessibilityRole={platformIsWeb ? undefined : "button"}
-          accessibilityLabel={t("sidebar.project.actions.menu")}
-          testID={`sidebar-project-kebab-${projectKey}`}
-        >
-          {renderKebabTriggerIcon}
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" width={220}>
-          {canPin ? (
-            <DropdownMenuItem
-              testID={`sidebar-project-menu-pin-${projectKey}`}
-              leading={isProjectPinned ? projectUnpinLeadingIcon : projectPinLeadingIcon}
-              onSelect={handleTogglePin}
-            >
-              {isProjectPinned
-                ? t("sidebar.project.actions.unpin")
-                : t("sidebar.project.actions.pin")}
-            </DropdownMenuItem>
-          ) : null}
-          {canRename ? (
-            <DropdownMenuItem
-              testID={`sidebar-project-menu-rename-${projectKey}`}
-              leading={projectRenameLeadingIcon}
-              onSelect={handleOpenRename}
-            >
-              {t("sidebar.project.actions.rename")}
-            </DropdownMenuItem>
-          ) : null}
-          {canOpenProjectSettings ? (
-            <DropdownMenuItem
-              testID={`sidebar-project-menu-open-settings-${projectKey}`}
-              leading={settingsLeadingIcon}
-              onSelect={handleOpenProjectSettings}
-            >
-              {t("sidebar.project.actions.openSettings")}
-            </DropdownMenuItem>
-          ) : null}
-          {canOpenInNewWindow ? (
-            <DropdownMenuItem
-              testID={`sidebar-project-menu-open-new-window-${projectKey}`}
-              leading={openInNewWindowLeadingIcon}
-              onSelect={handleOpenInNewWindow}
-            >
-              {t("sidebar.project.actions.openNewWindow")}
-            </DropdownMenuItem>
-          ) : null}
-          <DropdownMenuItem
+      <ContextMenuContent
+        align="start"
+        width={220}
+        testID={`sidebar-project-context-menu-${projectKey}`}
+      >
+        {canPin ? (
+          <ContextMenuItem
+            testID={`sidebar-project-menu-pin-${projectKey}`}
+            leading={isProjectPinned ? projectUnpinLeadingIcon : projectPinLeadingIcon}
+            onSelect={handleTogglePin}
+          >
+            {isProjectPinned
+              ? t("sidebar.project.actions.unpin")
+              : t("sidebar.project.actions.pin")}
+          </ContextMenuItem>
+        ) : null}
+        {canRename ? (
+          <ContextMenuItem
+            testID={`sidebar-project-menu-rename-${projectKey}`}
+            leading={projectRenameLeadingIcon}
+            onSelect={handleOpenRename}
+          >
+            {t("sidebar.project.actions.rename")}
+          </ContextMenuItem>
+        ) : null}
+        {canOpenProjectSettings ? (
+          <ContextMenuItem
+            testID={`sidebar-project-menu-open-settings-${projectKey}`}
+            leading={settingsLeadingIcon}
+            onSelect={handleOpenProjectSettings}
+          >
+            {t("sidebar.project.actions.openSettings")}
+          </ContextMenuItem>
+        ) : null}
+        {canOpenInNewWindow ? (
+          <ContextMenuItem
+            testID={`sidebar-project-menu-open-new-window-${projectKey}`}
+            leading={openInNewWindowLeadingIcon}
+            onSelect={handleOpenInNewWindow}
+          >
+            {t("sidebar.project.actions.openNewWindow")}
+          </ContextMenuItem>
+        ) : null}
+        {onRemoveProject ? (
+          <ContextMenuItem
             testID={`sidebar-project-menu-remove-${projectKey}`}
             leading={trash2LeadingIcon}
             status={removeProjectStatus}
@@ -643,9 +603,9 @@ function ProjectKebabMenu({
             onSelect={onRemoveProject}
           >
             {t("sidebar.project.actions.remove")}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+          </ContextMenuItem>
+        ) : null}
+      </ContextMenuContent>
       <AdaptiveRenameModal
         visible={isRenameOpen}
         title={t("sidebar.project.actions.rename")}
@@ -781,11 +741,11 @@ function ProjectHeaderRow({
   showShortcutBadge = false,
   drag,
   isDragging,
-  menuController,
   onRemoveProject,
   removeProjectStatus = "idle",
   dragHandleProps,
 }: ProjectHeaderRowProps) {
+  const menuController = useContextMenu();
   const [isHovered, setIsHovered] = useState(false);
   const isMobileBreakpoint = useIsCompactFormFactor();
   const handleBeginWorkspaceSetup = useCallback(() => {
@@ -850,8 +810,6 @@ function ProjectHeaderRow({
         isMobileBreakpoint={isMobileBreakpoint}
         isProjectActive={isProjectActive}
         onBeginWorkspaceSetup={handleBeginWorkspaceSetup}
-        onRemoveProject={onRemoveProject}
-        removeProjectStatus={removeProjectStatus}
       />
       {showShortcutBadge && shortcutNumber !== null ? (
         <View style={styles.projectShortcutBadgeOverlay} pointerEvents="none">
@@ -861,8 +819,8 @@ function ProjectHeaderRow({
     </>
   );
 
-  if (menuController) {
-    return (
+  return (
+    <>
       <View
         {...dragAttributes}
         {...dragHandleProps?.listeners}
@@ -883,29 +841,15 @@ function ProjectHeaderRow({
           {rowChildren}
         </ContextMenuTrigger>
       </View>
-    );
-  }
-
-  return (
-    <View
-      {...dragAttributes}
-      {...dragHandleProps?.listeners}
-      ref={dragHandleProps?.setActivatorNodeRef as unknown as Ref<View>}
-      onPointerEnter={handlePointerEnter}
-      onPointerLeave={handlePointerLeave}
-    >
-      <Pressable
-        accessibilityRole="button"
-        style={projectRowStyle}
-        onPressIn={interaction.handlePressIn}
-        onTouchMove={interaction.handleTouchMove}
-        onPressOut={interaction.handlePressOut}
-        onPress={handlePress}
-        testID={`sidebar-project-row-${project.projectKey}`}
-      >
-        {rowChildren}
-      </Pressable>
-    </View>
+      <ProjectRowContextMenu
+        projectKey={project.projectKey}
+        projectPath={project.iconWorkingDir}
+        displayName={displayName}
+        serverId={serverId}
+        onRemoveProject={onRemoveProject}
+        removeProjectStatus={removeProjectStatus}
+      />
+    </>
   );
 }
 
@@ -1229,25 +1173,26 @@ function ProjectBlock({
 
   return (
     <View style={styles.projectBlock}>
-      <ProjectHeaderRow
-        project={project}
-        displayName={displayName}
-        iconDataUri={iconDataUri}
-        selected={false}
-        chevron={rowModel.chevron}
-        onPress={handleToggleCollapsed}
-        serverId={serverId}
-        canCreateWorktree={rowModel.trailingAction === "new_worktree"}
-        isProjectActive={active}
-        onWorkspacePress={onWorkspacePress}
-        onWorktreeCreated={onWorktreeCreated}
-        drag={drag}
-        isDragging={isDragging}
-        menuController={null}
-        onRemoveProject={handleRemoveProject}
-        removeProjectStatus={isRemovingProject ? "pending" : "idle"}
-        dragHandleProps={dragHandleProps}
-      />
+      <ContextMenu>
+        <ProjectHeaderRow
+          project={project}
+          displayName={displayName}
+          iconDataUri={iconDataUri}
+          selected={false}
+          chevron={rowModel.chevron}
+          onPress={handleToggleCollapsed}
+          serverId={serverId}
+          canCreateWorktree={rowModel.trailingAction === "new_worktree"}
+          isProjectActive={active}
+          onWorkspacePress={onWorkspacePress}
+          onWorktreeCreated={onWorktreeCreated}
+          drag={drag}
+          isDragging={isDragging}
+          onRemoveProject={handleRemoveProject}
+          removeProjectStatus={isRemovingProject ? "pending" : "idle"}
+          dragHandleProps={dragHandleProps}
+        />
+      </ContextMenu>
 
       {projectChildren}
     </View>

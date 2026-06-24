@@ -794,7 +794,7 @@ export const es: TranslationResources = {
         createWorkspaceFor: "Crea un nuevo espacio de trabajo para{{projectName}}",
         copyPath: "Copiar ruta",
         copyBranchName: "Copiar nombre de sucursal",
-        rename: "Cambiar nombre del espacio de trabajo",
+        rename: "Cambiar nombre",
         archive: "Quitar",
         archiveWorktree: "Árbol de trabajo de archivo",
         hideFromSidebar: "Ocultar de la barra lateral",

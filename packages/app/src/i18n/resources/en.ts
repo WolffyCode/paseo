@@ -783,7 +783,7 @@ export const en = {
         createWorkspaceFor: "Create a new workspace for {{projectName}}",
         copyPath: "Copy path",
         copyBranchName: "Copy branch name",
-        rename: "Rename workspace",
+        rename: "Rename",
         archive: "Remove",
         archiveWorktree: "Archive worktree",
         hideFromSidebar: "Hide from sidebar",
