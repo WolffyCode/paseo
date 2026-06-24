@@ -1768,7 +1768,7 @@ const styles = StyleSheet.create((theme) => ({
   // styling but without the collapse-all / select-folder hover actions.
   pinnedSectionTitle: {
     color: theme.colors.foregroundMuted,
-    fontSize: 11,
+    fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.normal,
     paddingLeft: theme.spacing[2] + theme.spacing[2],
     paddingRight: theme.spacing[2],

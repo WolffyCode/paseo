@@ -135,7 +135,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   workspacesSectionTitle: {
     color: theme.colors.foregroundMuted,
-    fontSize: 11,
+    fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.normal,
   },
   workspacesSectionActions: {
