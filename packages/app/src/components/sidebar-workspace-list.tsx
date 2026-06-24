@@ -384,7 +384,12 @@ function ProjectRowTrailingActions({
   const actionsVisible = isHovered || platformIsNative || isMobileBreakpoint;
   return (
     <View style={styles.projectTrailingActions}>
-      <ProjectPinIndicatorButton serverId={serverId} projectKey={project.projectKey} />
+      <View
+        style={!actionsVisible && styles.projectKebabButtonHidden}
+        pointerEvents={actionsVisible ? "auto" : "none"}
+      >
+        <ProjectPinToggleButton serverId={serverId} projectKey={project.projectKey} />
+      </View>
       {canCreateWorktree ? (
         <NewWorktreeButton
           displayName={displayName}
@@ -413,10 +418,11 @@ function ProjectRowTrailingActions({
   );
 }
 
-// When a project is pinned, a persistent amber pin sits in the row's trailing area
-// (left of +/kebab). It is a state indicator + one-tap unpin. Renders nothing when
-// the project is not pinned.
-function ProjectPinIndicatorButton({
+// Hover-only pin toggle for a project, mirroring the conversation rows: a 45°
+// tilted pin that is outline (hollow) when the folder isn't pinned — click to
+// pin — and filled when it is — click to unpin. Hidden at rest (visibility is
+// gated by the parent); the "置顶" section placement is the at-rest indicator.
+function ProjectPinToggleButton({
   serverId,
   projectKey,
 }: {
@@ -440,8 +446,6 @@ function ProjectPinIndicatorButton({
     event.stopPropagation();
   }, []);
 
-  if (!isProjectPinned) return null;
-
   return (
     <Pressable
       style={projectPinIndicatorStyle}
@@ -449,17 +453,37 @@ function ProjectPinIndicatorButton({
       onPressIn={handlePressIn}
       hitSlop={4}
       accessibilityRole={platformIsWeb ? undefined : "button"}
-      accessibilityLabel={t("sidebar.project.actions.unpin")}
-      testID={`sidebar-project-pin-indicator-${projectKey}`}
+      accessibilityLabel={
+        isProjectPinned ? t("sidebar.project.actions.unpin") : t("sidebar.project.actions.pin")
+      }
+      testID={`sidebar-project-pin-toggle-${projectKey}`}
     >
-      {({ hovered }) => (
-        <ThemedPin
-          size={14}
-          fill="currentColor"
-          uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
-        />
-      )}
+      {isProjectPinned ? renderProjectPinnedIcon : renderProjectUnpinnedIcon}
     </Pressable>
+  );
+}
+
+function renderProjectPinnedIcon({ hovered }: { hovered?: boolean }) {
+  return (
+    <View style={styles.projectPinIconRotated}>
+      <ThemedPin
+        size={14}
+        fill="currentColor"
+        uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
+      />
+    </View>
+  );
+}
+
+function renderProjectUnpinnedIcon({ hovered }: { hovered?: boolean }) {
+  return (
+    <View style={styles.projectPinIconRotated}>
+      <ThemedPin
+        size={14}
+        fill="none"
+        uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
+      />
+    </View>
   );
 }
 
@@ -1964,6 +1988,9 @@ const styles = StyleSheet.create((theme) => ({
   },
   projectPinIndicatorHovered: {
     backgroundColor: theme.colors.surface2,
+  },
+  projectPinIconRotated: {
+    transform: [{ rotate: "45deg" }],
   },
   projectKebabButtonHidden: {
     opacity: 0,

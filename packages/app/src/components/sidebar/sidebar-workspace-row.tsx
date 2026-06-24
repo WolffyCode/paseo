@@ -561,8 +561,7 @@ function WorkspaceRowOverlayActions({
   }, [togglePinTarget, workspace.serverId, workspace.workspaceId]);
   if (!onArchive) return null;
   // Every row's hover overlay carries a pin toggle (outline = pin it, filled =
-  // unpin it). A pinned row additionally gets a remove quick-action; the kebab
-  // holds the rest.
+  // unpin it) and a remove quick-action; the kebab holds the rest.
   return (
     <View style={styles.pinnedTrailingActions}>
       <Pressable
@@ -577,18 +576,16 @@ function WorkspaceRowOverlayActions({
       >
         {isPinned ? renderPinnedPinIcon : renderUnpinnedPinIcon}
       </Pressable>
-      {isPinned ? (
-        <Pressable
-          style={workspacePinButtonStyle}
-          onPress={onArchive}
-          hitSlop={4}
-          accessibilityRole={platformIsWeb ? undefined : "button"}
-          accessibilityLabel={archiveLabel ?? t("sidebar.workspace.actions.archive")}
-          testID={`sidebar-workspace-remove-${workspace.workspaceKey}`}
-        >
-          {renderRemoveIcon}
-        </Pressable>
-      ) : null}
+      <Pressable
+        style={workspacePinButtonStyle}
+        onPress={onArchive}
+        hitSlop={4}
+        accessibilityRole={platformIsWeb ? undefined : "button"}
+        accessibilityLabel={archiveLabel ?? t("sidebar.workspace.actions.archive")}
+        testID={`sidebar-workspace-remove-${workspace.workspaceKey}`}
+      >
+        {renderRemoveIcon}
+      </Pressable>
       <WorkspaceKebabMenu
         workspaceKey={workspace.workspaceKey}
         serverId={workspace.serverId}
