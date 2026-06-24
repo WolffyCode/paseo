@@ -73,13 +73,28 @@ function renderKebabTriggerIcon({ hovered }: { hovered?: boolean }) {
   );
 }
 
-function renderPinIndicatorIcon({ hovered }: { hovered?: boolean }) {
+// The pin glyph is tilted 45° (Codex-style). Outline (hollow) = not pinned →
+// click to pin; filled = pinned → click to unpin.
+function renderUnpinnedPinIcon({ hovered }: { hovered?: boolean }) {
   return (
-    <ThemedPin
-      size={14}
-      fill="currentColor"
-      uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
-    />
+    <View style={styles.pinIconRotated}>
+      <ThemedPin
+        size={14}
+        uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
+      />
+    </View>
+  );
+}
+
+function renderPinnedPinIcon({ hovered }: { hovered?: boolean }) {
+  return (
+    <View style={styles.pinIconRotated}>
+      <ThemedPin
+        size={14}
+        fill="currentColor"
+        uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
+      />
+    </View>
   );
 }
 
@@ -536,93 +551,44 @@ function WorkspaceRowOverlayActions({
   archivePendingLabel?: string;
   archiveShortcutKeys?: ShortcutKey[][] | null;
 }) {
-  if (!onArchive) return null;
-  if (isPinned) {
-    return (
-      <WorkspacePinnedOverlayActions
-        workspace={workspace}
-        onArchive={onArchive}
-        onRevealInFinder={onRevealInFinder}
-        onRename={onRename}
-        onMarkAsRead={onMarkAsRead}
-        archiveLabel={archiveLabel}
-        archiveStatus={archiveStatus}
-        archivePendingLabel={archivePendingLabel}
-        archiveShortcutKeys={archiveShortcutKeys}
-      />
-    );
-  }
-  return (
-    <WorkspaceKebabMenu
-      workspaceKey={workspace.workspaceKey}
-      serverId={workspace.serverId}
-      workspaceId={workspace.workspaceId}
-      onRevealInFinder={onRevealInFinder}
-      onRename={onRename}
-      onMarkAsRead={onMarkAsRead}
-      onArchive={onArchive}
-      archiveLabel={archiveLabel}
-      archiveStatus={archiveStatus}
-      archivePendingLabel={archivePendingLabel}
-      archiveShortcutKeys={archiveShortcutKeys}
-    />
-  );
-}
-
-// On hover, a pinned conversation's trailing area shows its quick actions — a pin
-// (click = unpin) and a remove — alongside the full kebab. At rest nothing shows;
-// the "置顶" section placement is the pinned indicator (Codex-style).
-function WorkspacePinnedOverlayActions({
-  workspace,
-  onArchive,
-  onRevealInFinder,
-  onRename,
-  onMarkAsRead,
-  archiveLabel,
-  archiveStatus,
-  archivePendingLabel,
-  archiveShortcutKeys,
-}: {
-  workspace: SidebarWorkspaceEntry;
-  onArchive: () => void;
-  onRevealInFinder?: () => void;
-  onRename?: () => void;
-  onMarkAsRead?: () => void;
-  archiveLabel?: string;
-  archiveStatus?: "idle" | "pending" | "success";
-  archivePendingLabel?: string;
-  archiveShortcutKeys?: ShortcutKey[][] | null;
-}) {
   const { t } = useTranslation();
   const togglePinTarget = useSidebarPinsStore((state) => state.togglePin);
-  const handleUnpin = useCallback(() => {
+  const handleTogglePin = useCallback(() => {
     togglePinTarget(workspace.serverId, {
       kind: "workspace",
       workspaceId: workspace.workspaceId,
     });
   }, [togglePinTarget, workspace.serverId, workspace.workspaceId]);
+  if (!onArchive) return null;
+  // Every row's hover overlay carries a pin toggle (outline = pin it, filled =
+  // unpin it). A pinned row additionally gets a remove quick-action; the kebab
+  // holds the rest.
   return (
     <View style={styles.pinnedTrailingActions}>
       <Pressable
         style={workspacePinButtonStyle}
-        onPress={handleUnpin}
+        onPress={handleTogglePin}
         hitSlop={4}
         accessibilityRole={platformIsWeb ? undefined : "button"}
-        accessibilityLabel={t("sidebar.workspace.actions.unpin")}
-        testID={`sidebar-workspace-unpin-${workspace.workspaceKey}`}
+        accessibilityLabel={
+          isPinned ? t("sidebar.workspace.actions.unpin") : t("sidebar.workspace.actions.pin")
+        }
+        testID={`sidebar-workspace-pin-toggle-${workspace.workspaceKey}`}
       >
-        {renderPinIndicatorIcon}
+        {isPinned ? renderPinnedPinIcon : renderUnpinnedPinIcon}
       </Pressable>
-      <Pressable
-        style={workspacePinButtonStyle}
-        onPress={onArchive}
-        hitSlop={4}
-        accessibilityRole={platformIsWeb ? undefined : "button"}
-        accessibilityLabel={archiveLabel ?? t("sidebar.workspace.actions.archive")}
-        testID={`sidebar-workspace-remove-${workspace.workspaceKey}`}
-      >
-        {renderRemoveIcon}
-      </Pressable>
+      {isPinned ? (
+        <Pressable
+          style={workspacePinButtonStyle}
+          onPress={onArchive}
+          hitSlop={4}
+          accessibilityRole={platformIsWeb ? undefined : "button"}
+          accessibilityLabel={archiveLabel ?? t("sidebar.workspace.actions.archive")}
+          testID={`sidebar-workspace-remove-${workspace.workspaceKey}`}
+        >
+          {renderRemoveIcon}
+        </Pressable>
+      ) : null}
       <WorkspaceKebabMenu
         workspaceKey={workspace.workspaceKey}
         serverId={workspace.serverId}
@@ -831,6 +797,9 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: theme.spacing[1],
     flexShrink: 0,
+  },
+  pinIconRotated: {
+    transform: [{ rotate: "45deg" }],
   },
   pinButton: {
     padding: 2,
