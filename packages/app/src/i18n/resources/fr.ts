@@ -791,6 +791,7 @@ export const fr: TranslationResources = {
         unpin: "Détacher",
         revealInFinder: "Afficher dans le Finder",
         newWorkspace: "Nouvel espace de travail",
+        newConversation: "Nouvelle conversation",
         createWorkspaceFor: "Créer un nouvel espace de travail pour{{projectName}}",
         copyPath: "Copier le chemin",
         copyBranchName: "Copier le nom de la branche",

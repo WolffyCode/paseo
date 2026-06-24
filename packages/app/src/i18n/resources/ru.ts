@@ -787,6 +787,7 @@ export const ru: TranslationResources = {
         unpin: "Открепить",
         revealInFinder: "Показать в Finder",
         newWorkspace: "Новое рабочее пространство",
+        newConversation: "Новый разговор",
         createWorkspaceFor: "Создайте новое рабочее пространство для{{projectName}}.",
         copyPath: "Копировать путь",
         copyBranchName: "Скопировать название ветки",

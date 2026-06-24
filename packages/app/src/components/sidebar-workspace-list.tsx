@@ -37,6 +37,7 @@ import {
   Pencil,
   Pin,
   Settings,
+  SquarePen,
   Plus,
   Trash2,
 } from "lucide-react-native";
@@ -107,7 +108,7 @@ const ThemedFolder = withUnistyles(Folder);
 const ThemedExternalLink = withUnistyles(ExternalLink);
 const ThemedGitPullRequest = withUnistyles(GitPullRequest);
 const ThemedActivityIndicator = withUnistyles(ActivityIndicator);
-const ThemedPlus = withUnistyles(Plus);
+const ThemedSquarePen = withUnistyles(SquarePen);
 const ThemedTrash2 = withUnistyles(Trash2);
 const ThemedSettings = withUnistyles(Settings);
 const ThemedPencil = withUnistyles(Pencil);
@@ -700,7 +701,7 @@ function NewWorktreeButton({
               loading ? (
                 <ThemedActivityIndicator size={14} uniProps={foregroundMutedColorMapping} />
               ) : (
-                <ThemedPlus
+                <ThemedSquarePen
                   size={15}
                   uniProps={
                     hovered || pressed ? foregroundColorMapping : foregroundMutedColorMapping
@@ -713,7 +714,7 @@ function NewWorktreeButton({
         <TooltipContent side="bottom" align="center" offset={8}>
           <View style={styles.projectActionTooltipRow}>
             <Text style={styles.projectActionTooltipText}>
-              {t("sidebar.workspace.actions.newWorkspace")}
+              {t("sidebar.workspace.actions.newConversation")}
             </Text>
             {showShortcutHint && newWorktreeKeys ? (
               <Shortcut chord={newWorktreeKeys} style={styles.projectActionTooltipShortcut} />
@@ -1767,7 +1768,7 @@ const styles = StyleSheet.create((theme) => ({
   // styling but without the collapse-all / select-folder hover actions.
   pinnedSectionTitle: {
     color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.xs,
+    fontSize: 11,
     fontWeight: theme.fontWeight.normal,
     paddingLeft: theme.spacing[2] + theme.spacing[2],
     paddingRight: theme.spacing[2],

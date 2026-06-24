@@ -767,6 +767,7 @@ export const zhCN: TranslationResources = {
         unpin: "取消置顶",
         revealInFinder: "在 Finder 中显示",
         newWorkspace: "新建 workspace",
+        newConversation: "新增对话",
         createWorkspaceFor: "为 {{projectName}} 新建 workspace",
         copyPath: "复制路径",
         copyBranchName: "复制分支名称",

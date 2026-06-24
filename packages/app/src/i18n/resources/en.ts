@@ -780,6 +780,7 @@ export const en = {
         unpin: "Unpin",
         revealInFinder: "Reveal in Finder",
         newWorkspace: "New workspace",
+        newConversation: "New conversation",
         createWorkspaceFor: "Create a new workspace for {{projectName}}",
         copyPath: "Copy path",
         copyBranchName: "Copy branch name",

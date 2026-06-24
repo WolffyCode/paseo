@@ -775,6 +775,7 @@ export const ar: TranslationResources = {
         unpin: "إلغاء التثبيت",
         revealInFinder: "إظهار في Finder",
         newWorkspace: "مساحة عمل جديدة",
+        newConversation: "محادثة جديدة",
         createWorkspaceFor: "قم بإنشاء مساحة عمل جديدة لـ{{projectName}}",
         copyPath: "نسخ المسار",
         copyBranchName: "انسخ اسم الفرع",
