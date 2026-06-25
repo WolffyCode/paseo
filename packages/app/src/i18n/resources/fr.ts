@@ -796,6 +796,7 @@ export const fr: TranslationResources = {
         copyPath: "Copier le chemin",
         copyBranchName: "Copier le nom de la branche",
         rename: "Renommer",
+        copyConversationId: "Copier l'ID de conversation",
         archive: "Retirer",
         archiveWorktree: "Arbre de travail d'archivage",
         hideFromSidebar: "Masquer de la barre latérale",

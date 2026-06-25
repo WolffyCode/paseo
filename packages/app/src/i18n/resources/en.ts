@@ -785,6 +785,7 @@ export const en = {
         copyPath: "Copy path",
         copyBranchName: "Copy branch name",
         rename: "Rename",
+        copyConversationId: "Copy conversation ID",
         archive: "Remove",
         archiveWorktree: "Archive worktree",
         hideFromSidebar: "Hide from sidebar",

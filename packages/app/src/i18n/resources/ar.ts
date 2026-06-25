@@ -780,6 +780,7 @@ export const ar: TranslationResources = {
         copyPath: "نسخ المسار",
         copyBranchName: "انسخ اسم الفرع",
         rename: "إعادة تسمية",
+        copyConversationId: "نسخ معرّف المحادثة",
         archive: "إزالة",
         archiveWorktree: "أرشفة شجرة العمل",
         hideFromSidebar: "إخفاء من الشريط الجانبي",

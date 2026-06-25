@@ -772,6 +772,7 @@ export const zhCN: TranslationResources = {
         copyPath: "复制路径",
         copyBranchName: "复制分支名称",
         rename: "重命名",
+        copyConversationId: "复制会话 ID",
         archive: "移除",
         archiveWorktree: "归档 worktree",
         hideFromSidebar: "从侧边栏隐藏",

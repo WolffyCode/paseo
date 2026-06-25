@@ -792,6 +792,7 @@ export const ru: TranslationResources = {
         copyPath: "Копировать путь",
         copyBranchName: "Скопировать название ветки",
         rename: "Переименовать",
+        copyConversationId: "Копировать ID разговора",
         archive: "Удалить",
         archiveWorktree: "Архив рабочего дерева",
         hideFromSidebar: "Скрыть с боковой панели",

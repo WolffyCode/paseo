@@ -2,8 +2,9 @@ import { memo, useCallback, useMemo, useState, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { View, Text, Pressable, type PressableStateCallbackType } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { Archive, CircleCheck, FolderOpen, Pencil, Pin } from "lucide-react-native";
+import { Archive, CircleCheck, Copy, FolderOpen, Pencil, Pin } from "lucide-react-native";
 import { useMutation } from "@tanstack/react-query";
+import * as Clipboard from "expo-clipboard";
 import type { Theme } from "@/styles/theme";
 import type { SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
 import type { DraggableListDragHandleProps } from "@/components/draggable-list.types";
@@ -29,6 +30,8 @@ import { useClearWorkspaceAttention } from "@/hooks/use-clear-workspace-attentio
 import { redirectIfArchivingActiveWorkspace } from "@/utils/sidebar-workspace-archive-redirect";
 import { requireWorkspaceDirectory, resolveWorkspaceDirectory } from "@/utils/workspace-directory";
 import { useSidebarPinsStore } from "@/stores/sidebar-pins-store";
+import { useSessionStore, type Agent } from "@/stores/session-store";
+import { buildProviderCommand } from "@/utils/provider-command-templates";
 import {
   hasDesktopOpenTargetsBridge,
   listDesktopOpenTargets,
@@ -52,6 +55,7 @@ const ThemedFolderOpen = withUnistyles(FolderOpen);
 const ThemedArchive = withUnistyles(Archive);
 const ThemedPencil = withUnistyles(Pencil);
 const ThemedCircleCheck = withUnistyles(CircleCheck);
+const ThemedCopy = withUnistyles(Copy);
 
 const pinLeadingIcon = <ThemedPin size={14} uniProps={foregroundMutedColorMapping} />;
 const pinnedLeadingIcon = (
@@ -63,6 +67,7 @@ const markAsReadLeadingIcon = (
   <ThemedCircleCheck size={14} uniProps={foregroundMutedColorMapping} />
 );
 const archiveLeadingIcon = <ThemedArchive size={14} uniProps={foregroundMutedColorMapping} />;
+const copyLeadingIcon = <ThemedCopy size={14} uniProps={foregroundMutedColorMapping} />;
 
 // The pin glyph is tilted 45° (Codex-style). Outline (hollow) = not pinned →
 // click to pin; filled = pinned → click to unpin.
@@ -542,6 +547,34 @@ function WorkspaceRowOverlayActions({
   );
 }
 
+// Resolve a workspace's provider-native resume command. Picks the workspace's
+// most-recently-updated agent that carries a provider session id, then renders
+// the provider template (e.g. `claude --resume <id>` / `codex resume <id>`).
+type WorkspaceResumeResult = { command: string } | { error: "id" | "command" };
+
+function agentResumeSessionId(agent: Agent): string | null {
+  return agent.runtimeInfo?.sessionId ?? agent.persistence?.sessionId ?? null;
+}
+
+function resolveWorkspaceResumeCommand(
+  serverId: string,
+  workspaceId: string,
+): WorkspaceResumeResult {
+  const agents = useSessionStore.getState().sessions[serverId]?.agents;
+  let best: Agent | null = null;
+  if (agents) {
+    for (const agent of agents.values()) {
+      if (agent.workspaceId !== workspaceId) continue;
+      if (!agentResumeSessionId(agent)) continue;
+      if (!best || agent.updatedAt > best.updatedAt) best = agent;
+    }
+  }
+  const sessionId = best ? agentResumeSessionId(best) : null;
+  if (!best || !sessionId) return { error: "id" };
+  const command = buildProviderCommand({ provider: best.provider, id: "resume", sessionId });
+  return command ? { command } : { error: "command" };
+}
+
 // The row's right-click / long-press menu. Mirrors the old kebab's items.
 function WorkspaceRowContextMenu({
   workspace,
@@ -572,6 +605,22 @@ function WorkspaceRowContextMenu({
   const handleTogglePin = useCallback(() => {
     togglePin(workspace.serverId, { kind: "workspace", workspaceId: workspace.workspaceId });
   }, [togglePin, workspace.serverId, workspace.workspaceId]);
+  const toast = useToast();
+  // "复制会话 ID" copies the provider-native resume command so it can be pasted
+  // and run directly (see resolveWorkspaceResumeCommand above).
+  const handleCopyConversationId = useCallback(() => {
+    const result = resolveWorkspaceResumeCommand(workspace.serverId, workspace.workspaceId);
+    if ("error" in result) {
+      toast.error(
+        result.error === "id"
+          ? t("workspace.tabs.toasts.resumeIdUnavailable")
+          : t("workspace.tabs.toasts.resumeCommandUnavailable"),
+      );
+      return;
+    }
+    void Clipboard.setStringAsync(result.command);
+    toast.copied(t("workspace.tabs.toasts.resumeCommandCopiedLabel"));
+  }, [workspace.serverId, workspace.workspaceId, toast, t]);
   const archiveTrailing = useMemo(
     () => (archiveShortcutKeys ? <Shortcut chord={archiveShortcutKeys} /> : null),
     [archiveShortcutKeys],
@@ -616,6 +665,13 @@ function WorkspaceRowContextMenu({
           {t("sidebar.workspace.actions.rename")}
         </ContextMenuItem>
       ) : null}
+      <ContextMenuItem
+        testID={`sidebar-workspace-menu-copy-id-${workspace.workspaceKey}`}
+        leading={copyLeadingIcon}
+        onSelect={handleCopyConversationId}
+      >
+        {t("sidebar.workspace.actions.copyConversationId")}
+      </ContextMenuItem>
       <ContextMenuItem
         testID={`sidebar-workspace-menu-archive-${workspace.workspaceKey}`}
         leading={archiveLeadingIcon}
@@ -709,10 +765,17 @@ const styles = StyleSheet.create((theme) => ({
     flexShrink: 0,
   },
   pinIconRotated: {
+    width: 14,
+    height: 14,
+    alignItems: "center",
+    justifyContent: "center",
     transform: [{ rotate: "45deg" }],
   },
   pinButton: {
-    padding: 2,
+    width: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 4,
   },
   pinButtonHovered: {
