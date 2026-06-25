@@ -64,6 +64,8 @@ import { invokeRewindCapability, type RewindMode } from "./rewind/rewind.js";
 import { isSystemInjectedEnvelope } from "./agent-prompt.js";
 import { stripInternalPaseoMcpServer, withRuntimePaseoMcpServer } from "./runtime-mcp-config.js";
 import { resolveCreateAgentTitles } from "./create-agent-title.js";
+import type { Vendor } from "./provider-launch-config.js";
+import { compileVendorEnv } from "./vendor-env.js";
 
 const RELOAD_SESSION_CLOSE_TIMEOUT_MS = 3_000;
 const INTERRUPT_SESSION_TIMEOUT_MS = 2_000;
@@ -191,6 +193,16 @@ interface ProviderEnabledFlag {
 type ProviderEnabledMap = Partial<Record<AgentProvider, ProviderEnabledFlag>>;
 type ProviderClientMap = Partial<Record<AgentProvider, AgentClient>>;
 
+export interface ResolveVendorLaunchInput {
+  provider: AgentProvider;
+  vendorId: string;
+}
+
+export interface ResolveVendorLaunchResult {
+  vendor: Vendor;
+  commonConfig?: Record<string, unknown>;
+}
+
 export interface AgentManagerOptions {
   clients?: ProviderClientMap;
   providerDefinitions?: ProviderEnabledMap;
@@ -206,6 +218,12 @@ export interface AgentManagerOptions {
   agentStreamCoalesceWindowMs?: number;
   rescueTimeouts?: AgentManagerRescueTimeouts;
   logger: Logger;
+  /**
+   * Optional resolver that looks up a configured vendor by id. Injected from
+   * bootstrap (which owns the persisted config). Omitting it keeps existing
+   * behaviour — no vendor env is injected.
+   */
+  resolveVendorLaunch?: (input: ResolveVendorLaunchInput) => ResolveVendorLaunchResult | undefined;
 }
 
 export interface WaitForAgentOptions {
@@ -527,6 +545,9 @@ export class AgentManager {
   private onWorkspaceStateMayHaveChanged?: (params: { cwd: string }) => void;
   private logger: Logger;
   private readonly rescueTimeouts: Required<AgentManagerRescueTimeouts>;
+  private readonly resolveVendorLaunch?: (
+    input: ResolveVendorLaunchInput,
+  ) => ResolveVendorLaunchResult | undefined;
 
   constructor(options: AgentManagerOptions) {
     this.idFactory = options?.idFactory ?? (() => randomUUID());
@@ -537,6 +558,7 @@ export class AgentManager {
     this.mcpBaseUrl = options?.mcpBaseUrl ?? null;
     this.mcpAuthToken = options?.mcpAuthToken ?? null;
     this.appendSystemPrompt = options.appendSystemPrompt ?? "";
+    this.resolveVendorLaunch = options.resolveVendorLaunch;
     this.logger = options.logger.child({ module: "agent", component: "agent-manager" });
     this.rescueTimeouts = {
       reloadSessionCloseMs:
@@ -898,7 +920,11 @@ export class AgentManager {
     const resolvedAgentId = validateAgentId(agentId ?? this.idFactory(), "createAgent");
     const { storedConfig, launchConfig } = await this.prepareSessionConfig(config, resolvedAgentId);
     this.requireEnabledProvider(storedConfig.provider);
-    const launchContext = this.buildLaunchContext(resolvedAgentId, options?.env);
+    const launchContext = this.applyVendorLaunch(
+      storedConfig.provider,
+      launchConfig,
+      this.buildLaunchContext(resolvedAgentId, options?.env),
+    );
     const client = await this.requireAvailableClient({
       provider: storedConfig.provider,
     });
@@ -948,7 +974,11 @@ export class AgentManager {
       resolvedAgentId,
     );
 
-    const launchContext = this.buildLaunchContext(resolvedAgentId);
+    const launchContext = this.applyVendorLaunch(
+      storedConfig.provider,
+      launchConfig,
+      this.buildLaunchContext(resolvedAgentId),
+    );
     const client = this.requireClient(handle.provider);
     const available = await client.isAvailable();
     if (!available) {
@@ -1036,7 +1066,11 @@ export class AgentManager {
       provider,
     } as AgentSessionConfig;
     const { storedConfig, launchConfig } = await this.prepareSessionConfig(refreshConfig, agentId);
-    const launchContext = this.buildLaunchContext(agentId);
+    const launchContext = this.applyVendorLaunch(
+      storedConfig.provider,
+      launchConfig,
+      this.buildLaunchContext(agentId),
+    );
 
     const session = handle
       ? await client.resumeSession(handle, launchConfig, launchContext)
@@ -3704,6 +3738,62 @@ export class AgentManager {
         PASEO_AGENT_ID: agentId,
       },
     };
+  }
+
+  /**
+   * Applies vendor launch overrides to a launch context when the session
+   * config specifies a vendorId and the injected resolver can find it.
+   * Acts on provider === "claude" (env injection) and provider === "codex"
+   * (codexVendor payload for per-session model_providers TOML injection).
+   * Returns the (possibly mutated) context so all three launch paths can
+   * call this single method.
+   */
+  private applyVendorLaunch(
+    provider: AgentProvider,
+    config: AgentSessionConfig,
+    ctx: AgentLaunchContext,
+  ): AgentLaunchContext {
+    if (!config.vendorId || !this.resolveVendorLaunch) {
+      return ctx;
+    }
+    if (provider === "claude") {
+      const resolved = this.resolveVendorLaunch({ provider, vendorId: config.vendorId });
+      if (!resolved) {
+        return ctx;
+      }
+      const { env, disallowedTools } = compileVendorEnv({
+        cli: "claude",
+        vendor: resolved.vendor,
+        commonConfig: resolved.commonConfig,
+        model: config.model,
+      });
+      return {
+        ...ctx,
+        env: { ...ctx.env, ...env },
+        ...(disallowedTools ? { disallowedTools } : {}),
+      };
+    }
+    if (provider === "codex") {
+      const resolved = this.resolveVendorLaunch({ provider, vendorId: config.vendorId });
+      if (!resolved) {
+        return ctx;
+      }
+      const { env } = compileVendorEnv({
+        cli: "codex",
+        vendor: resolved.vendor,
+        commonConfig: resolved.commonConfig,
+        model: config.model,
+      });
+      return {
+        ...ctx,
+        codexVendor: {
+          id: resolved.vendor.id,
+          label: resolved.vendor.name,
+          env,
+        },
+      };
+    }
+    return ctx;
   }
 
   private async requireAvailableClient(options: { provider: AgentProvider }): Promise<AgentClient> {

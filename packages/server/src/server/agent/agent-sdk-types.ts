@@ -555,6 +555,12 @@ export interface AgentSessionConfig {
   daemonAppendSystemPrompt?: string;
   modeId?: string;
   model?: string;
+  /**
+   * Selects the vendor (中转站) to route this session through. When set,
+   * the manager injects ANTHROPIC_BASE_URL / auth key env vars into the
+   * child process launch context. Omitting it preserves default behaviour.
+   */
+  vendorId?: string;
   thinkingOptionId?: string;
   featureValues?: Record<string, unknown>;
   title?: string | null;
@@ -577,6 +583,23 @@ export interface AgentSessionConfig {
 export interface AgentLaunchContext {
   agentId?: string;
   env?: Record<string, string>;
+  /**
+   * Tools the provider should disallow for this session. Currently populated
+   * by vendor launch injection (e.g. WebSearch is blocked on third-party
+   * endpoints that do not support Anthropic server-side tools).
+   */
+  disallowedTools?: string[];
+  /**
+   * Per-session Codex vendor payload. When set, `buildCodexInnerConfig`
+   * synthesises a `model_providers` TOML block from this and injects it into
+   * `thread/create` config, overriding the client-level `customCodexConfig`.
+   * Populated by `applyVendorLaunch` when provider === "codex".
+   */
+  codexVendor?: {
+    id: string;
+    label: string;
+    env: Record<string, string>;
+  };
 }
 
 export interface AgentCreateSessionOptions {

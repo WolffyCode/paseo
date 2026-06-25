@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
 import type { AgentProviderDefinition } from "@getpaseo/protocol/provider-manifest";
 import type {
   AgentMode,
@@ -55,6 +55,8 @@ export interface UseAgentFormStateResult {
   setModeFromUser: (modeId: string) => void;
   selectedModel: string;
   setModelFromUser: (modelId: string) => void;
+  selectedVendorId: string | null;
+  setVendorIdFromUser: (vendorId: string | null) => void;
   selectedThinkingOptionId: string;
   setThinkingOptionFromUser: (thinkingOptionId: string) => void;
   workingDir: string;
@@ -189,6 +191,21 @@ export function useAgentFormState(options: UseAgentFormStateOptions = {}): UseAg
       userModified: INITIAL_USER_MODIFIED,
     }),
   );
+
+  // vendorId is orthogonal to the provider/model reducer — manage with useState.
+  // Reset when provider changes (vendor is CLI-scoped; different CLI = different vendor set).
+  const [selectedVendorId, setSelectedVendorId] = useState<string | null>(null);
+  const prevProviderRef = useRef<AgentProvider | null>(formState.provider);
+  useEffect(() => {
+    if (prevProviderRef.current !== formState.provider) {
+      prevProviderRef.current = formState.provider;
+      setSelectedVendorId(null);
+    }
+  }, [formState.provider]);
+
+  const setVendorIdFromUser = useCallback((vendorId: string | null) => {
+    setSelectedVendorId(vendorId);
+  }, []);
 
   const reducerStateRef = useRef({ form: formState, userModified });
   useEffect(() => {
@@ -526,6 +543,8 @@ export function useAgentFormState(options: UseAgentFormStateOptions = {}): UseAg
       setModeFromUser,
       selectedModel: resolvedModelId,
       setModelFromUser,
+      selectedVendorId,
+      setVendorIdFromUser,
       selectedThinkingOptionId: formState.thinkingOptionId,
       setThinkingOptionFromUser,
       workingDir: formState.workingDir,
@@ -562,6 +581,8 @@ export function useAgentFormState(options: UseAgentFormStateOptions = {}): UseAg
       setProviderFromUser,
       setModeFromUser,
       setModelFromUser,
+      selectedVendorId,
+      setVendorIdFromUser,
       setThinkingOptionFromUser,
       setWorkingDir,
       setWorkingDirFromUser,

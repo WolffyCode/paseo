@@ -101,7 +101,11 @@ import type { OpenAiSpeechProviderConfig } from "./speech/providers/openai/confi
 import type { LocalSpeechProviderConfig } from "./speech/providers/local/config.js";
 import type { RequestedSpeechProviders } from "./speech/speech-types.js";
 import { createSpeechService } from "./speech/speech-runtime.js";
-import { AgentManager } from "./agent/agent-manager.js";
+import {
+  AgentManager,
+  type ResolveVendorLaunchInput,
+  type ResolveVendorLaunchResult,
+} from "./agent/agent-manager.js";
 import { AgentStorage } from "./agent/agent-storage.js";
 import { attachAgentStoragePersistence } from "./persistence-hooks.js";
 import { createAgentMcpServer } from "./agent/mcp-server.js";
@@ -136,6 +140,8 @@ import type { TerminalProfile } from "@getpaseo/protocol/messages";
 import type {
   AgentProviderRuntimeSettingsMap,
   ProviderOverride,
+  VendorsByCli,
+  VendorCommonConfig,
 } from "./agent/provider-launch-config.js";
 import type { PersistedConfig } from "./persisted-config.js";
 import { createServiceProxySubsystem, type ServiceProxySubsystem } from "./service-proxy.js";
@@ -350,6 +356,8 @@ export interface PaseoDaemonConfig {
   dictationFinalTimeoutMs?: number;
   downloadTokenTtlMs?: number;
   agentProviderSettings?: AgentProviderRuntimeSettingsMap;
+  agentVendors?: VendorsByCli;
+  agentVendorCommonConfig?: VendorCommonConfig;
   metadataGeneration?: {
     providers?: Array<{
       provider: string;
@@ -402,6 +410,61 @@ async function reconcileManagedProcessLedger(
   }
 }
 
+/**
+ * Builds a resolveVendorLaunch function that reads from the LIVE daemon config
+ * store so that runtime vendor CRUD (create/edit/delete) takes effect immediately
+ * on the next agent launch. The store is closed over (not the static bootstrap
+ * config), so every call to the resolver reflects the current in-memory state.
+ *
+ * Exported for unit testing; not part of the public API.
+ */
+export function buildVendorLaunchResolver(
+  daemonConfigStore: DaemonConfigStore,
+): ((input: ResolveVendorLaunchInput) => ResolveVendorLaunchResult | undefined) | undefined {
+  return ({ provider, vendorId }) => {
+    const live = daemonConfigStore.get();
+    const vendors = live.vendors?.[provider as "claude" | "codex"];
+    const vendor = vendors?.find((v) => v.id === vendorId);
+    if (!vendor) {
+      return undefined;
+    }
+    const commonConfig = live.vendorCommonConfig?.[provider as "claude" | "codex"];
+    return { vendor, ...(commonConfig ? { commonConfig } : {}) };
+  };
+}
+
+/**
+ * Builds the initial MutableDaemonConfig from the daemon bootstrap config.
+ * Extracted to keep createPaseoDaemon's cyclomatic complexity within limits.
+ */
+function buildInitialMutableConfig(
+  config: PaseoDaemonConfig,
+): import("@getpaseo/protocol/messages").MutableDaemonConfig {
+  return {
+    mcp: { injectIntoAgents: config.mcpInjectIntoAgents ?? true },
+    providers: Object.fromEntries(
+      Object.entries(config.providerOverrides ?? {}).map(([providerId, override]) => [
+        providerId,
+        {
+          ...(override.enabled !== undefined ? { enabled: override.enabled } : {}),
+          ...(override.additionalModels ? { additionalModels: override.additionalModels } : {}),
+        },
+      ]),
+    ),
+    metadataGeneration: {
+      providers: config.metadataGeneration?.providers ?? [],
+    },
+    autoArchiveAfterMerge: config.autoArchiveAfterMerge ?? false,
+    enableTerminalAgentHooks: config.enableTerminalAgentHooks ?? false,
+    appendSystemPrompt: config.appendSystemPrompt ?? "",
+    ...(config.terminalProfiles !== undefined ? { terminalProfiles: config.terminalProfiles } : {}),
+    ...(config.agentVendors ? { vendors: config.agentVendors } : {}),
+    ...(config.agentVendorCommonConfig
+      ? { vendorCommonConfig: config.agentVendorCommonConfig }
+      : {}),
+  };
+}
+
 export async function createPaseoDaemon(
   config: PaseoDaemonConfig,
   rootLogger: Logger,
@@ -412,27 +475,7 @@ export async function createPaseoDaemon(
   const daemonVersion = resolveDaemonVersion(import.meta.url);
   const daemonConfigStore = new DaemonConfigStore(
     config.paseoHome,
-    {
-      mcp: { injectIntoAgents: config.mcpInjectIntoAgents ?? true },
-      providers: Object.fromEntries(
-        Object.entries(config.providerOverrides ?? {}).map(([providerId, override]) => [
-          providerId,
-          {
-            ...(override.enabled !== undefined ? { enabled: override.enabled } : {}),
-            ...(override.additionalModels ? { additionalModels: override.additionalModels } : {}),
-          },
-        ]),
-      ),
-      metadataGeneration: {
-        providers: config.metadataGeneration?.providers ?? [],
-      },
-      autoArchiveAfterMerge: config.autoArchiveAfterMerge ?? false,
-      enableTerminalAgentHooks: config.enableTerminalAgentHooks ?? false,
-      appendSystemPrompt: config.appendSystemPrompt ?? "",
-      ...(config.terminalProfiles !== undefined
-        ? { terminalProfiles: config.terminalProfiles }
-        : {}),
-    },
+    buildInitialMutableConfig(config),
     logger,
   );
 
@@ -529,8 +572,8 @@ export async function createPaseoDaemon(
   // CORS - allow same-origin + configured origins
   const allowedOrigins = new Set([
     ...config.corsAllowedOrigins,
-    // Packaged desktop renderers use the custom paseo:// protocol scheme.
-    "paseo://app",
+    // Packaged desktop renderers use the custom helm:// protocol scheme.
+    "helm://app",
     // For TCP, add localhost variants
     ...(listenTarget.type === "tcp"
       ? [
@@ -700,6 +743,7 @@ export async function createPaseoDaemon(
     },
     mcpAuthToken: agentMcpAuthToken,
     logger,
+    resolveVendorLaunch: buildVendorLaunchResolver(daemonConfigStore),
   });
 
   const detachAgentStoragePersistence = attachAgentStoragePersistence(

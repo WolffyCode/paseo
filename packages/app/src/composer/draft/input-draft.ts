@@ -44,6 +44,7 @@ interface UseAgentInputDraftInput {
 type DraftComposerState = UseAgentFormStateResult & {
   workingDir: string;
   effectiveModelId: string;
+  effectiveVendorId: string | null;
   effectiveThinkingOptionId: string;
   featureValues: Record<string, unknown> | undefined;
   agentControls: DraftAgentControlsProps;
@@ -276,6 +277,7 @@ export function useAgentInputDraft(input: UseAgentInputDraftInput): AgentInputDr
       ...formState,
       workingDir,
       effectiveModelId,
+      effectiveVendorId: formState.selectedVendorId,
       effectiveThinkingOptionId,
       featureValues: draftFeatureValues,
       agentControls: buildDraftAgentControls({

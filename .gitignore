@@ -72,6 +72,7 @@ CLAUDE.local.md
 
 # Local agent/tooling artifacts (do not commit)
 PLAN.md
+.superpowers/
 .valknut/
 valknut-report.html/
 valknut-report.json/

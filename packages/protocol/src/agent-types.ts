@@ -459,6 +459,7 @@ export interface AgentSessionConfig {
   systemPrompt?: string;
   modeId?: string;
   model?: string;
+  vendorId?: string;
   thinkingOptionId?: string;
   featureValues?: Record<string, unknown>;
   title?: string | null;

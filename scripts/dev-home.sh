@@ -88,7 +88,7 @@ resolve_dev_daemon_endpoint() {
     return
   fi
 
-  case "${PASEO_LISTEN:-127.0.0.1:6768}" in
+  case "${PASEO_LISTEN:-127.0.0.1:7070}" in
     0.0.0.0:*) echo "localhost:${PASEO_LISTEN#0.0.0.0:}" ;;
     127.0.0.1:*) echo "localhost:${PASEO_LISTEN#127.0.0.1:}" ;;
     *) echo "$PASEO_LISTEN" ;;
@@ -127,7 +127,7 @@ configure_dev_command_env() {
     if [ -n "${PASEO_SERVICE_DAEMON_PORT:-}" ]; then
       export PASEO_LISTEN="0.0.0.0:${PASEO_SERVICE_DAEMON_PORT}"
     else
-      export PASEO_LISTEN="127.0.0.1:6768"
+      export PASEO_LISTEN="127.0.0.1:7070"
     fi
   fi
 

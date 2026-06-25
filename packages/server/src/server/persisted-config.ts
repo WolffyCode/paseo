@@ -6,8 +6,14 @@ import {
   AgentProviderRuntimeSettingsMapSchema,
   migrateProviderSettings,
   ProviderOverridesSchema,
+  VendorsByCliSchema,
+  VendorCommonConfigSchema,
 } from "./agent/provider-launch-config.js";
-import type { AgentProviderRuntimeSettingsMap } from "./agent/provider-launch-config.js";
+import type {
+  AgentProviderRuntimeSettingsMap,
+  VendorsByCli,
+  VendorCommonConfig,
+} from "./agent/provider-launch-config.js";
 import { ensurePrivateFile, writePrivateFileAtomicSync } from "./private-files.js";
 import { TerminalProfileSchema } from "@getpaseo/protocol/messages";
 
@@ -275,6 +281,8 @@ export const PersistedConfigSchema = z
       .object({
         providers: z.preprocess(normalizeAgentProviders, ProviderOverridesSchema).optional(),
         metadataGeneration: AgentMetadataGenerationSchema.optional(),
+        vendors: VendorsByCliSchema.optional(),
+        vendorCommonConfig: VendorCommonConfigSchema.optional(),
       })
       .strict()
       .optional(),
@@ -295,6 +303,8 @@ type PersistedConfigSchemaOutput = z.infer<typeof PersistedConfigSchema>;
 export type PersistedConfig = Omit<PersistedConfigSchemaOutput, "agents"> & {
   agents?: Omit<NonNullable<PersistedConfigSchemaOutput["agents"]>, "providers"> & {
     providers?: AgentProviderRuntimeSettingsMap;
+    vendors?: VendorsByCli;
+    vendorCommonConfig?: VendorCommonConfig;
   };
 };
 
@@ -302,7 +312,7 @@ const CONFIG_FILENAME = "config.json";
 const DEFAULT_PERSISTED_CONFIG = PersistedConfigSchema.parse({
   version: 1,
   daemon: {
-    listen: "127.0.0.1:6767",
+    listen: "127.0.0.1:7070",
     cors: {
       allowedOrigins: ["https://app.paseo.sh"],
     },

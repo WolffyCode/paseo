@@ -97,7 +97,7 @@ const TRAVERSABLE_HIDDEN_WORKSPACE_DIRECTORY_NAMES = new Set([
   ".claude",
   ".codex",
   ".github",
-  ".paseo",
+  ".helm",
   ".vscode",
 ]);
 

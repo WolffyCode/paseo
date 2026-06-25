@@ -9,6 +9,9 @@ import { useContainerWidthBelow } from "@/hooks/use-container-width";
 import invariant from "tiny-invariant";
 import { Composer } from "@/composer";
 import { DraftAgentModeControl } from "@/composer/agent-controls/mode-control";
+import { ConversationModelPicker } from "@/providers/conversation-model-picker";
+import { useVendorCascade, shouldHideModelSelector } from "@/providers/use-vendor-cascade";
+import { getModelCapabilities } from "@/providers/model-capabilities";
 import { ComposerImportPill } from "@/composer/draft/import-pill";
 import { FileDropZone } from "@/components/file-drop-zone";
 import { AgentStreamView } from "@/agent-stream/view";
@@ -128,6 +131,7 @@ async function submitDraftCreateRequest(input: {
     selectedMode: string;
     modeOptions: unknown[];
     effectiveModelId: string | null;
+    effectiveVendorId: string | null;
     effectiveThinkingOptionId: string | null;
     featureValues: Record<string, unknown> | undefined;
   };
@@ -166,6 +170,7 @@ async function submitDraftCreateRequest(input: {
     cwd: workspaceDirectory,
     ...modeIdOverride,
     model: autoSubmitConfig?.model ?? (composerState.effectiveModelId || undefined),
+    vendorId: composerState.effectiveVendorId ?? undefined,
     thinkingOptionId:
       autoSubmitConfig?.thinkingOptionId ?? (composerState.effectiveThinkingOptionId || undefined),
     featureValues: autoSubmitConfig?.featureValues ?? composerState.featureValues,
@@ -618,6 +623,30 @@ export function WorkspaceDraftAgentTab({
     focusInputRef.current?.();
   }, []);
   const importPillPress = resolveImportPillPress(onOpenImportSheet, isSubmitting);
+  // COMPAT(threeLayerVendors): added in v0.1.98, drop the gate when floor >= v0.1.98
+  const { supportsVendors, modelSelection } = useVendorCascade(serverId, composerState);
+
+  // Derive model capabilities from the currently-selected provider/vendor/model.
+  // Used to gate composer controls (e.g. hide thinking selector for models that
+  // don't support it). Falls back to conservative defaults when no model is chosen.
+  const modelCapabilities = useMemo(() => {
+    const currentVendor =
+      modelSelection.vendorId != null
+        ? (modelSelection.vendors.find((v) => v.id === modelSelection.vendorId) ?? null)
+        : null;
+    return getModelCapabilities({
+      provider: modelSelection.lockedProvider ?? composerState.selectedProvider,
+      vendor: currentVendor,
+      modelId: modelSelection.modelId,
+    });
+  }, [
+    modelSelection.lockedProvider,
+    modelSelection.vendorId,
+    modelSelection.vendors,
+    modelSelection.modelId,
+    composerState.selectedProvider,
+  ]);
+
   const composerAgentControls = useMemo(
     () => ({
       ...composerState.agentControls,
@@ -629,6 +658,17 @@ export function WorkspaceDraftAgentTab({
       onSetFeature: handleSetFeatureWithFocus,
       onDropdownClose: handleDropdownCloseFocus,
       disabled: isSubmitting,
+      // Suppress the flat model picker when the cascade chip is active so there
+      // is only one model-selection UI. The cascade chip renders exactly when
+      // lockedProvider is set (ConversationModelPicker returns null otherwise).
+      // When threeLayerVendors is unsupported the chip never renders, so always
+      // show the flat picker.
+      hideModelSelector: shouldHideModelSelector(supportsVendors, modelSelection.lockedProvider),
+      // Gate the thinking option selector: hide when the selected model doesn't
+      // support extended thinking (model-driven capability from getModelCapabilities).
+      thinkingOptions: modelCapabilities.thinking
+        ? composerState.agentControls.thinkingOptions
+        : [],
     }),
     [
       composerState.agentControls,
@@ -640,18 +680,28 @@ export function WorkspaceDraftAgentTab({
       handleSetFeatureWithFocus,
       handleDropdownCloseFocus,
       isSubmitting,
+      modelSelection.lockedProvider,
+      modelCapabilities.thinking,
+      supportsVendors,
     ],
   );
+
   const composerFooter = useMemo(
-    () =>
-      isCompactComposerLayout ? (
-        <DraftAgentModeControl
-          placement="footer"
-          {...composerAgentControls}
-          isCompactLayout={isCompactComposerLayout}
-        />
-      ) : undefined,
-    [isCompactComposerLayout, composerAgentControls],
+    () => (
+      <>
+        {isCompactComposerLayout ? (
+          <DraftAgentModeControl
+            placement="footer"
+            {...composerAgentControls}
+            isCompactLayout={isCompactComposerLayout}
+          />
+        ) : null}
+        {supportsVendors ? (
+          <ConversationModelPicker serverId={serverId} selection={modelSelection} />
+        ) : null}
+      </>
+    ),
+    [isCompactComposerLayout, composerAgentControls, serverId, modelSelection, supportsVendors],
   );
 
   return (

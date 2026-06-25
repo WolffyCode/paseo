@@ -345,4 +345,95 @@ describe("DaemonConfigStore", () => {
       env: {},
     });
   });
+
+  test("cc-switch apply path: patch(vendors) fires onChange and is reflected in get()", () => {
+    // Regression guard for C2: cc-switch apply used to call savePersistedConfig directly,
+    // bypassing the store. This test asserts that routing through patch() fires onChange
+    // (so the UI gets a daemon_config_changed broadcast) and that get() reflects the new
+    // vendors immediately (so a subsequent UI edit does not clobber the synced vendors).
+    const paseoHome = mkdtempSync(path.join(tmpdir(), "paseo-daemon-config-store-"));
+    tempDirs.push(paseoHome);
+
+    const store = new DaemonConfigStore(
+      paseoHome,
+      {
+        mcp: { injectIntoAgents: false },
+        providers: {},
+        metadataGeneration: { providers: [] },
+        autoArchiveAfterMerge: false,
+        enableTerminalAgentHooks: false,
+        appendSystemPrompt: "",
+      },
+      undefined,
+    );
+
+    const onChangeFired: unknown[] = [];
+    store.onChange((config) => {
+      onChangeFired.push(config);
+    });
+
+    const syncedVendor = {
+      id: "vnd_synced",
+      name: "SyncedVendor",
+      baseUrl: "https://synced.example.com/v1",
+      apiFormat: "anthropic" as const,
+      authStyle: "anthropic-auth-token" as const,
+    };
+
+    // Simulate what the cc-switch apply handler now does:
+    store.patch({ vendors: { claude: [syncedVendor] } });
+
+    // onChange must have fired (→ broadcast to UI)
+    expect(onChangeFired).toHaveLength(1);
+
+    // get() must reflect the new state immediately (no stale clobber risk)
+    expect(store.get().vendors?.claude).toEqual([syncedVendor]);
+
+    // A subsequent UI vendor patch must NOT drop the synced vendor
+    store.patch({ appendSystemPrompt: "Be concise." });
+    expect(store.get().vendors?.claude).toEqual([syncedVendor]);
+
+    // And the disk must reflect the same
+    const persisted = loadPersistedConfig(paseoHome);
+    expect(persisted.agents?.vendors?.claude).toEqual([syncedVendor]);
+  });
+
+  test("patch persists vendors into config.json and survives an unrelated subsequent patch", () => {
+    const paseoHome = mkdtempSync(path.join(tmpdir(), "paseo-daemon-config-store-"));
+    tempDirs.push(paseoHome);
+
+    const store = new DaemonConfigStore(
+      paseoHome,
+      {
+        mcp: { injectIntoAgents: false },
+        providers: {},
+        metadataGeneration: { providers: [] },
+        autoArchiveAfterMerge: false,
+        enableTerminalAgentHooks: false,
+        appendSystemPrompt: "",
+      },
+      undefined,
+    );
+
+    const vendor = {
+      id: "vnd_1",
+      name: "GLM",
+      baseUrl: "https://r/v1",
+      apiFormat: "anthropic" as const,
+      authStyle: "anthropic-auth-token" as const,
+    };
+
+    // ① Patch vendors
+    const afterVendorPatch = store.patch({ vendors: { claude: [vendor] } });
+    expect(afterVendorPatch.vendors?.claude).toEqual([vendor]);
+
+    // ② Vendors are persisted to disk
+    const persisted1 = loadPersistedConfig(paseoHome);
+    expect(persisted1.agents?.vendors?.claude).toEqual([vendor]);
+
+    // ③ An unrelated patch does not wipe vendors
+    store.patch({ appendSystemPrompt: "Be concise." });
+    const persisted2 = loadPersistedConfig(paseoHome);
+    expect(persisted2.agents?.vendors?.claude).toEqual([vendor]);
+  });
 });

@@ -11,12 +11,18 @@ export {
   ProviderOverridesSchema,
   ProviderProfileModelSchema,
   ProviderRuntimeSettingsSchema,
+  VendorSchema,
+  VendorsByCliSchema,
+  VendorCommonConfigSchema,
   type AgentProviderRuntimeSettingsMap,
   type ProviderCommand,
   type ProviderOverride,
   type ProviderOverrides,
   type ProviderProfileModel,
   type ProviderRuntimeSettings,
+  type Vendor,
+  type VendorsByCli,
+  type VendorCommonConfig,
 } from "@getpaseo/protocol/provider-config";
 import {
   ProviderOverrideSchema,

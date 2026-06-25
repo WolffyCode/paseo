@@ -4,6 +4,13 @@ import { CLIENT_CAPS } from "./client-capabilities.js";
 import { AGENT_LIFECYCLE_STATUSES } from "./agent-lifecycle.js";
 import { MAX_EXPLICIT_AGENT_TITLE_CHARS } from "@getpaseo/protocol/agent-title-limits";
 import { AgentProviderSchema } from "@getpaseo/protocol/provider-manifest";
+import {
+  VendorModelSchema,
+  VendorApiFormatSchema,
+  VendorAuthStyleSchema,
+  VendorsByCliSchema,
+  VendorCommonConfigSchema,
+} from "./provider-config.js";
 import { normalizeAgentModelDefinition, TOOL_CALL_ICON_NAMES } from "./agent-types.js";
 import {
   ChatCreateRequestSchema,
@@ -142,6 +149,8 @@ export const MutableDaemonConfigSchema = z
     enableTerminalAgentHooks: z.boolean().default(false),
     appendSystemPrompt: z.string().default(""),
     terminalProfiles: z.array(TerminalProfileSchema).optional(),
+    vendors: VendorsByCliSchema.optional(),
+    vendorCommonConfig: VendorCommonConfigSchema.optional(),
   })
   .passthrough();
 
@@ -156,6 +165,8 @@ export const MutableDaemonConfigPatchSchema = z
     enableTerminalAgentHooks: z.boolean().optional(),
     appendSystemPrompt: z.string().optional(),
     terminalProfiles: z.array(TerminalProfileSchema).optional(),
+    vendors: VendorsByCliSchema.optional(),
+    vendorCommonConfig: VendorCommonConfigSchema.optional(),
   })
   .partial()
   .passthrough();
@@ -316,11 +327,12 @@ const McpServerConfigSchema = z.discriminatedUnion("type", [
   McpSseServerConfigSchema,
 ]);
 
-const AgentSessionConfigSchema = z.object({
+export const AgentSessionConfigSchema = z.object({
   provider: AgentProviderSchema,
   cwd: z.string(),
   modeId: z.string().optional(),
   model: z.string().optional(),
+  vendorId: z.string().optional(),
   thinkingOptionId: z.string().optional(),
   featureValues: z.record(z.string(), z.unknown()).optional(),
   title: z.string().trim().min(1).max(MAX_EXPLICIT_AGENT_TITLE_CHARS).optional().nullable(),
@@ -1206,6 +1218,23 @@ export const ProviderUsageListRequestMessageSchema = z.object({
   requestId: z.string(),
 });
 
+export const ProvidersVendorModelsFetchRequestMessageSchema = z.object({
+  type: z.literal("providers.vendor.models.fetch.request"),
+  requestId: z.string(),
+  baseUrl: z.string(),
+  apiKey: z.string().optional(),
+  apiFormat: VendorApiFormatSchema,
+  authStyle: VendorAuthStyleSchema,
+});
+
+export const ProvidersCcSwitchSyncRequestMessageSchema = z.object({
+  type: z.literal("providers.ccswitch.sync.request"),
+  requestId: z.string(),
+  cli: z.enum(["claude", "codex"]).optional(),
+  apply: z.boolean().optional(),
+  selectedIds: z.array(z.string()).optional(),
+});
+
 export const ResumeAgentRequestMessageSchema = z.object({
   type: z.literal("resume_agent_request"),
   handle: AgentPersistenceHandleSchema,
@@ -2041,6 +2070,8 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   RefreshProvidersSnapshotRequestMessageSchema,
   ProviderDiagnosticRequestMessageSchema,
   ProviderUsageListRequestMessageSchema,
+  ProvidersVendorModelsFetchRequestMessageSchema,
+  ProvidersCcSwitchSyncRequestMessageSchema,
   ResumeAgentRequestMessageSchema,
   ImportAgentRequestMessageSchema,
   RefreshAgentRequestMessageSchema,
@@ -2319,6 +2350,8 @@ export const ServerInfoStatusPayloadSchema = z
         providerUsageList: z.boolean().optional(),
         // COMPAT(agentDetach): added in v0.1.98, remove gate after 2026-12-19 once daemon floor >= v0.1.98.
         agentDetach: z.boolean().optional(),
+        // COMPAT(threeLayerVendors): added in v0.1.98, drop the gate when daemon floor >= v0.1.98.
+        threeLayerVendors: z.boolean().optional(),
       })
       .optional(),
   })
@@ -3913,6 +3946,34 @@ export const ProviderUsageListResponseMessageSchema = z.object({
   }),
 });
 
+export const ProvidersVendorModelsFetchResponseMessageSchema = z.object({
+  type: z.literal("providers.vendor.models.fetch.response"),
+  payload: z.object({
+    requestId: z.string(),
+    models: z.array(VendorModelSchema).optional(),
+    error: z.string().nullable().optional(),
+  }),
+});
+
+const CcSwitchSyncItemSchema = z.object({
+  ccSwitchId: z.string(),
+  name: z.string(),
+  baseUrl: z.string(),
+  status: z.enum(["new", "update", "same"]),
+  modelCount: z.number(),
+});
+export type CcSwitchSyncItem = z.infer<typeof CcSwitchSyncItemSchema>;
+
+export const ProvidersCcSwitchSyncResponseMessageSchema = z.object({
+  type: z.literal("providers.ccswitch.sync.response"),
+  payload: z.object({
+    requestId: z.string(),
+    items: z.array(CcSwitchSyncItemSchema),
+    applied: z.boolean().optional(),
+    error: z.string().nullable().optional(),
+  }),
+});
+
 const AgentSlashCommandSchema = z.object({
   name: z.string(),
   description: z.string(),
@@ -4178,6 +4239,8 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   RefreshProvidersSnapshotResponseMessageSchema,
   ProviderDiagnosticResponseMessageSchema,
   ProviderUsageListResponseMessageSchema,
+  ProvidersVendorModelsFetchResponseMessageSchema,
+  ProvidersCcSwitchSyncResponseMessageSchema,
   ListCommandsResponseSchema,
   ListTerminalsResponseSchema,
   TerminalsChangedSchema,
@@ -4322,6 +4385,18 @@ export type ProviderUsageBalance = z.infer<typeof ProviderUsageBalanceSchema>;
 export type ProviderUsageDetail = z.infer<typeof ProviderUsageDetailSchema>;
 export type ProviderUsageListResponseMessage = z.infer<
   typeof ProviderUsageListResponseMessageSchema
+>;
+export type ProvidersVendorModelsFetchRequestMessage = z.infer<
+  typeof ProvidersVendorModelsFetchRequestMessageSchema
+>;
+export type ProvidersVendorModelsFetchResponseMessage = z.infer<
+  typeof ProvidersVendorModelsFetchResponseMessageSchema
+>;
+export type ProvidersCcSwitchSyncRequestMessage = z.infer<
+  typeof ProvidersCcSwitchSyncRequestMessageSchema
+>;
+export type ProvidersCcSwitchSyncResponseMessage = z.infer<
+  typeof ProvidersCcSwitchSyncResponseMessageSchema
 >;
 export type ChatCreateResponse = z.infer<typeof ChatCreateResponseSchema>;
 export type ChatListResponse = z.infer<typeof ChatListResponseSchema>;

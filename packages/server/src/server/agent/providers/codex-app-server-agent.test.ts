@@ -767,6 +767,100 @@ describe("Codex app-server provider", () => {
     });
   });
 
+  test("per-session codexVendor overrides client-level customCodexConfig in inner config", () => {
+    // Session with a per-session vendor override — should produce model_providers block
+    const sessionWithVendor = new CodexAppServerAgentSession(
+      createConfig(),
+      null,
+      createTestLogger(),
+      () => {
+        throw new Error("Test session cannot spawn Codex app-server");
+      },
+      {
+        // Client-level customCodexConfig (lower-priority, should be overridden)
+        customCodexConfig: {
+          model_provider: "client-level-provider",
+          model_providers: { "client-level-provider": { base_url: "https://client.example/v1" } },
+        },
+        // Per-session vendor override
+        codexVendor: {
+          id: "vnd_codex",
+          label: "GLM中转",
+          env: {
+            OPENAI_BASE_URL: "https://relay.example/v1",
+            OPENAI_API_KEY: "sk-x",
+          },
+        },
+      },
+      false,
+      false,
+      false,
+    ) as CodexTestSession;
+    sessionWithVendor.connected = true;
+    sessionWithVendor.currentThreadId = "test-thread";
+    sessionWithVendor.activeForegroundTurnId = "test-turn";
+
+    const innerConfig = castInternals<{ buildCodexInnerConfig(): Record<string, unknown> | null }>(
+      sessionWithVendor,
+    ).buildCodexInnerConfig();
+
+    expect(innerConfig).toMatchObject({
+      model_provider: "vnd_codex",
+      model_providers: {
+        vnd_codex: {
+          base_url: "https://relay.example/v1",
+          env_key: "OPENAI_API_KEY",
+        },
+      },
+    });
+    // The client-level provider must NOT appear
+    expect(innerConfig).not.toMatchObject({ model_provider: "client-level-provider" });
+  });
+
+  test("absent codexVendor falls back to client-level customCodexConfig in inner config", () => {
+    // Session without a per-session vendor override — should use client-level config
+    const sessionWithClientConfig = new CodexAppServerAgentSession(
+      createConfig(),
+      null,
+      createTestLogger(),
+      () => {
+        throw new Error("Test session cannot spawn Codex app-server");
+      },
+      {
+        customCodexConfig: {
+          model_provider: "client-level-provider",
+          model_providers: {
+            "client-level-provider": {
+              name: "Client Provider",
+              base_url: "https://client.example/v1",
+              wire_api: "responses",
+            },
+          },
+        },
+        // codexVendor is absent
+      },
+      false,
+      false,
+      false,
+    ) as CodexTestSession;
+    sessionWithClientConfig.connected = true;
+    sessionWithClientConfig.currentThreadId = "test-thread";
+    sessionWithClientConfig.activeForegroundTurnId = "test-turn";
+
+    const innerConfig = castInternals<{ buildCodexInnerConfig(): Record<string, unknown> | null }>(
+      sessionWithClientConfig,
+    ).buildCodexInnerConfig();
+
+    expect(innerConfig).toMatchObject({
+      model_provider: "client-level-provider",
+      model_providers: {
+        "client-level-provider": {
+          base_url: "https://client.example/v1",
+        },
+      },
+    });
+  });
+
   test("resumeSession does not replace a persisted Codex thread when app-server resume fails", async () => {
     const threadRequests: string[] = [];
     const appServer = createFakeCodexAppServer({

@@ -233,6 +233,17 @@ interface CodexAppServerAgentDeps {
     extends: string;
   };
   customCodexConfig?: Record<string, unknown> | null;
+  /**
+   * Per-session vendor override. When present, `buildCodexInnerConfig`
+   * calls `buildCodexCustomProviderConfig` with this data and uses the result
+   * instead of `customCodexConfig`. Populated from `AgentLaunchContext.codexVendor`
+   * in `createSession`/`resumeSession`.
+   */
+  codexVendor?: {
+    id: string;
+    label: string;
+    env: Record<string, string>;
+  };
   _createCodexClient?: (
     child: ChildProcessWithoutNullStreams,
     logger: Logger,
@@ -4224,7 +4235,17 @@ export class CodexAppServerAgentSession implements AgentSession {
     if (this.config.extra?.codex) {
       Object.assign(innerConfig, this.config.extra.codex);
     }
-    if (this.deps.customCodexConfig) {
+    // Per-session vendor override takes precedence over client-level customCodexConfig.
+    const { codexVendor } = this.deps;
+    if (codexVendor) {
+      const perSessionConfig = buildCodexCustomProviderConfig(
+        { env: codexVendor.env },
+        { id: codexVendor.id, label: codexVendor.label, extends: CODEX_PROVIDER },
+      );
+      if (perSessionConfig) {
+        Object.assign(innerConfig, perSessionConfig);
+      }
+    } else if (this.deps.customCodexConfig) {
       Object.assign(innerConfig, this.deps.customCodexConfig);
     }
     return Object.keys(innerConfig).length > 0 ? innerConfig : null;
@@ -5352,13 +5373,14 @@ export class CodexAppServerAgentClient implements AgentClient {
     private readonly deps: CodexAppServerAgentDeps = {},
   ) {}
 
-  private sessionDeps(): CodexAppServerAgentDeps {
+  private sessionDeps(launchContext?: AgentLaunchContext): CodexAppServerAgentDeps {
     return {
       ...this.deps,
       customCodexConfig: buildCodexCustomProviderConfig(
         this.runtimeSettings,
         this.deps.customProvider,
       ),
+      ...(launchContext?.codexVendor ? { codexVendor: launchContext.codexVendor } : {}),
     };
   }
 
@@ -5463,7 +5485,7 @@ export class CodexAppServerAgentClient implements AgentClient {
       this.logger,
       () =>
         this.spawnAppServer(launchContext?.env, { goalsEnabled, agentId: launchContext?.agentId }),
-      this.sessionDeps(),
+      this.sessionDeps(launchContext),
       options?.persistSession === false,
       goalsEnabled,
       autoReviewEnabled,
@@ -5493,7 +5515,7 @@ export class CodexAppServerAgentClient implements AgentClient {
       this.logger,
       () =>
         this.spawnAppServer(launchContext?.env, { goalsEnabled, agentId: launchContext?.agentId }),
-      this.sessionDeps(),
+      this.sessionDeps(launchContext),
       false,
       goalsEnabled,
       autoReviewEnabled,

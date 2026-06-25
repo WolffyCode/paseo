@@ -321,8 +321,8 @@ export function onboardCommand(): Command {
   return new Command("onboard")
     .description("Run first-time setup, start daemon, and print pairing instructions")
     .option("--listen <listen>", "Listen target (host:port, port, or unix socket path)")
-    .option("--port <port>", "Port to listen on (default: 6767)")
-    .option("--home <path>", "Paseo home directory (default: ~/.paseo)")
+    .option("--port <port>", "Port to listen on (default: 7070)")
+    .option("--home <path>", "Paseo home directory (default: ~/.helm)")
     .option("--no-relay", "Disable relay connection")
     .option("--no-mcp", "Disable the Agent MCP HTTP endpoint")
     .option(

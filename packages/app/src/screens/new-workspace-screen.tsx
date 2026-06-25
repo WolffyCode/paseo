@@ -11,6 +11,13 @@ import { useQuery } from "@tanstack/react-query";
 import { Check, Folder, GitBranch, GitPullRequest, X } from "lucide-react-native";
 import { Composer } from "@/composer";
 import { DraftAgentModeControl } from "@/composer/agent-controls/mode-control";
+import type { DraftAgentControlsProps } from "@/composer/agent-controls";
+import { ConversationModelPicker } from "@/providers/conversation-model-picker";
+import {
+  type ConversationModelSelection,
+  type ConversationModelSelectionComposerState,
+} from "@/providers/use-conversation-model-selection";
+import { useVendorCascade, shouldHideModelSelector } from "@/providers/use-vendor-cascade";
 import { splitComposerAttachmentsForSubmit } from "@/composer/attachments/submit";
 import { FileDropZone } from "@/components/file-drop-zone";
 import { ProjectIconView } from "@/components/project-icon-view";
@@ -90,6 +97,91 @@ function buildFirstAgentContext(input: {
     ...(trimmedPrompt ? { prompt: trimmedPrompt } : {}),
     attachments: input.attachments,
   };
+}
+
+interface VendorCascadeComposerState extends ConversationModelSelectionComposerState {
+  agentControls: DraftAgentControlsProps;
+}
+
+/**
+ * Hook that encapsulates three-layer vendor cascade state for draft composers.
+ * Moving the hooks + useMemo here keeps the caller's cyclomatic complexity
+ * unchanged (a single function call adds zero branches).
+ *
+ * COMPAT(threeLayerVendors): added in v0.1.98, drop the gate when floor >= v0.1.98
+ */
+function useVendorCascadeForComposer(
+  serverId: string,
+  composerState: VendorCascadeComposerState | null,
+  disabled: boolean,
+) {
+  const { supportsVendors, modelSelection } = useVendorCascade(serverId, composerState);
+  const agentControlsWithDisabled = useMemo(
+    () =>
+      composerState
+        ? {
+            ...composerState.agentControls,
+            disabled,
+            // Suppress the flat model picker when the cascade chip is active so there
+            // is only one model-selection UI.
+            hideModelSelector: shouldHideModelSelector(
+              supportsVendors,
+              modelSelection.lockedProvider,
+            ),
+          }
+        : undefined,
+    [composerState, disabled, supportsVendors, modelSelection.lockedProvider],
+  );
+  return { supportsVendors, modelSelection, agentControlsWithDisabled };
+}
+
+/**
+ * Composer footer for the new-workspace screen.
+ * Extracted to keep NewWorkspaceScreen's cyclomatic complexity within limits.
+ * Receives raw data and computes labels internally.
+ */
+function NewWorkspaceComposerFooter({
+  agentControls,
+  supportsVendors,
+  serverId,
+  modelSelection,
+  checkoutHintPrAttachment,
+  onAcceptCheckoutHint,
+  onDismissCheckoutHint,
+  iconColor,
+  iconSize,
+}: {
+  agentControls: DraftAgentControlsProps | undefined;
+  supportsVendors: boolean;
+  serverId: string;
+  modelSelection: ConversationModelSelection;
+  checkoutHintPrAttachment: { item: { number: number } } | null;
+  onAcceptCheckoutHint: () => void;
+  onDismissCheckoutHint: () => void;
+  iconColor: string;
+  iconSize: number;
+}) {
+  const { t } = useTranslation();
+  const prNumber = checkoutHintPrAttachment?.item.number;
+  return (
+    <>
+      {agentControls ? <DraftAgentModeControl placement="footer" {...agentControls} /> : null}
+      {supportsVendors ? (
+        <ConversationModelPicker serverId={serverId} selection={modelSelection} />
+      ) : null}
+      {prNumber !== undefined ? (
+        <CheckoutHintBadge
+          label={t("newWorkspace.refPicker.checkoutHint", { number: prNumber })}
+          acceptLabel={t("newWorkspace.refPicker.checkoutPr", { number: prNumber })}
+          dismissLabel={t("newWorkspace.refPicker.dismissCheckoutHint", { number: prNumber })}
+          onAccept={onAcceptCheckoutHint}
+          onDismiss={onDismissCheckoutHint}
+          iconColor={iconColor}
+          iconSize={iconSize}
+        />
+      ) : null}
+    </>
+  );
 }
 
 interface NewWorkspaceScreenProps {
@@ -1516,16 +1608,8 @@ export function NewWorkspaceScreen({
     [composerKeyboardStyle],
   );
 
-  const agentControlsWithDisabled = useMemo(
-    () =>
-      composerState
-        ? {
-            ...composerState.agentControls,
-            disabled: isPending,
-          }
-        : undefined,
-    [composerState, isPending],
-  );
+  const { supportsVendors, modelSelection, agentControlsWithDisabled } =
+    useVendorCascadeForComposer(serverId, composerState, isPending);
 
   const pickerEmptyText =
     branchSuggestionsQuery.isFetching || githubPrSearchQuery.isFetching
@@ -1698,35 +1782,26 @@ export function NewWorkspaceScreen({
 
   const composerFooter = useMemo(
     () => (
-      <>
-        {agentControlsWithDisabled ? (
-          <DraftAgentModeControl placement="footer" {...agentControlsWithDisabled} />
-        ) : null}
-        {checkoutHintPrAttachment ? (
-          <CheckoutHintBadge
-            label={t("newWorkspace.refPicker.checkoutHint", {
-              number: checkoutHintPrAttachment.item.number,
-            })}
-            acceptLabel={t("newWorkspace.refPicker.checkoutPr", {
-              number: checkoutHintPrAttachment.item.number,
-            })}
-            dismissLabel={t("newWorkspace.refPicker.dismissCheckoutHint", {
-              number: checkoutHintPrAttachment.item.number,
-            })}
-            onAccept={acceptCheckoutHint}
-            onDismiss={dismissCheckoutHint}
-            iconColor={theme.colors.foregroundMuted}
-            iconSize={theme.iconSize.sm}
-          />
-        ) : null}
-      </>
+      <NewWorkspaceComposerFooter
+        agentControls={agentControlsWithDisabled}
+        supportsVendors={supportsVendors}
+        serverId={serverId}
+        modelSelection={modelSelection}
+        checkoutHintPrAttachment={checkoutHintPrAttachment}
+        onAcceptCheckoutHint={acceptCheckoutHint}
+        onDismissCheckoutHint={dismissCheckoutHint}
+        iconColor={theme.colors.foregroundMuted}
+        iconSize={theme.iconSize.sm}
+      />
     ),
     [
       acceptCheckoutHint,
       agentControlsWithDisabled,
       checkoutHintPrAttachment,
       dismissCheckoutHint,
-      t,
+      modelSelection,
+      serverId,
+      supportsVendors,
       theme.colors.foregroundMuted,
       theme.iconSize.sm,
     ],

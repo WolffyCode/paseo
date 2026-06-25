@@ -184,21 +184,20 @@ function mergeMutableConfigIntoPersistedConfig(params: {
   const shouldPersistMetadataGeneration =
     metadataGenerationProviders.length > 0 || persisted.agents?.metadataGeneration !== undefined;
 
-  let nextAgents = persisted.agents as PersistedConfig["agents"];
-  if (providerOverrides && Object.keys(providerOverrides).length > 0) {
-    nextAgents = {
-      ...persistedAgents,
-      providers: providerOverrides,
-      ...(shouldPersistMetadataGeneration
-        ? { metadataGeneration: persistedMetadataGeneration }
-        : {}),
-    } as PersistedConfig["agents"];
-  } else if (shouldPersistMetadataGeneration) {
-    nextAgents = {
-      ...persistedAgents,
-      metadataGeneration: persistedMetadataGeneration,
-    } as PersistedConfig["agents"];
-  }
+  // Always start from the persisted agents shape and overlay each mutable field
+  // by presence, so that a partial patch (e.g. appendSystemPrompt) never silently
+  // drops vendors or other agents sub-keys that weren't touched in this patch.
+  const nextAgents = {
+    ...persistedAgents,
+    ...(providerOverrides && Object.keys(providerOverrides).length > 0
+      ? { providers: providerOverrides }
+      : {}),
+    ...(shouldPersistMetadataGeneration ? { metadataGeneration: persistedMetadataGeneration } : {}),
+    ...(mutable.vendors !== undefined ? { vendors: mutable.vendors } : {}),
+    ...(mutable.vendorCommonConfig !== undefined
+      ? { vendorCommonConfig: mutable.vendorCommonConfig }
+      : {}),
+  } as PersistedConfig["agents"];
 
   return {
     ...persisted,

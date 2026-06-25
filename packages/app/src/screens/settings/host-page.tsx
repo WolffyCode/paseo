@@ -48,6 +48,7 @@ import {
 import { ProvidersSection } from "@/screens/settings/providers-section";
 import { ProviderUsageSettingsSection } from "@/provider-usage/settings-section";
 import { useProviderUsage } from "@/provider-usage/use-provider-usage";
+import { useSupportsThreeLayerVendors } from "@/providers/use-three-layer-vendors";
 import { SettingsSection } from "@/screens/settings/settings-section";
 import { useSessionStore } from "@/stores/session-store";
 import { settingsStyles } from "@/styles/settings";
@@ -296,9 +297,15 @@ export function HostWorkspacesPage({ serverId }: { serverId: string }) {
 
 export function HostProvidersPage({ serverId }: { serverId: string }) {
   const host = useHostProfile(serverId);
+  // COMPAT(threeLayerVendors): added in v0.1.98, drop the gate when floor >= v0.1.98
+  const supportsVendors = useSupportsThreeLayerVendors(serverId);
 
   if (!host) {
     return <HostNotFound />;
+  }
+
+  if (!supportsVendors) {
+    return null;
   }
 
   return (

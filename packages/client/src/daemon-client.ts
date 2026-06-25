@@ -65,6 +65,10 @@ import type {
   RefreshProvidersSnapshotResponseMessage,
   ProviderDiagnosticResponseMessage,
   ProviderUsageListResponseMessage,
+  ProvidersVendorModelsFetchResponseMessage,
+  ProvidersVendorModelsFetchRequestMessage,
+  ProvidersCcSwitchSyncResponseMessage,
+  ProvidersCcSwitchSyncRequestMessage,
   DaemonGetStatusResponse,
   DaemonGetPairingOfferResponse,
   AgentRewindResponseMessage,
@@ -349,6 +353,8 @@ type GetProvidersSnapshotPayload = GetProvidersSnapshotResponseMessage["payload"
 type RefreshProvidersSnapshotPayload = RefreshProvidersSnapshotResponseMessage["payload"];
 type ProviderDiagnosticPayload = ProviderDiagnosticResponseMessage["payload"];
 type ProviderUsageListPayload = ProviderUsageListResponseMessage["payload"];
+type FetchVendorModelsPayload = ProvidersVendorModelsFetchResponseMessage["payload"];
+type SyncCcSwitchPayload = ProvidersCcSwitchSyncResponseMessage["payload"];
 type DaemonStatusPayload = DaemonGetStatusResponse["payload"];
 type DaemonPairingOfferPayload = DaemonGetPairingOfferResponse["payload"];
 type ReadProjectConfigPayload = Extract<
@@ -3767,6 +3773,36 @@ export class DaemonClient {
       },
       responseType: "set_daemon_config_response",
       timeout: 10000,
+    });
+  }
+
+  async fetchVendorModels(
+    input: Omit<ProvidersVendorModelsFetchRequestMessage, "type" | "requestId">,
+    requestId?: string,
+  ): Promise<FetchVendorModelsPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: {
+        type: "providers.vendor.models.fetch.request",
+        ...input,
+      },
+      responseType: "providers.vendor.models.fetch.response",
+      timeout: 30000,
+    });
+  }
+
+  async syncCcSwitch(
+    params: Omit<ProvidersCcSwitchSyncRequestMessage, "type" | "requestId">,
+    requestId?: string,
+  ): Promise<SyncCcSwitchPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: {
+        type: "providers.ccswitch.sync.request",
+        ...params,
+      },
+      responseType: "providers.ccswitch.sync.response",
+      timeout: 30000,
     });
   }
 

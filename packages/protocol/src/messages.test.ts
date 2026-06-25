@@ -1,5 +1,6 @@
 import { describe, expect, test } from "vitest";
 import {
+  AgentSessionConfigSchema,
   FileExplorerRequestSchema,
   PaseoWorktreeArchiveRequestSchema,
   parseServerInfoStatusPayload,
@@ -370,5 +371,24 @@ describe("paseo worktree archive request compatibility", () => {
     });
     expect(parsed).not.toHaveProperty("extraField");
     expect(parsed.scope).toBe("workspace");
+  });
+});
+
+describe("AgentSessionConfig.vendorId back-compat", () => {
+  test("vendorId is parsed when provided", () => {
+    const parsed = AgentSessionConfigSchema.parse({
+      provider: "claude",
+      cwd: "/x",
+      vendorId: "vnd_1",
+    });
+    expect(parsed.vendorId).toBe("vnd_1");
+  });
+
+  test("vendorId is undefined when omitted (back-compat)", () => {
+    const parsed = AgentSessionConfigSchema.parse({
+      provider: "claude",
+      cwd: "/x",
+    });
+    expect(parsed.vendorId).toBeUndefined();
   });
 });

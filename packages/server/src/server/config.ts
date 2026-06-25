@@ -21,7 +21,9 @@ import { hashDaemonPassword } from "./auth.js";
 import { resolveSpeechConfig } from "./speech/speech-config-resolver.js";
 import { mergeHostnames, parseHostnamesEnv, type HostnamesConfig } from "./hostnames.js";
 
-const DEFAULT_PORT = 6767;
+// Helm's daemon port. Upstream Paseo uses 6767; keeping these distinct lets a
+// Helm daemon run alongside a Paseo daemon without a port collision.
+const DEFAULT_PORT = 7070;
 const DEFAULT_RELAY_ENDPOINT = "relay.paseo.sh:443";
 const DEFAULT_APP_BASE_URL = "https://app.paseo.sh";
 
@@ -408,6 +410,8 @@ export function loadConfig(
     voiceLlmProviderExplicit: voiceLlm.providerExplicit,
     voiceLlmModel: voiceLlm.model,
     agentProviderSettings: extractAgentProviderSettings(providerOverrides),
+    agentVendors: persisted.agents?.vendors,
+    agentVendorCommonConfig: persisted.agents?.vendorCommonConfig,
     metadataGeneration: persisted.agents?.metadataGeneration,
     providerOverrides,
     log: resolveLogConfigFromEnv(env, persisted),

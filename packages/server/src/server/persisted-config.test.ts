@@ -525,6 +525,50 @@ describe("PersistedConfigSchema logging config", () => {
   });
 });
 
+describe("agents.vendors round-trip", () => {
+  test("persists vendors and vendorCommonConfig through loadPersistedConfig", () => {
+    const home = mkdtempSync(path.join(tmpdir(), "paseo-config-"));
+    const configPath = path.join(home, "config.json");
+    try {
+      writeFileSync(
+        configPath,
+        JSON.stringify(
+          {
+            version: 1,
+            agents: {
+              vendors: {
+                claude: [
+                  {
+                    id: "anthropic",
+                    name: "Anthropic",
+                    baseUrl: "https://api.anthropic.com",
+                    apiFormat: "anthropic",
+                    authStyle: "anthropic-api-key",
+                  },
+                ],
+              },
+              vendorCommonConfig: {
+                claude: { defaultVendorId: "anthropic" },
+              },
+            },
+          },
+          null,
+          2,
+        ) + "\n",
+      );
+
+      const cfg = loadPersistedConfig(home);
+
+      expect(cfg.agents?.vendors?.claude?.[0]?.baseUrl).toBe("https://api.anthropic.com");
+      expect(
+        (cfg.agents?.vendorCommonConfig?.claude as Record<string, unknown>)?.defaultVendorId,
+      ).toBe("anthropic");
+    } finally {
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
+});
+
 describe("PersistedConfigSchema voice mode config", () => {
   test("accepts a dedicated turn detection provider", () => {
     const parsed = PersistedConfigSchema.parse({

@@ -19,4 +19,28 @@ describe("workspace-draft-agent-config", () => {
       thinkingOptionId: "high",
     });
   });
+
+  it("includes vendorId when provided", () => {
+    expect(
+      buildWorkspaceDraftAgentConfig({
+        provider: "claude",
+        cwd: "/x",
+        vendorId: "vnd_1",
+        model: "glm-5.1",
+      }),
+    ).toEqual({
+      provider: "claude",
+      cwd: "/x",
+      vendorId: "vnd_1",
+      model: "glm-5.1",
+    });
+  });
+
+  it("omits vendorId key when not provided (back-compat)", () => {
+    const result = buildWorkspaceDraftAgentConfig({
+      provider: "claude",
+      cwd: "/x",
+    });
+    expect(result).not.toHaveProperty("vendorId");
+  });
 });

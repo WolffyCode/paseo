@@ -43,6 +43,53 @@ export const ProviderProfileModelSchema = z.object({
   thinkingOptions: z.array(ProviderProfileThinkingOptionSchema).optional(),
 });
 
+export const VendorModelSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().optional(),
+  source: z.enum(["fetched", "manual", "cc-switch"]).optional(),
+  family: z.string().optional(),
+});
+
+export const VendorApiFormatSchema = z.enum(["anthropic", "openai"]);
+
+export const VendorAuthStyleSchema = z.enum([
+  "anthropic-auth-token",
+  "anthropic-api-key",
+  "openai-api-key",
+]);
+
+export const VendorCliSchema = z.enum(["claude", "codex"]);
+
+export const VendorSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  notes: z.string().optional(),
+  websiteUrl: z.string().optional(),
+  baseUrl: z.string(), // may be "" for draft vendors (e.g. codex cc-switch with no base_url yet)
+  apiKey: z.string().optional(),
+  apiFormat: VendorApiFormatSchema,
+  authStyle: VendorAuthStyleSchema,
+  fallbackModel: z.string().optional(),
+  configJson: z.record(z.string(), z.unknown()).optional(),
+  models: z.array(VendorModelSchema).optional(),
+  exposedModelIds: z.array(z.string()).optional(),
+  defaultModelId: z.string().optional(),
+  modelsFetchedAt: z.string().optional(),
+  source: z.object({ kind: z.literal("cc-switch"), id: z.string() }).optional(),
+  order: z.number().optional(),
+  enabled: z.boolean().optional(),
+});
+
+export const VendorsByCliSchema = z.object({
+  claude: z.array(VendorSchema).optional(),
+  codex: z.array(VendorSchema).optional(),
+});
+
+export const VendorCommonConfigSchema = z.object({
+  claude: z.record(z.string(), z.unknown()).optional(),
+  codex: z.record(z.string(), z.unknown()).optional(),
+});
+
 export const ProviderOverrideSchema = z.object({
   extends: z.string().optional(),
   label: z.string().optional(),
@@ -133,3 +180,7 @@ export type ProviderOverrides = z.infer<typeof ProviderOverridesSchema>;
 export type AgentProviderRuntimeSettingsMap = Partial<
   Record<AgentProvider, ProviderRuntimeSettings>
 >;
+export type VendorModel = z.infer<typeof VendorModelSchema>;
+export type Vendor = z.infer<typeof VendorSchema>;
+export type VendorsByCli = z.infer<typeof VendorsByCliSchema>;
+export type VendorCommonConfig = z.infer<typeof VendorCommonConfigSchema>;

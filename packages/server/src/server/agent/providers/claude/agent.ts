@@ -357,6 +357,12 @@ interface ClaudeAgentSessionOptions {
   handle?: AgentPersistenceHandle;
   agentId?: string;
   launchEnv?: Record<string, string>;
+  /**
+   * Tools to disallow for this session. Populated by vendor launch injection
+   * (e.g. WebSearch is blocked on third-party endpoints). Merged into
+   * base.disallowedTools in buildOptions().
+   */
+  launchDisallowedTools?: string[];
   persistSession?: boolean;
   logger: Logger;
   queryFactory?: ClaudeQueryFactory;
@@ -1386,6 +1392,7 @@ export class ClaudeAgentClient implements AgentClient {
       runtimeSettings: this.runtimeSettings,
       agentId: launchContext?.agentId,
       launchEnv: launchContext?.env,
+      launchDisallowedTools: launchContext?.disallowedTools,
       persistSession: options?.persistSession,
       logger: this.logger,
       queryFactory: this.queryFactory,
@@ -1415,6 +1422,7 @@ export class ClaudeAgentClient implements AgentClient {
       handle,
       agentId: launchContext?.agentId,
       launchEnv: launchContext?.env,
+      launchDisallowedTools: launchContext?.disallowedTools,
       logger: this.logger,
       queryFactory: this.queryFactory,
       resolveBinary: this.resolveBinary,
@@ -1865,6 +1873,7 @@ class ClaudeAgentSession implements AgentSession {
 
   private readonly config: ClaudeAgentConfig;
   private readonly launchEnv?: Record<string, string>;
+  private readonly launchDisallowedTools?: string[];
   private readonly agentId?: string;
   private readonly defaults?: { agents?: Record<string, AgentDefinition> };
   private readonly runtimeSettings?: ProviderRuntimeSettings;
@@ -1915,6 +1924,7 @@ class ClaudeAgentSession implements AgentSession {
   constructor(config: ClaudeAgentConfig, options: ClaudeAgentSessionOptions) {
     this.config = config;
     this.launchEnv = options.launchEnv;
+    this.launchDisallowedTools = options.launchDisallowedTools;
     this.agentId = options.agentId;
     this.defaults = options.defaults;
     this.runtimeSettings = options.runtimeSettings;
@@ -2932,13 +2942,24 @@ class ClaudeAgentSession implements AgentSession {
     if (this.claudeSessionId && !this.pendingFreshSessionId) {
       base.resume = this.claudeSessionId;
     }
-    if (this.runtimeSettings?.disallowedTools?.length) {
-      base.disallowedTools = [
-        ...(base.disallowedTools ?? []),
-        ...this.runtimeSettings.disallowedTools,
-      ];
-    }
+    base.disallowedTools = this.mergeDisallowedTools(base.disallowedTools);
     return base;
+  }
+
+  /**
+   * Merges disallowedTools from runtimeSettings and launchContext into the
+   * base list. Returns the base list unchanged (possibly undefined) when no
+   * extra entries are contributed, so the ClaudeOptions field stays absent.
+   */
+  private mergeDisallowedTools(baseTools: string[] | undefined): string[] | undefined {
+    const extra = [
+      ...(this.runtimeSettings?.disallowedTools ?? []),
+      ...(this.launchDisallowedTools ?? []),
+    ];
+    if (!extra.length) {
+      return baseTools;
+    }
+    return [...(baseTools ?? []), ...extra];
   }
 
   private buildSettingsOptions(

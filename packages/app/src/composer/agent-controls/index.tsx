@@ -125,6 +125,14 @@ export interface DraftAgentControlsProps {
   disabled?: boolean;
   modelSelectorServerId?: string | null;
   isCompactLayout?: boolean;
+  /**
+   * When true, suppresses the model-selection part of the controls (the
+   * CombinedModelSelector / onSelectModel plumbing). Use this when a
+   * ConversationModelPicker cascade chip is rendered separately and owns model
+   * selection — avoids two model UIs pointing at the same composerState field.
+   * Provider / mode / thinking / feature controls remain visible.
+   */
+  hideModelSelector?: boolean;
 }
 
 interface AgentControlsProps {
@@ -421,7 +429,6 @@ function ControlledAgentControls({
   const [openSelector, setOpenSelector] = useState<AgentControlSelector | null>(null);
 
   const providerAnchorRef = useRef<View>(null);
-  const _modelAnchorRef = useRef<View>(null);
   const thinkingAnchorRef = useRef<View>(null);
 
   const canSelectProvider = Boolean(
@@ -1578,6 +1585,33 @@ export const AgentControls = memo(function AgentControls({
   );
 });
 
+/**
+ * Resolves the model-selector props for the compact `ControlledAgentControls`
+ * branch of `DraftAgentControls`.  When `hide` is true (cascade chip is shown)
+ * all model props are stripped so `ControlledAgentControls` won't render any
+ * model UI.  Extracted as a pure helper to keep `DraftAgentControls` under the
+ * cyclomatic complexity limit.
+ */
+function resolveCompactModelProps(input: {
+  hide: boolean;
+  modelSelectorProviders: ProviderSelectorProvider[];
+  modelOptions: AgentControlOption[];
+  selectedModel: string;
+  onSelectModel: (modelId: string) => void;
+  onSelectProviderAndModel: (provider: string, modelId: string) => void;
+}): Partial<ControlledAgentControlsProps> {
+  if (input.hide) {
+    return {};
+  }
+  return {
+    modelSelectorProviders: input.modelSelectorProviders,
+    modelOptions: input.modelOptions,
+    selectedModelId: input.selectedModel,
+    onSelectModel: input.onSelectModel,
+    onSelectProviderAndModel: input.onSelectProviderAndModel,
+  };
+}
+
 export function DraftAgentControls({
   providerDefinitions,
   selectedProvider,
@@ -1604,6 +1638,7 @@ export function DraftAgentControls({
   disabled = false,
   modelSelectorServerId = null,
   isCompactLayout,
+  hideModelSelector = false,
 }: DraftAgentControlsProps) {
   const { preferences, updatePreferences } = useFormPreferences();
   const isCompactFormFactor = useIsCompactFormFactor();
@@ -1670,21 +1705,23 @@ export function DraftAgentControls({
   if (!isCompact) {
     return (
       <View style={styles.container}>
-        <CombinedModelSelector
-          providers={modelSelectorProviders}
-          selectedProvider={selectedProvider ?? ""}
-          selectedModel={selectedModel}
-          onSelect={onSelectProviderAndModel}
-          favoriteKeys={favoriteKeys}
-          onToggleFavorite={handleToggleFavorite}
-          isLoading={isAllModelsLoading}
-          disabled={disabled}
-          onOpen={onModelSelectorOpen}
-          onClose={onDropdownClose}
-          onRetryProvider={onRetryModelProvider}
-          isRetryingProvider={isRetryingModelProvider}
-          serverId={modelSelectorServerId}
-        />
+        {!hideModelSelector ? (
+          <CombinedModelSelector
+            providers={modelSelectorProviders}
+            selectedProvider={selectedProvider ?? ""}
+            selectedModel={selectedModel}
+            onSelect={onSelectProviderAndModel}
+            favoriteKeys={favoriteKeys}
+            onToggleFavorite={handleToggleFavorite}
+            isLoading={isAllModelsLoading}
+            disabled={disabled}
+            onOpen={onModelSelectorOpen}
+            onClose={onDropdownClose}
+            onRetryProvider={onRetryModelProvider}
+            isRetryingProvider={isRetryingModelProvider}
+            serverId={modelSelectorServerId}
+          />
+        ) : null}
         {selectedProvider ? (
           <ControlledAgentControls
             provider={selectedProvider}
@@ -1705,14 +1742,21 @@ export function DraftAgentControls({
     );
   }
 
+  // When the cascade chip owns model selection, pass undefined to omit the
+  // model controls so ControlledAgentControls renders none of the model UI.
+  const compactModelProps = resolveCompactModelProps({
+    hide: hideModelSelector,
+    modelSelectorProviders,
+    modelOptions,
+    selectedModel,
+    onSelectModel,
+    onSelectProviderAndModel,
+  });
+
   return (
     <ControlledAgentControls
       provider={selectedProvider ?? ""}
-      modelSelectorProviders={modelSelectorProviders}
-      modelOptions={modelOptions}
-      selectedModelId={selectedModel}
-      onSelectModel={onSelectModel}
-      onSelectProviderAndModel={onSelectProviderAndModel}
+      {...compactModelProps}
       isModelLoading={isAllModelsLoading}
       favoriteKeys={favoriteKeys}
       onToggleFavoriteModel={handleToggleFavorite}

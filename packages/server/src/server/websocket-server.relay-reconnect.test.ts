@@ -690,6 +690,18 @@ describe("relay external socket reconnect behavior", () => {
     await server.close();
   });
 
+  test("includes threeLayerVendors: true in initial server_info features", async () => {
+    const server = createServer();
+    const socket = new MockSocket();
+    const serverInfo = (await attachRelayAndHello({
+      server,
+      socket,
+      clientId: "cid-three-layer-vendors-flag",
+    })) as { features?: Record<string, unknown> };
+    expect(serverInfo.features?.threeLayerVendors).toBe(true);
+    await server.close();
+  });
+
   test("includes voice capabilities in initial server_info when speech readiness exists", async () => {
     const speechReadiness = createReadySpeechReadinessSnapshot();
     const server = createServer({ speechReadiness });

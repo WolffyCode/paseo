@@ -6,6 +6,8 @@ import { createNameId } from "mnemonic-id";
 import { AdaptiveModalSheet, type SheetHeader } from "@/components/adaptive-modal-sheet";
 import { Composer } from "@/composer";
 import { DraftAgentModeControl } from "@/composer/agent-controls/mode-control";
+import { ConversationModelPicker } from "@/providers/conversation-model-picker";
+import { useVendorCascade, shouldHideModelSelector } from "@/providers/use-vendor-cascade";
 import { useToast } from "@/contexts/toast-context";
 import { useAgentInputDraft } from "@/composer/draft/input-draft";
 import { useProjectIconQuery } from "@/hooks/use-project-icon-query";
@@ -373,24 +375,46 @@ export function WorkspaceSetupDialog() {
 
   const isCompact = useIsCompactFormFactor();
   const iconSource = useMemo(() => (iconDataUri ? { uri: iconDataUri } : null), [iconDataUri]);
+
+  // COMPAT(threeLayerVendors): added in v0.1.98, drop the gate when floor >= v0.1.98
+  const { supportsVendors, modelSelection } = useVendorCascade(serverId, composerState);
+
   const agentControlsWithDisabled = useMemo(
     () =>
       composerState
         ? {
             ...composerState.agentControls,
             disabled: pendingAction !== null,
+            // Suppress the flat model picker when the cascade chip is active so there
+            // is only one model-selection UI. The cascade chip renders exactly when
+            // lockedProvider is set (ConversationModelPicker returns null otherwise).
+            // When threeLayerVendors is unsupported the chip never renders, so always
+            // show the flat picker.
+            hideModelSelector: shouldHideModelSelector(
+              supportsVendors,
+              modelSelection.lockedProvider,
+            ),
           }
         : undefined,
-    [composerState, pendingAction],
+    [composerState, pendingAction, supportsVendors, modelSelection.lockedProvider],
   );
 
-  const composerFooter = useMemo(
-    () =>
-      isCompact && agentControlsWithDisabled ? (
-        <DraftAgentModeControl placement="footer" {...agentControlsWithDisabled} />
-      ) : undefined,
-    [isCompact, agentControlsWithDisabled],
-  );
+  const composerFooter = useMemo(() => {
+    const showModeControl = isCompact && agentControlsWithDisabled != null;
+    if (!showModeControl && !supportsVendors) {
+      return undefined;
+    }
+    return (
+      <>
+        {showModeControl && agentControlsWithDisabled ? (
+          <DraftAgentModeControl placement="footer" {...agentControlsWithDisabled} />
+        ) : null}
+        {supportsVendors ? (
+          <ConversationModelPicker serverId={serverId} selection={modelSelection} />
+        ) : null}
+      </>
+    );
+  }, [isCompact, agentControlsWithDisabled, supportsVendors, serverId, modelSelection]);
 
   const subtitleContent = useMemo(
     () => (

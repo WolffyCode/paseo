@@ -79,6 +79,7 @@ import type { DaemonConfigStore } from "./daemon-config-store.js";
 import { getErrorMessage, getErrorMessageOr } from "@getpaseo/protocol/error-utils";
 import { getAgentStatusPriority } from "@getpaseo/protocol/agent-state-bucket";
 import { getParentAgentIdFromLabels } from "@getpaseo/protocol/agent-labels";
+import type { VendorsByCli } from "@getpaseo/protocol/provider-config";
 import type {
   WorkspaceGitRuntimeSnapshot,
   WorkspaceGitService,
@@ -265,6 +266,14 @@ import {
 import { type WorktreeConfig, createWorktree } from "../utils/worktree.js";
 import { runGitCommand } from "../utils/run-git-command.js";
 import { CreateAgentLifecycleDispatch } from "./agent/create-agent-lifecycle-dispatch.js";
+import { fetchVendorModels, VendorModelsFetchError } from "./agent/vendor-models-fetcher.js";
+import {
+  readCcSwitchVendors,
+  diffAgainstExisting,
+  applyCcSwitchSync,
+  defaultCcSwitchDbPath,
+  type CcSwitchSyncItem,
+} from "./integrations/cc-switch-import.js";
 
 const WORKSPACE_GIT_WATCH_REMOVED_STATE_KEY = "__removed__";
 
@@ -2128,6 +2137,10 @@ export class Session {
         return this.handleProviderDiagnosticRequest(msg);
       case "provider.usage.list.request":
         return this.handleProviderUsageListRequest(msg);
+      case "providers.vendor.models.fetch.request":
+        return this.handleProvidersVendorModelsFetchRequest(msg);
+      case "providers.ccswitch.sync.request":
+        return this.handleProvidersCcSwitchSyncRequest(msg);
       default:
         return undefined;
     }
@@ -3872,6 +3885,104 @@ export class Session {
           requestType: msg.type,
           error: `Failed to list provider usage: ${err.message}`,
           code: "provider_usage_list_failed",
+        },
+      });
+    }
+  }
+
+  private async handleProvidersVendorModelsFetchRequest(
+    msg: Extract<SessionInboundMessage, { type: "providers.vendor.models.fetch.request" }>,
+  ): Promise<void> {
+    try {
+      const models = await fetchVendorModels({
+        baseUrl: msg.baseUrl,
+        apiKey: msg.apiKey,
+        apiFormat: msg.apiFormat,
+        authStyle: msg.authStyle,
+      });
+      this.emit({
+        type: "providers.vendor.models.fetch.response",
+        payload: {
+          requestId: msg.requestId,
+          models,
+        },
+      });
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.sessionLogger.error({ err }, "Failed to fetch vendor models");
+      const status = error instanceof VendorModelsFetchError ? error.status : undefined;
+      const statusSuffix = status != null ? ` (HTTP ${status})` : "";
+      this.emit({
+        type: "providers.vendor.models.fetch.response",
+        payload: {
+          requestId: msg.requestId,
+          error: `Failed to fetch vendor models: ${err.message}${statusSuffix}`,
+        },
+      });
+    }
+  }
+
+  private async handleProvidersCcSwitchSyncRequest(
+    msg: Extract<SessionInboundMessage, { type: "providers.ccswitch.sync.request" }>,
+  ): Promise<void> {
+    const dbPath = defaultCcSwitchDbPath();
+    const cliFilter = msg.cli; // "claude" | "codex" | undefined (= both)
+    const shouldApply = msg.apply === true;
+    const selectedIds = msg.selectedIds ?? [];
+
+    try {
+      const clis: ("claude" | "codex")[] = cliFilter ? [cliFilter] : ["claude", "codex"];
+      // Read from the live config store so the diff is always against current in-memory
+      // state (never against a stale disk snapshot that a concurrent UI patch may have
+      // already superseded).
+      const existingVendors: VendorsByCli = this.daemonConfigStore.get().vendors ?? {};
+
+      // Collect candidates and diff items across requested CLIs
+      const allItems: CcSwitchSyncItem[] = [];
+      for (const cli of clis) {
+        const candidates = readCcSwitchVendors(dbPath, cli);
+        const existing = existingVendors[cli] ?? [];
+        const items = diffAgainstExisting(candidates, existing);
+        allItems.push(...items);
+      }
+
+      if (!shouldApply) {
+        // Preview only — no writes
+        this.emit({
+          type: "providers.ccswitch.sync.response",
+          payload: { requestId: msg.requestId, items: allItems },
+        });
+        return;
+      }
+
+      // Apply: route through daemonConfigStore.patch so that
+      //   (a) store.current stays in sync with disk (no stale clobber on next UI edit),
+      //   (b) onChange listeners fire (→ daemon_config_changed broadcast → UI refresh).
+      const nextVendors: VendorsByCli = { ...existingVendors };
+      for (const cli of clis) {
+        const candidates = readCcSwitchVendors(dbPath, cli);
+        const existing = existingVendors[cli] ?? [];
+        // selectedIds from request apply across CLIs — filter to candidates of this CLI
+        const cliCandidateIdSet = new Set(candidates.map((c) => c.source.id));
+        const cliSelectedIds = selectedIds.filter((id) => cliCandidateIdSet.has(id));
+        nextVendors[cli] = applyCcSwitchSync(candidates, existing, cliSelectedIds);
+      }
+
+      this.daemonConfigStore.patch({ vendors: nextVendors });
+
+      this.emit({
+        type: "providers.ccswitch.sync.response",
+        payload: { requestId: msg.requestId, items: allItems, applied: true },
+      });
+    } catch (error) {
+      const err = error instanceof Error ? error : new Error(String(error));
+      this.sessionLogger.error({ err }, "Failed to sync cc-switch providers");
+      this.emit({
+        type: "providers.ccswitch.sync.response",
+        payload: {
+          requestId: msg.requestId,
+          items: [],
+          error: `Failed to sync cc-switch providers: ${err.message}`,
         },
       });
     }

@@ -34,6 +34,7 @@ import type {
   ImportProviderSessionInput,
 } from "./agent-sdk-types.js";
 import type { ProviderDefinition } from "./provider-registry.js";
+import type { Vendor } from "./provider-launch-config.js";
 
 interface Deferred<T> {
   promise: Promise<T>;
@@ -6296,4 +6297,106 @@ test("onWorkspaceStateMayHaveChanged is not called for running shell tool calls"
   await manager.runAgent(snapshot.id, { text: "merge it" });
 
   expect(onWorkspaceStateMayHaveChanged).not.toHaveBeenCalled();
+});
+
+// ─── vendor launch injection tests (Task 1.5a) ────────────────────────────────
+
+class LaunchContextCapturingClient implements AgentClient {
+  readonly provider = "claude" as const;
+  readonly capabilities = TEST_CAPABILITIES;
+  capturedLaunchContext: AgentLaunchContext | undefined;
+
+  async isAvailable(): Promise<boolean> {
+    return true;
+  }
+
+  async createSession(
+    _config: AgentSessionConfig,
+    launchContext?: AgentLaunchContext,
+  ): Promise<AgentSession> {
+    this.capturedLaunchContext = launchContext;
+    return new TestAgentSession({ provider: "claude", cwd: process.cwd() });
+  }
+
+  async resumeSession(
+    _handle: AgentPersistenceHandle,
+    _config?: Partial<AgentSessionConfig>,
+    launchContext?: AgentLaunchContext,
+  ): Promise<AgentSession> {
+    this.capturedLaunchContext = launchContext;
+    return new TestAgentSession({ provider: "claude", cwd: process.cwd() });
+  }
+
+  async listModels() {
+    return [];
+  }
+}
+
+test("createAgent injects vendor env into launchContext when vendorId matches a resolved vendor", async () => {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-vendor-test-"));
+  const client = new LaunchContextCapturingClient();
+
+  const mockVendor: Vendor = {
+    id: "vnd_1",
+    name: "Test Relay",
+    baseUrl: "https://relay.example/v1",
+    apiKey: "sk-vnd",
+    authStyle: "anthropic-auth-token",
+    apiFormat: "anthropic",
+  };
+
+  const manager = new AgentManager({
+    clients: { claude: client },
+    logger,
+    idFactory: () => "00000000-0000-4000-8000-00000000f001",
+    resolveVendorLaunch: ({ provider, vendorId }) => {
+      if (provider === "claude" && vendorId === "vnd_1") {
+        return { vendor: mockVendor };
+      }
+      return undefined;
+    },
+  });
+
+  try {
+    await manager.createAgent({
+      provider: "claude",
+      cwd: workdir,
+      vendorId: "vnd_1",
+      model: "glm-4.6",
+    });
+
+    const ctx = client.capturedLaunchContext;
+    expect(ctx?.env?.ANTHROPIC_BASE_URL).toBe("https://relay.example/v1");
+    expect(ctx?.env?.ANTHROPIC_AUTH_TOKEN).toBe("sk-vnd");
+    expect(ctx?.env?.ANTHROPIC_MODEL).toBe("glm-4.6");
+    expect(ctx?.disallowedTools).toContain("WebSearch");
+  } finally {
+    rmSync(workdir, { recursive: true, force: true });
+  }
+});
+
+test("createAgent does not inject vendor env when vendorId is absent", async () => {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-no-vendor-test-"));
+  const client = new LaunchContextCapturingClient();
+
+  const manager = new AgentManager({
+    clients: { claude: client },
+    logger,
+    idFactory: () => "00000000-0000-4000-8000-00000000f002",
+    resolveVendorLaunch: () => undefined,
+  });
+
+  try {
+    await manager.createAgent({
+      provider: "claude",
+      cwd: workdir,
+    });
+
+    const ctx = client.capturedLaunchContext;
+    expect(ctx?.env?.ANTHROPIC_BASE_URL).toBeUndefined();
+    expect(ctx?.env?.ANTHROPIC_AUTH_TOKEN).toBeUndefined();
+    expect(ctx?.disallowedTools).toBeUndefined();
+  } finally {
+    rmSync(workdir, { recursive: true, force: true });
+  }
 });
