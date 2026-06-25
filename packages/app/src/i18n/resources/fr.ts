@@ -1107,30 +1107,10 @@ export const fr: TranslationResources = {
     },
   },
   onboarding: {
-    title: "Bienvenue dans Helm",
-    subtitle:
-      "Connectez vos agents de codage IA locaux ou distants depuis un seul endroit. Votre code reste sur votre machine.",
+    title: "Bienvenue surPaseo",
+    subtitle: "Connectez votre ordinateur pour commencer",
     actions: {
-      start: "Commencer",
-      connectRemote: "Connecter un host distant",
-      cancel: "Annuler",
-      retryLocal: "Réessayer localement",
-      retry: "Réessayer",
-      useOtherMethods: "Utiliser une autre méthode",
-      diagnostics: "Voir les diagnostics",
-    },
-    connecting: {
-      title: "Connexion au daemon local...",
-    },
-    picker: {
-      title: "Choisir une méthode de connexion",
-      description: "Connectez-vous directement, collez un lien de jumelage ou scannez un QR code.",
-    },
-    error: {
-      title: "Impossible de se connecter au daemon local",
-      description:
-        "Causes possibles : daemon arrêté, port local déjà utilisé ou délai de connexion dépassé.",
-      reasonLabel: "Détails : {{reason}}",
+      settings: "Paramètres",
     },
   },
   modelSelector: {

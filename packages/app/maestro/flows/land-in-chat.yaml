@@ -8,19 +8,11 @@ appId: sh.paseo
 
 - extendedWaitUntil:
     visible:
-      id: "onboarding-welcome"
+      id: "welcome-screen"
     timeout: 30000
 
 - tapOn:
-    id: "onboarding-connect-remote"
-
-- extendedWaitUntil:
-    visible:
-      id: "onboarding-method-picker"
-    timeout: 10000
-
-- tapOn:
-    id: "onboarding-direct-connection"
+    id: "welcome-direct-connection"
 
 - extendedWaitUntil:
     visible:

@@ -7,18 +7,10 @@ appId: ${PASEO_MAESTRO_APP_ID}
 - runFlow:
     when:
       visible:
-        id: "onboarding-welcome"
+        id: "welcome-screen"
     commands:
       - tapOn:
-          id: "onboarding-connect-remote"
-
-      - extendedWaitUntil:
-          visible:
-            id: "onboarding-method-picker"
-          timeout: 10000
-
-      - tapOn:
-          id: "onboarding-direct-connection"
+          id: "welcome-direct-connection"
 
       - extendedWaitUntil:
           visible:
