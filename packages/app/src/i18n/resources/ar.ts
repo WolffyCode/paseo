@@ -1079,30 +1079,10 @@ export const ar: TranslationResources = {
     },
   },
   onboarding: {
-    title: "مرحبًا بك في Helm",
-    subtitle:
-      "وصّل وكلاء ترميز الذكاء الاصطناعي المحليين أو البعيدين من مكان واحد. يظل رمزك على جهازك.",
+    title: "مرحبا بكم في Helm",
+    subtitle: "قم بتوصيل جهاز الكمبيوتر الخاص بك للبدء",
     actions: {
-      start: "ابدأ",
-      connectRemote: "وصّل host بعيد",
-      cancel: "إلغاء",
-      retryLocal: "إعادة محاولة المحلي",
-      retry: "إعادة المحاولة",
-      useOtherMethods: "استخدم طريقة أخرى",
-      diagnostics: "عرض التشخيصات",
-    },
-    connecting: {
-      title: "جارٍ الاتصال بالـ daemon المحلي...",
-    },
-    picker: {
-      title: "اختر طريقة الاتصال",
-      description: "اتصل مباشرة، أو الصق رابط الاقتران، أو امسح رمز QR.",
-    },
-    error: {
-      title: "تعذر الاتصال بالـ daemon المحلي",
-      description:
-        "الأسباب المحتملة: الـ daemon لا يعمل، أو المنفذ المحلي مستخدم، أو انتهت مهلة الاتصال.",
-      reasonLabel: "التفاصيل: {{reason}}",
+      settings: "إعدادات",
     },
   },
   modelSelector: {

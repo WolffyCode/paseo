@@ -212,7 +212,6 @@ test.describe("Settings — compact master-detail", () => {
     await closeCompactSettings(page);
 
     await expect(page).toHaveURL(/\/welcome$/);
-    await expect(page.getByTestId("onboarding-method-picker")).toBeVisible();
-    await expect(page.getByTestId("onboarding-direct-connection")).toBeVisible();
+    await expect(page.getByTestId("welcome-direct-connection")).toBeVisible();
   });
 });
