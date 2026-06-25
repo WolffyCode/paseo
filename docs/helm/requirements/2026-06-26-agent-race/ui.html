@@ -1,0 +1,2174 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · 多模型对决 Agent Race（gate-1 提案 · UI 设计稿）</title>
+    <style>
+      /* ===== canonical tokens（与 docs/helm/ui.html 完全一致，逐字复用） ===== */
+      :root {
+        --surface0: #ffffff;
+        --surface1: #fafafa;
+        --surface2: #f4f4f5;
+        --surface3: #e4e4e7;
+        --surface4: #d4d4d8;
+        --surfaceSidebar: #f4f4f5;
+        --surfaceWorkspace: #ffffff;
+        --fg: #1a1a1e;
+        --fgMuted: #71717a;
+        --border: #e4e4e7;
+        --borderAccent: #ececf1;
+        --accent: #20744a;
+        --accentBright: #239956;
+        --accentFg: #ffffff;
+        --success: #15803d;
+        --warning: #d97706;
+        --danger: #b91c1c;
+        --xs: 12px;
+        --sm: 14px;
+        --base: 16px;
+        --lg: 18px;
+        --xl: 20px;
+        --xxl: 22px;
+        --xxxl: 26px;
+        --r-sm: 2px;
+        --r-base: 4px;
+        --r-md: 6px;
+        --r-lg: 8px;
+        --r-xl: 12px;
+        --r-2xl: 16px;
+        --ui:
+          system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+          sans-serif;
+        --mono: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+        /* provider 身份色（品牌识别用，非主题 token；仅用于参赛者徽标，UI chrome 一律走上面的 token） */
+        --pClaude: #c15f3c;
+        --pCodex: #18181b;
+        --pCopilot: #2563eb;
+        --pOpenCode: #0891b2;
+        --pPi: #7c3aed;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        background: #e8e8eb;
+        color: var(--fg);
+        font-family: var(--ui);
+        -webkit-font-smoothing: antialiased;
+        font-size: var(--base);
+        line-height: 1.45;
+      }
+      body {
+        padding: 40px 32px 120px;
+      }
+      svg.i {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        stroke-width: 2;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex: none;
+        display: block;
+      }
+      .i.xs {
+        width: 12px;
+        height: 12px;
+      }
+      .i.sm {
+        width: 14px;
+        height: 14px;
+      }
+      .i.md {
+        width: 16px;
+        height: 16px;
+      }
+      .i.lg {
+        width: 20px;
+        height: 20px;
+      }
+      .i.dots {
+        fill: currentColor;
+        stroke: none;
+      }
+      /* ===== board head / nav（同 canonical） ===== */
+      .board-h {
+        max-width: 1180px;
+        margin: 0 auto 24px;
+      }
+      .board-h h1 {
+        font-size: 30px;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .board-h h1 .logo {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        background: linear-gradient(135deg, var(--accent), #15583a);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+      }
+      .board-h .sub {
+        color: var(--fgMuted);
+        font-size: var(--sm);
+        margin-top: 8px;
+        max-width: 920px;
+      }
+      .req-log {
+        max-width: 1180px;
+        margin: 0 auto 18px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface1);
+        overflow: hidden;
+      }
+      .req-log .rl-h {
+        padding: 10px 16px;
+        background: var(--surface2);
+        font-size: var(--xs);
+        font-weight: 600;
+        color: var(--fgMuted);
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      .req-log table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--sm);
+      }
+      .req-log td,
+      .req-log th {
+        padding: 8px 16px;
+        text-align: left;
+        border-top: 1px solid var(--border);
+        vertical-align: top;
+      }
+      .req-log th {
+        color: var(--fgMuted);
+        font-weight: 500;
+        font-size: var(--xs);
+      }
+      .req-log td:first-child {
+        color: var(--fgMuted);
+        white-space: nowrap;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 1px 8px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      .pill.done {
+        color: #15803d;
+        background: rgba(34, 197, 94, 0.12);
+      }
+      .pill.p0 {
+        color: var(--accentBright);
+        background: rgba(32, 116, 74, 0.16);
+      }
+      .nav-idx {
+        max-width: 1180px;
+        margin: 0 auto 30px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .nav-idx a {
+        font-size: var(--xs);
+        color: var(--fgMuted);
+        text-decoration: none;
+        padding: 5px 11px;
+        border: 1px solid var(--border);
+        border-radius: 9999px;
+        background: var(--surface1);
+      }
+      .nav-idx a:hover {
+        color: var(--fg);
+        background: var(--surface2);
+      }
+      .screen {
+        max-width: 1180px;
+        margin: 0 auto 52px;
+        scroll-margin-top: 20px;
+      }
+      .screen-head {
+        margin-bottom: 14px;
+      }
+      .screen-head .tag {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        color: var(--accentBright);
+        background: rgba(32, 116, 74, 0.16);
+        padding: 2px 9px;
+        border-radius: 9999px;
+        margin-bottom: 8px;
+      }
+      .screen-head h2 {
+        font-size: var(--xl);
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      .screen-head p {
+        color: var(--fgMuted);
+        font-size: var(--sm);
+        margin-top: 5px;
+        max-width: 940px;
+      }
+      .screen-body {
+        display: grid;
+        grid-template-columns: 1fr 330px;
+        gap: 20px;
+        align-items: start;
+      }
+      .screen-body.wide {
+        grid-template-columns: 1fr;
+      }
+      /* ===== anno（同 canonical） + anno-grid（同 mission-control 姐妹稿） ===== */
+      .anno {
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface1);
+        overflow: hidden;
+      }
+      .anno .anno-h {
+        font-size: var(--xs);
+        font-weight: 600;
+        color: var(--fgMuted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 9px 12px 6px;
+      }
+      .anno ol {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+      }
+      .anno li {
+        display: flex;
+        gap: 9px;
+        padding: 9px 12px;
+        border-top: 1px solid var(--border);
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--fgMuted);
+      }
+      .anno li b {
+        color: var(--fg);
+        font-weight: 500;
+      }
+      .anno-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 16px;
+        margin-top: 18px;
+        align-items: start;
+      }
+      .pin {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .anno li .pin {
+        margin-top: 1px;
+      }
+      .pinb {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 9999px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        vertical-align: super;
+        margin-left: 3px;
+      }
+      .states {
+        border-top: 1px solid var(--border);
+        padding: 9px 12px;
+        background: var(--surface0);
+      }
+      .states:first-child {
+        border-top: none;
+      }
+      .states .sh {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--fgMuted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 7px;
+      }
+      .states dl {
+        display: grid;
+        grid-template-columns: 76px 1fr;
+        gap: 5px 8px;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .states dt {
+        color: var(--accentBright);
+        font-weight: 600;
+      }
+      .states dd {
+        margin: 0;
+        color: var(--fgMuted);
+      }
+      .states dd b {
+        color: var(--fg);
+        font-weight: 500;
+      }
+      /* ===== frame / titlebar（同 canonical） ===== */
+      .frame {
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        overflow: hidden;
+        background: var(--surface0);
+        box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.13);
+      }
+      .titlebar {
+        height: 38px;
+        background: var(--surfaceSidebar);
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        gap: 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      .lights {
+        display: flex;
+        gap: 8px;
+      }
+      .lights span {
+        width: 11px;
+        height: 11px;
+        border-radius: 9999px;
+      }
+      .lights .r {
+        background: #ff5f57;
+      }
+      .lights .y {
+        background: #febc2e;
+      }
+      .lights .g {
+        background: #28c840;
+      }
+      .tb-title {
+        margin-left: 10px;
+        font-size: 13px;
+        color: var(--fgMuted);
+      }
+      /* ===== buttons / link / badge / dot / spinner（同 canonical，+ disabled） ===== */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: var(--sm);
+        font-weight: 500;
+        padding: 11px 16px;
+        border-radius: var(--r-xl);
+        border: 1px solid transparent;
+        white-space: nowrap;
+        width: 100%;
+      }
+      .btn.df {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .btn.df.hover {
+        background: #1b6340;
+      }
+      .btn.df.press {
+        background: #16512f;
+        transform: scale(0.985);
+      }
+      .btn.df.focus {
+        box-shadow: 0 0 0 3px rgba(32, 116, 74, 0.3);
+      }
+      .btn.out {
+        background: var(--surface2);
+        border-color: var(--border);
+        color: var(--fg);
+      }
+      .btn.out.hover {
+        background: var(--surface3);
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--fgMuted);
+        border-color: transparent;
+        width: auto;
+        padding: 8px 12px;
+        font-weight: 400;
+      }
+      .btn.ghost.hover {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      .btn.sm {
+        padding: 7px 12px;
+        font-size: var(--xs);
+        width: auto;
+      }
+      .btn.disabled {
+        opacity: 0.55;
+        cursor: default;
+      }
+      .btn.df.disabled {
+        background: var(--surface3);
+        color: var(--fgMuted);
+        border-color: var(--border);
+      }
+      .btn .i {
+        width: 16px;
+        height: 16px;
+      }
+      .link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--accent);
+        font-size: var(--sm);
+        font-weight: 500;
+      }
+      .link.hover {
+        text-decoration: underline;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 2px 9px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      .badge.suc {
+        color: #15803d;
+        background: rgba(34, 197, 94, 0.12);
+      }
+      .badge.mut {
+        color: var(--fgMuted);
+        background: var(--surface2);
+      }
+      .badge.warn {
+        color: var(--warning);
+        background: rgba(217, 119, 6, 0.12);
+      }
+      .badge.acc {
+        color: var(--accentBright);
+        background: rgba(32, 116, 74, 0.14);
+      }
+      .spinner {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: 3px solid var(--surface3);
+        border-top-color: var(--accent);
+        animation: spin 1s linear infinite;
+      }
+      .spinner.sm {
+        width: 20px;
+        height: 20px;
+        border-width: 2px;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .statehd {
+        font-size: var(--xs);
+        color: var(--fgMuted);
+        margin: 0 0 8px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .statebox {
+        border: 1px dashed var(--border);
+        border-radius: var(--r-lg);
+        padding: 14px;
+        background: var(--surface0);
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .statestrip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 14px;
+      }
+      *::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+      }
+      *::-webkit-scrollbar-thumb {
+        background: #c7c7cc;
+        border-radius: 9999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #c7c7cc transparent;
+      }
+      .note {
+        max-width: 1180px;
+        margin: 0 auto 10px;
+        color: var(--fgMuted);
+        font-size: var(--xs);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+
+      /* ===================================================================
+         RACE-SPECIFIC（全部基于上面的 canonical token；无自创颜色/字号）
+         =================================================================== */
+      /* 对决 chrome：顶部条 + 步进器 */
+      .rc-top {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        height: 50px;
+        padding: 0 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surfaceSidebar);
+      }
+      .rc-top .rt-title {
+        font-size: 14px;
+        font-weight: 600;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .rc-top .rt-title .i {
+        color: var(--accent);
+      }
+      .iconbtn {
+        width: 30px;
+        height: 30px;
+        border-radius: var(--r-md);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--fgMuted);
+        border: 1px solid transparent;
+        background: transparent;
+        flex: none;
+      }
+      .iconbtn.hover {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      .stepper {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        margin-left: auto;
+      }
+      .stepper .st {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 12px;
+        color: var(--fgMuted);
+        padding: 4px 9px;
+        border-radius: 9999px;
+      }
+      .stepper .st .n {
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        background: var(--surface3);
+        color: var(--fgMuted);
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .stepper .st.active {
+        color: var(--fg);
+        font-weight: 600;
+        background: rgba(32, 116, 74, 0.1);
+      }
+      .stepper .st.active .n {
+        background: var(--accent);
+        color: #fff;
+      }
+      .stepper .st.done .n {
+        background: var(--success);
+        color: #fff;
+      }
+      .stepper .sep {
+        width: 14px;
+        height: 1px;
+        background: var(--surface3);
+      }
+      /* provider 徽标（身份色） */
+      .pbadge {
+        width: 26px;
+        height: 26px;
+        border-radius: 7px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-size: 13px;
+        font-weight: 700;
+        flex: none;
+      }
+      .pbadge.sm {
+        width: 20px;
+        height: 20px;
+        border-radius: 6px;
+        font-size: 11px;
+      }
+      .pbadge.claude {
+        background: var(--pClaude);
+      }
+      .pbadge.codex {
+        background: var(--pCodex);
+      }
+      .pbadge.copilot {
+        background: var(--pCopilot);
+      }
+      .pbadge.opencode {
+        background: var(--pOpenCode);
+      }
+      .pbadge.pi {
+        background: var(--pPi);
+      }
+      /* 起跑格位序号 */
+      .pos {
+        width: 24px;
+        height: 24px;
+        border-radius: 6px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        color: var(--fgMuted);
+        font-size: 12px;
+        font-weight: 700;
+        font-family: var(--mono);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+      }
+      .pos.win {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      /* 三层级联选择器（视觉占位） */
+      .sel {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 7px 9px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        background: var(--surface0);
+        font-size: 13px;
+        min-width: 0;
+      }
+      .sel .lab {
+        color: var(--fgMuted);
+        font-size: 11px;
+        flex: none;
+      }
+      .sel .val {
+        color: var(--fg);
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .sel .chev {
+        color: var(--fgMuted);
+        margin-left: auto;
+        flex: none;
+      }
+      .sel.hover {
+        background: var(--surface2);
+      }
+      .sel.bad {
+        border-color: rgba(217, 119, 6, 0.55);
+        background: rgba(217, 119, 6, 0.06);
+      }
+      .sel.disabled {
+        opacity: 0.55;
+      }
+      /* 模式分段 */
+      .seg {
+        display: inline-flex;
+        background: var(--surface2);
+        border-radius: var(--r-md);
+        padding: 2px;
+        gap: 2px;
+        flex: none;
+      }
+      .seg .opt {
+        font-size: 12px;
+        padding: 4px 10px;
+        border-radius: var(--r-base);
+        color: var(--fgMuted);
+      }
+      .seg .opt.on {
+        background: var(--surface0);
+        color: var(--fg);
+        font-weight: 600;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      }
+      /* rc1 表单 */
+      .form {
+        max-width: 940px;
+        margin: 0 auto;
+        padding: 22px 24px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+      .fsec-h {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--fgMuted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 9px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .fsec-h .req {
+        color: var(--danger);
+      }
+      .promptbox {
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        background: var(--surface0);
+        padding: 12px 14px;
+        min-height: 88px;
+        font-size: 14px;
+        color: var(--fg);
+        line-height: 1.55;
+      }
+      .promptbox.focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(32, 116, 74, 0.16);
+      }
+      .promptbox .ph {
+        color: var(--fgMuted);
+      }
+      .baseline {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .baseline .sel {
+        flex: 1;
+        min-width: 200px;
+      }
+      .roster {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .prow {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px 10px 11px;
+        border: 1px solid var(--border);
+        border-left-width: 3px;
+        border-radius: var(--r-lg);
+        background: var(--surface0);
+      }
+      .prow.hover {
+        background: var(--surface1);
+      }
+      .cascade {
+        display: flex;
+        gap: 8px;
+        flex: 1;
+        min-width: 0;
+      }
+      .cascade .sel {
+        flex: 1;
+        min-width: 0;
+      }
+      .addrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 11px;
+        border: 1px dashed var(--border);
+        border-radius: var(--r-lg);
+        color: var(--fgMuted);
+        font-size: 13px;
+        font-weight: 500;
+      }
+      .addrow.hover {
+        background: var(--surface1);
+        color: var(--fg);
+        border-color: var(--surface4);
+      }
+      .startbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding-top: 4px;
+      }
+      .startbar .hint {
+        font-size: 12px;
+        color: var(--fgMuted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .startbar .hint.bad {
+        color: var(--warning);
+      }
+      .startbar .btn {
+        width: auto;
+        margin-left: auto;
+      }
+      /* rc2 整体进度条 */
+      .overall {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface1);
+      }
+      .overall .ov-l {
+        font-size: 13px;
+        white-space: nowrap;
+      }
+      .overall .ov-l b {
+        font-weight: 600;
+      }
+      .ov-bar {
+        flex: 1;
+        height: 6px;
+        border-radius: 9999px;
+        background: var(--surface3);
+        overflow: hidden;
+        min-width: 80px;
+      }
+      .ov-bar .ov-fill {
+        height: 100%;
+        background: var(--accent);
+        border-radius: 9999px;
+      }
+      .overall .ov-r {
+        font-size: 12px;
+        color: var(--fgMuted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        white-space: nowrap;
+      }
+      /* 赛道 / 结果列 网格 */
+      .lanes {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+        padding: 16px;
+      }
+      .lane {
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface1);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .lane.done {
+        border-color: rgba(21, 128, 61, 0.4);
+      }
+      .lane.err {
+        border-color: rgba(185, 28, 28, 0.4);
+      }
+      .lane.dim {
+        opacity: 0.5;
+      }
+      .track {
+        height: 4px;
+        background: var(--surface2);
+      }
+      .track .fill {
+        height: 100%;
+        background: var(--accent);
+      }
+      .track .fill.done {
+        background: var(--success);
+      }
+      .track .fill.err {
+        background: var(--danger);
+      }
+      .lane-h {
+        padding: 11px 12px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface0);
+      }
+      .lane-h .ln-name {
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .lane-h .ln-sub {
+        font-size: 11px;
+        color: var(--fgMuted);
+        margin-top: 1px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .lane-b {
+        padding: 11px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+      }
+      .kv {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 12px;
+        color: var(--fgMuted);
+      }
+      .kv .i {
+        color: var(--fgMuted);
+        width: 13px;
+        height: 13px;
+      }
+      .kv b {
+        color: var(--fg);
+        font-weight: 500;
+      }
+      .mono {
+        font-family: var(--mono);
+      }
+      .wt {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--fgMuted);
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--r-base);
+        padding: 2px 6px;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        align-self: flex-start;
+        max-width: 100%;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+      .curact {
+        font-size: 12px;
+        color: var(--fg);
+        line-height: 1.5;
+        background: var(--surface2);
+        border-radius: var(--r-md);
+        padding: 7px 9px;
+      }
+      .metrics {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 14px;
+      }
+      .sdot {
+        width: 8px;
+        height: 8px;
+        border-radius: 9999px;
+        flex: none;
+      }
+      .sdot.run {
+        background: var(--success);
+        animation: dotpulse 1.7s ease-out infinite;
+      }
+      @keyframes dotpulse {
+        0% {
+          box-shadow: 0 0 0 0 rgba(21, 128, 61, 0.34);
+        }
+        70% {
+          box-shadow: 0 0 0 6px rgba(21, 128, 61, 0);
+        }
+        100% {
+          box-shadow: 0 0 0 0 rgba(21, 128, 61, 0);
+        }
+      }
+      .sdot.idle {
+        background: var(--surface4);
+      }
+      .sdot.attn {
+        background: var(--warning);
+      }
+      .sdot.err {
+        background: var(--danger);
+      }
+      .sdot.done {
+        background: var(--success);
+        opacity: 0.5;
+      }
+      /* rc3 记分牌 */
+      .cmp-wrap {
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+      .cmp-head {
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .cmp-head b {
+        font-weight: 600;
+      }
+      .score {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 13px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        overflow: hidden;
+      }
+      .score th,
+      .score td {
+        padding: 9px 12px;
+        text-align: left;
+        border-top: 1px solid var(--border);
+        border-left: 1px solid var(--border);
+      }
+      .score th:first-child,
+      .score td:first-child {
+        border-left: none;
+      }
+      .score thead th {
+        background: var(--surface2);
+        font-size: 12px;
+        color: var(--fg);
+        font-weight: 600;
+        border-top: none;
+      }
+      .score thead th .sub {
+        font-weight: 400;
+        color: var(--fgMuted);
+        font-size: 11px;
+      }
+      .score td.metric {
+        color: var(--fgMuted);
+        white-space: nowrap;
+        background: var(--surface1);
+        font-size: 12px;
+      }
+      .score td.best {
+        background: rgba(32, 116, 74, 0.1);
+        color: var(--fg);
+        font-weight: 600;
+      }
+      .score .tinytag {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--accentBright);
+        margin-left: 5px;
+      }
+      .score td .warnflag {
+        color: var(--warning);
+      }
+      .results {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      .rescol {
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface1);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+      }
+      .rescol.on {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 1px var(--accent);
+      }
+      .rescol-h {
+        padding: 11px 12px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        border-bottom: 1px solid var(--border);
+        background: var(--surface0);
+      }
+      .rescol-b {
+        padding: 11px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+      }
+      .rescol-id {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .rescol-id .ln-name {
+        font-size: 13px;
+        font-weight: 600;
+      }
+      .rescol-id .ln-sub {
+        font-size: 11px;
+        color: var(--fgMuted);
+      }
+      .concl {
+        font-size: 12px;
+        color: var(--fg);
+        line-height: 1.55;
+      }
+      .radio {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--fgMuted);
+      }
+      .radio .rb {
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        border: 2px solid var(--surface4);
+        flex: none;
+      }
+      .radio.on {
+        color: var(--fg);
+      }
+      .radio.on .rb {
+        border-color: var(--accent);
+        background:
+          radial-gradient(circle, var(--accent) 0 4.5px, transparent 5.5px);
+      }
+      /* diff 着色 */
+      .diff {
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        overflow: hidden;
+        font-family: var(--mono);
+        font-size: 11.5px;
+        background: var(--surface0);
+        line-height: 1.55;
+      }
+      .diff .fh {
+        padding: 5px 10px;
+        background: var(--surface2);
+        color: var(--fgMuted);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .diff .fh .badge {
+        margin-left: auto;
+      }
+      .diff .ln {
+        padding: 0 10px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+      .diff .ln.add {
+        background: rgba(34, 197, 94, 0.12);
+        color: #15803d;
+      }
+      .diff .ln.del {
+        background: rgba(220, 38, 38, 0.1);
+        color: #b91c1c;
+      }
+      .diff .ln.ctx {
+        color: var(--fgMuted);
+      }
+      .expander {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--accent);
+        font-weight: 500;
+      }
+      /* rc3/rc4 收尾栏 */
+      .finbar {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 13px 16px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface1);
+      }
+      .finbar .summ {
+        font-size: 13px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .finbar .grow {
+        margin-left: auto;
+      }
+      /* rc4 模态 */
+      .dim {
+        background: rgba(20, 20, 24, 0.34);
+        padding: 34px 24px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100%;
+      }
+      .modal {
+        width: 100%;
+        max-width: 460px;
+        background: var(--surface0);
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        box-shadow: 0 24px 60px -16px rgba(0, 0, 0, 0.35);
+        overflow: hidden;
+      }
+      .modal-h {
+        padding: 16px 18px 4px;
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      .modal-h .i {
+        color: var(--accent);
+      }
+      .modal-b {
+        padding: 8px 18px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        font-size: 13px;
+        color: var(--fgMuted);
+        line-height: 1.6;
+      }
+      .modal-b b {
+        color: var(--fg);
+        font-weight: 600;
+      }
+      .opts {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .chk {
+        display: flex;
+        align-items: flex-start;
+        gap: 9px;
+        padding: 9px 11px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        font-size: 13px;
+        color: var(--fg);
+        background: var(--surface0);
+      }
+      .chk .box {
+        width: 16px;
+        height: 16px;
+        border-radius: var(--r-sm);
+        border: 1.5px solid var(--surface4);
+        flex: none;
+        margin-top: 1px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+      }
+      .chk.on .box {
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+      .chk .ctxt {
+        flex: 1;
+      }
+      .chk .ctxt .sub {
+        font-size: 11px;
+        color: var(--fgMuted);
+        margin-top: 2px;
+      }
+      .chk.disabled {
+        opacity: 0.62;
+        background: var(--surface1);
+      }
+      .modal-f {
+        padding: 12px 18px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-top: 1px solid var(--border);
+        background: var(--surface1);
+      }
+      .modal-f .btn {
+        width: auto;
+      }
+      .modal-f .spacer {
+        margin-left: auto;
+      }
+      /* 能力门 / 离线 banner */
+      .gate {
+        display: flex;
+        gap: 9px;
+        align-items: flex-start;
+        padding: 9px 11px;
+        border: 1px solid rgba(217, 119, 6, 0.45);
+        background: rgba(217, 119, 6, 0.07);
+        border-radius: var(--r-md);
+        font-size: 12px;
+        color: var(--fg);
+        line-height: 1.5;
+      }
+      .gate .i {
+        color: var(--warning);
+        margin-top: 1px;
+      }
+      .banner {
+        display: flex;
+        gap: 9px;
+        align-items: center;
+        padding: 9px 12px;
+        border-radius: var(--r-md);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+      .banner.off {
+        border: 1px solid var(--border);
+        background: var(--surface2);
+        color: var(--fgMuted);
+      }
+      .banner.off .i {
+        color: var(--fgMuted);
+      }
+      /* 右键菜单 */
+      .ctxmenu {
+        width: 230px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        background: var(--surface0);
+        box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.28);
+        overflow: hidden;
+        padding: 4px;
+      }
+      .ctxmenu .mi {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 7px 9px;
+        font-size: 13px;
+        border-radius: var(--r-base);
+        color: var(--fg);
+      }
+      .ctxmenu .mi .i {
+        color: var(--fgMuted);
+        width: 14px;
+        height: 14px;
+      }
+      .ctxmenu .mi.hover {
+        background: var(--surface2);
+      }
+      .ctxmenu .mi.danger {
+        color: var(--danger);
+      }
+      .ctxmenu .mi.danger .i {
+        color: var(--danger);
+      }
+      .ctxmenu .sep {
+        height: 1px;
+        background: var(--border);
+        margin: 4px 2px;
+      }
+      .ctxmenu .mh {
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--fgMuted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 6px 9px 3px;
+      }
+      /* 骨架 */
+      .skel {
+        background: linear-gradient(90deg, var(--surface2), var(--surface3), var(--surface2));
+        background-size: 200% 100%;
+        animation: shimmer 1.4s linear infinite;
+        border-radius: var(--r-base);
+      }
+      @keyframes shimmer {
+        to {
+          background-position: -200% 0;
+        }
+      }
+      .empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        text-align: center;
+        padding: 16px;
+      }
+      .empty .logo-lg {
+        width: 52px;
+        height: 52px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--accent), #15583a);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="gauge" viewBox="0 0 24 24"><path d="m12 14 4-4" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></symbol>
+      <symbol id="flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z" /><line x1="4" x2="4" y1="22" y2="15" /></symbol>
+      <symbol id="trophy" viewBox="0 0 24 24"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.7V17c0 .6-.5 1-1 1.2C7.9 18.8 7 20.2 7 22" /><path d="M14 14.7V17c0 .6.5 1 1 1.2C16.1 18.8 17 20.2 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></symbol>
+      <symbol id="play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3" /></symbol>
+      <symbol id="arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></symbol>
+      <symbol id="plus" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5v14" /></symbol>
+      <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></symbol>
+      <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+      <symbol id="alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4" /><path d="M12 17h.01" /></symbol>
+      <symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.7 9.7 0 0 1 6.7 2.7L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.7 9.7 0 0 1-6.7-2.7L3 16" /><path d="M8 16H3v5" /></symbol>
+      <symbol id="git-branch" viewBox="0 0 24 24"><line x1="6" x2="6" y1="3" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></symbol>
+      <symbol id="folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol>
+      <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></symbol>
+      <symbol id="coins" viewBox="0 0 24 24"><circle cx="8" cy="8" r="6" /><path d="M18.09 10.37A6 6 0 1 1 10.34 18" /><path d="M7 6h1v4" /><path d="m16.71 13.88.7.71-2.82 2.82" /></symbol>
+      <symbol id="git-merge" viewBox="0 0 24 24"><circle cx="18" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><path d="M6 21V9a9 9 0 0 0 9 9" /></symbol>
+      <symbol id="git-pr" viewBox="0 0 24 24"><circle cx="18" cy="18" r="3" /><circle cx="6" cy="6" r="3" /><path d="M13 6h3a2 2 0 0 1 2 2v7" /><line x1="6" x2="6" y1="9" y2="21" /></symbol>
+      <symbol id="layers" viewBox="0 0 24 24"><path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></symbol>
+      <symbol id="file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /></symbol>
+      <symbol id="terminal" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5" /><line x1="12" x2="20" y1="19" y2="19" /></symbol>
+      <symbol id="activity" viewBox="0 0 24 24"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2" /></symbol>
+      <symbol id="archive" viewBox="0 0 24 24"><rect width="20" height="5" x="2" y="3" rx="1" /><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" /></symbol>
+      <symbol id="wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01" /><path d="M8.5 16.4a5 5 0 0 1 7 0" /><path d="M5 12.9a10 10 0 0 1 5.2-2.77" /><path d="M10.7 5.05a16 16 0 0 1 10.4 4.2" /><path d="M2 8.8a16 16 0 0 1 4.7-2.9" /><line x1="2" x2="22" y1="2" y2="22" /></symbol>
+      <symbol id="login" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" /><polyline points="10 17 15 12 10 7" /><line x1="15" x2="3" y1="12" y2="12" /></symbol>
+      <symbol id="more-h" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.5" /><circle cx="19" cy="12" r="1.5" /><circle cx="5" cy="12" r="1.5" /></symbol>
+      <symbol id="copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+      <symbol id="pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></symbol>
+      <symbol id="external" viewBox="0 0 24 24"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></symbol>
+      <symbol id="bolt" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z" /></symbol>
+    </svg>
+
+    <div class="board-h">
+      <h1>
+        <span class="logo"><svg class="i lg"><use href="#flag" /></svg></span>
+        Helm · 多模型对决 Agent Race（gate-1 提案）
+      </h1>
+      <p class="sub">
+        创新功能设计稿（gate-1）。一个 prompt 一键派给 N 个参赛者（每个 = 提供方·中转站·模型
+        三层选型 + 模式），各自在<b>隔离 worktree</b> 并行跑，完成后<b>并排对比</b>、选「赢家」一键收尾。本轮
+        <b>桌面 only</b>，浅色主题，accent #20744A。每屏含完整交互注解（布局/默认/hover/活跃/运行/禁用/空/加载/错误/离线/右键/点击效果）。
+      </p>
+    </div>
+
+    <div class="req-log">
+      <div class="rl-h">需求日志</div>
+      <table>
+        <tr>
+          <th style="width: 110px">日期</th>
+          <th>需求</th>
+          <th style="width: 330px">关键决策</th>
+        </tr>
+        <tr>
+          <td>2026-06-26</td>
+          <td>创新功能「多模型对决 Agent Race」：并行多 provider 同题竞速 + 并排对比 + 赢家通吃</td>
+          <td>
+            <span class="pill p0">独立流·非主壳</span>
+            <span class="pill p0">每参赛者隔离 worktree</span>
+            <span class="pill p0">三层选型复用</span>
+            <span class="pill p0">桌面 only</span>
+            <span class="pill p0">gate-1·未回写 canonical</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="nav-idx">
+      <a href="#rc1">RC1 发起对决（setup · 起跑格阵容）</a>
+      <a href="#rc2">RC2 赛道实时态（running · 并排竞速）</a>
+      <a href="#rc3">RC3 成果对比（compare · 记分牌 + diff）</a>
+      <a href="#rc4">RC4 收尾 + 状态合集（收尾确认 / 空·加载·报错·能力门·离线）</a>
+    </div>
+
+    <!-- =================== RC1 · SETUP =================== -->
+    <section class="screen" id="rc1">
+      <div class="screen-head">
+        <span class="tag">agent race · 1</span>
+        <h2>发起对决（setup · 起跑格阵容）</h2>
+        <p>
+          独立的「对决」流（<b>不是</b> Codex 单对话主壳，<b>不是</b>设置）。一个任务 prompt + 基线（项目/分支）+
+          勾选 N 个参赛者（每个 = 提供方·中转站·模型 三层级联 + 模式 plan/default）。<b>少于 2 名参赛者，「开始对决」禁用</b>。
+        </p>
+      </div>
+      <div class="screen-body wide">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 多模型对决</span>
+          </div>
+          <div class="rc-top">
+            <span class="iconbtn"><svg class="i"><use href="#arrow-left" /></svg></span><span class="pinb">1</span>
+            <span class="rt-title"><svg class="i sm"><use href="#flag" /></svg> 发起一场对决</span>
+            <div class="stepper">
+              <span class="st active"><span class="n">1</span> 发起</span>
+              <span class="sep"></span>
+              <span class="st"><span class="n">2</span> 赛道</span>
+              <span class="sep"></span>
+              <span class="st"><span class="n">3</span> 对比</span>
+              <span class="sep"></span>
+              <span class="st"><span class="n">4</span> 收尾</span>
+            </div>
+          </div>
+          <div class="form">
+            <div>
+              <div class="fsec-h"><svg class="i sm"><use href="#bolt" /></svg> 任务 <span class="req">*</span></div>
+              <div class="promptbox focus">
+                给登录态加自动续期：access token 过期前 5 分钟静默刷新，刷新失败回退到登录页，并补单测。<span class="pinb">2</span>
+              </div>
+            </div>
+            <div>
+              <div class="fsec-h"><svg class="i sm"><use href="#git-branch" /></svg> 基线（所有参赛者从同一起点出发）</div>
+              <div class="baseline">
+                <span class="sel"><span class="lab">项目</span><span class="val"><svg class="i sm" style="color:var(--fgMuted)"><use href="#folder" /></svg> helm</span><svg class="i xs chev"><use href="#chev-d" /></svg></span><span class="pinb">3</span>
+                <span class="sel"><span class="lab">分支</span><span class="val"><svg class="i sm" style="color:var(--fgMuted)"><use href="#git-branch" /></svg> develop</span><svg class="i xs chev"><use href="#chev-d" /></svg></span>
+              </div>
+            </div>
+            <div>
+              <div class="fsec-h"><svg class="i sm"><use href="#flag" /></svg> 参赛者阵容（3 名）</div>
+              <div class="roster">
+                <div class="prow" style="border-left-color: var(--pClaude)">
+                  <span class="pos">P1</span>
+                  <span class="pbadge claude">C</span>
+                  <div class="cascade">
+                    <span class="sel"><span class="lab">提供方</span><span class="val">Claude Code</span><svg class="i xs chev"><use href="#chev-d" /></svg></span><span class="pinb">4</span>
+                    <span class="sel"><span class="lab">中转站</span><span class="val">Anthropic 官方</span><svg class="i xs chev"><use href="#chev-d" /></svg></span>
+                    <span class="sel"><span class="lab">模型</span><span class="val">Claude Opus 4.8</span><svg class="i xs chev"><use href="#chev-d" /></svg></span>
+                  </div>
+                  <span class="seg"><span class="opt on">plan</span><span class="opt">default</span></span><span class="pinb">5</span>
+                  <span class="iconbtn"><svg class="i sm"><use href="#x" /></svg></span><span class="pinb">6</span>
+                </div>
+                <div class="prow" style="border-left-color: var(--pCodex)">
+                  <span class="pos">P2</span>
+                  <span class="pbadge codex">X</span>
+                  <div class="cascade">
+                    <span class="sel"><span class="lab">提供方</span><span class="val">Codex</span><svg class="i xs chev"><use href="#chev-d" /></svg></span>
+                    <span class="sel"><span class="lab">中转站</span><span class="val">OpenAI 官方</span><svg class="i xs chev"><use href="#chev-d" /></svg></span>
+                    <span class="sel"><span class="lab">模型</span><span class="val">GPT-5.2-Codex</span><svg class="i xs chev"><use href="#chev-d" /></svg></span>
+                  </div>
+                  <span class="seg"><span class="opt">plan</span><span class="opt on">default</span></span>
+                  <span class="iconbtn"><svg class="i sm"><use href="#x" /></svg></span>
+                </div>
+                <div class="prow" style="border-left-color: var(--pCopilot)">
+                  <span class="pos">P3</span>
+                  <span class="pbadge copilot">G</span>
+                  <div class="cascade">
+                    <span class="sel"><span class="lab">提供方</span><span class="val">Copilot</span><svg class="i xs chev"><use href="#chev-d" /></svg></span>
+                    <span class="sel"><span class="lab">中转站</span><span class="val">GitHub 官方</span><svg class="i xs chev"><use href="#chev-d" /></svg></span>
+                    <span class="sel"><span class="lab">模型</span><span class="val">Claude Sonnet 4.6</span><svg class="i xs chev"><use href="#chev-d" /></svg></span>
+                  </div>
+                  <span class="seg"><span class="opt">plan</span><span class="opt on">default</span></span>
+                  <span class="iconbtn"><svg class="i sm"><use href="#x" /></svg></span>
+                </div>
+                <div class="addrow hover"><svg class="i sm"><use href="#plus" /></svg> 添加参赛者<span class="pinb">7</span></div>
+              </div>
+            </div>
+            <div class="startbar">
+              <span class="hint"><svg class="i sm"><use href="#layers" /></svg> 每名参赛者各跑在独立隔离 worktree，互不污染</span>
+              <span class="btn df" style="width:auto"><svg class="i sm"><use href="#play" /></svg> 开始对决 · 3 名参赛者<span class="pinb">8</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="anno-grid">
+          <div class="anno">
+            <div class="anno-h">点击效果</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>返回</b>：离开对决发起页，回到来源（侧栏「对决」入口 / 新建菜单）。未开始的草拟阵容不保存。</div></li>
+              <li><span class="pin">2</span><div><b>任务输入框</b>：聚焦输入任务 prompt（focus 态 accent 描边）。纯文本；本轮不做 slash/@/附件（需要富输入就进单对话）。空则「开始对决」禁用。</div></li>
+              <li><span class="pin">3</span><div><b>项目 / 分支选择</b>：下拉选基线项目与分支；所有参赛者从同一 commit 起跑。切项目会重置分支为该项目默认分支。</div></li>
+              <li><span class="pin">4</span><div><b>三层级联选型</b>：提供方 ▾ → 中转站 ▾ → 模型 ▾ 逐级收窄（选 Claude Code 后中转站只列其可用中转站，模型只列该中转站下模型）。复用既有三层选型能力，不在此新建配置。某中转站不可用见 RC4 能力门。</div></li>
+              <li><span class="pin">5</span><div><b>模式分段</b>：plan（先出方案后执行）/ default（直接执行）二选一，逐参赛者独立。</div></li>
+              <li><span class="pin">6</span><div><b>移除参赛者 ×</b>：删除该行，位序 P1..Pn 自动重排；删到 1 名时「开始对决」转禁用。</div></li>
+              <li><span class="pin">7</span><div><b>添加参赛者</b>：新增一行（默认带上一行的提供方、可改），位序续号；上限 6 名（达上限此行禁用并提示）。</div></li>
+              <li><span class="pin">8</span><div><b>开始对决</b>：为每名参赛者创建隔离 worktree 并并行拉起代理 → 进 <b>RC2 赛道实时态</b>。校验：任务非空 且 参赛者≥2 才可点。</div></li>
+            </ol>
+          </div>
+          <div class="anno">
+            <div class="states">
+              <div class="sh">状态</div>
+              <dl>
+                <dt>布局</dt><dd>桌面：顶部 chrome（返回 + 标题 + 4 步步进器）+ 居中单列表单（任务 / 基线 / 阵容 / 开始栏）。<b>紧凑 / 手机：本轮不做</b>。</dd>
+                <dt>默认</dt><dd>预填 3 名参赛者（Claude/Codex/Copilot），任务可空。</dd>
+                <dt>hover</dt><dd>参赛者行→surface1 底；选择器→surface2 底；添加参赛者→实线描边 + 变深；开始对决→加深底色。</dd>
+                <dt>活跃·选中</dt><dd>模式分段选中项白底加粗；选择器点开弹下拉（浮层，本屏不画展开内容）。</dd>
+                <dt>禁用</dt><dd><b>任务为空 或 参赛者&lt;2</b>→「开始对决」禁用（灰底 + 旁注「至少选 2 名参赛者」）；达 6 名上限→「添加参赛者」禁用。</dd>
+                <dt>空</dt><dd>首次进入：任务空 + 默认 2 名参赛者（仍需补任务才可开始）。完全无可用提供方时见 RC4 能力门。</dd>
+                <dt>加载</dt><dd>点开始对决后短暂「正在创建赛道」过场（见 RC4 加载态）→ 进 RC2。</dd>
+                <dt>运行</dt><dd>本屏无运行态（运行发生在 RC2）。</dd>
+                <dt>错误</dt><dd>校验不过仅禁用 + 旁注，不弹错；某中转站不可用→该选择器 warn 描边 + 能力门提示（RC4）。</dd>
+                <dt>离线</dt><dd>主机离线时整页只读 + 顶部离线 banner，开始对决禁用（见 RC4 离线态）。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno">
+            <div class="states">
+              <div class="sh">右键菜单 · 参赛者行</div>
+              <dl>
+                <dt>复制此选型</dt><dd>把该行的 提供方·中转站·模型·模式 复制到剪贴板，便于粘到新行。</dd>
+                <dt>再来一个</dt><dd>用相同选型复制出一行新参赛者（位序续号）。</dd>
+                <dt>设为默认阵容</dt><dd>把当前整套阵容记为下次发起的默认（本地偏好）。</dd>
+                <dt>移除参赛者</dt><dd>（危险项·红字）删除该行，等同点 ×。</dd>
+              </dl>
+              <div style="margin-top:9px; font-size:12px; color:var(--fgMuted)">任务输入框：系统原生文本右键（剪切/复制/粘贴/全选），无自定义项。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== RC2 · RUNNING =================== -->
+    <section class="screen" id="rc2">
+      <div class="screen-head">
+        <span class="tag">agent race · 2</span>
+        <h2>赛道实时态（running · 并排竞速）</h2>
+        <p>
+          N 条并排赛道卡同时跑：每条 = 位序 + 提供方徽标 + 模型 + 隔离 worktree 名 + 实时状态点（运行/完成/报错）+ 当前动作/进度 + 耗时 +（可选）token/成本。顶部整体进度。每条可「进入」交接主壳。
+        </p>
+      </div>
+      <div class="screen-body wide">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 多模型对决 · 进行中</span>
+          </div>
+          <div class="rc-top">
+            <span class="iconbtn"><svg class="i"><use href="#arrow-left" /></svg></span><span class="pinb">1</span>
+            <span class="rt-title"><svg class="i sm"><use href="#flag" /></svg> 登录态自动续期</span>
+            <div class="stepper">
+              <span class="st done"><span class="n"><svg class="i xs"><use href="#check" /></svg></span> 发起</span>
+              <span class="sep"></span>
+              <span class="st active"><span class="n">2</span> 赛道</span>
+              <span class="sep"></span>
+              <span class="st"><span class="n">3</span> 对比</span>
+              <span class="sep"></span>
+              <span class="st"><span class="n">4</span> 收尾</span>
+            </div>
+          </div>
+          <div class="overall">
+            <div class="ov-l"><b>对决进行中</b> · 1/3 完成</div>
+            <div class="ov-bar"><div class="ov-fill" style="width: 38%"></div></div>
+            <div class="ov-r"><svg class="i sm"><use href="#clock" /></svg> 总耗时 2m 04s · 基线 helm/develop</div>
+            <span class="btn ghost sm">取消对决<span class="pinb">6</span></span>
+            <span class="btn df sm disabled"><svg class="i sm"><use href="#chev-r" /></svg> 查看对比<span class="pinb">5</span></span>
+          </div>
+          <div class="lanes">
+            <!-- P1 running -->
+            <div class="lane">
+              <div class="track"><div class="fill" style="width: 68%"></div></div>
+              <div class="lane-h">
+                <span class="pos">P1</span>
+                <span class="pbadge claude">C</span>
+                <div style="min-width:0; flex:1">
+                  <div class="ln-name">Claude Opus 4.8</div>
+                  <div class="ln-sub">Claude Code · Anthropic 官方 · plan</div>
+                </div>
+                <span class="iconbtn"><svg class="i sm dots"><use href="#more-h" /></svg></span><span class="pinb">4</span>
+              </div>
+              <div class="lane-b">
+                <div class="kv"><span class="sdot run"></span> <b style="color:var(--success)">运行中</b> · 编辑文件</div>
+                <span class="wt"><svg class="i" style="width:11px;height:11px"><use href="#layers" /></svg> race-7f3a/claude-opus48</span>
+                <div class="curact"><svg class="i" style="width:12px;height:12px;display:inline;vertical-align:-2px;color:var(--fgMuted)"><use href="#file" /></svg> 正在编辑 <span class="mono">src/auth/session.ts</span></div>
+                <div class="metrics">
+                  <span class="kv"><svg class="i"><use href="#clock" /></svg> <b>2m 04s</b></span>
+                  <span class="kv"><svg class="i"><use href="#activity" /></svg> 71.3k tok</span>
+                  <span class="kv"><svg class="i"><use href="#coins" /></svg> $0.34</span>
+                </div>
+                <span class="btn out sm" style="width:100%"><svg class="i sm"><use href="#login" /></svg> 进入<span class="pinb">2</span></span>
+              </div>
+            </div>
+            <!-- P2 done -->
+            <div class="lane done">
+              <div class="track"><div class="fill done" style="width: 100%"></div></div>
+              <div class="lane-h">
+                <span class="pos">P2</span>
+                <span class="pbadge codex">X</span>
+                <div style="min-width:0; flex:1">
+                  <div class="ln-name">GPT-5.2-Codex</div>
+                  <div class="ln-sub">Codex · OpenAI 官方 · default</div>
+                </div>
+                <span class="badge suc"><svg class="i" style="width:12px;height:12px"><use href="#check" /></svg> 完成</span>
+              </div>
+              <div class="lane-b">
+                <div class="kv"><span class="sdot done"></span> <b>已完成</b> · 等待对比</div>
+                <span class="wt"><svg class="i" style="width:11px;height:11px"><use href="#layers" /></svg> race-7f3a/codex-gpt52</span>
+                <div class="curact"><svg class="i" style="width:12px;height:12px;display:inline;vertical-align:-2px;color:var(--success)"><use href="#check" /></svg> 6 文件改动 · <span style="color:var(--success)">+231</span> / <span style="color:var(--danger)">-63</span> · 测试 22/22</div>
+                <div class="metrics">
+                  <span class="kv"><svg class="i"><use href="#clock" /></svg> <b>1m 58s</b></span>
+                  <span class="kv"><svg class="i"><use href="#activity" /></svg> 102.1k tok</span>
+                  <span class="kv"><svg class="i"><use href="#coins" /></svg> $0.21</span>
+                </div>
+                <span class="btn out sm" style="width:100%"><svg class="i sm"><use href="#login" /></svg> 进入</span>
+              </div>
+            </div>
+            <!-- P3 running (testing) -->
+            <div class="lane">
+              <div class="track"><div class="fill" style="width: 44%"></div></div>
+              <div class="lane-h">
+                <span class="pos">P3</span>
+                <span class="pbadge copilot">G</span>
+                <div style="min-width:0; flex:1">
+                  <div class="ln-name">Claude Sonnet 4.6</div>
+                  <div class="ln-sub">Copilot · GitHub 官方 · default</div>
+                </div>
+                <span class="iconbtn"><svg class="i sm dots"><use href="#more-h" /></svg></span>
+              </div>
+              <div class="lane-b">
+                <div class="kv"><span class="sdot run"></span> <b style="color:var(--success)">运行中</b> · 跑测试</div>
+                <span class="wt"><svg class="i" style="width:11px;height:11px"><use href="#layers" /></svg> race-7f3a/copilot-sonnet46</span>
+                <div class="curact"><svg class="i" style="width:12px;height:12px;display:inline;vertical-align:-2px;color:var(--fgMuted)"><use href="#terminal" /></svg> 运行 <span class="mono">npm test -- auth</span></div>
+                <div class="metrics">
+                  <span class="kv"><svg class="i"><use href="#clock" /></svg> <b>2m 04s</b></span>
+                  <span class="kv"><svg class="i"><use href="#activity" /></svg> 38.9k tok</span>
+                  <span class="kv"><svg class="i"><use href="#coins" /></svg> $0.12</span>
+                </div>
+                <span class="btn out sm" style="width:100%"><svg class="i sm"><use href="#login" /></svg> 进入</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="anno-grid">
+          <div class="anno">
+            <div class="anno-h">点击效果</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>返回</b>：离开对决视图，<b>对决继续在后台跑</b>；侧栏「对决」入口保留可随时回到本屏（含未读完成数徽标）。</div></li>
+              <li><span class="pin">2</span><div><b>进入</b>（每条赛道）：<b>交接桥</b>——把 Codex 主壳导航并聚焦到该参赛者的对话/worktree（离开对决视图，对决后台继续）。对决不取代单对话主壳。</div></li>
+              <li><span class="pin">3</span><div><b>赛道卡点击</b>（卡身）：就地展开该参赛者的实时输出预览（最近动作流），再点收起；不离开本屏。</div></li>
+              <li><span class="pin">4</span><div><b>赛道 kebab ⋯ / 右键</b>：打开赛道菜单（见右键菜单注解）。</div></li>
+              <li><span class="pin">5</span><div><b>查看对比</b>：<b>全部完成前禁用</b>；全部参赛者到达终点后转可点 → 进 <b>RC3 成果对比</b>（也可在最后一名完成时自动跳转，本设计默认手动点）。</div></li>
+              <li><span class="pin">6</span><div><b>取消对决</b>：弹确认「取消整场对决？所有参赛者将停止并归档其 worktree」→ 确认后停止全部 → 回 RC1 / 来源。</div></li>
+            </ol>
+          </div>
+          <div class="anno">
+            <div class="states">
+              <div class="sh">状态（每条赛道独立）</div>
+              <dl>
+                <dt>布局</dt><dd>桌面：顶部 chrome + 整体进度条 + 3 条<b>并排</b>赛道卡（等宽栅格，4+ 名时横向滚动）。<b>紧凑 / 手机：本轮不做</b>。</dd>
+                <dt>运行</dt><dd>顶部细进度轨 accent 推进 + 状态点 <b style="color:var(--success)">绿色脉冲</b>「运行中」+ 当前动作（编辑/读文件/跑命令）+ 实时耗时/token/成本滚动。</dd>
+                <dt>完成</dt><dd>进度轨满格转 success；状态点淡绿「已完成」；当前动作换成 diff 摘要（文件数 +增/-删 + 测试）；卡描边转绿。</dd>
+                <dt>报错</dt><dd>进度轨转 danger；状态点红；动作区显示失败原因 + 重试/排除（见 RC4 部分报错）。<b>绝不静默丢失</b>。</dd>
+                <dt>默认/hover</dt><dd>卡 hover 微提底 + 阴影；「进入」hover→surface3；kebab hover→surface2。</dd>
+                <dt>活跃·选中</dt><dd>展开预览的卡保持高亮边。</dd>
+                <dt>加载</dt><dd>刚进入（worktree 创建中）卡显「正在准备…」骨架（见 RC4 加载）。</dd>
+                <dt>禁用</dt><dd>「查看对比」未全完成时禁用。</dd>
+                <dt>空</dt><dd>不存在（至少 2 名才会进本屏）。</dd>
+                <dt>离线</dt><dd>主机离线→全部赛道置灰 + 顶部离线 banner「对决暂停，重连后自动恢复」（见 RC4 离线）。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno">
+            <div class="states">
+              <div class="sh">右键菜单 · 赛道卡（5 项）</div>
+              <dl>
+                <dt>进入对话</dt><dd>同「进入」，交接主壳聚焦该参赛者。</dd>
+                <dt>在新窗口打开</dt><dd>新桌面窗口打开该参赛者对话，不离开对决视图。</dd>
+                <dt>复制 worktree 路径</dt><dd>把该参赛者隔离 worktree 的本地路径复制到剪贴板。</dd>
+                <dt>暂停该参赛者</dt><dd>暂停其代理回合（其余继续跑）；菜单项转「恢复」。</dd>
+                <dt>取消该参赛者</dt><dd>（危险项·红字）停止该参赛者并把它移出本场（其 worktree 归档）；剩余继续。</dd>
+              </dl>
+              <div style="padding:10px; margin-top:8px; border-top:1px solid var(--border)">
+                <div class="ctxmenu" style="width:100%; box-shadow:none">
+                  <div class="mh">P1 · Claude Opus 4.8</div>
+                  <div class="mi"><svg class="i"><use href="#login" /></svg> 进入对话</div>
+                  <div class="mi hover"><svg class="i"><use href="#external" /></svg> 在新窗口打开</div>
+                  <div class="mi"><svg class="i"><use href="#copy" /></svg> 复制 worktree 路径</div>
+                  <div class="mi"><svg class="i"><use href="#pause" /></svg> 暂停该参赛者</div>
+                  <div class="sep"></div>
+                  <div class="mi danger"><svg class="i"><use href="#x" /></svg> 取消该参赛者</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== RC3 · COMPARE =================== -->
+    <section class="screen" id="rc3">
+      <div class="screen-head">
+        <span class="tag">agent race · 3</span>
+        <h2>成果对比（compare · 记分牌 + 并排 diff）</h2>
+        <p>
+          全部完成后并排对比：顶部<b>记分牌</b>（文件数/+增/-删/耗时/成本/测试，最优单元格高亮）让差异一眼可辨；下方每参赛者一列——结论 + 可展开 diff（红减绿增）+ <b>选「赢家」单选</b>。
+        </p>
+      </div>
+      <div class="screen-body wide">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 多模型对决 · 成果对比</span>
+          </div>
+          <div class="rc-top">
+            <span class="iconbtn"><svg class="i"><use href="#arrow-left" /></svg></span><span class="pinb">1</span>
+            <span class="rt-title"><svg class="i sm"><use href="#flag" /></svg> 登录态自动续期</span>
+            <div class="stepper">
+              <span class="st done"><span class="n"><svg class="i xs"><use href="#check" /></svg></span> 发起</span>
+              <span class="sep"></span>
+              <span class="st done"><span class="n"><svg class="i xs"><use href="#check" /></svg></span> 赛道</span>
+              <span class="sep"></span>
+              <span class="st active"><span class="n">3</span> 对比</span>
+              <span class="sep"></span>
+              <span class="st"><span class="n">4</span> 收尾</span>
+            </div>
+          </div>
+          <div class="cmp-wrap">
+            <div class="cmp-head"><svg class="i sm" style="color:var(--accent)"><use href="#trophy" /></svg> <b>成果对比</b> · 3 名参赛者全部完成 · 选出赢家</div>
+            <table class="score">
+              <thead>
+                <tr>
+                  <th>指标</th>
+                  <th><span class="pbadge sm claude">C</span> P1 Opus 4.8</th>
+                  <th><span class="pbadge sm codex">X</span> P2 GPT-5.2</th>
+                  <th><span class="pbadge sm copilot">G</span> P3 Sonnet 4.6</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td class="metric">文件数</td><td>4</td><td>6</td><td class="best">3<span class="tinytag">最少</span></td></tr>
+                <tr><td class="metric">新增行</td><td>182</td><td>231</td><td class="best">98<span class="tinytag">最少</span></td></tr>
+                <tr><td class="metric">删除行</td><td>47</td><td>63</td><td class="best">22<span class="tinytag">最少</span></td></tr>
+                <tr><td class="metric">耗时</td><td>2m 41s</td><td class="best">1m 58s<span class="tinytag">最快</span></td><td>3m 12s</td></tr>
+                <tr><td class="metric">成本</td><td>$0.38</td><td>$0.21</td><td class="best">$0.12<span class="tinytag">最省</span></td></tr>
+                <tr><td class="metric">测试</td><td class="best">24/24 通过<span class="tinytag">全绿</span></td><td>22/22 通过</td><td><span class="warnflag">18/19 ⚠</span></td></tr>
+              </tbody>
+            </table>
+            <div class="results">
+              <!-- P1 selected winner, diff expanded -->
+              <div class="rescol on">
+                <div class="rescol-h">
+                  <label class="radio on"><span class="rb"></span> 选为赢家</label><span class="pinb">2</span>
+                  <span class="pos win" style="margin-left:auto">P1</span>
+                </div>
+                <div class="rescol-b">
+                  <div class="rescol-id"><span class="pbadge claude">C</span><div><div class="ln-name">Claude Opus 4.8</div><div class="ln-sub">Claude Code · Anthropic 官方</div></div></div>
+                  <div class="concl">新增 <span class="mono">SilentRefreshController</span>，过期前 5 分钟静默刷新；失败回退登录页；补 6 个单测，全绿 24/24。</div>
+                  <div class="kv"><svg class="i"><use href="#file" /></svg> 4 文件 · <b style="color:var(--success)">+182</b> / <b style="color:var(--danger)">-47</b></div>
+                  <span class="expander"><svg class="i sm"><use href="#chev-d" /></svg> 收起改动<span class="pinb">3</span></span>
+                  <div class="diff">
+                    <div class="fh"><svg class="i" style="width:12px;height:12px"><use href="#file" /></svg> src/auth/refresh-controller.ts <span class="badge suc">新增</span></div>
+                    <div class="ln add">+ export class SilentRefreshController {</div>
+                    <div class="ln add">+   schedule(token: AccessToken) {</div>
+                    <div class="ln add">+     const lead = token.expiresAt - REFRESH_LEAD_MS;</div>
+                    <div class="ln add">+   }</div>
+                    <div class="ln add">+ }</div>
+                    <div class="fh" style="border-top:1px solid var(--border)"><svg class="i" style="width:12px;height:12px"><use href="#file" /></svg> src/auth/session.ts</div>
+                    <div class="ln ctx">  function guard(token) {</div>
+                    <div class="ln del">-   if (isExpired(token)) redirectToLogin();</div>
+                    <div class="ln add">+   if (isExpired(token)) await refresh.tryRefresh() ?? redirectToLogin();</div>
+                    <div class="ln ctx">  }</div>
+                  </div>
+                  <span class="btn ghost sm" style="align-self:flex-start"><svg class="i sm"><use href="#login" /></svg> 进入对话<span class="pinb">4</span></span>
+                </div>
+              </div>
+              <!-- P2 not selected, diff collapsed -->
+              <div class="rescol">
+                <div class="rescol-h">
+                  <label class="radio"><span class="rb"></span> 选为赢家</label>
+                  <span class="pos" style="margin-left:auto">P2</span>
+                </div>
+                <div class="rescol-b">
+                  <div class="rescol-id"><span class="pbadge codex">X</span><div><div class="ln-name">GPT-5.2-Codex</div><div class="ln-sub">Codex · OpenAI 官方</div></div></div>
+                  <div class="concl">重构了 token 存储层并加刷新调度，改动较大；测试全绿 22/22，耗时最短。</div>
+                  <div class="kv"><svg class="i"><use href="#file" /></svg> 6 文件 · <b style="color:var(--success)">+231</b> / <b style="color:var(--danger)">-63</b></div>
+                  <span class="expander"><svg class="i sm"><use href="#chev-r" /></svg> 查看改动</span>
+                  <span class="btn ghost sm" style="align-self:flex-start"><svg class="i sm"><use href="#login" /></svg> 进入对话</span>
+                </div>
+              </div>
+              <!-- P3 not selected, has warning -->
+              <div class="rescol">
+                <div class="rescol-h">
+                  <label class="radio"><span class="rb"></span> 选为赢家</label>
+                  <span class="pos" style="margin-left:auto">P3</span>
+                </div>
+                <div class="rescol-b">
+                  <div class="rescol-id"><span class="pbadge copilot">G</span><div><div class="ln-name">Claude Sonnet 4.6</div><div class="ln-sub">Copilot · GitHub 官方</div></div></div>
+                  <div class="concl">最小改动实现续期，成本最省；但有 1 个边界用例测试未过（18/19）。</div>
+                  <div class="kv"><svg class="i"><use href="#file" /></svg> 3 文件 · <b style="color:var(--success)">+98</b> / <b style="color:var(--danger)">-22</b></div>
+                  <div class="kv"><svg class="i" style="color:var(--warning)"><use href="#alert" /></svg> <span style="color:var(--warning)">1 个测试未过</span></div>
+                  <span class="expander"><svg class="i sm"><use href="#chev-r" /></svg> 查看改动</span>
+                  <span class="btn ghost sm" style="align-self:flex-start"><svg class="i sm"><use href="#login" /></svg> 进入对话</span>
+                </div>
+              </div>
+            </div>
+            <div class="finbar">
+              <span class="summ"><svg class="i sm" style="color:var(--accent)"><use href="#trophy" /></svg> 已选赢家：<b style="color:var(--fg)">P1 · Claude Opus 4.8</b></span>
+              <span class="btn ghost sm grow"><svg class="i sm"><use href="#archive" /></svg> 都不满意<span class="pinb">6</span></span>
+              <span class="btn df" style="width:auto"><svg class="i sm"><use href="#check" /></svg> 采用赢家<span class="pinb">5</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="anno-grid">
+          <div class="anno">
+            <div class="anno-h">点击效果</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>返回</b>：回 RC2 赛道实时态（参赛者已完成则只读展示其终态）；对决记录保留。</div></li>
+              <li><span class="pin">2</span><div><b>选为赢家</b>（单选）：点某列把它设为赢家（该列 accent 描边 + 位序徽标转绿 win），其余列取消选中。底部收尾栏「采用赢家」由禁用转可点。</div></li>
+              <li><span class="pin">3</span><div><b>查看改动 / 收起改动</b>：展开该列 diff（红减绿增着色，按文件分组）；再点收起。可多列同时展开比对。</div></li>
+              <li><span class="pin">4</span><div><b>进入对话</b>（每列）：交接主壳聚焦该参赛者，便于深看（不影响选赢家）。</div></li>
+              <li><span class="pin">5</span><div><b>采用赢家</b>：<b>未选赢家时禁用</b>；已选后 → 弹 <b>RC4 收尾确认</b>（采用 + 其余归档 + 可选合并/PR 能力门）。</div></li>
+              <li><span class="pin">6</span><div><b>都不满意</b>：弹确认「全部归档并重开？」→ 确认后归档所有参赛者 worktree → 回 <b>RC1</b>（任务 prompt 预填上次内容，可改）。</div></li>
+            </ol>
+          </div>
+          <div class="anno">
+            <div class="states">
+              <div class="sh">状态</div>
+              <dl>
+                <dt>布局</dt><dd>桌面：chrome + 记分牌表（指标行 × 参赛者列）+ 并排结果列（等宽）+ 底部收尾栏。<b>紧凑 / 手机：本轮不做</b>。</dd>
+                <dt>默认</dt><dd>记分牌各指标<b>最优单元格 accent 高亮</b> + 「最少/最快/最省/全绿」小标；进入时<b>未选赢家</b>，「采用赢家」禁用。</dd>
+                <dt>活跃·选中</dt><dd>选中列 accent 边 + win 位序徽标；单选互斥。</dd>
+                <dt>hover</dt><dd>结果列 hover 微提底；展开器/进入对话 hover 变色；记分牌行 hover 提示该指标解释。</dd>
+                <dt>运行</dt><dd>不存在（全部完成才进本屏）。若由 RC2「查看对比」在仍有运行项时进入→见部分报错/未完成提示（RC4）。</dd>
+                <dt>禁用</dt><dd>未选赢家→「采用赢家」禁用。</dd>
+                <dt>空</dt><dd>不存在（至少 2 名完成）。</dd>
+                <dt>加载</dt><dd>diff 懒加载：展开时若 diff 仍在算→列内 inline spinner。</dd>
+                <dt>错误</dt><dd>部分参赛者报错→其列显示失败摘要、不可选为赢家、记分牌对应格标「—/失败」（见 RC4）。</dd>
+                <dt>离线</dt><dd>主机离线→只读，「采用赢家/都不满意」禁用（落盘动作需在线），顶部离线 banner。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno">
+            <div class="states">
+              <div class="sh">右键菜单 · 结果列（5 项）</div>
+              <dl>
+                <dt>选为赢家</dt><dd>等同点该列单选。</dd>
+                <dt>进入对话</dt><dd>交接主壳聚焦该参赛者。</dd>
+                <dt>复制 diff 摘要</dt><dd>把文件数/+增/-删/结论复制到剪贴板。</dd>
+                <dt>在文件管理器打开 worktree</dt><dd>打开该参赛者隔离 worktree 目录。</dd>
+                <dt>单独归档此参赛者</dt><dd>（危险项·红字）只归档该参赛者（从对比移除），其余保留。</dd>
+              </dl>
+              <div style="margin-top:9px; font-size:12px; color:var(--fgMuted)">记分牌单元格：无自定义右键。diff 文本：系统原生复制。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =================== RC4 · FINALIZE + STATES =================== -->
+    <section class="screen" id="rc4">
+      <div class="screen-head">
+        <span class="tag">agent race · 4</span>
+        <h2>收尾确认 + 状态合集</h2>
+        <p>
+          选定赢家 →「采用赢家」弹确认：采用赢家工作区 +（能力门）合并/开 PR，其余归档；或「都不满意」全部归档重开。下方覆盖：加载 / 空（未发起）/ 部分参赛者报错 / 某中转站不可用（能力门）/ 离线。
+        </p>
+      </div>
+      <div class="screen-body wide">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 多模型对决 · 收尾</span>
+          </div>
+          <div class="rc-top">
+            <span class="iconbtn"><svg class="i"><use href="#arrow-left" /></svg></span>
+            <span class="rt-title"><svg class="i sm"><use href="#flag" /></svg> 登录态自动续期</span>
+            <div class="stepper">
+              <span class="st done"><span class="n"><svg class="i xs"><use href="#check" /></svg></span> 发起</span>
+              <span class="sep"></span>
+              <span class="st done"><span class="n"><svg class="i xs"><use href="#check" /></svg></span> 赛道</span>
+              <span class="sep"></span>
+              <span class="st done"><span class="n"><svg class="i xs"><use href="#check" /></svg></span> 对比</span>
+              <span class="sep"></span>
+              <span class="st active"><span class="n">4</span> 收尾</span>
+            </div>
+          </div>
+          <div class="dim" style="min-height: 420px">
+            <div class="modal">
+              <div class="modal-h"><svg class="i"><use href="#trophy" /></svg> 采用赢家 · P1 Claude Opus 4.8</div>
+              <div class="modal-b">
+                <div>将把 <b>P1 · Claude Opus 4.8</b> 的改动落到基线工作区 <b>helm / develop</b>；<b>其余 2 名参赛者（P2 / P3，含各自隔离 worktree）将归档</b>。此操作可在「已归档」里找回。</div>
+                <div class="opts">
+                  <div class="chk on"><span class="box"><svg class="i" style="width:12px;height:12px"><use href="#check" /></svg></span><div class="ctxt">采用后合并到 <b>develop</b><div class="sub">把赢家 worktree 合并回基线分支</div></div><svg class="i sm" style="color:var(--fgMuted)"><use href="#git-merge" /></svg></div>
+                  <div class="chk disabled"><span class="box"></span><div class="ctxt">采用后开 PR<div class="sub"><span class="gate" style="padding:6px 8px; margin-top:4px"><svg class="i" style="width:13px;height:13px"><use href="#alert" /></svg> 需主机支持 GitHub CLI（gh）；当前主机未检测到，<b>请升级 / 配置主机</b>后可用</span></div></div><svg class="i sm" style="color:var(--fgMuted)"><use href="#git-pr" /></svg></div>
+                </div>
+              </div>
+              <div class="modal-f">
+                <span class="btn ghost sm"><svg class="i sm"><use href="#archive" /></svg> 都不满意·全部归档重开<span class="pinb">5</span></span>
+                <span class="btn out sm spacer">取消<span class="pinb">1</span></span>
+                <span class="btn df sm"><svg class="i sm"><use href="#trophy" /></svg> 采用赢家<span class="pinb">4</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 状态合集 -->
+        <div style="margin-top:18px; font-size:13px; font-weight:600; color:var(--fgMuted); display:flex; align-items:center; gap:7px">
+          <svg class="i sm"><use href="#layers" /></svg> 状态合集（同一对决流在不同条件下的呈现）
+        </div>
+        <div class="statestrip" style="margin-top:10px">
+          <!-- 空 -->
+          <div class="statebox">
+            <div class="statehd"><svg class="i sm"><use href="#flag" /></svg> 空 · 未发起对决</div>
+            <div class="empty">
+              <div class="logo-lg"><svg class="i lg"><use href="#flag" /></svg></div>
+              <div style="font-size:14px; font-weight:600">还没有进行中的对决</div>
+              <div style="font-size:12px; color:var(--fgMuted); line-height:1.55">把同一个任务交给多个模型同时跑，赢家通吃。</div>
+              <span class="btn df sm"><svg class="i sm"><use href="#play" /></svg> 发起一场对决<span class="pinb">6</span></span>
+            </div>
+          </div>
+          <!-- 加载 -->
+          <div class="statebox">
+            <div class="statehd"><svg class="i sm"><use href="#refresh" /></svg> 加载 · 正在创建赛道</div>
+            <div style="display:flex; flex-direction:column; gap:9px">
+              <div style="display:flex; align-items:center; gap:9px"><div class="spinner sm"></div><div style="font-size:12px; color:var(--fgMuted)">正在创建隔离 worktree、拉起 3 名参赛者…</div></div>
+              <div class="lane" style="background:var(--surface0)">
+                <div class="track"><div class="skel" style="height:4px;width:30%"></div></div>
+                <div class="lane-h"><span class="pos">P1</span><div class="skel" style="height:12px;width:60%"></div></div>
+                <div class="lane-b"><div class="skel" style="height:10px;width:80%"></div><div class="skel" style="height:10px;width:50%"></div></div>
+              </div>
+            </div>
+          </div>
+          <!-- 部分参赛者报错 -->
+          <div class="statebox">
+            <div class="statehd"><svg class="i sm"><use href="#alert" /></svg> 部分参赛者报错</div>
+            <div class="lane err" style="background:var(--surface0)">
+              <div class="track"><div class="fill err" style="width:40%"></div></div>
+              <div class="lane-h">
+                <span class="pos">P3</span><span class="pbadge copilot">G</span>
+                <div style="min-width:0;flex:1"><div class="ln-name">Claude Sonnet 4.6</div><div class="ln-sub">Copilot · GitHub 官方</div></div>
+                <span class="badge warn"><svg class="i" style="width:12px;height:12px"><use href="#alert" /></svg> 报错</span>
+              </div>
+              <div class="lane-b">
+                <div class="kv"><span class="sdot err"></span> <b style="color:var(--danger)">中转站返回 503</b> · 已跑 1m 12s</div>
+                <div class="curact" style="background:rgba(220,38,38,.07)">Service temporarily unavailable，已自动重试 2 次仍失败。</div>
+                <div style="display:flex; gap:8px">
+                  <span class="btn out sm" style="flex:1"><svg class="i sm"><use href="#refresh" /></svg> 重试</span>
+                  <span class="btn ghost sm" style="flex:1"><svg class="i sm"><use href="#x" /></svg> 排除该参赛者</span>
+                </div>
+              </div>
+            </div>
+            <div style="font-size:11px; color:var(--fgMuted); line-height:1.5">其余参赛者照常竞速；对比/收尾只在已完成者间进行，报错者不可被选为赢家。</div>
+          </div>
+          <!-- 某中转站不可用（能力门） -->
+          <div class="statebox">
+            <div class="statehd"><svg class="i sm"><use href="#bolt" /></svg> 中转站不可用 · 能力门</div>
+            <div class="prow" style="border-left-color: var(--pOpenCode); background:var(--surface0)">
+              <span class="pos">P4</span><span class="pbadge opencode">O</span>
+              <div class="cascade">
+                <span class="sel disabled" style="flex:none"><span class="val">OpenCode</span></span>
+                <span class="sel bad" style="flex:1"><span class="lab">中转站</span><span class="val">智谱 Z.AI · 不可用</span><svg class="i xs chev"><use href="#alert" /></svg></span>
+              </div>
+            </div>
+            <div class="gate"><svg class="i" style="width:14px;height:14px"><use href="#alert" /></svg> <div>该中转站在此主机不可用：需在该主机配置密钥或升级主机后再加入对决。该参赛者暂不可起跑。</div></div>
+          </div>
+          <!-- 离线 -->
+          <div class="statebox">
+            <div class="statehd"><svg class="i sm"><use href="#wifi-off" /></svg> 离线 · 主机断连</div>
+            <div class="banner off"><svg class="i sm"><use href="#wifi-off" /></svg> <div>主机已离线，对决<b>暂停</b>；重连后自动恢复进度，已完成的成果与 worktree 不丢失。</div></div>
+            <div class="lanes" style="grid-template-columns:repeat(2,1fr); padding:0; gap:8px">
+              <div class="lane dim" style="background:var(--surface0)"><div class="track"><div class="fill" style="width:62%"></div></div><div class="lane-h"><span class="pos">P1</span><div class="ln-name" style="font-size:12px">Opus 4.8</div></div></div>
+              <div class="lane dim" style="background:var(--surface0)"><div class="track"><div class="fill" style="width:44%"></div></div><div class="lane-h"><span class="pos">P3</span><div class="ln-name" style="font-size:12px">Sonnet 4.6</div></div></div>
+            </div>
+            <div style="display:flex; gap:8px"><span class="btn out sm" style="flex:1"><svg class="i sm"><use href="#refresh" /></svg> 重新连接</span></div>
+          </div>
+        </div>
+
+        <div class="anno-grid">
+          <div class="anno">
+            <div class="anno-h">点击效果 · 收尾确认</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>取消</b>：关闭确认模态，回 <b>RC3 成果对比</b>（赢家选择保留）。</div></li>
+              <li><span class="pin">4</span><div><b>采用赢家</b>：把赢家改动落到基线工作区；勾选了「合并到 develop」则一并合并；其余参赛者 worktree <b>归档</b>。完成后交接主壳聚焦赢家对话 / 回项目；可在「已归档」找回其余。</div></li>
+              <li><span class="pin">5</span><div><b>都不满意·全部归档重开</b>：归档<b>全部</b>参赛者 worktree → 回 <b>RC1</b>（任务预填，可改阵容重来）。</div></li>
+              <li><span class="pin">6</span><div><b>发起一场对决</b>（空态）：进 <b>RC1 setup</b>（空任务 + 默认 2 名参赛者）。</div></li>
+              <li><span class="pin">—</span><div><b>合并 / 开 PR 复选</b>：合并默认勾选、可取消；开 PR 受能力门控（主机无 GitHub CLI 时禁用并提示升级，不提供降级路径）。</div></li>
+            </ol>
+          </div>
+          <div class="anno">
+            <div class="states">
+              <div class="sh">状态合集说明</div>
+              <dl>
+                <dt>收尾确认</dt><dd>模态覆盖在对比上方（背景压暗）；标题写明赢家；正文写清「采用 + 其余归档 + 可找回」；危险性低（归档可逆）故用普通确认，不用红色危险样式。</dd>
+                <dt>加载</dt><dd>从 RC1 点开始对决→「正在创建隔离 worktree、拉起参赛者」过场（spinner + 赛道骨架 shimmer），就绪后进 RC2。</dd>
+                <dt>空</dt><dd>从未发起 / 上一场已收尾：空态 + 品牌图 + 一句价值 + 「发起一场对决」CTA。</dd>
+                <dt>部分报错</dt><dd>报错赛道红色态 + 失败原因 + 重试/排除；<b>绝不静默丢失</b>；不阻塞其余竞速，对比只在已完成者间进行。</dd>
+                <dt>能力门</dt><dd>某中转站在该主机不可用→选择器 warn 描边 + 黄色能力门提示「需配置密钥 / 升级主机」；该参赛者不可起跑，<b>无降级路径</b>。</dd>
+                <dt>离线</dt><dd>主机断连→对决暂停、赛道置灰 + 离线 banner；重连自动恢复，成果/worktree 不丢；落盘类动作（采用/合并/开 PR）离线时禁用。</dd>
+                <dt>布局</dt><dd>桌面：收尾为居中模态；状态合集为响应式卡片栅格。<b>紧凑 / 手机：本轮不做</b>。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno">
+            <div class="states">
+              <div class="sh">右键菜单</div>
+              <dl>
+                <dt>收尾模态内</dt><dd>无自定义右键菜单（模态聚焦单一决策）。</dd>
+                <dt>报错赛道（状态合集）</dt><dd>3 项：重试 / 排除该参赛者 / 查看日志（打开该参赛者诊断日志）。</dd>
+                <dt>能力门参赛者</dt><dd>2 项：更换中转站 / 移除该参赛者。</dd>
+                <dt>离线赛道</dt><dd>1 项：重新连接（其余动作离线禁用，灰显）。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="note"><svg class="i sm"><use href="#flag" /></svg> Helm · 多模型对决 Agent Race · gate-1 提案设计稿 · 2026-06-26 · 桌面 only · 浅色主题 · accent #20744A · 未回写 canonical</div>
+  </body>
+</html>
