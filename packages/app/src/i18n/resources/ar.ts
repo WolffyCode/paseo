@@ -1108,7 +1108,26 @@ export const ar: TranslationResources = {
     title: "مرحبا بكم في Paseo",
     subtitle: "قم بتوصيل جهاز الكمبيوتر الخاص بك للبدء",
     actions: {
-      settings: "إعدادات",
+      continue: "متابعة",
+      openSettings: "الإعدادات",
+      retry: "إعادة المحاولة",
+    },
+    status: {
+      connecting: "جار الاتصال بمضيف",
+    },
+    connecting: {
+      managedDaemon: "جار بدء daemon المدمج على مضيف سطح المكتب هذا.",
+      loadingHosts: "جار تحميل المضيفين المحفوظين.",
+      foundHost: "تم العثور على مضيف. جار فتح مساحة العمل.",
+      searching: "جار البحث عن مضيف متاح.",
+    },
+    picker: {
+      title: "اختر مضيفا",
+      subtitle: "استخدم مضيفا موجودا أو صل مضيفا جديدا.",
+    },
+    error: {
+      title: "تعذر الاتصال بمضيف",
+      body: "أعد المحاولة أو أضف مضيفا يدويا للمتابعة.",
     },
   },
   modelSelector: {

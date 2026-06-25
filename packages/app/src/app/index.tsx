@@ -8,6 +8,7 @@ import {
   useIsLastWorkspaceSelectionHydrated,
   useLastWorkspaceSelection,
 } from "@/stores/navigation-active-workspace-store";
+import { useOnboardingStore } from "@/stores/onboarding-store";
 import { shouldUseDesktopDaemon } from "@/desktop/daemon/desktop-daemon";
 
 const isDesktop = shouldUseDesktopDaemon();
@@ -20,6 +21,7 @@ export default function Index() {
   const hostRegistryStatus = useHostRegistryStatus();
   const workspaceSelection = useLastWorkspaceSelection();
   const isWorkspaceSelectionLoaded = useIsLastWorkspaceSelectionHydrated();
+  const hasSeenWelcome = useOnboardingStore((state) => state.hasSeenWelcome);
 
   const startupRoute = resolveStartupRoute({
     route: { kind: "index", pathname },
@@ -30,6 +32,7 @@ export default function Index() {
     workspaceSelection,
     isWorkspaceSelectionLoaded,
     hasGivenUpWaitingForHost: bootstrapState.hasGivenUpWaitingForHost,
+    hasSeenWelcome,
   });
 
   if (startupRoute.kind === "redirect") {

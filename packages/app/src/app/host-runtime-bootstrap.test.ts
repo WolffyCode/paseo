@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  resolveOnboardingPhase,
   resolveStartupBlocker,
   resolveStartupNavigationReady,
   resolveStartupRoute,
@@ -202,6 +203,7 @@ describe("resolveStartupRoute", () => {
     workspaceSelection: null,
     isWorkspaceSelectionLoaded: true,
     hasGivenUpWaitingForHost: false,
+    hasSeenWelcome: true,
   };
   const baseHostInput = {
     route: { kind: "host" as const, serverId: "server-saved" },
@@ -298,6 +300,26 @@ describe("resolveStartupRoute", () => {
     ).toEqual({ kind: "redirect", href: "/welcome" });
   });
 
+  it("shows welcome before first-run onboarding is acknowledged", () => {
+    expect(
+      resolveStartupRoute({
+        ...baseIndexInput,
+        hasSeenWelcome: false,
+      }),
+    ).toEqual({ kind: "redirect", href: "/welcome" });
+  });
+
+  it("does not let onboarding block saved workspace restoration", () => {
+    expect(
+      resolveStartupRoute({
+        ...baseIndexInput,
+        hasSeenWelcome: false,
+        hosts: [{ serverId: "server-1" }],
+        workspaceSelection: { serverId: "server-1", workspaceId: "workspace-a" },
+      }),
+    ).toEqual({ kind: "redirect", href: "/h/server-1/workspace/workspace-a" });
+  });
+
   it("keeps host routes mounted while the host registry is loading", () => {
     expect(
       resolveStartupRoute({
@@ -342,5 +364,83 @@ describe("resolveStartupRoute", () => {
         route: { kind: "host", serverId: "server-removed" },
       }),
     ).toEqual({ kind: "redirect", href: "/welcome" });
+  });
+});
+
+describe("resolveOnboardingPhase", () => {
+  const baseInput = {
+    hasSeenWelcome: true,
+    hosts: [],
+    anyOnlineHostServerId: null,
+    hostRegistryStatus: "ready" as const,
+    startupBlocker: { kind: "none" as const },
+    hasGivenUpWaitingForHost: false,
+  };
+
+  it("shows welcome before the first-run gate is acknowledged", () => {
+    expect(
+      resolveOnboardingPhase({
+        ...baseInput,
+        hasSeenWelcome: false,
+      }),
+    ).toBe("welcome");
+  });
+
+  it("shows connecting while the registry is loading", () => {
+    expect(
+      resolveOnboardingPhase({
+        ...baseInput,
+        hostRegistryStatus: "loading",
+      }),
+    ).toBe("connecting");
+  });
+
+  it("shows connecting while the managed daemon is starting", () => {
+    expect(
+      resolveOnboardingPhase({
+        ...baseInput,
+        startupBlocker: { kind: "managed-daemon-starting" },
+      }),
+    ).toBe("connecting");
+  });
+
+  it("shows connecting when a host is already online", () => {
+    expect(
+      resolveOnboardingPhase({
+        ...baseInput,
+        anyOnlineHostServerId: "server-1",
+      }),
+    ).toBe("connecting");
+  });
+
+  it("shows the picker when saved hosts exist but none are online", () => {
+    expect(
+      resolveOnboardingPhase({
+        ...baseInput,
+        hosts: [{ serverId: "server-1" }],
+      }),
+    ).toBe("picker");
+  });
+
+  it("shows an error after give-up with no saved hosts", () => {
+    expect(
+      resolveOnboardingPhase({
+        ...baseInput,
+        hasGivenUpWaitingForHost: true,
+      }),
+    ).toBe("error");
+  });
+
+  it("shows an error when managed daemon startup fails and no host exists", () => {
+    expect(
+      resolveOnboardingPhase({
+        ...baseInput,
+        startupBlocker: { kind: "managed-daemon-error", message: "boom" },
+      }),
+    ).toBe("error");
+  });
+
+  it("keeps waiting before give-up when nothing is ready yet", () => {
+    expect(resolveOnboardingPhase(baseInput)).toBe("connecting");
   });
 });

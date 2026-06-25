@@ -62,6 +62,8 @@ export function startDaemonIfGateAllows(input: {
 
 const WELCOME_ROUTE: Href = "/welcome";
 
+export type OnboardingPhase = "welcome" | "connecting" | "picker" | "error";
+
 export type StartupBlocker =
   | { kind: "none" }
   | { kind: "managed-daemon-starting" }
@@ -72,6 +74,15 @@ export interface ResolveStartupBlockerInput {
   anyOnlineHostServerId: string | null;
   daemonStartIsRunning: boolean;
   daemonStartError: string | null;
+}
+
+export interface ResolveOnboardingPhaseInput {
+  hasSeenWelcome: boolean;
+  hosts: readonly { serverId: string }[];
+  anyOnlineHostServerId: string | null;
+  hostRegistryStatus: StartupRegistryStatus;
+  startupBlocker: StartupBlocker;
+  hasGivenUpWaitingForHost: boolean;
 }
 
 export function resolveStartupBlocker(input: ResolveStartupBlockerInput): StartupBlocker {
@@ -138,6 +149,7 @@ export interface ResolveIndexStartupRouteInput extends ResolveStartupRouteBaseIn
   workspaceSelection: ActiveWorkspaceSelection | null;
   isWorkspaceSelectionLoaded: boolean;
   hasGivenUpWaitingForHost: boolean;
+  hasSeenWelcome: boolean;
 }
 
 export interface ResolveHostStartupRouteInput extends ResolveStartupRouteBaseInput {
@@ -150,6 +162,39 @@ export type StartupRouteDecision =
   | { kind: "render" }
   | { kind: "splash" }
   | { kind: "redirect"; href: Href };
+
+/** Contract: Map startup and host state to the single onboarding phase shown by the welcome route. */
+export function resolveOnboardingPhase(input: ResolveOnboardingPhaseInput): OnboardingPhase {
+  if (!input.hasSeenWelcome) {
+    return "welcome";
+  }
+
+  if (input.anyOnlineHostServerId) {
+    return "connecting";
+  }
+
+  if (input.hostRegistryStatus === "loading") {
+    return "connecting";
+  }
+
+  if (input.startupBlocker.kind === "managed-daemon-starting") {
+    return "connecting";
+  }
+
+  if (input.hosts.length > 0) {
+    return "picker";
+  }
+
+  if (input.startupBlocker.kind === "managed-daemon-error") {
+    return "error";
+  }
+
+  if (input.hasGivenUpWaitingForHost) {
+    return "error";
+  }
+
+  return "connecting";
+}
 
 function isIndexPathname(pathname: string) {
   return pathname === "/" || pathname === "";
@@ -186,6 +231,10 @@ function resolveReadyIndexStartupRoute(input: ResolveIndexStartupRouteInput): St
   const savedHostServerId = input.hosts[0]?.serverId ?? null;
   if (savedHostServerId) {
     return { kind: "redirect", href: buildHostRootRoute(savedHostServerId) };
+  }
+
+  if (!input.hasSeenWelcome) {
+    return { kind: "redirect", href: WELCOME_ROUTE };
   }
 
   if (input.hasGivenUpWaitingForHost) {

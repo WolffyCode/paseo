@@ -1145,7 +1145,26 @@ export const fr: TranslationResources = {
     title: "Bienvenue surPaseo",
     subtitle: "Connectez votre ordinateur pour commencer",
     actions: {
-      settings: "Paramètres",
+      continue: "Continuer",
+      openSettings: "Paramètres",
+      retry: "Réessayer",
+    },
+    status: {
+      connecting: "Connexion à un hôte",
+    },
+    connecting: {
+      managedDaemon: "Démarrage du daemon intégré sur cet hôte de bureau.",
+      loadingHosts: "Chargement des hôtes enregistrés.",
+      foundHost: "Hôte trouvé. Ouverture de votre espace de travail.",
+      searching: "Recherche d'un hôte disponible.",
+    },
+    picker: {
+      title: "Choisir un hôte",
+      subtitle: "Utilisez un hôte existant ou connectez-en un nouveau.",
+    },
+    error: {
+      title: "Impossible de se connecter à l'hôte",
+      body: "Réessayez ou ajoutez un hôte manuellement pour continuer.",
     },
   },
   modelSelector: {

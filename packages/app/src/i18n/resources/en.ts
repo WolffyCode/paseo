@@ -1115,7 +1115,26 @@ export const en = {
     title: "Welcome to Paseo",
     subtitle: "Connect your computer to get started",
     actions: {
-      settings: "Settings",
+      continue: "Continue",
+      openSettings: "Settings",
+      retry: "Retry",
+    },
+    status: {
+      connecting: "Connecting to a host",
+    },
+    connecting: {
+      managedDaemon: "Starting the built-in daemon on this desktop host.",
+      loadingHosts: "Loading saved hosts.",
+      foundHost: "Host found. Opening your workspace.",
+      searching: "Looking for an available host.",
+    },
+    picker: {
+      title: "Choose a host",
+      subtitle: "Use an existing host or connect a new one.",
+    },
+    error: {
+      title: "Couldn't connect to a host",
+      body: "Try again or add a host manually to continue.",
     },
   },
   modelSelector: {

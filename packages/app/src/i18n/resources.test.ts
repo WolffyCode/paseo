@@ -268,7 +268,9 @@ describe("translation resources", () => {
 
   it("includes onboarding and direct connection keys for the Batch 4E migration", () => {
     expect(en.onboarding.title).toBe("Welcome to Paseo");
-    expect(en.onboarding.actions.settings).toBe("Settings");
+    expect(en.onboarding.actions.openSettings).toBe("Settings");
+    expect(en.onboarding.actions.continue).toBe("Continue");
+    expect(en.onboarding.error.title).toBe("Couldn't connect to a host");
     expect(en.pairing.direct.title).toBe("Direct connection");
     expect(en.pairing.direct.fields.host).toBe("Host");
     expect(en.pairing.scan.title).toBe("Scan QR");

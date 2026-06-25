@@ -1093,7 +1093,26 @@ export const zhCN: TranslationResources = {
     title: "欢迎使用 Paseo",
     subtitle: "连接你的电脑即可开始",
     actions: {
-      settings: "设置",
+      continue: "继续",
+      openSettings: "设置",
+      retry: "重试",
+    },
+    status: {
+      connecting: "正在连接 Host",
+    },
+    connecting: {
+      managedDaemon: "正在为这个桌面 Host 启动内建 daemon。",
+      loadingHosts: "正在加载已保存的 Host。",
+      foundHost: "已找到 Host，正在打开 workspace。",
+      searching: "正在查找可用 Host。",
+    },
+    picker: {
+      title: "选择 Host",
+      subtitle: "使用已有 Host，或连接一个新的 Host。",
+    },
+    error: {
+      title: "无法连接到 Host",
+      body: "请重试，或手动添加 Host 继续。",
     },
   },
   modelSelector: {

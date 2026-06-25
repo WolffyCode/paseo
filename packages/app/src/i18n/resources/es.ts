@@ -1142,7 +1142,26 @@ export const es: TranslationResources = {
     title: "Bienvenido aPaseo",
     subtitle: "Conecte su computadora para comenzar",
     actions: {
-      settings: "Ajustes",
+      continue: "Continuar",
+      openSettings: "Ajustes",
+      retry: "Reintentar",
+    },
+    status: {
+      connecting: "Conectando a un host",
+    },
+    connecting: {
+      managedDaemon: "Iniciando el daemon integrado en este host de escritorio.",
+      loadingHosts: "Cargando hosts guardados.",
+      foundHost: "Host encontrado. Abriendo su espacio de trabajo.",
+      searching: "Buscando un host disponible.",
+    },
+    picker: {
+      title: "Elige un host",
+      subtitle: "Usa un host existente o conecta uno nuevo.",
+    },
+    error: {
+      title: "No se pudo conectar al host",
+      body: "Inténtelo de nuevo o agregue un host manualmente para continuar.",
     },
   },
   modelSelector: {
