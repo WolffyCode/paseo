@@ -5,10 +5,7 @@ import { spawnProcess } from "@getpaseo/server";
 
 function findDesktopApp(): string | null {
   if (process.platform === "darwin") {
-    const candidates = [
-      "/Applications/Paseo.app",
-      path.join(homedir(), "Applications", "Paseo.app"),
-    ];
+    const candidates = ["/Applications/Helm.app", path.join(homedir(), "Applications", "Helm.app")];
 
     for (const candidate of candidates) {
       if (existsSync(candidate)) {
@@ -21,9 +18,9 @@ function findDesktopApp(): string | null {
 
   if (process.platform === "linux") {
     const candidates = [
-      "/usr/bin/Paseo",
-      "/opt/Paseo/Paseo",
-      path.join(homedir(), "Applications", "Paseo.AppImage"),
+      "/usr/bin/Helm",
+      "/opt/Helm/Helm",
+      path.join(homedir(), "Applications", "Helm.AppImage"),
     ];
 
     for (const candidate of candidates) {
@@ -41,7 +38,7 @@ function findDesktopApp(): string | null {
       return null;
     }
 
-    const candidate = path.join(localAppData, "Programs", "Paseo", "Paseo.exe");
+    const candidate = path.join(localAppData, "Programs", "Helm", "Helm.exe");
     return existsSync(candidate) ? candidate : null;
   }
 
@@ -78,7 +75,7 @@ export async function openDesktopWithProject(projectPath: string): Promise<void>
     const desktopApp = findDesktopApp();
     if (!desktopApp) {
       throw new Error(
-        "Paseo desktop app not found. Install it from https://github.com/getpaseo/paseo/releases",
+        "Helm desktop app not found. Install it from https://github.com/getpaseo/paseo/releases",
       );
     }
 

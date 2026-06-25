@@ -1,0 +1,1243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Helm v3 · 设计稿 · Phase 1（外壳 + 交互细节 + 设置IA + 响应式）</title>
+<style>
+:root{
+  /* Paseo LIGHT theme (default per chairman) — theme.ts lightSemanticColors */
+  --surface0:#ffffff; --surface1:#fafafa; --surface2:#f4f4f5; --surface3:#e4e4e7; --surface4:#d4d4d8;
+  --surfaceSidebar:#f4f4f5; --surfaceSidebarHover:#e9e9ec; --surfaceWorkspace:#ffffff;
+  --fg:#1a1a1e; --fgMuted:#71717a;
+  --border:#e4e4e7; --borderAccent:#ececf1;
+  --accent:#20744A; --accentBright:#239956; --accentFg:#ffffff;
+  --destructive:#b04138;
+  --success:#15803d; --warning:#d97706; --danger:#b91c1c; --merged:#7c3aed;
+  --diffAdd:#15803d; --diffDel:#b91c1c;
+  --xs:12px; --sm:14px; --base:16px; --lg:18px; --xl:20px; --xxl:22px; --xxxl:26px;
+  --r-sm:2px; --r-base:4px; --r-md:6px; --r-lg:8px; --r-xl:12px; --r-2xl:16px;
+  --ui:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  --mono:'SFMono-Regular',Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:#e8e8eb;color:var(--fg);font-family:var(--ui);-webkit-font-smoothing:antialiased;font-size:var(--base);line-height:1.45}
+body{padding:40px 32px 120px}
+svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
+.i.xs{width:12px;height:12px} .i.sm{width:14px;height:14px} .i.md{width:16px;height:16px} .i.lg{width:20px;height:20px}
+.board-h{max-width:1280px;margin:0 auto 28px}
+.board-h h1{font-size:30px;font-weight:600;letter-spacing:-.5px;display:flex;align-items:center;gap:12px}
+.board-h h1 .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),#15583a);display:flex;align-items:center;justify-content:center;color:#fff}
+.board-h .sub{color:var(--fgMuted);font-size:var(--sm);margin-top:8px;max-width:820px}
+.req-log{max-width:1280px;margin:0 auto 18px;border:1px solid var(--border);border-radius:var(--r-xl);background:var(--surface1);overflow:hidden}
+.req-log .rl-h{padding:10px 16px;background:var(--surface2);font-size:var(--xs);font-weight:600;color:var(--fgMuted);letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
+.req-log table{width:100%;border-collapse:collapse;font-size:var(--sm)}
+.req-log td,.req-log th{padding:8px 16px;text-align:left;border-top:1px solid var(--border);vertical-align:top}
+.req-log th{color:var(--fgMuted);font-weight:500;font-size:var(--xs)}
+.req-log td:first-child{color:var(--fgMuted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.pill{display:inline-flex;align-items:center;gap:5px;padding:1px 8px;border-radius:9999px;font-size:11px;font-weight:500}
+.pill.done{color:#15803d;background:rgba(34,197,94,.12)}
+.pill.p0{color:var(--accentBright);background:rgba(32,116,74,.16)}
+.nav-idx{max-width:1280px;margin:0 auto 34px;display:flex;flex-wrap:wrap;gap:8px}
+.nav-idx a{font-size:var(--xs);color:var(--fgMuted);text-decoration:none;padding:5px 11px;border:1px solid var(--border);border-radius:9999px;background:var(--surface1)}
+.nav-idx a:hover{color:var(--fg);border-color:var(--borderAccent);background:var(--surface2)}
+.nav-idx a.grp{color:var(--accentBright);border-color:var(--borderAccent)}
+.screen{max-width:1280px;margin:0 auto 56px;scroll-margin-top:20px}
+.screen-head{margin-bottom:14px}
+.screen-head .tag{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--accentBright);background:rgba(32,116,74,.16);padding:2px 9px;border-radius:9999px;margin-bottom:8px}
+.screen-head h2{font-size:var(--xl);font-weight:600;letter-spacing:-.2px}
+.screen-head p{color:var(--fgMuted);font-size:var(--sm);margin-top:5px;max-width:900px}
+.screen-body{display:grid;grid-template-columns:1fr 300px;gap:20px;align-items:start}
+.screen-body.wide{grid-template-columns:1fr}
+.anno{border:1px solid var(--border);border-radius:var(--r-xl);background:var(--surface1);padding:6px;position:sticky;top:20px}
+.anno .anno-h{font-size:var(--xs);font-weight:600;color:var(--fgMuted);text-transform:uppercase;letter-spacing:.4px;padding:8px 10px 6px}
+.anno ol{list-style:none;display:flex;flex-direction:column}
+.anno li{display:flex;gap:9px;padding:9px 10px;border-top:1px solid var(--border);font-size:13px;line-height:1.5;color:var(--fgMuted)}
+.anno li:first-child{border-top:none}
+.anno li b{color:var(--fg);font-weight:500}
+.pin{flex:none;width:18px;height:18px;border-radius:9999px;background:var(--accent);color:#fff;font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+.anno li .pin{margin-top:1px}
+.pinb{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:9999px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;vertical-align:super;margin-left:3px;font-variant-numeric:tabular-nums}
+.frame{border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;background:var(--surface0);box-shadow:0 20px 50px -20px rgba(0,0,0,.13)}
+.titlebar{height:38px;background:var(--surfaceSidebar);display:flex;align-items:center;padding:0 14px;gap:8px;border-bottom:1px solid var(--border)}
+.lights{display:flex;gap:8px}
+.lights span{width:11px;height:11px;border-radius:9999px}
+.lights .r{background:#ff5f57}.lights .y{background:#febc2e}.lights .g{background:#28c840}
+.chrome-r{margin-left:auto;display:flex;gap:4px;color:var(--fgMuted)}
+.chrome-btn{width:26px;height:24px;border-radius:var(--r-md);display:flex;align-items:center;justify-content:center}
+.chrome-btn:hover{background:var(--surface2)}
+.chrome-btn.active{color:var(--accentBright);background:var(--surface2)}
+.shell{display:flex;height:660px}
+.sidebar{width:248px;flex:none;background:var(--surfaceSidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:10px 8px}
+.sb-top{display:flex;flex-direction:column;gap:2px;margin-bottom:10px}
+.sb-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:var(--r-lg);color:var(--fg);font-size:var(--sm);position:relative}
+.sb-item .i{color:var(--fgMuted)}
+.sb-item:hover{background:var(--surfaceSidebarHover)}
+.sb-item.active{background:var(--surface2)}
+.sb-item.muted{color:var(--fgMuted)}
+.sb-sec{font-size:var(--xs);font-weight:500;color:var(--fgMuted);padding:9px 10px 5px;display:flex;align-items:center;gap:6px}
+.sb-sub{display:flex;flex-direction:column;gap:1px;margin-left:8px;padding-left:10px;border-left:1px solid var(--border)}
+.sb-conv{display:flex;align-items:center;gap:8px;padding:6px 9px;border-radius:var(--r-md);font-size:13px;color:var(--fgMuted)}
+.sb-conv:hover{background:var(--surfaceSidebarHover);color:var(--fg)}
+.sb-conv.active{background:var(--surface2);color:var(--fg)}
+.dot{width:7px;height:7px;border-radius:9999px;flex:none}
+.dot.run{background:var(--success)} .dot.idle{background:var(--fgMuted)} .dot.warn{background:var(--warning)} .dot.dan{background:var(--danger)}
+.sb-spacer{flex:1}
+.sb-foot{border-top:1px solid var(--border);padding-top:8px;margin-top:6px}
+.main{flex:1;display:flex;flex-direction:column;background:var(--surfaceWorkspace);min-width:0}
+.empty-wrap{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px}
+.empty-title{font-size:var(--xxl);font-weight:300;color:var(--fg);letter-spacing:-.3px}
+.composer{width:100%;max-width:720px;display:flex;flex-direction:column;gap:8px}
+.cbox{border:1px solid var(--borderAccent);background:var(--surface1);border-radius:var(--r-xl);padding:12px 14px;display:flex;flex-direction:column;gap:11px}
+.cbox.focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(32,116,74,.16)}
+.cph{color:var(--fgMuted);font-size:var(--base);min-height:24px}
+.ctext{color:var(--fg);font-size:var(--base);min-height:24px}
+.ctools{display:flex;align-items:center;gap:6px}
+.ctool{display:flex;align-items:center;gap:6px;padding:5px 9px;border-radius:var(--r-md);color:var(--fgMuted);font-size:13px;border:1px solid transparent}
+.ctool:hover{background:var(--surface2);color:var(--fg)}
+.ctool.on{color:var(--accentBright);background:rgba(32,116,74,.14)}
+.cspacer{flex:1}
+.send{width:32px;height:32px;border-radius:var(--r-lg);background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center}
+.send.dim{background:var(--surface3);color:var(--fgMuted)}
+.chips{display:flex;align-items:center;gap:7px;flex-wrap:wrap;padding:0 2px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:9999px;border:1px solid var(--border);background:var(--surface1);color:var(--fgMuted);font-size:var(--xs)}
+.chip .i{color:var(--fgMuted)}
+.chip.on{border-color:var(--accent);color:var(--accentBright);background:rgba(32,116,74,.12)}
+.cascade-row{display:flex;justify-content:center;padding:0 2px}
+.cascade{display:inline-flex;align-items:center;gap:8px;padding:6px 12px;border-radius:9999px;border:1px solid var(--borderAccent);background:var(--surface2);font-size:13px;color:var(--fg)}
+.cascade .lock{color:var(--accentBright)} .cascade .sep{color:var(--fgMuted)}
+.msgs{flex:1;overflow:hidden;padding:22px 28px;display:flex;flex-direction:column;gap:20px}
+.msg{display:flex;gap:13px;max-width:760px}
+.msg .av{width:26px;height:26px;border-radius:var(--r-md);flex:none;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.av.user{background:var(--surface3);color:var(--fg)}
+.av.ai{background:linear-gradient(135deg,var(--accent),#15583a);color:#fff}
+.msg .body{font-size:var(--sm);line-height:1.6;color:var(--fg);padding-top:3px}
+.msg .body .muted{color:var(--fgMuted)}
+.tool-call{border:1px solid var(--border);border-radius:var(--r-lg);background:var(--surface1);overflow:hidden;margin-top:9px;font-size:13px;max-width:560px}
+.tool-call .tc-h{padding:7px 11px;display:flex;align-items:center;gap:8px;color:var(--fgMuted)}
+.tool-call .tc-h .ok{color:var(--success);margin-left:auto}
+.rail{width:48px;flex:none;background:var(--surfaceSidebar);border-left:1px solid var(--border);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.rail-btn{width:34px;height:34px;border-radius:var(--r-lg);display:flex;align-items:center;justify-content:center;color:var(--fgMuted)}
+.rail-btn:hover{background:var(--surface2);color:var(--fg)}
+.rail-btn.active{background:var(--surface2);color:var(--accentBright)}
+.rpanel{width:340px;flex:none;background:var(--surface0);border-left:1px solid var(--border);display:flex;flex-direction:column}
+.pane-h{height:42px;display:flex;align-items:center;gap:9px;padding:0 13px;border-bottom:1px solid var(--border);font-size:13px;font-weight:500}
+.pane-h .i{color:var(--fgMuted)} .pane-h .x{margin-left:auto;color:var(--fgMuted)}
+.diff-file{font-size:var(--xs);color:var(--fgMuted);padding:8px 13px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;font-family:var(--mono)}
+.diff-file .add{color:var(--diffAdd)} .diff-file .del{color:var(--diffDel)}
+.diff-body{font-family:var(--mono);font-size:var(--xs);line-height:1.7}
+.dl{display:flex}
+.dl .ln{width:34px;text-align:right;padding-right:8px;color:#5b5f5e;flex:none}
+.dl .ct{padding-left:8px;white-space:pre}
+.dl.add{background:rgba(74,222,128,.08)} .dl.add .ct{color:#15803d}
+.dl.del{background:rgba(239,68,68,.08)} .dl.del .ct{color:#b91c1c}
+.btn{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:400;padding:6px 12px;border-radius:var(--r-md);border:1px solid transparent;white-space:nowrap}
+.btn.df{background:var(--accent);color:#fff}
+.btn.sec{background:var(--surface3);color:var(--fg)}
+.btn.out{background:transparent;border-color:var(--borderAccent);color:var(--fg)}
+.btn.ghost{background:transparent;color:var(--fgMuted)}
+.btn.ghost:hover{background:var(--surface2);color:var(--fg)}
+.btn.sm{padding:4px 10px;font-size:var(--xs)}
+.btn .i{width:14px;height:14px}
+.card{border:1px solid var(--border);border-radius:var(--r-xl);background:var(--surface1);overflow:hidden}
+.row{display:flex;align-items:center;gap:12px;padding:14px 16px;border-top:1px solid var(--border)}
+.row:first-child{border-top:none}
+.row .rc{flex:1;min-width:0}
+.row .rt{font-size:var(--sm);color:var(--fg)}
+.row .rd{font-size:var(--xs);color:var(--fgMuted);margin-top:3px;line-height:1.5}
+.row .chev{color:var(--fgMuted)}
+.kebab{padding:3px;border-radius:var(--r-base);color:var(--fgMuted)}
+.kebab:hover{background:var(--surface2)}
+.sec-label{font-size:var(--sm);font-weight:500;color:var(--fg);margin:0 2px 9px;display:flex;align-items:center;gap:8px}
+.sec-label .sl-d{font-weight:400;color:var(--fgMuted);font-size:var(--xs)}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:1px 8px;border-radius:9999px;font-size:11px;font-weight:500}
+.badge.suc{color:#15803d;background:rgba(34,197,94,.12)}
+.badge.warn{color:#b45309;background:rgba(245,158,11,.13)}
+.badge.dan{color:#b91c1c;background:rgba(220,38,38,.13)}
+.badge.mut{color:var(--fgMuted);background:var(--surface2)}
+.badge.acc{color:var(--accentBright);background:rgba(32,116,74,.16)}
+.sw{width:34px;height:20px;border-radius:9999px;background:var(--surface3);position:relative;flex:none}
+.sw::after{content:"";position:absolute;width:15px;height:15px;border-radius:9999px;background:#fff;top:2.5px;left:2.5px}
+.sw.on{background:var(--accent)} .sw.on::after{left:16px}
+.input{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);padding:8px 11px;font-size:var(--sm);color:var(--fg);display:flex;align-items:center;gap:8px}
+.input .ph{color:var(--fgMuted)} .input .i{color:var(--fgMuted)}
+.flabel{font-size:var(--xs);font-weight:500;color:var(--fg);margin-bottom:6px}
+.fhint{font-size:var(--xs);color:var(--fgMuted);margin-top:6px;line-height:1.5}
+.field{margin-bottom:16px}
+.scope{display:inline-flex;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-lg);padding:3px;gap:2px}
+.scope span{padding:5px 13px;border-radius:var(--r-md);font-size:13px;color:var(--fgMuted);display:flex;align-items:center;gap:6px}
+.scope span.on{background:var(--surface0);color:var(--fg)}
+.scope span.on .i{color:var(--accentBright)}
+.menu{position:absolute;background:var(--surface1);border:1px solid var(--borderAccent);border-radius:var(--r-lg);box-shadow:0 16px 40px -12px rgba(0,0,0,.15);padding:5px;min-width:208px;z-index:5}
+.mi{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:var(--r-md);font-size:13px;color:var(--fg)}
+.mi:hover{background:var(--surface2)}
+.mi .i{color:var(--fgMuted)} .mi .r{margin-left:auto;color:var(--fgMuted)}
+.mi.sel .r{color:var(--accentBright)}
+.mi.head{color:var(--fgMuted);font-size:var(--xs)}
+.mi.lockrow .lk{color:var(--accentBright)}
+.menu-sep{height:1px;background:var(--border);margin:5px 2px}
+.stat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat{border:1px solid var(--border);border-radius:var(--r-xl);background:var(--surface1);padding:14px 15px}
+.stat .lab{font-size:var(--xs);color:var(--fgMuted);display:flex;align-items:center;gap:6px}
+.stat .val{font-size:var(--xxl);font-weight:600;margin-top:8px;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+.stat .delta{font-size:var(--xs);margin-top:4px}
+.stat .delta.up{color:#15803d}
+.bars{display:flex;align-items:flex-end;gap:7px;height:110px;padding:10px 4px 0}
+.bars .bar{flex:1;background:var(--accent);border-radius:3px 3px 0 0;opacity:.85}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{text-align:left;color:var(--fgMuted);font-weight:500;font-size:var(--xs);padding:9px 12px;border-bottom:1px solid var(--border)}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--border);color:var(--fg)}
+.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;font-family:var(--mono);font-size:var(--xs);color:var(--fgMuted)}
+.tbl tr:last-child td{border-bottom:none}
+.codeed{border:1px solid var(--border);border-radius:var(--r-lg);background:#f6f6f7;overflow:hidden;font-family:var(--mono);font-size:var(--xs);line-height:1.7}
+.codeed .ce-h{display:flex;align-items:center;gap:8px;padding:7px 11px;background:var(--surface1);border-bottom:1px solid var(--border);font-family:var(--ui);color:var(--fgMuted);font-size:var(--xs)}
+.codeed .ce-h .r{margin-left:auto;display:flex;gap:6px}
+.cerow{display:flex}
+.cerow .n{width:30px;text-align:right;padding:0 10px 0 0;color:#4b4f4e}
+.cerow .c{white-space:pre}
+.tp{color:#2563eb} .ts{color:#b45309}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.tab{padding:8px 14px;font-size:13px;color:var(--fgMuted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tab.on{color:var(--fg);border-bottom-color:var(--accent)}
+.backdrop{background:rgba(0,0,0,.55);padding:30px;display:flex;align-items:center;justify-content:center}
+.modal{width:580px;background:var(--surface1);border:1px solid var(--borderAccent);border-radius:var(--r-2xl);box-shadow:0 30px 70px -20px rgba(0,0,0,.17);overflow:hidden}
+.modal-h{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.modal-h .mt{font-size:var(--base);font-weight:500} .modal-h .x{margin-left:auto;color:var(--fgMuted)}
+.modal-b{padding:18px 20px}
+.modal-f{padding:14px 20px;border-top:1px solid var(--border);display:flex;align-items:center;gap:10px}
+.modal-f .sp{flex:1;font-size:var(--xs);color:var(--fgMuted)}
+.imp-row{display:flex;align-items:center;gap:11px;padding:11px 12px;border:1px solid var(--border);border-radius:var(--r-lg);margin-bottom:8px;background:var(--surface0)}
+.imp-row.sel{border-color:var(--accent);background:rgba(32,116,74,.08)}
+.cbx{width:17px;height:17px;border-radius:var(--r-sm);border:1.5px solid var(--surface4);flex:none;display:flex;align-items:center;justify-content:center}
+.cbx.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.note{max-width:1280px;margin:0 auto 10px;color:var(--fgMuted);font-size:var(--xs);display:flex;gap:8px;align-items:center}
+.foot{max-width:1280px;margin:60px auto 0;color:var(--fgMuted);font-size:var(--xs);border-top:1px solid var(--border);padding-top:18px;line-height:1.7}
+/* ===== v2: cc-switch style management shell ===== */
+.mgmt-shell{display:flex;height:660px}
+.app-rail{width:68px;flex:none;background:var(--surfaceSidebar);border-right:1px solid var(--border);display:flex;flex-direction:column;align-items:center;padding:12px 0;gap:8px}
+.app-ic{width:46px;height:46px;border-radius:var(--r-lg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;color:var(--fgMuted);position:relative;font-size:9px}
+.app-ic:hover{background:var(--surface2);color:var(--fg)}
+.app-ic.on{background:var(--surface2);color:var(--accentBright)}
+.app-ic.on::before{content:"";position:absolute;left:-12px;top:12px;width:3px;height:22px;border-radius:2px;background:var(--accent)}
+.app-ic.off{opacity:.38}
+.mgmt-main{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--surfaceWorkspace)}
+.mgmt-hd{height:50px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 18px}
+.mgmt-hd .t{font-size:var(--base);font-weight:300;display:flex;align-items:center;gap:9px}
+.mgmt-hd .t .badge-ic{width:26px;height:26px;border-radius:var(--r-md);background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--accentBright)}
+.mgmt-hd .hd-r{margin-left:auto;display:flex;gap:8px}
+.vtabs{display:flex;gap:1px;padding:0 12px;border-bottom:1px solid var(--border);overflow:hidden}
+.vtab{padding:10px 11px;font-size:13px;color:var(--fgMuted);border-bottom:2px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.vtab.on{color:var(--fg);border-bottom-color:var(--accent)}
+.mgmt-body{flex:1;overflow:hidden;padding:18px 20px}
+.col720{max-width:720px;margin:0 auto}
+.progress{height:6px;border-radius:9999px;background:var(--surface3);overflow:hidden}
+.progress .pf{height:100%;border-radius:9999px;background:var(--accent)}
+.progress .pf.warn{background:var(--warning)} .progress .pf.dan{background:var(--destructive)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.minif{display:flex;flex-direction:column;gap:5px}
+.minif .l{font-size:var(--xs);color:var(--fgMuted)}
+.minif .v{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);padding:6px 10px;font-size:13px;font-family:var(--mono)}
+/* ===== v3 phase1: host switcher / context menu / ⌘K / codex right panel tabs / mobile / states ===== */
+.host-pill{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:var(--r-lg);background:var(--surface2);border:1px solid var(--border);font-size:13px;margin-bottom:10px}
+.host-pill:hover{background:var(--surface3)} .host-pill .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap} .host-pill .i{color:var(--fgMuted)}
+.ctxmenu{position:absolute;background:var(--surface1);border:1px solid var(--borderAccent);border-radius:var(--r-lg);box-shadow:0 16px 40px -12px rgba(0,0,0,.15);padding:5px;min-width:200px;z-index:10}
+.ctxmenu .mi.dz{color:#b91c1c} .ctxmenu .mi.dz .i{color:#b91c1c}
+.cmdk{width:560px;background:var(--surface1);border:1px solid var(--borderAccent);border-radius:var(--r-xl);box-shadow:0 30px 70px -20px rgba(0,0,0,.17);overflow:hidden}
+.cmdk-in{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);font-size:15px;color:var(--fgMuted)}
+.cmdk-sec{font-size:11px;color:var(--fgMuted);padding:9px 14px 4px;text-transform:uppercase;letter-spacing:.4px}
+.ci{display:flex;align-items:center;gap:11px;padding:9px 14px;font-size:14px;color:var(--fg)}
+.ci.on{background:var(--surface2)} .ci .i{color:var(--fgMuted)} .ci .kbd{margin-left:auto;font-size:11px;color:var(--fgMuted);font-family:var(--mono);background:var(--surface2);padding:1px 6px;border-radius:4px}
+.rp-tabs{display:flex;align-items:center;gap:2px;height:38px;padding:0 6px;border-bottom:1px solid var(--border)}
+.rp-tab{display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:var(--r-md);font-size:13px;color:var(--fgMuted)}
+.rp-tab.on{background:var(--surface2);color:var(--fg)} .rp-tab.on .i{color:var(--accentBright)}
+.rp-x{margin-left:auto;color:var(--fgMuted);padding:4px;border-radius:4px}
+.resize{width:5px;flex:none;border-left:1px solid var(--border);position:relative}
+.resize::after{content:"";position:absolute;left:-1px;top:50%;transform:translateY(-50%);width:3px;height:32px;border-radius:2px;background:var(--surface4)}
+.botdock{border-top:1px solid var(--border);background:var(--surface0);height:148px;display:flex;flex-direction:column}
+.botdock .bd-h{height:32px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--border);font-size:12px;color:var(--fgMuted)}
+.botdock .bd-b{flex:1;padding:8px 12px;font-family:var(--mono);font-size:12px;color:#15803d;line-height:1.7}
+.toast{display:inline-flex;align-items:center;gap:9px;padding:10px 14px;border-radius:var(--r-lg);background:var(--surface2);border:1px solid var(--borderAccent);font-size:13px;box-shadow:0 16px 40px -12px rgba(0,0,0,.13)}
+.alertbox{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border:1px solid;border-radius:var(--r-lg);font-size:13px}
+.alertbox.err{border-color:rgba(220,38,38,.4)} .alertbox.err .i,.alertbox.err .at{color:#b91c1c}
+.alertbox.info{border-color:var(--borderAccent)} .alertbox.info .i{color:var(--accentBright)}
+.alertbox .at{font-weight:500} .alertbox .ad{color:var(--fgMuted);margin-top:2px;line-height:1.5}
+.sb-callout{margin:8px 4px;padding:10px 11px;border:1px solid var(--borderAccent);border-radius:var(--r-lg);font-size:12px;color:var(--fgMuted);background:var(--surface1)}
+.sb-callout .ct{color:var(--fg);font-weight:500;display:flex;align-items:center;gap:7px;margin-bottom:4px}
+.renaming{flex:1;background:var(--surface0);border:1px solid var(--accent);border-radius:var(--r-base);padding:3px 7px;font-size:13px;color:var(--fg);box-shadow:0 0 0 3px rgba(32,116,74,.16)}
+.grip{color:var(--surface4)}
+.phones{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
+.phone{width:296px;border:1px solid var(--border);border-radius:30px;overflow:hidden;background:var(--surface0);box-shadow:0 20px 50px -20px rgba(0,0,0,.13);flex:none}
+.pstatus{height:30px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--fgMuted)}
+.phone-shell{height:548px;display:flex;flex-direction:column;border-top:1px solid var(--border)}
+.phone-hd{height:48px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--border);font-size:14px}
+.phone-hd .i{color:var(--fgMuted)}
+.phone-tabbar{height:52px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-around;color:var(--fgMuted)}
+.phone-tabbar .pt{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px}
+.phone-tabbar .pt.on{color:var(--accentBright)}
+.kbdkey{font-family:var(--mono);font-size:11px;color:var(--fgMuted);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
+/* settings list+detail (ported from v1; S11) */
+.set-shell{display:flex;height:680px}
+.set-side{width:252px;flex:none;background:var(--surfaceSidebar);border-right:1px solid var(--border);padding:12px 8px;display:flex;flex-direction:column;gap:1px}
+.set-side .back{display:flex;align-items:center;gap:8px;color:var(--fgMuted);font-size:13px;padding:6px 10px;margin-bottom:6px}
+.set-side .sgrp{font-size:11px;color:var(--fgMuted);font-weight:500;padding:12px 10px 5px;letter-spacing:.3px;text-transform:uppercase}
+.set-item{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:var(--r-lg);font-size:var(--sm);color:var(--fg)}
+.set-item .i{color:var(--fgMuted)} .set-item:hover{background:var(--surfaceSidebarHover)}
+.set-item.active{background:var(--surface2)} .set-item.active .i{color:var(--accentBright)}
+.set-main{flex:1;min-width:0;overflow:hidden;background:var(--surfaceWorkspace);display:flex;flex-direction:column}
+.set-hd{height:52px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:11px;padding:0 22px}
+.set-hd h3{font-size:var(--base);font-weight:300} .set-hd .hd-r{margin-left:auto;display:flex;gap:8px}
+.set-content{flex:1;overflow:auto;padding:22px 26px}
+.badge-ic{width:28px;height:28px;border-radius:var(--r-lg);background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--accentBright);flex:none}
+/* thin scrollbars (chairman: 滚动条太粗) — token scrollbarHandle #717574 */
+*::-webkit-scrollbar{width:7px;height:7px}
+*::-webkit-scrollbar-thumb{background:#c7c7cc;border-radius:9999px;border:2px solid transparent;background-clip:padding-box}
+*::-webkit-scrollbar-thumb:hover{background:#a1a1aa}
+*::-webkit-scrollbar-track{background:transparent}
+*::-webkit-scrollbar-corner{background:transparent}
+*{scrollbar-width:thin;scrollbar-color:#c7c7cc transparent}
+/* pinned-section / pin glyph (chairman juvenile-skunk: 置顶) */
+.pin45{display:inline-flex;transform:rotate(45deg);color:var(--fgMuted)}
+.pin45.on{color:var(--fg)}
+.hovercard{position:absolute;background:var(--surface1);border:1px solid var(--borderAccent);border-radius:var(--r-lg);box-shadow:0 16px 40px -12px rgba(0,0,0,.15);padding:10px 12px;min-width:190px;z-index:8;font-size:12px}
+.hovercard .hc-t{font-size:13px;color:var(--fg);margin-bottom:6px}
+.hub-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hub-card{border:1px solid var(--border);border-radius:var(--r-xl);background:var(--surface1);padding:14px 15px;display:flex;flex-direction:column;gap:7px}
+.hub-card:hover{border-color:var(--borderAccent);background:var(--surface2)}
+.hub-card .hc-h{display:flex;align-items:center;gap:9px;font-size:var(--sm);color:var(--fg)}
+.hub-card .hc-h .badge-ic{width:26px;height:26px}
+.hub-card .hc-d{font-size:var(--xs);color:var(--fgMuted);line-height:1.5}
+.hub-card .chev{margin-left:auto;color:var(--fgMuted)}
+.bcrumb{display:flex;align-items:center;gap:6px;font-size:var(--xs);color:var(--fgMuted)}
+.bcrumb b{color:var(--fg);font-weight:500}
+.qrbox{width:150px;height:150px;border-radius:var(--r-lg);background:#fff;display:flex;align-items:center;justify-content:center;color:#111}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<symbol id="folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+<symbol id="pen" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.4 2.6a1 1 0 0 1 3 3l-9 9-4 1 1-4z"/></symbol>
+<symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+<symbol id="settings" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+<symbol id="chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+<symbol id="updown" viewBox="0 0 24 24"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></symbol>
+<symbol id="kebab" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></symbol>
+<symbol id="plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+<symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+<symbol id="terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></symbol>
+<symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
+<symbol id="file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+<symbol id="panel-l" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></symbol>
+<symbol id="panel-r" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M15 3v18"/></symbol>
+<symbol id="maximize" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M9 21H3v-6"/><path d="m21 3-7 7"/><path d="m3 21 7-7"/></symbol>
+<symbol id="refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.7 9.7 0 0 1 6.7 2.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.7 9.7 0 0 1-6.7-2.7L3 16"/><path d="M8 16H3v5"/></symbol>
+<symbol id="lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+<symbol id="zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+<symbol id="brain" viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.9.7A3 3 0 0 0 4 9a3 3 0 0 0 1 5.6V16a3 3 0 0 0 5 2 3 3 0 0 0 5-2v-1.4A3 3 0 0 0 20 9a3 3 0 0 0-2.1-3.3A3 3 0 0 0 12 5z"/></symbol>
+<symbol id="spark" viewBox="0 0 24 24"><path d="M9.9 15.5A2 2 0 0 0 8.5 14L2.4 12.5a.5.5 0 0 1 0-1L8.5 10a2 2 0 0 0 1.4-1.4L11.5 2.4a.5.5 0 0 1 1 0L14 8.5a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z"/><path d="M20 3v4"/><path d="M22 5h-4"/></symbol>
+<symbol id="clip" viewBox="0 0 24 24"><path d="m21.4 11-9.2 9.2a6 6 0 0 1-8.5-8.5l8.6-8.6A4 4 0 1 1 18 8.8l-8.6 8.6a2 2 0 0 1-2.8-2.9l8.5-8.5"/></symbol>
+<symbol id="up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7"/><path d="M12 19V5"/></symbol>
+<symbol id="sliders" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/><line x1="14" x2="14" y1="2" y2="6"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="16" x2="16" y1="18" y2="22"/></symbol>
+<symbol id="chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></symbol>
+<symbol id="package" viewBox="0 0 24 24"><path d="M21 8a2 2 0 0 0-1-1.7l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.7l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/></symbol>
+<symbol id="server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2"/><rect width="20" height="8" x="2" y="14" rx="2"/><line x1="6" x2="6" y1="6" y2="6"/><line x1="6" x2="6" y1="18" y2="18"/></symbol>
+<symbol id="puzzle" viewBox="0 0 24 24"><path d="M15.4 4.4a1 1 0 0 0 1.7-.5 2.5 2.5 0 1 1 3 3 1 1 0 0 0-.5 1.7l1.7 1.7a2.4 2.4 0 0 1 0 3.4L19.6 15a1 1 0 0 1-1.7-.5 2.5 2.5 0 1 0-3 3 1 1 0 0 1 .5 1.7l-1.7 1.7a2.4 2.4 0 0 1-3.4 0L8.6 19.2a1 1 0 0 0-1.7.5 2.5 2.5 0 1 1-3-3 1 1 0 0 0 .5-1.7L2.7 13.3a2.4 2.4 0 0 1 0-3.4L4.4 8.2a1 1 0 0 1 1.7.5 2.5 2.5 0 1 0 3-3 1 1 0 0 1-.5-1.7z"/></symbol>
+<symbol id="download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></symbol>
+<symbol id="dollar" viewBox="0 0 24 24"><line x1="12" x2="12" y1="2" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></symbol>
+<symbol id="gauge" viewBox="0 0 24 24"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></symbol>
+<symbol id="branch" viewBox="0 0 24 24"><line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+<symbol id="link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
+<symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+<symbol id="key" viewBox="0 0 24 24"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L21 5"/><path d="m18 9-1.5-1.5"/><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/></symbol>
+<symbol id="play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+<symbol id="grid" viewBox="0 0 24 24"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></symbol>
+<symbol id="store" viewBox="0 0 24 24"><path d="m2 7 2-4h16l2 4"/><path d="M4 7v13a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V7"/><path d="M2 7h20"/><path d="M9 21v-6h6v6"/></symbol>
+<symbol id="palette" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5"/><circle cx="17.5" cy="10.5" r=".5"/><circle cx="8.5" cy="7.5" r=".5"/><circle cx="6.5" cy="12.5" r=".5"/><path d="M12 2a10 10 0 1 0 0 20 2 2 0 0 0 2-2v-1a2 2 0 0 1 2-2h2a4 4 0 0 0 4-4 10 10 0 0 0-12-9z"/></symbol>
+<symbol id="shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.7 9a1 1 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1 1 0 0 1 1.5 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/></symbol>
+<symbol id="cloud" viewBox="0 0 24 24"><path d="M17.5 19a4.5 4.5 0 1 0-1.4-8.8A7 7 0 1 0 4 16h13.5z"/></symbol>
+<symbol id="msg" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></symbol>
+<symbol id="quote" viewBox="0 0 24 24"><path d="M16 3a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2v3l-3-3H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/></symbol>
+<symbol id="history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-7.7L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></symbol>
+<symbol id="bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
+<symbol id="network" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="6" rx="1"/><rect x="2" y="16" width="6" height="6" rx="1"/><rect x="16" y="16" width="6" height="6" rx="1"/><path d="M12 8v4M5 16v-2h14v2"/></symbol>
+<symbol id="command" viewBox="0 0 24 24"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></symbol>
+<symbol id="smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></symbol>
+<symbol id="wifioff" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M8.5 16.4a5 5 0 0 1 7 0"/><path d="M5 12.9a10 10 0 0 1 5.2-2.8"/><path d="M22 8.8a16 16 0 0 0-9-3.5"/><path d="m2 2 20 20"/></symbol>
+<symbol id="trash" viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></symbol>
+<symbol id="archive" viewBox="0 0 24 24"><rect width="20" height="5" x="2" y="3" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></symbol>
+<symbol id="copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+<symbol id="at" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"/></symbol>
+<symbol id="mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><path d="M12 17v4"/></symbol>
+<symbol id="qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M14 20h7"/></symbol>
+<symbol id="alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
+<symbol id="more-h" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></symbol>
+<symbol id="folder-plus" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><path d="M12 10v6M9 13h6"/></symbol>
+<symbol id="enter" viewBox="0 0 24 24"><path d="M20 4v7a4 4 0 0 1-4 4H4"/><path d="m9 10-5 5 5 5"/></symbol>
+<symbol id="home" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></symbol>
+</svg>
+
+<div class="board-h">
+  <h1><span class="logo"><svg class="i lg"><use href="#gauge"/></svg></span> Helm v3 · 设计稿 <span style="font-size:13px;font-weight:500;color:var(--accentBright);background:rgba(32,116,74,.16);padding:3px 10px;border-radius:9999px;margin-left:8px">最终版 · 全量 P1–P3</span></h1>
+  <div class="sub"><b style="color:var(--fg)">产品级全量设计 · 分阶段评审第一阶段：外壳 + 全部交互细节 + 设置 IA 骨架 + 手机响应式。</b> 以 <b style="color:var(--fg)">Paseo 真实产品</b>（多主机 / 手机远程配对 / ⌘K 命令面板 / 完整设置 IA）+ <b style="color:var(--fg)">Codex 真实外壳</b> 为基。本阶段定调后出 Phase 2（管理全量）/ Phase 3（主机·手机·项目会话·onboarding）。配套 <span style="font-family:var(--mono);font-size:11px">HELM-v3-需求文档.md</span>，取代 v1/v2。设计稿即需求。</div>
+</div>
+<div class="req-log">
+  <div class="rl-h"><svg class="i sm"><use href="#clock"/></svg> 需求日志 · Requirement Log</div>
+  <table>
+    <tr><th style="width:96px">日期</th><th style="width:150px">状态</th><th>需求目的 / 涉及流程</th></tr>
+    <tr><td>2026-06-24</td><td><span class="pill done"><svg class="i xs"><use href="#check"/></svg> 全量 P2+P3</span></td><td><b>对齐董事长 juvenile-skunk 分支的真实设计 + 反馈：</b>① 侧栏改 <b>置顶/项目/对话</b>（45° pin + 右键菜单 + 置顶弹卡显示项目/分支）；② <b>主机 = 关联全量的枢纽 hub</b>（连接/守护进程/配对/提供方/用量/工作区/Agents/终端 一处下钻，切主机=全局重载）——修「主机太杂、UI 没放对位置」；③ <b>细滚动条</b>（7px）；④ 管理(中转站/用量/代理/MCP/Skill/Prompts/插件/同步) + 主机/手机配对/项目工作区/会话/onboarding 全量。设置参考 Paseo 两级 IA。</td></tr>
+    <tr><td>2026-06-24</td><td><span class="pill done"><svg class="i xs"><use href="#check"/></svg> P1</span></td><td><b>修正 v2 三处硬伤：</b>① 右栏改为 <b>Codex 式停靠面板（tab 头）</b>，删除悬浮图标 rail；② 设置改为 <b>Paseo 真实两级 IA</b>（提供方/用量各为独立页签）；③ 补全 <b>交互细节</b>（侧栏 hover/右键/重命名/拖拽、面板各态、⌘K、空/载/错/离线）。<b>找回 Paseo</b> 主机切换 + 手机远程配对。一套响应式 UI（桌面优先 + 手机态）。</td></tr>
+    <tr><td>2026-06-24</td><td><span class="pill p0">前序 v1/v2</span></td><td>v1 网络调研 / v2 cc-switch 源码校准——均覆盖不全（丢了主机/手机/命令面板/设置 IA，右栏与 Codex 不符）。v3 重做并取代。</td></tr>
+  </table>
+</div>
+<div class="nav-idx">
+  <a href="#s1" class="grp">外壳</a>
+  <a href="#s1">1 主窗·空态</a><a href="#s2">2 主窗·对话</a><a href="#s3">3 右面板·审查</a><a href="#s4">4 右面板·终端(右/底)</a>
+  <a href="#s5" class="grp">交互细节</a>
+  <a href="#s5">5 侧栏 hover/右键/重命名</a><a href="#s6">6 主机切换器</a><a href="#s7">7 ⌘K 命令面板</a><a href="#s8">8 Composer 全态</a><a href="#s9">9 三层选择器</a><a href="#s10">10 搜索/空·载·错·离线</a>
+  <a href="#s11" class="grp">设置 + 响应式</a>
+  <a href="#s11">11 设置 IA 骨架</a><a href="#s12">12 手机响应式</a>
+  <a href="#s13" class="grp">管理 (P2)</a>
+  <a href="#s13">13 提供方与中转站</a><a href="#s14">14 中转站编辑</a><a href="#s15">15 用量·余额·限额</a><a href="#s16">16 代理/故障转移</a><a href="#s17">17 集成·MCP</a><a href="#s18">18 集成·Skill/Prompts/插件</a><a href="#s19">19 cc-switch 同步</a>
+  <a href="#s20" class="grp">主机·手机·项目 (P3)</a>
+  <a href="#s20">20 主机 Hub★</a><a href="#s21">21 添加主机</a><a href="#s22">22 配对设备(手机远程)</a><a href="#s23">23 项目/工作区</a><a href="#s24">24 会话历史</a><a href="#s25">25 Onboarding</a><a href="#s26">26 服务代理</a>
+</div>
+<div class="note"><svg class="i sm"><use href="#spark"/></svg> 交互标注：青绿圆点 <span class="pin" style="width:16px;height:16px">①</span> 标在控件旁，对应右侧「交互行为」编号。<b style="color:var(--fg)">同一套响应式 UI</b>：桌面态为主，S12 给手机态。</div>
+
+<!-- ============ S1 · SHELL EMPTY ============ -->
+<section class="screen" id="s1">
+  <div class="screen-head"><span class="tag">外壳 · 1</span><h2>主窗 — 空态（含主机切换器，右栏正确收起）</h2><p>左侧栏顶部=<b>主机切换器</b>（多主机/在线状态，Paseo 机制找回）；目录→对话两段；会话历史入口。中区空态可直接打字 + 三层级联选择器。<b>右栏收起时无悬浮 rail</b>——开关在右上角 chrome（修 v2 错误）。</p></div>
+  <div class="screen-body">
+    <div class="frame">
+      <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="chrome-r"><div class="chrome-btn"><svg class="i sm"><use href="#panel-l"/></svg></div><div class="chrome-btn"><svg class="i sm"><use href="#chev-d"/></svg></div><div class="chrome-btn"><svg class="i sm"><use href="#maximize"/></svg></div><div class="chrome-btn"><svg class="i sm"><use href="#panel-r"/></svg><span class="pinb">4</span></div></div></div>
+      <div class="shell">
+        <div class="sidebar">
+          <div class="host-pill"><span class="dot run"></span><span class="nm">本机 · localhost:7070</span><svg class="i sm"><use href="#chev-d"/></svg><span class="pinb">1</span></div>
+          <div class="sb-top"><div class="sb-item active"><svg class="i sm"><use href="#pen"/></svg> 新对话</div><div class="sb-item muted"><svg class="i sm"><use href="#search"/></svg> 搜索 <span class="kbdkey" style="margin-left:auto">⌘K</span></div><div class="sb-item muted"><svg class="i sm"><use href="#history"/></svg> 会话历史</div></div>
+          <div class="sb-sec">置顶</div>
+          <div class="sb-conv" style="color:var(--fg)"><span class="pin45 on"><svg class="i sm"><use href="#updown"/></svg></span> claude --resume c8075… <span class="sb-hoveract" style="opacity:1"><svg class="i xs"><use href="#x"/></svg></span><span class="pinb">3</span></div>
+          <div class="sb-conv" style="color:var(--fg)"><svg class="i sm" style="color:var(--fgMuted)"><use href="#chev-r"/></svg><svg class="i sm" style="color:var(--fgMuted)"><use href="#folder"/></svg> yoncode-skills <span class="pin45 on" style="margin-left:auto"><svg class="i xs"><use href="#updown"/></svg></span></div>
+          <div class="sb-sec">项目 <span class="sb-hoveract" style="opacity:1"><svg class="i xs"><use href="#folder-plus"/></svg></span></div>
+          <div class="sb-conv" style="color:var(--fg)"><svg class="i sm" style="color:var(--fgMuted)"><use href="#chev-d"/></svg><svg class="i sm" style="color:var(--fgMuted)"><use href="#folder"/></svg> paseo-main <span class="sb-hoveract" style="opacity:1;display:flex;gap:6px"><span class="pin45"><svg class="i xs"><use href="#updown"/></svg></span><svg class="i xs"><use href="#pen"/></svg></span></div>
+          <div class="sb-sub"><div class="sb-conv active"><span class="dot idle"></span> 重构选择器</div><div class="sb-conv"><span class="dot run"></span> 修复 diff 对齐</div></div>
+          <div class="sb-conv" style="color:var(--fg);margin-top:2px"><svg class="i sm" style="color:var(--fgMuted)"><use href="#chev-r"/></svg><svg class="i sm" style="color:var(--fgMuted)"><use href="#folder"/></svg> helm-relay</div>
+          <div class="sb-sec" style="margin-top:6px">对话</div>
+          <div class="sb-conv"><span class="dot idle"></span> 临时：解释 Zod schema</div>
+          <div class="sb-spacer"></div>
+          <div class="sb-foot"><div class="sb-item muted"><svg class="i sm"><use href="#settings"/></svg> 设置</div></div>
+        </div>
+        <div class="main">
+          <div class="empty-wrap">
+            <div class="empty-title">今天想构建点什么？</div>
+            <div class="composer">
+              <div class="cbox focus"><div class="cph">问点什么，或让代理开始干活…</div><div class="ctools"><div class="ctool"><svg class="i sm"><use href="#clip"/></svg></div><div class="ctool on"><svg class="i sm"><use href="#brain"/></svg> 思考</div><div class="ctool"><svg class="i sm"><use href="#globe"/></svg> 联网</div><div class="cspacer"></div><div class="send dim"><svg class="i sm"><use href="#up"/></svg></div></div></div>
+              <div class="chips"><span class="chip"><svg class="i xs"><use href="#folder"/></svg> paseo-main</span><span class="chip"><svg class="i xs"><use href="#sliders"/></svg> 默认模式</span><span class="chip"><svg class="i xs"><use href="#branch"/></svg> develop</span></div>
+              <div class="cascade-row"><div class="cascade"><svg class="i sm lock"><use href="#lock"/></svg> Claude Code <span class="sep">·</span> 智谱 GLM <span class="sep">·</span> glm-4.6 <svg class="i sm" style="color:var(--fgMuted)"><use href="#updown"/></svg><span class="pinb">2</span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>主机切换器</b>：顶部胶囊显示当前主机 + 在线状态点；点开下拉切主机/添加主机（S6）。这是 Paseo 多主机机制的入口。</div></li>
+      <li><span class="pin">2</span><div><b>三层级联胶囊</b>：Composer 下方独立一行；展开见 S9。提供方🔒锁定，中转站+模型可切。</div></li>
+      <li><span class="pin">3</span><div><b>置顶 / 项目 / 对话</b>（对齐 juvenile-skunk）：<b>置顶</b>区在项目上方——可置顶整个项目或单个对话（拎出成一行，hover 弹卡显示项目+分支）；45° pin 图标 outline=未置顶/filled=已置顶；项目区 file-tree，hover 出 新增对话+置顶。详见 S5。</div></li>
+      <li><span class="pin">4</span><div><b>右栏开关</b>：<b>收起时右侧无悬浮 rail</b>；只在右上 chrome 有 <svg class="i xs"><use href="#panel-r"/></svg> 开关（或 ⌘ 快捷键）唤出停靠面板（S3）。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S2 · SHELL CONVERSATION ============ -->
+<section class="screen" id="s2">
+  <div class="screen-head"><span class="tag">外壳 · 2</span><h2>主窗 — 进行中对话</h2><p>消息流（用户/代理/工具调用/diff），复用 Paseo agent-stream。Composer 功能按钮随当前 (提供方,中转站,模型) 能力显隐（model-driven）。右栏仍收起。</p></div>
+  <div class="screen-body">
+    <div class="frame">
+      <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div style="margin-left:14px;font-size:13px;color:var(--fgMuted)">重构选择器 · paseo-main</div><div class="chrome-r"><div class="chrome-btn"><svg class="i sm"><use href="#panel-l"/></svg></div><div class="chrome-btn"><svg class="i sm"><use href="#maximize"/></svg></div><div class="chrome-btn"><svg class="i sm"><use href="#panel-r"/></svg></div></div></div>
+      <div class="shell">
+        <div class="sidebar">
+          <div class="host-pill"><span class="dot run"></span><span class="nm">本机 · localhost:7070</span><svg class="i sm"><use href="#chev-d"/></svg></div>
+          <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen"/></svg> 新对话</div><div class="sb-item muted"><svg class="i sm"><use href="#search"/></svg> 搜索</div><div class="sb-item muted"><svg class="i sm"><use href="#history"/></svg> 会话历史</div></div>
+          <div class="sb-sec">目录</div>
+          <div class="sb-conv" style="color:var(--fg)"><svg class="i sm" style="color:var(--fgMuted)"><use href="#chev-d"/></svg><svg class="i sm" style="color:var(--fgMuted)"><use href="#folder"/></svg> paseo-main</div>
+          <div class="sb-sub"><div class="sb-conv active"><span class="dot run"></span> 重构选择器</div><div class="sb-conv"><span class="dot idle"></span> 修复 diff 对齐</div></div>
+          <div class="sb-spacer"></div>
+          <div class="sb-foot"><div class="sb-item muted"><svg class="i sm"><use href="#settings"/></svg> 设置</div></div>
+        </div>
+        <div class="main">
+          <div class="msgs">
+            <div class="msg" style="align-self:flex-end;flex-direction:row-reverse"><div class="av user">我</div><div class="body" style="background:var(--surface2);padding:9px 13px;border-radius:12px">把三层选择器改成级联下拉，放到 Composer 下方</div></div>
+            <div class="msg"><div class="av ai"><svg class="i sm"><use href="#spark"/></svg></div><div class="body">好，我先定位组件再改成级联结构。<span class="muted">读取 + 编辑 2 个文件…</span>
+              <div class="tool-call"><div class="tc-h"><svg class="i xs"><use href="#file"/></svg> Read · agent-controls/index.tsx <span class="ok"><svg class="i xs"><use href="#check"/></svg></span></div></div>
+              <div class="tool-call"><div class="tc-h"><svg class="i xs"><use href="#pen"/></svg> Edit · combined-model-selector.tsx <span class="ok"><svg class="i xs"><use href="#check"/></svg></span></div></div>
+            </div></div>
+          </div>
+          <div style="padding:14px 28px 20px;border-top:1px solid var(--border)">
+            <div class="composer" style="max-width:none">
+              <div class="cbox"><div class="ctext">再加个"设为默认中转站"的选项</div><div class="ctools"><div class="ctool"><svg class="i sm"><use href="#clip"/></svg></div><div class="ctool on"><svg class="i sm"><use href="#brain"/></svg> 思考·高<span class="pinb">2</span></div><div class="ctool"><svg class="i sm"><use href="#globe"/></svg> 联网</div><div class="cspacer"></div><div class="send"><svg class="i sm"><use href="#up"/></svg></div></div></div>
+              <div class="chips"><span class="chip"><svg class="i xs"><use href="#folder"/></svg> paseo-main</span><span class="chip"><svg class="i xs"><use href="#sliders"/></svg> Plan 模式</span></div>
+              <div class="cascade-row" style="justify-content:flex-start"><div class="cascade"><svg class="i sm lock"><use href="#lock"/></svg> Claude Code <span class="sep">·</span> 智谱 GLM <span class="sep">·</span> glm-4.6 <svg class="i sm" style="color:var(--fgMuted)"><use href="#updown"/></svg></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>消息流</b>：用户气泡右对齐；代理回复带 AI 头像；工具调用折叠卡片，成功打 <svg class="i xs" style="color:var(--success)"><use href="#check"/></svg>，可点开看参数/diff。</div></li>
+      <li><span class="pin">2</span><div><b>model-driven 能力</b>：思考/联网等按当前模型能力显隐启停；换不支持联网的模型则联网键消失。</div></li>
+      <li><span class="pin">3</span><div><b>切中转站/模型</b>：对话中点级联胶囊切换，<b>下条消息生效</b>；提供方保持锁定。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S3 · RIGHT PANEL REVIEW (Codex tab header) ============ -->
+<section class="screen" id="s3">
+  <div class="screen-head"><span class="tag">外壳 · 3 · 修正核心</span><h2>右面板 — 审查（Codex 式停靠列 + tab 头）</h2><p><b>这是对 v2 的修正</b>：右面板是真正的<b>停靠列</b>，顶部 <b>tab 头</b>（审查/终端/浏览器/文件）切换内容，左缘可拖拽改宽，右上 <svg class="i xs" style="display:inline"><use href="#x"/></svg> 收起——<b>没有半空悬浮图标 rail</b>。审查=本地/worktree Git diff，逐行评论 + chunk/文件 stage/revert（目录绑定面，同 cwd 共享）。</p></div>
+  <div class="screen-body">
+    <div class="frame">
+      <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div style="margin-left:14px;font-size:13px;color:var(--fgMuted)">重构选择器 · paseo-main</div><div class="chrome-r"><div class="chrome-btn"><svg class="i sm"><use href="#panel-l"/></svg></div><div class="chrome-btn active"><svg class="i sm"><use href="#panel-r"/></svg></div></div></div>
+      <div class="shell">
+        <div class="sidebar" style="width:188px"><div class="host-pill" style="margin-bottom:8px"><span class="dot run"></span><span class="nm">本机</span><svg class="i sm"><use href="#chev-d"/></svg></div><div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen"/></svg> 新对话</div></div><div class="sb-sec">目录</div><div class="sb-conv" style="color:var(--fg)"><svg class="i sm" style="color:var(--fgMuted)"><use href="#chev-d"/></svg><svg class="i sm" style="color:var(--fgMuted)"><use href="#folder"/></svg> paseo-main</div><div class="sb-sub"><div class="sb-conv active"><span class="dot run"></span> 重构选择器</div></div><div class="sb-spacer"></div><div class="sb-foot"><div class="sb-item muted"><svg class="i sm"><use href="#settings"/></svg> 设置</div></div></div>
+        <div class="main"><div class="msgs" style="padding:18px 20px"><div class="msg"><div class="av ai"><svg class="i sm"><use href="#spark"/></svg></div><div class="body">改好级联选择器，右侧审查 diff。<span class="muted">3 文件</span></div></div></div><div style="padding:12px 20px 16px;border-top:1px solid var(--border)"><div class="cbox" style="max-width:none"><div class="cph">继续…</div><div class="ctools"><div class="ctool"><svg class="i sm"><use href="#clip"/></svg></div><div class="cspacer"></div><div class="send dim"><svg class="i sm"><use href="#up"/></svg></div></div></div></div></div>
+        <div class="resize"><span class="pinb" style="position:absolute;top:8px;left:-8px">3</span></div>
+        <div class="rpanel" style="width:354px">
+          <div class="rp-tabs"><div class="rp-tab on"><svg class="i sm"><use href="#spark"/></svg> 审查</div><div class="rp-tab"><svg class="i sm"><use href="#terminal"/></svg> 终端</div><div class="rp-tab"><svg class="i sm"><use href="#globe"/></svg> 浏览器</div><div class="rp-tab"><svg class="i sm"><use href="#file"/></svg> 文件</div><div class="rp-x"><svg class="i sm"><use href="#x"/></svg></div></div>
+          <div class="diff-file"><svg class="i xs"><use href="#file"/></svg> combined-model-selector.tsx <span class="add" style="margin-left:auto">+28</span> <span class="del">−6</span></div>
+          <div class="diff-body"><div class="dl"><span class="ln">41</span><span class="ct">  const vendor = useVendor(id)</span></div><div class="dl del"><span class="ln">42</span><span class="ct">- return &lt;ModelMenu flat /&gt;</span></div><div class="dl add"><span class="ln">42</span><span class="ct">+ return (</span></div><div class="dl add"><span class="ln">43</span><span class="ct">+   &lt;Cascade lockedProvider={p}</span></div><div class="dl add"><span class="ln">44</span><span class="ct">+     vendors={vendors} model={m}/&gt;</span></div><div class="dl add"><span class="ln">45</span><span class="ct">+ )</span></div></div>
+          <div style="padding:9px 13px;border-top:1px solid var(--border);display:flex;gap:7px"><span class="btn out sm"><svg class="i xs"><use href="#check"/></svg> Stage</span><span class="btn ghost sm">Revert</span><span class="btn ghost sm" style="margin-left:auto"><svg class="i xs"><use href="#plus"/></svg> 行评论</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>tab 头切换</b>：审查/终端/浏览器/文件 在面板顶 tab 切换（也可 ⌃⇧G/⌘T/⌘P 快捷键直开某 tab）。右上 <svg class="i xs"><use href="#x"/></svg> 收起整列。</div></li>
+      <li><span class="pin">2</span><div><b>diff 行操作</b>：hover 行出 [+ 行评论]；按 chunk/文件 Stage/Revert；标题汇总 +/−。</div></li>
+      <li><span class="pin">3</span><div><b>拖拽改宽</b>：左缘 resize 手柄拖动改面板宽度（记忆每工作区）。</div></li>
+      <li><span class="pin">4</span><div><b>目录绑定</b>：审查/文件/浏览器按 (serverId,cwd) 键控，同 cwd 对话共享内容。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S4 · TERMINAL DOCK (right / bottom) ============ -->
+<section class="screen" id="s4">
+  <div class="screen-head"><span class="tag">外壳 · 4</span><h2>终端：右侧 / 底部停靠（Codex 同款）+ 浏览器面板</h2><p>Codex 行为：终端可停<b>右面板</b>或<b>底部面板</b>。本屏示意底部停靠的终端 + 右面板浏览器同开。文件面板=文件树 + 预览。</p></div>
+  <div class="screen-body">
+    <div class="frame">
+      <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div style="margin-left:14px;font-size:13px;color:var(--fgMuted)">重构选择器 · paseo-main</div><div class="chrome-r"><div class="chrome-btn"><svg class="i sm"><use href="#panel-l"/></svg></div><div class="chrome-btn active"><svg class="i sm"><use href="#panel-r"/></svg></div></div></div>
+      <div class="shell">
+        <div class="sidebar" style="width:172px"><div class="host-pill" style="margin-bottom:8px"><span class="dot run"></span><span class="nm">本机</span><svg class="i sm"><use href="#chev-d"/></svg></div><div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen"/></svg> 新对话</div></div><div class="sb-sec">对话</div><div class="sb-conv active"><span class="dot run"></span> 重构选择器</div><div class="sb-spacer"></div><div class="sb-foot"><div class="sb-item muted"><svg class="i sm"><use href="#settings"/></svg> 设置</div></div></div>
+        <div class="main">
+          <div class="msgs" style="padding:16px 18px;flex:none;height:150px"><div class="msg"><div class="av ai"><svg class="i sm"><use href="#spark"/></svg></div><div class="body">跑测试看看。<span class="muted">在底部终端执行</span></div></div></div>
+          <div class="botdock"><div class="bd-h"><svg class="i sm"><use href="#terminal"/></svg> 终端 · zsh <span class="badge mut" style="margin-left:6px">底部停靠</span><span class="rp-x" style="margin-left:auto" title="移到右侧"><svg class="i sm"><use href="#panel-r"/></svg></span><span class="pinb" style="margin-left:4px">1</span></div><div class="bd-b">$ npx vitest run selector.test.ts<br>✓ cascade renders locked provider (12ms)<br>✓ switching vendor updates model list (8ms)<br><span style="color:var(--fgMuted)">Test Files 1 passed · Tests 2 passed</span></div></div>
+          <div style="padding:10px 18px 14px;border-top:1px solid var(--border)"><div class="cbox" style="max-width:none"><div class="cph">继续…</div><div class="ctools"><div class="ctool"><svg class="i sm"><use href="#clip"/></svg></div><div class="cspacer"></div><div class="send dim"><svg class="i sm"><use href="#up"/></svg></div></div></div></div>
+        </div>
+        <div class="resize"></div>
+        <div class="rpanel" style="width:320px">
+          <div class="rp-tabs"><div class="rp-tab"><svg class="i sm"><use href="#spark"/></svg> 审查</div><div class="rp-tab"><svg class="i sm"><use href="#terminal"/></svg> 终端</div><div class="rp-tab on"><svg class="i sm"><use href="#globe"/></svg> 浏览器</div><div class="rp-tab"><svg class="i sm"><use href="#file"/></svg> 文件</div><div class="rp-x"><svg class="i sm"><use href="#x"/></svg></div></div>
+          <div style="padding:8px 11px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px"><svg class="i sm" style="color:var(--fgMuted)"><use href="#chev-r"/></svg><div class="input" style="flex:1;padding:5px 9px;font-size:12px">localhost:8081</div><svg class="i sm" style="color:var(--fgMuted)"><use href="#refresh"/></svg></div>
+          <div style="flex:1;display:flex;align-items:center;justify-content:center;color:var(--fgMuted);font-size:13px;background:var(--surface0)">▢ 应用预览（webview）</div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>终端停靠切换</b>：终端 tab 上的 <svg class="i xs"><use href="#panel-r"/></svg> 在“底部 ↔ 右侧”切换停靠；底部停靠适合边看对话边跑命令（Codex 同款）。</div></li>
+      <li><span class="pin">2</span><div><b>浏览器面板</b>：内置 webview（Electron `<webview>` / web iframe / native 占位），带地址栏 + 刷新；新标签可弹出。</div></li>
+      <li><span class="pin">3</span><div><b>文件面板</b>：文件树 + 点开预览/编辑，按 cwd 绑定。</div></li>
+      <li><span class="pin">4</span><div><b>多面板</b>：底部终端 + 右侧浏览器可同开；桌面支持 split 分屏，紧凑态退化为全屏 tab（S12）。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S5 · SIDEBAR INTERACTIONS ============ -->
+<section class="screen" id="s5">
+  <div class="screen-head"><span class="tag">交互细节 · 5</span><h2>左侧栏交互：hover / 右键菜单 / 内联重命名 / 拖拽</h2><p>董事长点名的缺口，全部补上。目录行/对话行 hover 出动作；<b>右键</b>出上下文菜单；双击或菜单触发<b>内联重命名</b>；可<b>拖拽</b>排序/移动到目录。下图同时示意 4 种态。</p></div>
+  <div class="screen-body">
+    <div class="frame" style="background:var(--surfaceSidebar)">
+      <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+      <div style="display:flex;height:480px;position:relative">
+        <div class="sidebar" style="width:280px;border-right:1px solid var(--border)">
+          <div class="host-pill"><span class="dot run"></span><span class="nm">本机 · localhost:7070</span><svg class="i sm"><use href="#chev-d"/></svg></div>
+          <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen"/></svg> 新对话</div><div class="sb-item muted"><svg class="i sm"><use href="#search"/></svg> 搜索</div></div>
+          <div class="sb-sec">目录</div>
+          <!-- directory hovered -->
+          <div class="sb-conv" style="color:var(--fg);background:var(--surfaceSidebarHover)"><svg class="i sm" style="color:var(--fgMuted)"><use href="#chev-d"/></svg><svg class="i sm" style="color:var(--fgMuted)"><use href="#folder"/></svg> paseo-main <span style="margin-left:auto;display:flex;gap:4px;color:var(--fgMuted)"><svg class="i xs"><use href="#pen"/></svg><svg class="i xs"><use href="#kebab"/></svg></span><span class="pinb">1</span></div>
+          <div class="sb-sub">
+            <!-- right-clicked (selected + ctxmenu) -->
+            <div class="sb-conv active"><span class="dot idle"></span> 重构选择器 <span class="pinb" style="margin-left:auto">2</span></div>
+            <!-- inline rename -->
+            <div class="sb-conv" style="background:var(--surfaceSidebarHover)"><span class="dot run"></span><input class="renaming" value="修复 diff 行对齐" readonly><span class="pinb">3</span></div>
+            <!-- drag ghost -->
+            <div class="sb-conv" style="opacity:.5;border:1px dashed var(--surface4)"><svg class="i sm grip"><use href="#more-h"/></svg> 解释 Zod schema <span style="margin-left:auto;color:var(--fgMuted);font-size:11px">拖拽中…</span><span class="pinb">4</span></div>
+          </div>
+          <div class="sb-conv" style="color:var(--fg);margin-top:2px"><svg class="i sm" style="color:var(--fgMuted)"><use href="#chev-r"/></svg><svg class="i sm" style="color:var(--fgMuted)"><use href="#folder"/></svg> helm-relay</div>
+        </div>
+        <!-- conversation context menu (right-click) -->
+        <div class="ctxmenu" style="top:150px;left:250px">
+          <div class="mi"><svg class="i sm"><use href="#pen"/></svg> 重命名 <span class="r kbd" style="font-family:var(--mono);font-size:11px">F2</span></div>
+          <div class="mi"><svg class="i sm"><use href="#copy"/></svg> 复制对话</div>
+          <div class="mi"><svg class="i sm"><use href="#folder"/></svg> 移动到目录…</div>
+          <div class="mi"><svg class="i sm"><use href="#archive"/></svg> 归档</div>
+          <div class="mi"><svg class="i sm"><use href="#file"/></svg> 在 Finder 中显示</div>
+          <div class="menu-sep"></div>
+          <div class="mi dz"><svg class="i sm"><use href="#trash"/></svg> 删除</div>
+        </div>
+        <!-- directory context menu (right-click) -->
+        <div class="ctxmenu" style="top:300px;left:300px;min-width:190px">
+          <div class="mi head" style="padding:5px 9px">目录 · 右键</div>
+          <div class="mi"><svg class="i sm"><use href="#pen"/></svg> 在此新建对话</div>
+          <div class="mi"><svg class="i sm"><use href="#pen"/></svg> 重命名目录</div>
+          <div class="mi"><svg class="i sm"><use href="#file"/></svg> 在 Finder 中显示</div>
+          <div class="menu-sep"></div>
+          <div class="mi dz"><svg class="i sm"><use href="#x"/></svg> 移出侧栏</div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>目录 hover</b>：行右侧浮出 <svg class="i xs"><use href="#pen"/></svg>=在此新建对话、<svg class="i xs"><use href="#kebab"/></svg>=更多。native/紧凑态常驻显示（hover 只在 web）。</div></li>
+      <li><span class="pin">2</span><div><b>对话右键</b>：弹上下文菜单——重命名 / 复制 / 移动到目录 / 归档 / 在 Finder 显示 / 删除（删除走 confirmDialog）。</div></li>
+      <li><span class="pin">3</span><div><b>内联重命名</b>：双击或菜单触发，行内变输入框（accent 边 + 聚焦环），Enter 提交 / Esc 取消。</div></li>
+      <li><span class="pin">4</span><div><b>拖拽</b>：长按拖动改排序，或拖到另一目录下；拖拽中显示虚线占位。</div></li>
+      <li><span class="pin">5</span><div><b>目录右键</b>：新建对话 / 重命名 / 在 Finder 显示 / 移出侧栏。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S6 · HOST SWITCHER ============ -->
+<section class="screen" id="s6">
+  <div class="screen-head"><span class="tag">交互细节 · 6 · Paseo 机制</span><h2>主机切换器（多主机 + 远程）</h2><p>Paseo 核心机制找回：一个客户端连多台主机（本机 / 远程 daemon），顶部胶囊点开下拉切换；状态点 在线/连接中/离线。底部「添加主机」。手机端正是通过远程主机 + relay 控制本机（S12 / Phase 3 配对）。</p></div>
+  <div class="screen-body">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+      <div style="display:flex;height:440px;position:relative;background:var(--surfaceWorkspace)">
+        <div class="sidebar" style="width:280px">
+          <div class="host-pill" style="border-color:var(--accent);box-shadow:0 0 0 3px rgba(32,116,74,.16)"><span class="dot run"></span><span class="nm">本机 · localhost:7070</span><svg class="i sm"><use href="#chev-d"/></svg><span class="pinb">1</span></div>
+          <!-- dropdown -->
+          <div class="menu" style="top:54px;left:8px;right:8px;min-width:0">
+            <div class="mi head">主机 · Hosts</div>
+            <div class="mi sel" style="background:var(--surface2)"><span class="dot run"></span> 本机 <span style="color:var(--fgMuted);font-size:11px">localhost:7070</span><span class="r"><svg class="i xs"><use href="#check"/></svg></span></div>
+            <div class="mi"><span class="dot run"></span> 公司 MacBook <span class="badge mut" style="margin-left:4px"><svg class="i xs"><use href="#network"/></svg> relay</span><span class="r" style="font-size:11px">在线</span></div>
+            <div class="mi"><span class="dot warn"></span> 云服务器 <span style="color:var(--fgMuted);font-size:11px">10.0.0.5:7070</span><span class="r" style="font-size:11px;color:#b45309">连接中…</span></div>
+            <div class="mi" style="opacity:.6"><span class="dot dan"></span> 旧 Mini <span class="r" style="font-size:11px;color:#b91c1c">离线</span></div>
+            <div class="menu-sep"></div>
+            <div class="mi"><svg class="i sm"><use href="#plus"/></svg> 添加主机…<span class="pinb" style="margin-left:6px">2</span></div>
+          </div>
+          <div class="sb-spacer"></div>
+        </div>
+        <div class="main" style="align-items:center;justify-content:center;color:var(--fgMuted);font-size:13px">切换主机后，左栏目录/对话与右侧面板都重载为该主机的内容</div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>主机胶囊</b>：显示当前主机 + 状态点；点开下拉。状态色：<span style="color:#15803d">在线</span>/<span style="color:#b45309">连接中</span>/<span style="color:#b91c1c">离线</span>。</div></li>
+      <li><span class="pin">2</span><div><b>添加主机</b>：进入添加流程（本地自动检测 / 手动 host:port / 扫码配对）——Phase 3 详设。</div></li>
+      <li><span class="pin">3</span><div><b>远程</b>：远程主机经 <span style="font-family:var(--mono)">relay</span> 端到端加密连接（<svg class="i xs"><use href="#network"/></svg> relay 标）。切换后整个工作区重载该主机数据。</div></li>
+      <li><span class="pin">4</span><div><b>离线重连</b>：离线主机灰显，选中触发重连；连接失败在侧栏出 callout（S10）。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S7 · COMMAND PALETTE ============ -->
+<section class="screen" id="s7">
+  <div class="screen-head"><span class="tag">交互细节 · 7 · Paseo 机制</span><h2>⌘K 命令面板</h2><p>Paseo command-center 找回：全局 ⌘K 唤出，搜索 + 跳转（新对话/搜索/设置）+ 操作（切主机/切中转站模型/新建工作区/打开终端）+ 快速切中转站。键盘全程可达。</p></div>
+  <div class="screen-body">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+      <div class="backdrop" style="height:470px;align-items:flex-start;padding-top:60px">
+        <div class="cmdk">
+          <div class="cmdk-in"><svg class="i md"><use href="#search"/></svg><span style="color:var(--fg)">切换</span><span style="width:1px;height:18px;background:var(--accentBright)"></span><span class="kbdkey" style="margin-left:auto">Esc</span></div>
+          <div style="max-height:360px">
+            <div class="cmdk-sec">跳转</div>
+            <div class="ci on"><svg class="i sm"><use href="#pen"/></svg> 新对话<span class="kbd">⌘N</span></div>
+            <div class="ci"><svg class="i sm"><use href="#history"/></svg> 搜索会话历史</div>
+            <div class="ci"><svg class="i sm"><use href="#settings"/></svg> 打开设置<span class="kbd">⌘,</span></div>
+            <div class="cmdk-sec">操作</div>
+            <div class="ci"><svg class="i sm"><use href="#network"/></svg> 切换主机…</div>
+            <div class="ci"><svg class="i sm"><use href="#lock"/></svg> 切换中转站 / 模型…</div>
+            <div class="ci"><svg class="i sm"><use href="#folder-plus"/></svg> 新建工作区…</div>
+            <div class="ci"><svg class="i sm"><use href="#terminal"/></svg> 打开终端<span class="kbd">⌘T</span></div>
+            <div class="cmdk-sec">快速切中转站（当前对话）</div>
+            <div class="ci"><span class="dot run"></span> 智谱 GLM · glm-4.6 <span class="r" style="margin-left:auto;color:var(--accentBright)"><svg class="i xs"><use href="#check"/></svg></span></div>
+            <div class="ci"><span class="dot run"></span> DeepSeek · deepseek-v4-pro</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>唤出</b>：全局 <span class="kbdkey">⌘K</span>（或侧栏搜索）打开；输入即过滤；↑↓ 选择，Enter 执行，Esc 关。</div></li>
+      <li><span class="pin">2</span><div><b>分组</b>：跳转 / 操作 / 快速切中转站；命令带快捷键提示。</div></li>
+      <li><span class="pin">3</span><div><b>上下文感知</b>：在对话中时显示“快速切中转站/模型”等对话级操作；在主机层显示主机操作。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S8 · COMPOSER FULL STATES ============ -->
+<section class="screen" id="s8">
+  <div class="screen-head"><span class="tag">交互细节 · 8</span><h2>Composer 全态：slash / @ / 附件盘 / 队列轨 / 语音 / 模式</h2><p>Paseo composer 真实能力全画：上方<b>队列轨</b>（运行中排队消息）+ <b>附件盘</b>（文件/图片/PR）；输入 <b>/</b> 出 slash 命令、<b>@</b> 出文件/Agent 提及；工具行 附件/模式/思考/<b>语音</b>/联网/发送。</p></div>
+  <div class="screen-body">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+      <div style="height:480px;background:var(--surfaceWorkspace);display:flex;flex-direction:column;justify-content:flex-end;padding:0 0 18px">
+        <div style="width:680px;margin:0 auto;position:relative">
+          <!-- slash menu -->
+          <div class="menu" style="bottom:128px;left:0;min-width:280px">
+            <div class="mi head">斜杠命令 · /</div>
+            <div class="mi sel" style="background:var(--surface2)"><svg class="i sm"><use href="#spark"/></svg> /review <span style="color:var(--fgMuted);font-size:11px;margin-left:4px">审查当前改动</span></div>
+            <div class="mi"><svg class="i sm"><use href="#sliders"/></svg> /plan <span style="color:var(--fgMuted);font-size:11px;margin-left:4px">先规划再执行</span></div>
+            <div class="mi"><svg class="i sm"><use href="#zap"/></svg> /compact <span style="color:var(--fgMuted);font-size:11px;margin-left:4px">压缩上下文</span></div>
+            <div class="mi"><svg class="i sm"><use href="#terminal"/></svg> /side <span style="color:var(--fgMuted);font-size:11px;margin-left:4px">开侧边对话</span></div>
+          </div>
+          <div class="composer" style="max-width:none">
+            <!-- queue track -->
+            <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface1);border:1px solid var(--border);border-radius:var(--r-lg);font-size:12px;color:var(--fgMuted)"><svg class="i sm"><use href="#clock"/></svg> 队列 · 2 条待发<span class="pinb">4</span><span style="margin-left:auto"><svg class="i sm"><use href="#chev-d"/></svg></span></div>
+            <!-- attachment tray -->
+            <div class="chips" style="padding:2px"><span class="chip"><svg class="i xs"><use href="#file"/></svg> selector.tsx <svg class="i xs"><use href="#x"/></svg></span><span class="chip"><svg class="i xs"><use href="#globe"/></svg> 截图.png <svg class="i xs"><use href="#x"/></svg></span><span class="chip"><svg class="i xs"><use href="#branch"/></svg> PR #1645 <svg class="i xs"><use href="#x"/></svg></span><span class="pinb">2</span></div>
+            <div class="cbox focus"><div class="ctext">/<span style="color:var(--fgMuted)">review</span> &nbsp; <span class="badge acc" style="font-size:11px">@selector.tsx</span><span class="pinb">1</span></div>
+              <div class="ctools"><div class="ctool"><svg class="i sm"><use href="#clip"/></svg></div><div class="ctool"><svg class="i sm"><use href="#at"/></svg></div><div class="ctool on"><svg class="i sm"><use href="#brain"/></svg> 思考·高</div><div class="ctool"><svg class="i sm"><use href="#sliders"/></svg> Plan</div><div class="ctool"><svg class="i sm"><use href="#globe"/></svg></div><div class="cspacer"></div><div class="ctool"><svg class="i sm"><use href="#mic"/></svg><span class="pinb">3</span></div><div class="send"><svg class="i sm"><use href="#up"/></svg></div></div>
+            </div>
+            <div class="cascade-row" style="justify-content:flex-start"><div class="cascade"><svg class="i sm lock"><use href="#lock"/></svg> Claude Code <span class="sep">·</span> 智谱 GLM <span class="sep">·</span> glm-4.6 <svg class="i sm" style="color:var(--fgMuted)"><use href="#updown"/></svg></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>slash / @</b>：输入 <b>/</b> 弹命令菜单（review/plan/compact/side…）；<b>@</b> 弹文件/Agent 提及，选中成 chip 注入上下文。</div></li>
+      <li><span class="pin">2</span><div><b>附件盘</b>：文件/图片（拖入/粘贴）/GitHub PR·Issue，成 chip 可删；超长滚动。</div></li>
+      <li><span class="pin">3</span><div><b>语音</b>：<svg class="i xs"><use href="#mic"/></svg> 录音转写（native 用设备麦克风，web 用 Web Audio），转写可编辑再发。</div></li>
+      <li><span class="pin">4</span><div><b>队列轨 / 模式</b>：运行中可排队消息（队列轨可展开重排）；模式（默认/Plan/全权）+ 思考档随模型能力（model-driven）。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S9 · CASCADE SELECTOR ============ -->
+<section class="screen" id="s9">
+  <div class="screen-head"><span class="tag">三层选型 · 9</span><h2>三层级联选择器（展开）</h2><p>对话锁提供方、可换中转站+模型。① 提供方（锁定灰显）→ ② 中转站（健康/延迟/当前）→ ③ exposed 模型子菜单。底部「管理中转站…」跳设置·提供方（Phase 2）。</p></div>
+  <div class="screen-body">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+      <div style="height:470px;background:var(--surfaceWorkspace);position:relative;display:flex;align-items:flex-end;justify-content:center;padding:0 0 24px">
+        <div style="width:640px;position:relative">
+          <div style="position:absolute;bottom:46px;left:50%;transform:translateX(-50%);display:flex;gap:8px;align-items:flex-end">
+            <div class="menu" style="position:static;min-width:250px"><div class="mi head">提供方（已锁定）</div><div class="mi lockrow"><svg class="i sm lk"><use href="#lock"/></svg> Claude Code <span class="r"><svg class="i xs"><use href="#check"/></svg></span></div><div class="menu-sep"></div><div class="mi head">中转站</div><div class="mi"><svg class="i sm"><use href="#link"/></svg> 直连·官方 <span class="r"><svg class="i xs"><use href="#chev-r"/></svg></span></div><div class="mi sel" style="background:var(--surface2)"><span class="dot run"></span> 智谱 GLM <span class="badge mut" style="margin-left:6px">320ms</span><span class="r"><svg class="i xs"><use href="#chev-r"/></svg></span></div><div class="mi"><span class="dot run"></span> DeepSeek <span class="badge mut" style="margin-left:6px">180ms</span><span class="r"><svg class="i xs"><use href="#chev-r"/></svg></span></div><div class="mi"><span class="dot warn"></span> Moonshot <span class="r"><svg class="i xs"><use href="#chev-r"/></svg></span></div><div class="menu-sep"></div><div class="mi" style="color:var(--fgMuted)"><svg class="i sm"><use href="#sliders"/></svg> 管理中转站…</div></div>
+            <div class="menu" style="position:static;min-width:210px"><div class="mi head">智谱 GLM · 模型（放出 4）</div><div class="mi sel"><svg class="i sm"><use href="#spark"/></svg> glm-4.6 <span class="r"><svg class="i xs"><use href="#check"/></svg></span></div><div class="mi">glm-4.5-air</div><div class="mi">glm-4.5</div><div class="mi">glm-4.6[1M] <span class="badge acc" style="margin-left:6px">长上下文</span></div><div class="menu-sep"></div><div class="mi" style="color:var(--fgMuted)"><svg class="i sm"><use href="#check"/></svg> 设为该中转站默认</div></div>
+          </div>
+          <div class="composer" style="max-width:none"><div class="cbox"><div class="cph">问点什么…</div><div class="ctools"><div class="ctool"><svg class="i sm"><use href="#clip"/></svg></div><div class="cspacer"></div><div class="send dim"><svg class="i sm"><use href="#up"/></svg></div></div></div><div class="cascade-row"><div class="cascade" style="border-color:var(--accent);box-shadow:0 0 0 3px rgba(32,116,74,.16)"><svg class="i sm lock"><use href="#lock"/></svg> Claude Code <span class="sep">·</span> 智谱 GLM <span class="sep">·</span> glm-4.6 <svg class="i sm" style="color:var(--accentBright)"><use href="#updown"/></svg></div></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>提供方锁定</b>：顶段灰显带锁，仅新对话时选一次。</div></li>
+      <li><span class="pin">2</span><div><b>中转站</b>：hover 展开模型子菜单；健康点+延迟来自测速；当前项高亮。</div></li>
+      <li><span class="pin">3</span><div><b>模型</b>：只列 exposed 子集；可设默认。选完关菜单，下条消息生效。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S10 · SEARCH + EMPTY/LOADING/ERROR/OFFLINE ============ -->
+<section class="screen" id="s10">
+  <div class="screen-head"><span class="tag">交互细节 · 10</span><h2>搜索浮层 + 空 / 加载 / 错误 / 离线 态</h2><p>每个状态都要设计（董事长要求）。搜索跨对话/目录/消息；空态短名词 + 单 ghost 按钮；加载 inline/页级 spinner；错误用 Alert/Toast；<b>离线/断连</b> 出侧栏 callout + 主机红点 + 重连。</p></div>
+  <div class="screen-body wide">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px">
+      <!-- search -->
+      <div><div class="sec-label">① 搜索浮层</div><div class="cmdk" style="width:auto"><div class="cmdk-in" style="font-size:14px"><svg class="i sm"><use href="#search"/></svg><span style="color:var(--fg)">selector</span></div><div class="cmdk-sec">对话</div><div class="ci on"><svg class="i sm"><use href="#msg"/></svg> 重构选择器</div><div class="cmdk-sec">消息匹配</div><div class="ci"><svg class="i sm"><use href="#quote"/></svg> “…级联<b style="color:var(--accentBright)">selector</b>放下方”</div><div class="cmdk-sec">目录</div><div class="ci"><svg class="i sm"><use href="#folder"/></svg> paseo-main</div></div></div>
+      <!-- empty + loading -->
+      <div><div class="sec-label">② 空态 / 加载</div>
+        <div class="card" style="padding:30px 16px;text-align:center;margin-bottom:12px"><div style="color:var(--fgMuted);font-size:14px">还没有对话</div><div style="margin-top:12px"><span class="btn ghost sm" style="border:1px solid var(--borderAccent)"><svg class="i xs"><use href="#pen"/></svg> 开始新对话</span></div></div>
+        <div class="card" style="padding:16px"><div style="display:flex;align-items:center;gap:9px;color:var(--fgMuted);font-size:13px"><span style="width:14px;height:14px;border:2px solid var(--surface3);border-top-color:var(--accentBright);border-radius:50%;display:inline-block"></span> 加载会话…</div></div>
+      </div>
+      <!-- error + offline -->
+      <div><div class="sec-label">③ 错误 / 离线</div>
+        <div class="alertbox err" style="margin-bottom:12px"><svg class="i sm"><use href="#alert"/></svg><div><div class="at">无法连接主机</div><div class="ad">连接超时。等其上线后重试。</div><div style="margin-top:8px"><span class="btn out sm">重试</span></div></div></div>
+        <div style="margin-bottom:12px"><span class="toast"><svg class="i sm" style="color:#b91c1c"><use href="#alert"/></svg> 发送失败 · 已重新入队 <span class="btn ghost sm" style="margin-left:4px">重试</span></span></div>
+        <div class="sb-callout"><div class="ct"><svg class="i sm" style="color:#b91c1c"><use href="#wifioff"/></svg> 主机离线</div>与「云服务器」断开。<span style="color:var(--accentBright)">重新连接</span></div>
+      </div>
+    </div>
+    <div class="anno" style="grid-column:auto;margin-top:8px"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>搜索</b>：⌘ 或侧栏搜索；跨 对话标题/消息内容/目录 命中，高亮关键词，Enter 跳转。</div></li>
+      <li><span class="pin">2</span><div><b>空/加载</b>：空态=短名词+单 ghost；加载=inline spinner（行级）或页级居中 spinner（沿用 Paseo LoadingSpinner）。</div></li>
+      <li><span class="pin">3</span><div><b>错误</b>：流程内用 Alert（带恢复按钮），瞬时用 Toast（可重试），字段错在字段下红字。</div></li>
+      <li><span class="pin">4</span><div><b>离线/断连</b>：主机状态点转红 + 侧栏 callout 提示重连；自动重连退避。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S11 · SETTINGS IA SKELETON ============ -->
+<section class="screen" id="s11">
+  <div class="screen-head"><span class="tag">设置 · 11 · 修正 IA</span><h2>设置 — 两级 IA 骨架（照搬 Paseo 真实结构）</h2><p><b>修 v2 错误</b>：设置是 List+Detail 两级——<b>App 级</b>（通用/守护进程/外观/快捷键/集成/权限/诊断/关于）+ <b>主机级</b>（连接/Agents/工作区/<b>提供方与中转站</b>/<b>用量</b>/终端/主机）。提供方、用量各是<b>独立页签</b>；MCP/Skill/插件/Prompts 在「集成」下。各页内容 Phase 2 详设。</p></div>
+  <div class="screen-body wide">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div style="margin-left:14px;font-size:13px;color:var(--fgMuted)">设置</div></div>
+      <div class="set-shell" style="height:600px">
+        <div class="set-side" style="overflow-y:auto">
+          <div class="back"><span style="transform:rotate(180deg);display:inline-flex"><svg class="i sm"><use href="#chev-r"/></svg></span> 返回</div>
+          <div class="sgrp">应用</div>
+          <div class="set-item active"><svg class="i sm"><use href="#settings"/></svg> 通用</div>
+          <div class="set-item"><svg class="i sm"><use href="#server"/></svg> 守护进程</div>
+          <div class="set-item"><svg class="i sm"><use href="#palette"/></svg> 外观<span class="pinb">2</span></div>
+          <div class="set-item"><svg class="i sm"><use href="#command"/></svg> 快捷键</div>
+          <div class="set-item"><svg class="i sm"><use href="#puzzle"/></svg> 集成<span class="pinb">3</span></div>
+          <div class="set-item"><svg class="i sm"><use href="#shield"/></svg> 权限</div>
+          <div class="set-item"><svg class="i sm"><use href="#gauge"/></svg> 诊断</div>
+          <div class="set-item"><svg class="i sm"><use href="#clock"/></svg> 关于</div>
+          <div class="sgrp">主机 · 本机</div>
+          <div class="set-item"><svg class="i sm"><use href="#network"/></svg> 连接</div>
+          <div class="set-item"><svg class="i sm"><use href="#bot"/></svg> Agents</div>
+          <div class="set-item"><svg class="i sm"><use href="#folder"/></svg> 工作区</div>
+          <div class="set-item"><svg class="i sm"><use href="#link"/></svg> 提供方与中转站<span class="pinb">1</span></div>
+          <div class="set-item"><svg class="i sm"><use href="#chart"/></svg> 用量<span class="pinb">1</span></div>
+          <div class="set-item"><svg class="i sm"><use href="#terminal"/></svg> 终端</div>
+          <div class="set-item"><svg class="i sm"><use href="#server"/></svg> 主机</div>
+        </div>
+        <div class="set-main">
+          <div class="set-hd"><div class="badge-ic"><svg class="i sm"><use href="#settings"/></svg></div><h3>通用</h3></div>
+          <div class="set-content"><div class="col720">
+            <div class="sec-label">通用</div>
+            <div class="card">
+              <div class="row"><div class="rc"><div class="rt">运行中按 Enter 的行为</div><div class="rd">中断当前 / 排队</div></div><div class="scope" style="transform:scale(.9)"><span class="on">排队</span><span>中断</span></div></div>
+              <div class="row"><div class="rc"><div class="rt">临时对话目录</div><div class="rd" style="font-family:var(--mono)">~（家目录）</div></div><svg class="i sm chev"><use href="#chev-r"/></svg></div>
+              <div class="row"><div class="rc"><div class="rt">启动时</div><div class="rd">恢复上次对话</div></div><span class="sw on"></span></div>
+              <div class="row"><div class="rc"><div class="rt">默认提供方（新对话）</div><div class="rd">Claude Code</div></div><svg class="i sm chev"><use href="#chev-r"/></svg></div>
+            </div>
+            <div class="fhint" style="margin-top:14px">骨架示意：其余各页（提供方/用量/集成/主机…）的完整内容在 Phase 2/3 详设。提供方与中转站 = Phase 2 的中转站/模型/代理/同步；用量 = Phase 2 的仪表盘/余额/限额。</div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno" style="grid-column:auto"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>提供方/用量独立页签</b>：在主机级各占一项（不再藏在一起）；点进各自详情（Phase 2）。</div></li>
+      <li><span class="pin">2</span><div><b>外观独立</b>：主题/字体在 App 级「外观」，不混在提供方里。</div></li>
+      <li><span class="pin">3</span><div><b>集成</b>：MCP / Skill / 插件 / Prompts 归「集成」，带软件级/目录级/对话级作用域（Phase 2）。</div></li>
+      <li><span class="pin">4</span><div><b>两级</b>：App 级=客户端全局；主机级=当前主机（多主机各一套）。紧凑态为全屏 List→Detail（S12）。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S12 · MOBILE RESPONSIVE ============ -->
+<section class="screen" id="s12">
+  <div class="screen-head"><span class="tag">响应式 · 12 · 一套 UI</span><h2>手机响应式（同一套设计稿的紧凑态）</h2><p>桌面优先，同一套 UI 紧凑态自适应：侧栏=首页列表 + 底部 tab 栏；对话全屏；右面板退化为<b>全屏 tab</b>；主机切换 + 配对入口保留——手机即可远程操控本机 agent。</p></div>
+  <div class="screen-body wide">
+    <div class="phones">
+      <!-- Phone A: home / list -->
+      <div class="phone"><div class="pstatus">●●●　Helm　􀙇 100%</div><div class="phone-shell">
+        <div class="phone-hd"><svg class="i md"><use href="#network"/></svg><div class="host-pill" style="flex:1;margin:0;padding:5px 9px"><span class="dot run"></span><span class="nm">本机</span><svg class="i sm"><use href="#chev-d"/></svg></div><svg class="i md"><use href="#search"/></svg><svg class="i md"><use href="#pen"/></svg></div>
+        <div style="flex:1;padding:10px 12px;overflow:hidden">
+          <div class="sb-sec">目录</div>
+          <div class="sb-conv" style="color:var(--fg)"><svg class="i sm" style="color:var(--fgMuted)"><use href="#chev-d"/></svg><svg class="i sm" style="color:var(--fgMuted)"><use href="#folder"/></svg> paseo-main</div>
+          <div class="sb-sub"><div class="sb-conv active"><span class="dot run"></span> 重构选择器</div><div class="sb-conv"><span class="dot idle"></span> 修复 diff 对齐</div></div>
+          <div class="sb-sec" style="margin-top:6px">对话</div>
+          <div class="sb-conv"><span class="dot idle"></span> 临时：解释 Zod</div>
+        </div>
+        <div class="phone-tabbar"><div class="pt on"><svg class="i md"><use href="#msg"/></svg>对话</div><div class="pt"><svg class="i md"><use href="#folder"/></svg>项目</div><div class="pt"><svg class="i md"><use href="#history"/></svg>会话</div><div class="pt"><svg class="i md"><use href="#settings"/></svg>设置</div></div>
+      </div></div>
+      <!-- Phone B: conversation -->
+      <div class="phone"><div class="pstatus">●●●　重构选择器　􀙇 100%</div><div class="phone-shell">
+        <div class="phone-hd"><svg class="i md"><use href="#chev-r"/></svg><div style="flex:1;font-size:14px">重构选择器</div><svg class="i md"><use href="#panel-r"/></svg></div>
+        <div style="flex:1;padding:14px 12px;display:flex;flex-direction:column;gap:14px;overflow:hidden">
+          <div class="msg" style="align-self:flex-end;flex-direction:row-reverse;max-width:90%"><div class="body" style="background:var(--surface2);padding:8px 11px;border-radius:11px;font-size:13px">改成级联下拉放下方</div></div>
+          <div class="msg" style="max-width:90%"><div class="av ai" style="width:22px;height:22px"><svg class="i xs"><use href="#spark"/></svg></div><div class="body" style="font-size:13px">好，定位组件中…<div class="tool-call" style="margin-top:6px"><div class="tc-h" style="font-size:12px"><svg class="i xs"><use href="#check"/></svg> Edit · selector.tsx</div></div></div></div>
+        </div>
+        <div style="padding:10px 12px;border-top:1px solid var(--border)"><div class="cbox" style="padding:9px 11px"><div class="cph" style="font-size:14px">回复…</div><div class="ctools"><div class="ctool"><svg class="i sm"><use href="#clip"/></svg></div><div class="ctool"><svg class="i sm"><use href="#mic"/></svg></div><div class="cspacer"></div><div class="send"><svg class="i sm"><use href="#up"/></svg></div></div></div><div class="cascade-row" style="justify-content:flex-start;margin-top:8px"><div class="cascade" style="font-size:12px;padding:5px 10px"><svg class="i sm lock"><use href="#lock"/></svg> Claude · 智谱GLM · glm-4.6 <svg class="i sm" style="color:var(--fgMuted)"><use href="#updown"/></svg></div></div></div>
+      </div></div>
+      <!-- Phone C: panel full-screen -->
+      <div class="phone"><div class="pstatus">●●●　审查　􀙇 100%</div><div class="phone-shell">
+        <div class="phone-hd"><svg class="i md"><use href="#chev-r"/></svg><div style="flex:1;font-size:14px">面板</div><svg class="i md"><use href="#x"/></svg></div>
+        <div class="rp-tabs" style="overflow-x:auto"><div class="rp-tab on"><svg class="i sm"><use href="#spark"/></svg> 审查</div><div class="rp-tab"><svg class="i sm"><use href="#terminal"/></svg> 终端</div><div class="rp-tab"><svg class="i sm"><use href="#globe"/></svg> 浏览器</div><div class="rp-tab"><svg class="i sm"><use href="#file"/></svg> 文件</div></div>
+        <div class="diff-file"><svg class="i xs"><use href="#file"/></svg> selector.tsx <span class="add" style="margin-left:auto">+28</span> <span class="del">−6</span></div>
+        <div class="diff-body" style="flex:1"><div class="dl del"><span class="ln">42</span><span class="ct">- ModelMenu flat</span></div><div class="dl add"><span class="ln">42</span><span class="ct">+ Cascade locked</span></div><div class="dl add"><span class="ln">43</span><span class="ct">+   vendors model</span></div></div>
+        <div style="padding:9px 12px;border-top:1px solid var(--border);display:flex;gap:7px"><span class="btn out sm"><svg class="i xs"><use href="#check"/></svg> Stage</span><span class="btn ghost sm">Revert</span></div>
+      </div></div>
+    </div>
+    <div class="anno" style="grid-column:auto;margin-top:16px"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>紧凑布局</b>：`useIsCompactFormFactor` 断点切换——侧栏变首页列表 + 底部 tab 栏（对话/项目/会话/设置）；非 Platform.OS。</div></li>
+      <li><span class="pin">2</span><div><b>对话全屏</b>：点对话进全屏对话；顶部返回；Composer 贴底；级联选择器精简。</div></li>
+      <li><span class="pin">3</span><div><b>面板全屏 tab</b>：右面板在手机退化为全屏覆盖 + 顶部可横滑 tab（审查/终端/浏览器/文件）。</div></li>
+      <li><span class="pin">4</span><div><b>远程</b>：手机经 relay 连远程主机操控其 agent；主机切换 + 配对入口保留（配对流程 Phase 3）。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S13 · PROVIDERS & VENDORS (host-level settings) ============ -->
+<section class="screen" id="s13">
+  <div class="screen-head"><span class="tag">管理 · 13 · P2</span><h2>设置 › 本机 › 提供方与中转站</h2><p>放进 <b>Paseo 两级设置壳</b>（参考 Paseo）：左 = 该<b>主机</b>的设置节（连接/Agents/工作区/提供方/用量/代理/集成/终端）——体现「主机关联全量」。内容 = 提供方子 tab（Claude/Codex/…）+ 中转站列表（当前/健康/延迟/花费/故障转移/cc-switch 来源）。</p></div>
+  <div class="screen-body wide">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div style="margin-left:14px;font-size:13px;color:var(--fgMuted)">设置 · 本机</div></div>
+      <div class="set-shell" style="height:600px">
+        <div class="set-side" style="overflow-y:auto">
+          <div class="back"><span style="transform:rotate(180deg);display:inline-flex"><svg class="i sm"><use href="#chev-r"/></svg></span> 主机 Hub · 本机</div>
+          <div class="sgrp">本机 · 主机设置</div>
+          <div class="set-item"><svg class="i sm"><use href="#network"/></svg> 连接</div>
+          <div class="set-item"><svg class="i sm"><use href="#bot"/></svg> Agents</div>
+          <div class="set-item"><svg class="i sm"><use href="#folder"/></svg> 工作区</div>
+          <div class="set-item active"><svg class="i sm"><use href="#link"/></svg> 提供方与中转站</div>
+          <div class="set-item"><svg class="i sm"><use href="#chart"/></svg> 用量</div>
+          <div class="set-item"><svg class="i sm"><use href="#shield"/></svg> 代理 / 故障转移</div>
+          <div class="set-item"><svg class="i sm"><use href="#puzzle"/></svg> 集成</div>
+          <div class="set-item"><svg class="i sm"><use href="#terminal"/></svg> 终端</div>
+          <div class="set-item"><svg class="i sm"><use href="#server"/></svg> 主机信息</div>
+        </div>
+        <div class="set-main">
+          <div class="set-hd"><div class="badge-ic"><svg class="i sm"><use href="#link"/></svg></div><h3>提供方与中转站</h3><div class="hd-r"><span class="btn out sm"><svg class="i xs"><use href="#refresh"/></svg> 同步 cc-switch</span><span class="btn df sm"><svg class="i xs"><use href="#plus"/></svg> 新增中转站</span></div></div>
+          <div class="set-content"><div class="col720">
+            <div class="bcrumb" style="margin-bottom:12px"><svg class="i xs"><use href="#server"/></svg> <b>本机</b> <svg class="i xs"><use href="#chev-r"/></svg> 提供方与中转站</div>
+            <div class="tabs" style="margin-bottom:14px"><div class="tab on"><svg class="i sm" style="display:inline;vertical-align:-2px"><use href="#spark"/></svg> Claude Code</div><div class="tab">Codex</div><div class="tab">OpenCode</div></div>
+            <div class="sec-label">中转站 <span class="sl-d">点卡片设为当前 · 拖拽排序</span></div>
+            <div class="card" style="margin-bottom:9px"><div class="row" style="padding:12px 14px"><svg class="i sm" style="color:var(--fgMuted)"><use href="#updown"/></svg><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#link"/></svg></div><div class="rc"><div class="rt">直连·官方 <span class="badge mut" style="margin-left:6px">默认</span></div><div class="rd">api.anthropic.com · 官方登录态</div></div><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div></div>
+            <div class="card" style="margin-bottom:9px;border-color:var(--accent)"><div class="row" style="padding:12px 14px"><svg class="i sm" style="color:var(--fgMuted)"><use href="#updown"/></svg><div class="badge-ic" style="width:26px;height:26px;background:rgba(32,116,74,.16);color:var(--accentBright)"><svg class="i sm"><use href="#spark"/></svg></div><div class="rc"><div class="rt">智谱 GLM <span class="badge acc" style="margin-left:6px"><svg class="i xs"><use href="#check"/></svg> 当前</span> <span class="badge mut" style="margin-left:4px"><svg class="i xs"><use href="#refresh"/></svg> cc-switch</span></div><div class="rd" style="font-family:var(--mono)">api.z.ai/api/anthropic · <span class="dot run" style="display:inline-block"></span> 320ms · 4 模型</div><div style="display:flex;align-items:center;gap:8px;margin-top:7px"><div class="progress" style="flex:1;max-width:180px"><div class="pf" style="width:62%"></div></div><span style="font-size:11px;color:var(--fgMuted)">今日 $6.20 / $10</span></div></div><span class="btn ghost sm"><svg class="i xs"><use href="#pen"/></svg></span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div></div>
+            <div class="card" style="margin-bottom:9px"><div class="row" style="padding:12px 14px"><svg class="i sm" style="color:var(--fgMuted)"><use href="#updown"/></svg><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#globe"/></svg></div><div class="rc"><div class="rt">DeepSeek <span class="badge acc" style="margin-left:6px">故障转移队列</span></div><div class="rd" style="font-family:var(--mono)">api.deepseek.com/anthropic · <span class="dot run" style="display:inline-block"></span> 180ms</div></div><span class="btn ghost sm"><svg class="i xs"><use href="#pen"/></svg></span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div></div>
+            <div class="card"><div class="row" style="padding:12px 14px"><svg class="i sm" style="color:var(--fgMuted)"><use href="#updown"/></svg><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#globe"/></svg></div><div class="rc"><div class="rt">Moonshot / Kimi</div><div class="rd" style="font-family:var(--mono)">api.moonshot.cn/anthropic · <span class="dot warn" style="display:inline-block"></span> 超时</div></div><span class="btn ghost sm"><svg class="i xs"><use href="#pen"/></svg></span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div></div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno" style="grid-column:auto"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>主机作用域</b>：左栏是<b>该主机</b>的设置节；切主机（侧栏顶/Hub）则这些全部换成该主机的。提供方/用量/代理/集成 各独立节（修「太杂」）。</div></li>
+      <li><span class="pin">2</span><div><b>提供方子 tab</b>：Claude Code/Codex/OpenCode 切换，各自的中转站列表。</div></li>
+      <li><span class="pin">3</span><div><b>中转站卡</b>：点设当前（accent 边）；健康点+延迟（测速）；花费进度=日限额；<span class="badge acc" style="display:inline-flex">故障转移队列</span>/<span class="badge mut" style="display:inline-flex">cc-switch</span> 标；拖拽排序；kebab=编辑/删除/复制/测速。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S14 · VENDOR EDIT ============ -->
+<section class="screen" id="s14">
+  <div class="screen-head"><span class="tag">管理 · 14 · P2</span><h2>中转站编辑（限额 + 共享配置 + 端点测速）</h2><p>对齐 cc-switch ProviderForm：API 类型 · base_url(+测试) · Key · per-CLI 字段 · <b>共享配置</b>(切换不丢) · JsonEditor · <b>花费限额(日/月)+倍率</b> · 模型放出 · 端点+测速。</p></div>
+  <div class="screen-body wide">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div style="margin-left:14px;font-size:13px;color:var(--fgMuted)">设置 · 本机 › 提供方 › 编辑</div></div>
+      <div class="set-shell" style="height:auto">
+        <div class="set-side" style="width:210px"><div class="back"><span style="transform:rotate(180deg);display:inline-flex"><svg class="i sm"><use href="#chev-r"/></svg></span> 提供方与中转站</div><div class="sgrp">Claude Code · 中转站</div><div class="set-item active"><svg class="i sm"><use href="#spark"/></svg> 智谱 GLM</div><div class="set-item muted" style="color:var(--fgMuted)"><svg class="i sm"><use href="#globe"/></svg> DeepSeek</div><div class="set-item muted" style="color:var(--fgMuted)"><svg class="i sm"><use href="#globe"/></svg> Moonshot</div></div>
+        <div class="set-main">
+          <div class="set-hd"><div class="badge-ic" style="background:rgba(32,116,74,.16);color:var(--accentBright)"><svg class="i sm"><use href="#spark"/></svg></div><h3>编辑 · 智谱 GLM</h3><div class="hd-r"><span class="btn ghost sm">取消</span><span class="btn df sm">保存</span></div></div>
+          <div class="set-content" style="overflow:visible"><div class="col720" style="max-width:600px">
+            <div class="grid2"><div class="field"><div class="flabel">名称</div><div class="input">智谱 GLM</div></div><div class="field"><div class="flabel">API 类型</div><div class="scope" style="transform:scale(.95);transform-origin:left"><span class="on">Anthropic</span><span>OpenAI</span></div></div></div>
+            <div class="field"><div class="flabel">请求地址 base_url</div><div style="display:flex;gap:8px"><div class="input" style="flex:1;font-family:var(--mono);font-size:13px">https://api.z.ai/api/anthropic</div><span class="btn out sm"><svg class="i xs"><use href="#play"/></svg> 测试</span></div></div>
+            <div class="field"><div class="flabel">API Key</div><div class="input"><span style="font-family:var(--mono)">••••••••••••2f9a</span><svg class="i sm" style="margin-left:auto"><use href="#eye"/></svg></div></div>
+            <div class="sec-label"><svg class="i sm" style="color:var(--accentBright)"><use href="#key"/></svg> 共享配置 <span class="sl-d" style="margin-left:auto">切换中转站不丢</span></div>
+            <div class="card" style="margin-bottom:14px"><div class="row" style="padding:10px 14px"><div class="rc"><div class="rt">非密通用设置</div><div class="rd">从当前抽取 → 写入共享层</div></div><span class="btn ghost sm">抽取</span><span class="btn out sm">写入</span></div></div>
+            <div class="sec-label"><svg class="i sm" style="color:var(--accentBright)"><use href="#dollar"/></svg> 花费限额 <span class="pinb">2</span></div>
+            <div class="card" style="margin-bottom:14px;padding:13px"><div class="grid3"><div class="minif"><span class="l">日上限 $</span><span class="v">10.00</span></div><div class="minif"><span class="l">月上限 $</span><span class="v">200.00</span></div><div class="minif"><span class="l">倍率</span><span class="v">1.0×</span></div></div></div>
+            <div class="sec-label">模型 · 放出来哪些<span class="hd-r" style="margin-left:auto;display:flex;gap:6px"><span class="btn out sm"><svg class="i xs"><use href="#refresh"/></svg> 获取</span><span class="btn ghost sm"><svg class="i xs"><use href="#plus"/></svg> 手动</span></span></div>
+            <div class="card" style="margin-bottom:14px"><div class="row" style="padding:10px 14px"><div class="cbx on"><svg class="i xs"><use href="#check"/></svg></div><div class="rc"><div class="rt">glm-4.6 <span class="badge acc" style="margin-left:6px">默认</span></div></div></div><div class="row" style="padding:10px 14px"><div class="cbx on"><svg class="i xs"><use href="#check"/></svg></div><div class="rc"><div class="rt">glm-4.6[1M]</div></div></div><div class="row" style="padding:10px 14px"><div class="cbx on"><svg class="i xs"><use href="#check"/></svg></div><div class="rc"><div class="rt">glm-4.5-air</div></div></div><div class="row" style="padding:10px 14px"><div class="cbx"></div><div class="rc"><div class="rt" style="color:var(--fgMuted)">glm-4-flash · 未放出</div></div></div></div>
+            <div style="display:flex;align-items:center;gap:8px"><svg class="i sm" style="color:var(--fgMuted)"><use href="#play"/></svg><span class="fhint" style="margin:0">端点：主端点 320ms ·</span><span class="btn ghost sm" style="color:var(--accentBright)">管理端点 / 测速 →</span><span class="pinb">3</span></div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno" style="grid-column:auto"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>API 类型</b>切换联动便捷字段（ANTHROPIC_*↔OPENAI_*）+ 拉模型端点；测试=实时校验回填延迟/错误。</div></li>
+      <li><span class="pin">2</span><div><b>花费限额</b>：日/月 USD + 倍率；命中在用量页/卡片预警拦截。</div></li>
+      <li><span class="pin">3</span><div><b>模型放出 + 端点</b>：勾选 exposed 子集、设默认；端点管理弹窗逐端点测速 + 自动故障转移（见 S16）。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S15 · USAGE ============ -->
+<section class="screen" id="s15">
+  <div class="screen-head"><span class="tag">管理 · 15 · P2</span><h2>设置 › 本机 › 用量（独立页签）</h2><p>修「用量藏太深」——用量是主机级独立节。本机 JSONL 双源解析 + 定价计费 + <b>余额/额度</b> + <b>预算限额</b> + 明细。</p></div>
+  <div class="screen-body wide">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div style="margin-left:14px;font-size:13px;color:var(--fgMuted)">设置 · 本机 › 用量</div></div>
+      <div class="set-shell" style="height:auto">
+        <div class="set-side" style="width:210px;overflow-y:auto"><div class="back"><span style="transform:rotate(180deg);display:inline-flex"><svg class="i sm"><use href="#chev-r"/></svg></span> 主机 Hub · 本机</div><div class="sgrp">本机 · 主机设置</div><div class="set-item"><svg class="i sm"><use href="#network"/></svg> 连接</div><div class="set-item"><svg class="i sm"><use href="#bot"/></svg> Agents</div><div class="set-item"><svg class="i sm"><use href="#link"/></svg> 提供方与中转站</div><div class="set-item active"><svg class="i sm"><use href="#chart"/></svg> 用量</div><div class="set-item"><svg class="i sm"><use href="#shield"/></svg> 代理</div><div class="set-item"><svg class="i sm"><use href="#puzzle"/></svg> 集成</div><div class="set-item"><svg class="i sm"><use href="#terminal"/></svg> 终端</div></div>
+        <div class="set-main">
+          <div class="set-hd"><div class="badge-ic"><svg class="i sm"><use href="#chart"/></svg></div><h3>用量</h3><div class="hd-r"><span class="badge mut"><svg class="i xs"><use href="#clock"/></svg> 本机会话估算</span><span class="scope" style="margin-left:4px"><span>日</span><span class="on">周</span><span>月</span></span></div></div>
+          <div class="set-content" style="overflow:visible"><div class="col720">
+            <div class="stat-grid"><div class="stat"><div class="lab"><svg class="i xs"><use href="#dollar"/></svg> 总花费</div><div class="val">$12.84</div><div class="delta up">+8%</div></div><div class="stat"><div class="lab"><svg class="i xs"><use href="#zap"/></svg> tokens</div><div class="val">4.2M</div><div class="delta">in/out/cache</div></div><div class="stat"><div class="lab"><svg class="i xs"><use href="#play"/></svg> 请求</div><div class="val">318</div><div class="delta">去重</div></div><div class="stat"><div class="lab"><svg class="i xs"><use href="#clock"/></svg> 延迟</div><div class="val">1.9s</div><div class="delta">首 token 0.5s</div></div></div>
+            <div class="sec-label"><svg class="i sm" style="color:var(--accentBright)"><use href="#dollar"/></svg> 余额 / 额度 <span class="pinb">1</span></div>
+            <div class="grid3" style="margin-bottom:16px"><div class="card" style="padding:12px 14px"><div style="font-size:13px;display:flex;gap:6px;align-items:center"><span class="dot run"></span> 智谱余额</div><div style="font-size:19px;font-weight:600;margin-top:5px">¥184.20</div><div class="progress" style="margin-top:7px"><div class="pf" style="width:74%"></div></div></div><div class="card" style="padding:12px 14px"><div style="font-size:13px;display:flex;gap:6px;align-items:center"><span class="dot run"></span> Codex 额度</div><div style="font-size:19px;font-weight:600;margin-top:5px">62%</div><div class="progress" style="margin-top:7px"><div class="pf" style="width:62%"></div></div></div><div class="card" style="padding:12px 14px"><div style="font-size:13px;display:flex;gap:6px;align-items:center"><span class="dot warn"></span> Copilot</div><div style="font-size:19px;font-weight:600;margin-top:5px">18%</div><div class="progress" style="margin-top:7px"><div class="pf warn" style="width:18%"></div></div></div></div>
+            <div class="sec-label">按模型 <span class="sl-d">可切 提供方/中转站/项目</span></div>
+            <div class="card"><table class="tbl"><tr><th>模型</th><th>中转站</th><th style="text-align:right">请求</th><th style="text-align:right">花费</th></tr><tr><td>glm-4.6</td><td style="color:var(--fgMuted)">智谱 GLM</td><td class="num">142</td><td class="num" style="color:var(--fg)">$6.20</td></tr><tr><td>claude-opus-4-8</td><td style="color:var(--fgMuted)">直连·官方</td><td class="num">63</td><td class="num" style="color:var(--fg)">$4.10</td></tr><tr><td>deepseek-v4-pro</td><td style="color:var(--fgMuted)">DeepSeek</td><td class="num">88</td><td class="num" style="color:var(--fg)">$1.74</td></tr></table></div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno" style="grid-column:auto"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>余额/额度</b>：中转站余额脚本 + Codex OAuth/Copilot 额度条（cc-switch quota footer）。</div></li>
+      <li><span class="pin">2</span><div><b>周期/维度</b>：日周月切换；breakdown 可切维度，点行下钻明细。</div></li>
+      <li><span class="pin">3</span><div><b>口径</b>：本机会话估算（非账单权威）；开反代后转精确计费（S16）。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S16 · PROXY / FAILOVER ============ -->
+<section class="screen" id="s16">
+  <div class="screen-head"><span class="tag">管理 · 16 · P2</span><h2>设置 › 本机 › 代理 / 故障转移</h2><p>镜像 cc-switch proxy_config：本地反代 + 超时 + <b>熔断阈值</b> + <b>自动故障转移队列</b>。接管前备份原配置。M3 落地（M1 先只读不接管）。</p></div>
+  <div class="screen-body wide">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div style="margin-left:14px;font-size:13px;color:var(--fgMuted)">设置 · 本机 › 代理</div></div>
+      <div class="set-shell" style="height:auto">
+        <div class="set-side" style="width:210px;overflow-y:auto"><div class="back"><span style="transform:rotate(180deg);display:inline-flex"><svg class="i sm"><use href="#chev-r"/></svg></span> 主机 Hub · 本机</div><div class="sgrp">本机 · 主机设置</div><div class="set-item"><svg class="i sm"><use href="#link"/></svg> 提供方与中转站</div><div class="set-item"><svg class="i sm"><use href="#chart"/></svg> 用量</div><div class="set-item active"><svg class="i sm"><use href="#shield"/></svg> 代理 / 故障转移</div><div class="set-item"><svg class="i sm"><use href="#puzzle"/></svg> 集成</div><div class="set-item"><svg class="i sm"><use href="#terminal"/></svg> 终端</div></div>
+        <div class="set-main">
+          <div class="set-hd"><div class="badge-ic"><svg class="i sm"><use href="#shield"/></svg></div><h3>代理 / 故障转移</h3><div class="hd-r"><span class="badge warn">M3 · 接管流量</span></div></div>
+          <div class="set-content" style="overflow:visible"><div class="col720">
+            <div class="card" style="margin-bottom:14px"><div class="row" style="padding:13px 15px"><div class="rc"><div class="rt">本地反向代理（Claude Code）</div><div class="rd" style="font-family:var(--mono)">127.0.0.1:15721 · 接管以做精确计费 + 故障转移</div></div><span class="sw on"></span></div></div>
+            <div class="sec-label">超时 <span class="sl-d">秒</span></div>
+            <div class="card" style="margin-bottom:14px;padding:13px"><div class="grid3"><div class="minif"><span class="l">首字节</span><span class="v">90</span></div><div class="minif"><span class="l">空闲</span><span class="v">180</span></div><div class="minif"><span class="l">非流式</span><span class="v">600</span></div></div></div>
+            <div class="sec-label">熔断 circuit breaker</div>
+            <div class="card" style="margin-bottom:14px;padding:13px"><div class="grid3" style="margin-bottom:12px"><div class="minif"><span class="l">失败阈值</span><span class="v">8</span></div><div class="minif"><span class="l">成功阈值</span><span class="v">3</span></div><div class="minif"><span class="l">熔断(s)</span><span class="v">90</span></div></div><div class="grid3"><div class="minif"><span class="l">错误率</span><span class="v">0.7</span></div><div class="minif"><span class="l">最小请求</span><span class="v">15</span></div><div class="minif"><span class="l">最大重试</span><span class="v">6</span></div></div></div>
+            <div class="sec-label">故障转移队列 <span class="pinb">1</span><span class="sl-d" style="margin-left:auto">健康顺序 · 摘除/恢复自动</span></div>
+            <div class="card"><div class="row" style="padding:11px 14px"><span style="width:18px;height:18px;border-radius:9999px;background:var(--surface3);font-size:11px;display:flex;align-items:center;justify-content:center">1</span><div class="rc"><div class="rt">智谱 GLM</div></div><span class="badge suc"><span class="dot run"></span> 健康·当前</span></div><div class="row" style="padding:11px 14px"><span style="width:18px;height:18px;border-radius:9999px;background:var(--surface3);font-size:11px;display:flex;align-items:center;justify-content:center">2</span><div class="rc"><div class="rt">DeepSeek</div></div><span class="badge suc"><span class="dot run"></span> 健康·待命</span></div><div class="row" style="padding:11px 14px"><span style="width:18px;height:18px;border-radius:9999px;background:var(--surface3);color:var(--fgMuted);font-size:11px;display:flex;align-items:center;justify-content:center">3</span><div class="rc"><div class="rt" style="color:var(--fgMuted)">Moonshot</div></div><span class="badge dan"><span class="dot dan"></span> 已摘除·失败8</span></div></div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno" style="grid-column:auto"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>熔断+队列</b>：连续失败≥阈值/错误率超阈值→摘除，熔断时长后半开试探，成功≥阈值恢复；队列拖拽定优先级。</div></li>
+      <li><span class="pin">2</span><div><b>接管口径</b>：开反代→用量按真实代理日志精确计费；接管前自动备份原 CLI 配置。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S17 · INTEGRATIONS · MCP ============ -->
+<section class="screen" id="s17">
+  <div class="screen-head"><span class="tag">管理 · 17 · P2</span><h2>设置 › 本机 › 集成 · MCP（三级作用域）</h2><p>集成节含 MCP / Skill / 插件 / Prompts 子 tab。MCP：传输 stdio/http/sse + <b>软件级/目录级/对话级</b>作用域 + per-提供方 启用 + 目录级首用审批。</p></div>
+  <div class="screen-body wide">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div style="margin-left:14px;font-size:13px;color:var(--fgMuted)">设置 · 本机 › 集成</div></div>
+      <div class="set-shell" style="height:auto">
+        <div class="set-side" style="width:210px;overflow-y:auto"><div class="back"><span style="transform:rotate(180deg);display:inline-flex"><svg class="i sm"><use href="#chev-r"/></svg></span> 主机 Hub · 本机</div><div class="sgrp">本机 · 主机设置</div><div class="set-item"><svg class="i sm"><use href="#link"/></svg> 提供方与中转站</div><div class="set-item"><svg class="i sm"><use href="#chart"/></svg> 用量</div><div class="set-item"><svg class="i sm"><use href="#shield"/></svg> 代理</div><div class="set-item active"><svg class="i sm"><use href="#puzzle"/></svg> 集成</div><div class="set-item"><svg class="i sm"><use href="#terminal"/></svg> 终端</div></div>
+        <div class="set-main">
+          <div class="set-hd"><div class="badge-ic"><svg class="i sm"><use href="#puzzle"/></svg></div><h3>集成</h3><div class="hd-r"><span class="btn ghost sm"><svg class="i xs"><use href="#store"/></svg> 市场</span><span class="btn df sm"><svg class="i xs"><use href="#plus"/></svg> 新增</span></div></div>
+          <div class="set-content" style="overflow:visible"><div class="col720">
+            <div class="tabs" style="margin-bottom:14px"><div class="tab on"><svg class="i sm" style="display:inline;vertical-align:-2px"><use href="#server"/></svg> MCP</div><div class="tab"><svg class="i sm" style="display:inline;vertical-align:-2px"><use href="#zap"/></svg> Skill</div><div class="tab"><svg class="i sm" style="display:inline;vertical-align:-2px"><use href="#puzzle"/></svg> 插件</div><div class="tab"><svg class="i sm" style="display:inline;vertical-align:-2px"><use href="#quote"/></svg> Prompts</div></div>
+            <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px"><div class="scope"><span><svg class="i sm"><use href="#gauge"/></svg> 软件级</span><span class="on"><svg class="i sm"><use href="#folder"/></svg> 目录级</span><span><svg class="i sm"><use href="#pen"/></svg> 对话级</span></div><span class="fhint" style="margin:0">当前 <b style="color:var(--fg)">目录级</b> · <span style="font-family:var(--mono)">paseo-main/.helm/mcp.json</span><span class="pinb">1</span></span></div>
+            <div class="card"><div class="row" style="padding:12px 14px"><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#file"/></svg></div><div class="rc"><div class="rt">filesystem <span class="badge mut" style="margin-left:6px">stdio</span></div><div class="rd" style="font-family:var(--mono)">npx @modelcontextprotocol/server-filesystem</div></div><span class="badge suc" style="margin-right:4px"><span class="dot run"></span>运行</span><span class="sw on"></span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div>
+              <div class="row" style="padding:12px 14px"><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#branch"/></svg></div><div class="rc"><div class="rt">github <span class="badge mut" style="margin-left:6px">http</span></div><div class="rd" style="font-family:var(--mono)">OAuth ✓</div></div><span class="badge suc" style="margin-right:4px"><span class="dot run"></span>运行</span><span class="sw on"></span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div>
+              <div class="row" style="padding:12px 14px"><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#globe"/></svg></div><div class="rc"><div class="rt">playwright <span class="badge mut" style="margin-left:6px">stdio</span></div><div class="rd">目录级新增 · 首用需审批</div></div><span class="badge warn" style="margin-right:4px">待审批<span class="pinb">2</span></span><span class="sw on"></span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div></div>
+            <div class="fhint">同一 server 可在不同提供方分别启用（per-app 位）；目录级写 .helm/mcp.json，软件级 ~/.helm，对话级仅此对话。</div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno" style="grid-column:auto"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>三级作用域</b>：软件/目录/对话切换决定开关写哪层；优先级 对话>目录>软件。MCP/Skill/插件 共享此抽象。</div></li>
+      <li><span class="pin">2</span><div><b>审批</b>：目录级新 server 首用弹审批→运行；kebab=编辑/重启/删除/日志。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S18 · INTEGRATIONS · SKILL / PROMPTS / PLUGIN ============ -->
+<section class="screen" id="s18">
+  <div class="screen-head"><span class="tag">管理 · 18 · P2</span><h2>集成 · Skill / Prompts / 插件</h2><p>Skill（GitHub 源+已安装+三级作用域+更新检测）· Prompts（per-app 提示词库）· 插件（市场+安装+三级 enable，Helm 新增）。同 集成 节的兄弟 tab。</p></div>
+  <div class="screen-body wide">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div><div class="sec-label"><svg class="i sm"><use href="#zap"/></svg> Skill <span class="sl-d">tab：已安装 / 源仓库</span></div>
+        <div class="card"><div class="row" style="padding:11px 14px"><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#spark"/></svg></div><div class="rc"><div class="rt">deep-research <span class="badge mut" style="margin-left:6px">anthropics/skills</span></div></div><span class="sw on"></span></div><div class="row" style="padding:11px 14px"><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#zap"/></svg></div><div class="rc"><div class="rt">code-review <span class="badge acc" style="margin-left:6px">有更新</span></div><div class="rd">content_hash 变化</div></div><span class="btn ghost sm" style="color:var(--accentBright)">更新</span><span class="sw on"></span></div><div class="row" style="padding:11px 14px"><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#spark"/></svg></div><div class="rc"><div class="rt">verify</div></div><span class="badge warn" style="margin-right:4px">对话级覆盖</span><span class="sw on"></span></div></div>
+        <div class="fhint">GitHub 源安装到 SSOT ~/.helm/skills 软链进各 CLI；三级作用域开关。</div>
+      </div>
+      <div><div class="sec-label"><svg class="i sm"><use href="#puzzle"/></svg> 插件 <span class="sl-d">市场 · Helm 新增（cc-switch 没有）</span></div>
+        <div class="card" style="margin-bottom:14px"><div class="row" style="padding:11px 14px"><div class="badge-ic" style="width:26px;height:26px;background:rgba(32,116,74,.16);color:var(--accentBright)"><svg class="i sm"><use href="#zap"/></svg></div><div class="rc"><div class="rt">superpowers <span class="badge mut" style="margin-left:6px">@community</span></div><div class="rd" style="display:flex;gap:5px;margin-top:4px"><span class="badge mut">12 cmd</span><span class="badge mut">8 skill</span><span class="badge mut">hooks</span></div></div><span class="sw on"></span></div><div class="row" style="padding:11px 14px"><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#gauge"/></svg></div><div class="rc"><div class="rt">claude-hud</div><div class="rd" style="display:flex;gap:5px;margin-top:4px"><span class="badge mut">statusline</span></div></div><span class="sw on"></span></div></div>
+        <div class="sec-label"><svg class="i sm"><use href="#quote"/></svg> Prompts <span class="sl-d">per-app 提示词库</span></div>
+        <div class="card"><div class="row" style="padding:11px 14px"><div class="rc"><div class="rt">代码审查规范</div></div><span class="sw on"></span></div><div class="row" style="padding:11px 14px"><div class="rc"><div class="rt">提交信息模板</div></div><span class="sw on"></span></div><div class="row" style="padding:11px 14px"><div class="rc"><div class="rt" style="color:var(--fgMuted)">中文回复</div></div><span class="sw"></span></div></div>
+      </div>
+    </div>
+    <div class="anno" style="grid-column:auto;margin-top:8px"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>Skill</b>：「已安装/源仓库」两源；content_hash 检测更新一键升级；三级作用域 + 覆盖标。</div></li>
+      <li><span class="pin">2</span><div><b>插件</b>：市场添加(owner/repo) + Discover/Installed；行内显示打包 cmd/skill/hooks/MCP 数；三级 enable。</div></li>
+      <li><span class="pin">3</span><div><b>Prompts</b>：per-app 提示词库，Markdown 编辑，启停注入对应 CLI。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S19 · CC-SWITCH SYNC ============ -->
+<section class="screen" id="s19">
+  <div class="screen-head"><span class="tag">管理 · 19 · P2</span><h2>cc-switch 一键同步（真实表映射）</h2><p>只读 ~/.cc-switch/cc-switch.db(v11) → 中转站(含 limit_*/cost_multiplier/endpoints)、定价、可选 MCP/Skill/Prompts。按 (id,app_type) 关联不覆盖本地改动。</p></div>
+  <div class="screen-body">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+      <div class="backdrop" style="height:480px">
+        <div class="modal"><div class="modal-h"><div class="badge-ic" style="width:28px;height:28px"><svg class="i sm"><use href="#refresh"/></svg></div><div class="mt">从 cc-switch 同步</div><span class="x"><svg class="i sm"><use href="#x"/></svg></span></div>
+          <div style="padding:0 20px"><div class="tabs" style="margin-bottom:0"><div class="tab on">中转站 <span class="badge mut" style="margin-left:4px">3</span></div><div class="tab">定价 <span class="badge mut" style="margin-left:4px">37</span></div><div class="tab">MCP</div><div class="tab">Skill</div></div></div>
+          <div class="modal-b"><div style="font-size:11px;color:var(--fgMuted);margin-bottom:8px">Claude Code · app_type=claude</div>
+            <div class="imp-row sel"><div class="cbx on"><svg class="i xs"><use href="#check"/></svg></div><div class="rc"><div class="rt">智谱 GLM <span class="badge warn" style="margin-left:6px">更新</span></div><div class="rd" style="font-family:var(--mono)">base_url/key + limit_daily $10 + 2 端点 · 保留本地改动</div></div></div>
+            <div class="imp-row sel"><div class="cbx on"><svg class="i xs"><use href="#check"/></svg></div><div class="rc"><div class="rt">DeepSeek <span class="badge acc" style="margin-left:6px">新增</span></div><div class="rd" style="font-family:var(--mono)">deepseek.com/anthropic · 2 模型</div></div></div>
+            <div class="imp-row"><div class="cbx"></div><div class="rc"><div class="rt" style="color:var(--fgMuted)">Moonshot <span class="badge acc" style="margin-left:6px">新增</span></div></div></div>
+          </div>
+          <div class="modal-f"><span class="sp">已选 <b style="color:var(--fg)">2</b> / 3 · <svg class="i xs" style="display:inline"><use href="#refresh"/></svg> 刷新</span><span class="btn ghost sm">取消</span><span class="btn df sm"><svg class="i xs"><use href="#download"/></svg> 导入所选</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>分类导入</b>：中转站(含 limit/倍率/端点/meta 全字段)/定价/MCP/Skill 分页。</div></li>
+      <li><span class="pin">2</span><div><b>更新 vs 新增</b>：按 (id,app_type) 关联，更新不覆盖本地改动；cc-switch 无的本地项保留不删。多选+「已选 N/M」+导入所选。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S20 · HOST HUB (关联全量) ============ -->
+<section class="screen" id="s20">
+  <div class="screen-head"><span class="tag">主机 · 20 · P3 ★核心重做</span><h2>主机 Hub — 关联全量的枢纽</h2><p>修「主机太杂、UI 没放对位置」：主机不是一个杂页签，而是<b>根上下文 + 枢纽</b>。一台主机关联：连接 · 守护进程 · 配对设备(手机远程) · 提供方与中转站 · 用量 · 工作区 · Agents · 终端 · <b>集成</b> · <b>服务代理</b>——一处总览、各自下钻。<b>切主机 = 整个 app 重载该主机的全部</b>（一环套一环）。</p></div>
+  <div class="screen-body wide">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div style="margin-left:14px;font-size:13px;color:var(--fgMuted)">主机 · 本机</div></div>
+      <div style="background:var(--surfaceWorkspace);padding:22px 26px;height:600px;overflow:auto">
+        <!-- host identity strip -->
+        <div class="card" style="margin-bottom:18px;background:var(--surface1)"><div class="row" style="padding:16px 18px"><div class="badge-ic" style="width:40px;height:40px;border-radius:10px;background:rgba(32,116,74,.16);color:var(--accentBright)"><svg class="i lg"><use href="#server"/></svg></div><div class="rc"><div style="font-size:18px;font-weight:300">本机 <span class="badge suc" style="margin-left:8px"><span class="dot run"></span> 在线</span></div><div class="rd" style="margin-top:4px;font-family:var(--mono)">localhost:7070 · 本地连接(directPipe) · daemon v0.1.x 运行中 · 2ms<span class="pinb">1</span></div></div><span class="btn out sm"><svg class="i xs"><use href="#qr"/></svg> 配对手机</span><span class="btn ghost sm"><svg class="i xs"><use href="#refresh"/></svg> 重启 daemon</span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div></div>
+        <div class="sec-label">这台主机关联 <span class="sl-d" style="margin-left:auto">点卡片下钻；切主机则全部重载</span></div>
+        <div class="hub-grid">
+          <div class="hub-card"><div class="hc-h"><span class="badge-ic"><svg class="i sm"><use href="#network"/></svg></span> 连接 <svg class="i sm chev"><use href="#chev-r"/></svg></div><div class="hc-d">本地 directPipe · 在线 · 2ms。可加 relay(远程) / TCP 备用连接。<span class="pinb">2</span></div></div>
+          <div class="hub-card"><div class="hc-h"><span class="badge-ic"><svg class="i sm"><use href="#server"/></svg></span> 守护进程 <svg class="i sm chev"><use href="#chev-r"/></svg></div><div class="hc-d">运行中 · v0.1.x · 重启 / 日志 / 配置(端口 7070 / ~/.helm)</div></div>
+          <div class="hub-card"><div class="hc-h"><span class="badge-ic"><svg class="i sm"><use href="#smartphone"/></svg></span> 配对设备 <span class="badge acc" style="margin-left:2px">手机远程</span><svg class="i sm chev"><use href="#chev-r"/></svg></div><div class="hc-d">2 台已配对 · 经 relay E2E 远程操控本机 agent。扫码添加。<span class="pinb">3</span></div></div>
+          <div class="hub-card"><div class="hc-h"><span class="badge-ic"><svg class="i sm"><use href="#link"/></svg></span> 提供方与中转站 <svg class="i sm chev"><use href="#chev-r"/></svg></div><div class="hc-d">Claude/Codex/OpenCode · 4 中转站 · 当前 智谱 GLM</div></div>
+          <div class="hub-card"><div class="hc-h"><span class="badge-ic"><svg class="i sm"><use href="#chart"/></svg></span> 用量 <svg class="i sm chev"><use href="#chev-r"/></svg></div><div class="hc-d">本周 $12.84 · 4.2M tokens · 余额/限额</div></div>
+          <div class="hub-card"><div class="hc-h"><span class="badge-ic"><svg class="i sm"><use href="#folder"/></svg></span> 工作区 / 项目 <svg class="i sm chev"><use href="#chev-r"/></svg></div><div class="hc-d">5 个工作区 · 3 个项目（local / worktree 隔离）</div></div>
+          <div class="hub-card"><div class="hc-h"><span class="badge-ic"><svg class="i sm"><use href="#bot"/></svg></span> Agents <svg class="i sm chev"><use href="#chev-r"/></svg></div><div class="hc-d">2 运行中 · 5 空闲 · 历史会话</div></div>
+          <div class="hub-card"><div class="hc-h"><span class="badge-ic"><svg class="i sm"><use href="#terminal"/></svg></span> 终端 <svg class="i sm chev"><use href="#chev-r"/></svg></div><div class="hc-d">1 活动 · 终端 profile 配置</div></div>
+          <div class="hub-card"><div class="hc-h"><span class="badge-ic"><svg class="i sm"><use href="#puzzle"/></svg></span> 集成 <span class="badge mut" style="margin-left:2px">MCP·Skill·插件·Prompts</span><svg class="i sm chev"><use href="#chev-r"/></svg></div><div class="hc-d">软件级 / 目录级 / 对话级 作用域 · 跳设置「集成」(S17/18)<span class="pinb">5</span></div></div>
+          <div class="hub-card"><div class="hc-h"><span class="badge-ic"><svg class="i sm"><use href="#globe"/></svg></span> 服务代理 <svg class="i sm chev"><use href="#chev-r"/></svg></div><div class="hc-d">把工作区脚本暴露成公网 URL（DNS + 反代）· 2 个在线 · S26<span class="pinb">5</span></div></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno" style="grid-column:auto"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>主机=根上下文</b>：顶部是这台主机的身份+连接+daemon 状态。侧栏顶的主机切换器切换 → 整个 app（项目/对话/提供方/用量/MCP…）重载为该主机。</div></li>
+      <li><span class="pin">2</span><div><b>枢纽下钻</b>：每张卡是该主机的一个子域，点进对应设置节（S13/15/16/17…）。这就是「一环套一环」——全挂在主机下，UI 各归其位。</div></li>
+      <li><span class="pin">3</span><div><b>配对手机</b>：顶部/卡片「配对」→ 出二维码（S22），手机扫码经 relay 远程接管该主机。</div></li>
+      <li><span class="pin">4</span><div><b>本地 vs 远程</b>：本机=directPipe；远程主机=relay/TCP，卡片与状态一致呈现，操作面相同。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S21 · ADD HOST ============ -->
+<section class="screen" id="s21">
+  <div class="screen-head"><span class="tag">主机 · 21 · P3</span><h2>添加主机（本地 / 手动 / 配对）</h2><p>三种方式：本地自动检测 daemon · 手动 host:port(+TLS) · 扫码/粘链配对（连远程）。沿用 Paseo add-host-method。</p></div>
+  <div class="screen-body">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+      <div class="backdrop" style="height:460px">
+        <div class="modal" style="width:480px"><div class="modal-h"><div class="badge-ic" style="width:28px;height:28px"><svg class="i sm"><use href="#plus"/></svg></div><div class="mt">添加主机</div><span class="x"><svg class="i sm"><use href="#x"/></svg></span></div>
+          <div class="modal-b">
+            <div class="card"><div class="row"><div class="badge-ic" style="width:30px;height:30px"><svg class="i sm"><use href="#network"/></svg></div><div class="rc"><div class="rt">本地 daemon（自动检测）</div><div class="rd">检测到 localhost:7070 运行中</div></div><span class="badge suc"><span class="dot run"></span>就绪</span><svg class="i sm chev"><use href="#chev-r"/></svg></div>
+              <div class="row"><div class="badge-ic" style="width:30px;height:30px"><svg class="i sm"><use href="#server"/></svg></div><div class="rc"><div class="rt">手动连接</div><div class="rd">输入 host:port（+ TLS / token）连远程 daemon</div></div><svg class="i sm chev"><use href="#chev-r"/></svg></div>
+              <div class="row"><div class="badge-ic" style="width:30px;height:30px"><svg class="i sm"><use href="#qr"/></svg></div><div class="rc"><div class="rt">扫码 / 粘贴配对链接</div><div class="rd">从另一台设备的「配对」获取 <span style="font-family:var(--mono)">helm://…#offer=</span></div></div><svg class="i sm chev"><use href="#chev-r"/></svg></div></div>
+            <div class="fhint" style="margin-top:12px">添加后出现在主机切换器；远程经 relay 端到端加密。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>本地</b>：自动检测本机 daemon，一键加入。</div></li>
+      <li><span class="pin">2</span><div><b>手动</b>：host:port + 可选 TLS/token，连远程/局域网 daemon。</div></li>
+      <li><span class="pin">3</span><div><b>配对</b>：扫码或粘 <span style="font-family:var(--mono)">#offer=</span> 链接，经 relay 协商建立 E2E 连接。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S22 · PAIR DEVICE (mobile remote) ============ -->
+<section class="screen" id="s22">
+  <div class="screen-head"><span class="tag">主机 · 22 · P3 · 手机远程</span><h2>配对设备（手机远程控制）</h2><p>Paseo pair-link/relay 机制：本机出二维码（编码 <span style="font-family:var(--mono);font-size:11px">helm://…#offer=</span>），手机 Helm 扫码 → relay 端到端加密 → 远程操控本机 agent。已配对设备可管理/吊销。</p></div>
+  <div class="screen-body">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+      <div class="backdrop" style="height:500px">
+        <div class="modal" style="width:520px"><div class="modal-h"><div class="badge-ic" style="width:28px;height:28px"><svg class="i sm"><use href="#smartphone"/></svg></div><div class="mt">配对手机 · 本机</div><span class="x"><svg class="i sm"><use href="#x"/></svg></span></div>
+          <div class="modal-b">
+            <div style="display:flex;gap:18px;align-items:center;margin-bottom:16px">
+              <div class="qrbox"><svg width="120" height="120" viewBox="0 0 24 24" style="color:#111"><use href="#qr"/></svg></div>
+              <div style="flex:1"><div style="font-size:14px;margin-bottom:6px">用手机 Helm 扫码<span class="pinb">1</span></div><div class="fhint" style="margin:0 0 10px">或粘贴链接到手机：</div><div class="input" style="font-family:var(--mono);font-size:11px">helm://pair#offer=eyJ0…</div><div style="display:flex;gap:6px;margin-top:8px"><span class="btn out sm"><svg class="i xs"><use href="#copy"/></svg> 复制链接</span><span class="btn ghost sm"><svg class="i xs"><use href="#refresh"/></svg> 重新生成</span></div></div>
+            </div>
+            <div class="sec-label">已配对设备 <span class="pinb">2</span></div>
+            <div class="card"><div class="row" style="padding:11px 14px"><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#smartphone"/></svg></div><div class="rc"><div class="rt">iPhone 16 Pro</div><div class="rd">relay · 最近活跃 2 分钟前</div></div><span class="badge suc"><span class="dot run"></span>在线</span><span class="btn ghost sm" style="color:#b91c1c">吊销</span></div><div class="row" style="padding:11px 14px"><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#smartphone"/></svg></div><div class="rc"><div class="rt">iPad Air</div><div class="rd">relay · 3 天前</div></div><span class="badge mut">离线</span><span class="btn ghost sm" style="color:#b91c1c">吊销</span></div></div>
+          </div>
+          <div class="modal-f"><span class="sp"><svg class="i xs" style="display:inline"><use href="#shield"/></svg> 端到端加密 · relay 不可见内容</span><span class="btn df sm">完成</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>扫码配对</b>：二维码编码 relay offer；手机 Helm 扫码或粘链 → relay 协商 → E2E 连接，手机即作为远程主机操控本机。</div></li>
+      <li><span class="pin">2</span><div><b>设备管理</b>：列已配对设备 + 在线态 + 吊销；relay 仅转发密文，内容端到端加密（SECURITY.md）。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S23 · PROJECTS / NEW WORKSPACE ============ -->
+<section class="screen" id="s23">
+  <div class="screen-head"><span class="tag">项目 · 23 · P3</span><h2>项目 / 新建工作区（隔离 local / worktree）</h2><p>项目=物理路径(不要求 git)；新建工作区选<b>隔离</b>：Local(复用现有 checkout) 或 新 worktree(独立，worktree 归档是核心机制)。沿用 Paseo new-workspace + 项目 file-tree。</p></div>
+  <div class="screen-body">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+      <div class="backdrop" style="height:520px">
+        <div class="modal" style="width:520px"><div class="modal-h"><div class="badge-ic" style="width:28px;height:28px"><svg class="i sm"><use href="#folder-plus"/></svg></div><div class="mt">新建工作区</div><span class="x"><svg class="i sm"><use href="#x"/></svg></span></div>
+          <div class="modal-b">
+            <div class="field"><div class="flabel">项目 / 目录</div><div class="input"><svg class="i sm"><use href="#folder"/></svg><span style="font-family:var(--mono);font-size:13px">~/Desktop/…/paseo-main</span><span class="btn ghost sm" style="margin-left:auto">选择…</span></div></div>
+            <div class="field"><div class="flabel">隔离 Isolation <span class="pinb">1</span></div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+                <div class="card" style="padding:12px;border-color:var(--accent)"><div style="font-size:13px;display:flex;align-items:center;gap:7px"><svg class="i sm" style="color:var(--accentBright)"><use href="#check"/></svg> Local</div><div class="fhint" style="margin-top:5px">复用现有 checkout，直接在当前工作树上跑</div></div>
+                <div class="card" style="padding:12px"><div style="font-size:13px;display:flex;align-items:center;gap:7px"><svg class="i sm"><use href="#branch"/></svg> 新 worktree</div><div class="fhint" style="margin-top:5px">切独立 git worktree，互不干扰；可归档</div></div>
+              </div>
+            </div>
+            <div class="grid2"><div class="field"><div class="flabel">分支</div><div class="input"><svg class="i sm"><use href="#branch"/></svg> develop</div></div><div class="field"><div class="flabel">提供方（锁定）</div><div class="input"><svg class="i sm lock" style="color:var(--accentBright)"><use href="#lock"/></svg> Claude Code</div></div></div>
+          </div>
+          <div class="modal-f"><span class="sp">创建后在此项目下出现一个新对话</span><span class="btn ghost sm">取消</span><span class="btn df sm">创建</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>隔离</b>：Local=复用 checkout；新 worktree=独立工作树（worktree-per-task 隔离是核心，可归档）。记住上次选择。</div></li>
+      <li><span class="pin">2</span><div><b>提供方锁定</b>：创建时选定提供方，之后该工作区/对话锁定（中转站+模型仍可切）。</div></li>
+      <li><span class="pin">3</span><div><b>项目 file-tree</b>：左栏「项目」区 Codex 式树；右键「置顶项目」整体移到置顶区。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S24 · SESSION HISTORY ============ -->
+<section class="screen" id="s24">
+  <div class="screen-head"><span class="tag">会话 · 24 · P3</span><h2>会话历史</h2><p>按项目分组列历史会话，恢复/归档/移除 + 每会话 token/花费。与左栏对话打通（同一会话两处可见）。</p></div>
+  <div class="screen-body">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div style="margin-left:14px;font-size:13px;color:var(--fgMuted)">会话历史 · 本机</div></div>
+      <div style="display:flex;height:480px">
+        <div class="sidebar" style="width:200px"><div class="host-pill" style="margin-bottom:8px"><span class="dot run"></span><span class="nm">本机</span><svg class="i sm"><use href="#chev-d"/></svg></div><div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen"/></svg> 新对话</div><div class="sb-item active"><svg class="i sm"><use href="#history"/></svg> 会话历史</div></div></div>
+        <div class="main">
+          <div style="padding:14px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px"><div class="input" style="flex:1;padding:6px 11px"><svg class="i sm"><use href="#search"/></svg><span class="ph">搜索会话…</span></div><span class="scope" style="transform:scale(.92)"><span class="on">活跃</span><span>已归档</span></span></div>
+          <div style="flex:1;overflow:auto;padding:16px 22px">
+            <div class="sec-label">paseo-main</div>
+            <div class="card" style="margin-bottom:14px"><div class="row" style="padding:12px 14px"><span class="dot run"></span><div class="rc"><div class="rt">重构选择器</div><div class="rd">Claude Code · 智谱 GLM · glm-4.6 · 2 小时前 · 142 请求 · $6.20</div></div><span class="btn ghost sm">恢复<span class="pinb">1</span></span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div><div class="row" style="padding:12px 14px"><span class="dot idle"></span><div class="rc"><div class="rt">修复 diff 对齐</div><div class="rd">直连·官方 · claude-opus-4-8 · 昨天 · 63 请求 · $4.10</div></div><span class="btn ghost sm">恢复</span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div></div>
+            <div class="sec-label">helm-relay</div>
+            <div class="card"><div class="row" style="padding:12px 14px"><span class="dot idle"></span><div class="rc"><div class="rt">中继加密握手</div><div class="rd">DeepSeek · deepseek-v4-pro · 3 天前 · 88 请求 · $1.74</div></div><span class="btn ghost sm">恢复</span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>恢复</b>：在主窗重开该会话，沿用其提供方(锁定)/中转站/模型。</div></li>
+      <li><span class="pin">2</span><div><b>分组/筛选</b>：按项目分组；活跃/已归档；搜索。kebab=归档/移除/在 Finder 显示日志。</div></li>
+      <li><span class="pin">3</span><div><b>口径</b>：每会话 token/花费来自 JSONL，与用量页同源。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S25 · ONBOARDING ============ -->
+<section class="screen" id="s25">
+  <div class="screen-head"><span class="tag">Onboarding · 25 · P3</span><h2>首次启动 — 欢迎 + 连接主机</h2><p>首次：欢迎 + 连本地 daemon（或添加主机）+ 引导新建第一个对话。空状态友好。</p></div>
+  <div class="screen-body">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+      <div style="height:500px;background:var(--surfaceWorkspace);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:24px;text-align:center">
+        <div style="width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#15583a);display:flex;align-items:center;justify-content:center;color:#fff"><svg class="i" style="width:32px;height:32px"><use href="#gauge"/></svg></div>
+        <div><div style="font-size:24px;font-weight:300">欢迎使用 Helm</div><div class="fhint" style="margin-top:8px;max-width:420px">连接你本机/远程的 AI 编码代理，一处统管。你的代码留在你机器上。</div></div>
+        <div class="card" style="width:380px;text-align:left"><div class="row" style="padding:13px 15px"><div class="badge-ic" style="width:30px;height:30px"><svg class="i sm"><use href="#network"/></svg></div><div class="rc"><div class="rt">连接本地 daemon</div><div class="rd">检测到 localhost:7070</div></div><span class="badge suc"><span class="dot run"></span>就绪</span></div><div class="row" style="padding:13px 15px"><div class="badge-ic" style="width:30px;height:30px"><svg class="i sm"><use href="#qr"/></svg></div><div class="rc"><div class="rt">或扫码连远程主机</div></div><svg class="i sm chev"><use href="#chev-r"/></svg></div></div>
+        <span class="btn df" style="padding:9px 20px"><svg class="i sm"><use href="#up"/></svg> 连接并开始<span class="pinb">1</span></span>
+      </div>
+    </div>
+    <div class="anno"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>首跑</b>：欢迎 → 连本地 daemon（或配对远程）→ 进主窗空态，引导新建第一个对话（选提供方）。</div></li>
+      <li><span class="pin">2</span><div><b>空状态</b>：无项目/对话时给短引导 + 单 CTA（非装饰性插画）。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ============ S26 · SERVICE PROXY ============ -->
+<section class="screen" id="s26">
+  <div class="screen-head"><span class="tag">主机 · 26 · P3 · 新增卡</span><h2>设置 › 本机 › 服务代理（工作区脚本 → 公网 URL）</h2><p>主机 Hub 第 10 卡的落地（docs/service-proxy.md）：把工作区里跑的服务（dev server / storybook / docs…）经反代 + 通配 DNS 暴露成公网 URL，手机/同事可直接访问。主机级。</p></div>
+  <div class="screen-body wide">
+    <div class="frame"><div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div style="margin-left:14px;font-size:13px;color:var(--fgMuted)">设置 · 本机 › 服务代理</div></div>
+      <div class="set-shell" style="height:auto">
+        <div class="set-side" style="width:210px;overflow-y:auto"><div class="back"><span style="transform:rotate(180deg);display:inline-flex"><svg class="i sm"><use href="#chev-r"/></svg></span> 主机 Hub · 本机</div><div class="sgrp">本机 · 主机设置</div><div class="set-item"><svg class="i sm"><use href="#link"/></svg> 提供方与中转站</div><div class="set-item"><svg class="i sm"><use href="#chart"/></svg> 用量</div><div class="set-item"><svg class="i sm"><use href="#shield"/></svg> 代理</div><div class="set-item"><svg class="i sm"><use href="#puzzle"/></svg> 集成</div><div class="set-item"><svg class="i sm"><use href="#terminal"/></svg> 终端</div><div class="set-item active"><svg class="i sm"><use href="#globe"/></svg> 服务代理</div></div>
+        <div class="set-main">
+          <div class="set-hd"><div class="badge-ic"><svg class="i sm"><use href="#globe"/></svg></div><h3>服务代理</h3><div class="hd-r"><span class="btn df sm"><svg class="i xs"><use href="#plus"/></svg> 暴露服务</span></div></div>
+          <div class="set-content" style="overflow:visible"><div class="col720">
+            <div class="alertbox info" style="margin-bottom:16px"><svg class="i sm"><use href="#globe"/></svg><div><div class="at">通配域名</div><div class="ad" style="font-family:var(--mono)">*.paseo.helm.sh → 本机（CNAME 已校验 ✓）。每个服务分配子域，经 relay 反代到工作区端口。</div></div></div>
+            <div class="sec-label">已暴露服务 <span class="pinb">1</span></div>
+            <div class="card">
+              <div class="row" style="padding:12px 14px"><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#globe"/></svg></div><div class="rc"><div class="rt">dev server <span class="badge mut" style="margin-left:6px">paseo-main</span></div><div class="rd" style="font-family:var(--mono)">localhost:8081 → https://app.paseo.helm.sh</div></div><span class="badge suc" style="margin-right:4px"><span class="dot run"></span>在线</span><span class="btn ghost sm"><svg class="i xs"><use href="#copy"/></svg></span><span class="sw on"></span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div>
+              <div class="row" style="padding:12px 14px"><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#globe"/></svg></div><div class="rc"><div class="rt">storybook <span class="badge mut" style="margin-left:6px">paseo-main</span></div><div class="rd" style="font-family:var(--mono)">localhost:6006 → https://sb.paseo.helm.sh</div></div><span class="badge mut" style="margin-right:4px">已停</span><span class="btn ghost sm"><svg class="i xs"><use href="#copy"/></svg></span><span class="sw"></span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div>
+              <div class="row" style="padding:12px 14px"><div class="badge-ic" style="width:26px;height:26px"><svg class="i sm"><use href="#globe"/></svg></div><div class="rc"><div class="rt">helm-relay docs <span class="badge mut" style="margin-left:6px">helm-relay</span></div><div class="rd" style="font-family:var(--mono)">localhost:3000 → https://docs.relay.helm.sh</div></div><span class="badge suc" style="margin-right:4px"><span class="dot run"></span>在线</span><span class="btn ghost sm"><svg class="i xs"><use href="#copy"/></svg></span><span class="sw on"></span><span class="kebab"><svg class="i sm"><use href="#kebab"/></svg></span></div>
+            </div>
+            <div class="fhint">每条 = 工作区端口 → 子域。可设访问控制（公开 / 需 token / 仅配对设备）。底层走 relay 反代，不暴露本机 IP。</div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+    <div class="anno" style="grid-column:auto"><div class="anno-h">交互行为</div><ol>
+      <li><span class="pin">1</span><div><b>暴露服务</b>：选工作区端口 + 子域 → 生成公网 URL；开关启停；复制链接；kebab=访问控制/重启/删除。</div></li>
+      <li><span class="pin">2</span><div><b>DNS</b>：一次性配通配 CNAME <span style="font-family:var(--mono)">*.paseo.helm.sh</span>，之后每个服务自动分配子域。</div></li>
+      <li><span class="pin">3</span><div><b>安全</b>：经 relay 反代不暴露本机 IP；可限"仅配对设备"访问，与手机远程一致的信任域。</div></li>
+    </ol></div>
+  </div>
+</section>
+
+<!-- ===SCREENS_END=== -->
+<div class="foot">Helm v3 设计稿 · 最终版全量（25 屏：外壳 + 交互细节 + 设置 IA + 管理 + 主机 Hub + 手机远程 + 项目/会话 + Onboarding）· 对齐 juvenile-skunk 真实设计（置顶/项目/对话 + 右键 + 停靠右面板）· 主机=关联全量枢纽 · 细滚动条 · token 源自 theme.ts（<b>默认 Paseo light 浅色</b>，可在外观切深色）· 配套 HELM-v3-需求文档.md · 设计稿即需求。</div>
+</body>
+</html>

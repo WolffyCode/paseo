@@ -1,6 +1,17 @@
 import type { TranslationResources } from "./en";
 
 export const zhCN: TranslationResources = {
+  time: {
+    short: {
+      justNow: "刚刚",
+      minutes: "{{n}}分钟",
+      hours: "{{n}}小时",
+      days: "{{n}}天",
+      weeks: "{{n}}周",
+      months: "{{n}}个月",
+      years: "{{n}}年",
+    },
+  },
   common: {
     back: "返回",
     loading: "加载中...",
@@ -476,12 +487,19 @@ export const zhCN: TranslationResources = {
         pinTarget: "固定",
         unpinTarget: "取消固定",
       },
-      explorer: {
-        open: "打开 explorer",
-        close: "关闭 explorer",
-        toggle: "切换 explorer",
-        changes: "变更",
-        files: "文件",
+      toolsMenu: {
+        addTool: "添加工具",
+        review: "审查",
+        terminal: "终端",
+        browser: "浏览器",
+        file: "文件",
+        sideChat: "侧边聊天",
+      },
+      toolPanel: {
+        open: "打开工具面板",
+        close: "关闭工具面板",
+        maximize: "最大化工具面板",
+        restore: "还原工具面板",
       },
       toasts: {
         copyFailed: "复制失败",
@@ -525,6 +543,9 @@ export const zhCN: TranslationResources = {
         newAgent: "新建 Agent",
         newTerminal: "新建 Terminal",
         newBrowser: "新建浏览器标签",
+        newFile: "打开文件",
+        newSideChat: "新建侧边聊天",
+        review: "审查变更",
         importSession: "导入会话",
         copyPath: "复制 workspace 路径",
         copyBranchName: "复制分支名称",
@@ -580,12 +601,6 @@ export const zhCN: TranslationResources = {
           pending: "正在 pull 并 push...",
           success: "已 pull 并 push",
         },
-        viewPr: "查看 PR",
-        createPr: {
-          label: "创建 PR",
-          pending: "正在创建 PR...",
-          success: "PR 已创建",
-        },
         mergeBranch: {
           label: "本地 merge",
           pending: "正在 merge...",
@@ -601,24 +616,7 @@ export const zhCN: TranslationResources = {
           pending: "正在归档...",
           success: "已归档",
         },
-        mergePr: {
-          squash: "Merge PR (squash)",
-          merge: "Merge PR (merge)",
-          rebase: "Merge PR (rebase)",
-          pending: "正在 merge PR...",
-          success: "PR 已 merge",
-        },
-        autoMerge: {
-          enableSquash: "Auto merge (squash)",
-          enableMerge: "Auto merge (merge)",
-          enableRebase: "Auto merge (rebase)",
-          enabled: "Auto-merge 已启用",
-          enabling: "正在启用 auto-merge...",
-          disabling: "正在禁用 auto-merge...",
-          disabled: "Auto-merge 已禁用",
-        },
         unavailable: {
-          viewPrNoGithub: "当前无法查看 PR，因为 GitHub 未连接",
           pullNoRemote: "此处无法 pull，因为此分支尚未连接到 remote",
           pullDirty: "有本地变更时无法 pull，请先 commit 或 stash",
           pullUpToDate: "无法 pull，因为此分支已是最新",
@@ -628,32 +626,19 @@ export const zhCN: TranslationResources = {
           pullAndPushNoRemote: "此处无法 pull 并 push，因为此分支尚未连接到 remote",
           pullAndPushDirty: "有本地变更时无法 pull 并 push，请先 commit 或 stash",
           pullAndPushInSync: "无法 pull 并 push，因为此分支已同步",
-          createPrNoGithub: "当前无法创建 PR，因为 GitHub 未连接",
-          createPrNoCommits: "无法创建 PR，因为此分支还没有新的 commit",
           mergeNoBase: "无法 merge，因为无法确定 base branch",
           mergeDirty: "有本地变更时无法 merge，请先 commit 或 stash",
           mergeNothing: "无法 merge，因为此分支没有可 merge 的新内容",
           updateNoBase: "无法更新，因为无法确定 base branch",
           updateDirty: "有本地变更时无法更新，请先 commit 或 stash",
           updateCurrent: "无法更新，因为此分支已与 {{baseRef}} 保持最新",
-          archiveNotWorktree: "此处无法归档，因为此 workspace 不是作为 Paseo worktree 创建的",
-          mergePrNoGithub: "当前无法 merge PR，因为 GitHub 未连接",
-          mergePrMissing: "无法 merge PR，因为还没有 pull request",
-          mergePrDraft: "无法 merge PR，因为 pull request 仍是 draft",
-          mergePrMerged: "无法 merge PR，因为 pull request 已 merge",
-          mergePrClosed: "无法 merge PR，因为 pull request 已关闭",
-          mergePrConflicts: "无法 merge PR，因为 pull request 存在冲突",
-          mergePrQueue: "此处无法 merge PR，因为此 repository 使用 merge queue",
-          mergePrNotReady: "GitHub 报告 pull request 可 merge 后才能 merge PR",
-          autoMergeCannotDisable: "Auto-merge 已启用，但此账号无法禁用",
+          archiveNotWorktree: "此处无法归档，因为此 workspace 不是作为 Helm worktree 创建的",
         },
         toasts: {
           failedCommit: "Commit 失败",
           failedPull: "Pull 失败",
           failedPush: "Push 失败",
           failedPullAndPush: "Pull 并 push 失败",
-          failedCreatePr: "创建 PR 失败",
-          failedMergePr: "Merge PR 失败",
           failedEnableAutoMerge: "启用 auto-merge 失败",
           failedDisableAutoMerge: "禁用 auto-merge 失败",
           baseRefUnavailable: "Base ref 不可用",
@@ -713,29 +698,9 @@ export const zhCN: TranslationResources = {
       pr: {
         sections: {
           checks: "Checks",
-          reviews: "Reviews",
         },
         accessibility: {
           pullRequest: "Pull request #{{number}}",
-        },
-        states: {
-          draft: "Draft",
-          merged: "已 merge",
-          closed: "已关闭",
-          open: "Open",
-        },
-        activity: {
-          commented: "已评论",
-          approved: "已批准",
-          requestedChanges: "请求修改",
-          reviewed: "已 review",
-        },
-        time: {
-          justNow: "刚刚",
-        },
-        errors: {
-          statusLoadFailed: "无法加载 Pull Request 状态",
-          activityLoadFailed: "无法加载 Pull Request 活动",
         },
       },
     },
@@ -748,13 +713,15 @@ export const zhCN: TranslationResources = {
     },
     actions: {
       addProject: "添加 project",
-      newWorkspace: "新建工作区",
+      newConversation: "新对话",
+      search: "搜索",
       home: "首页",
       settings: "设置",
       closeSidebar: "关闭侧边栏",
     },
     sections: {
-      sessions: "历史",
+      pinned: "置顶",
+      projects: "项目",
     },
     worktreeSetup: {
       title: "设置 worktree scripts",
@@ -764,6 +731,9 @@ export const zhCN: TranslationResources = {
     project: {
       actions: {
         menu: "Project 操作",
+        pin: "置顶项目",
+        unpin: "取消置顶",
+        rename: "重命名",
         openSettings: "打开 project 设置",
         openNewWindow: "在新窗口中打开",
         openNewWindowFailed: "无法打开新窗口",
@@ -793,15 +763,20 @@ export const zhCN: TranslationResources = {
       },
       actions: {
         menu: "Workspace 操作",
+        pin: "置顶",
+        unpin: "取消置顶",
+        revealInFinder: "在 Finder 中显示",
         newWorkspace: "新建 workspace",
+        newConversation: "新增对话",
         createWorkspaceFor: "为 {{projectName}} 新建 workspace",
         copyPath: "复制路径",
         copyBranchName: "复制分支名称",
-        rename: "重命名 workspace",
-        archive: "归档",
+        rename: "重命名",
+        copyConversationId: "复制会话 ID",
+        archive: "移除",
         archiveWorktree: "归档 worktree",
         hideFromSidebar: "从侧边栏隐藏",
-        archiving: "正在归档...",
+        archiving: "正在移除...",
         hiding: "正在隐藏...",
       },
       confirmations: {
@@ -860,7 +835,7 @@ export const zhCN: TranslationResources = {
   },
   desktop: {
     quitting: {
-      title: "正在退出 Paseo...",
+      title: "正在退出 Helm...",
       detail: "正在停止本地 daemon。",
     },
     daemon: {
@@ -874,19 +849,19 @@ export const zhCN: TranslationResources = {
       },
       management: {
         title: "管理内置 daemon",
-        hint: "让 Paseo 启动和停止内置 daemon",
+        hint: "让 Helm 启动和停止内置 daemon",
         pauseTitle: "暂停内置 daemon",
         pauseMessage:
           "这会立即停止内置 daemon。连接到内置 daemon 的运行中 agents 和 terminals 会被停止。",
         pauseAndStop: "暂停并停止",
         registrationFailed:
-          "内置 daemon 已启动，但 Paseo 无法保存 localhost 连接。请关闭后重新开启 daemon 管理，或手动添加 localhost。",
-        pausedStopFailed: "内置 daemon 管理已暂停，但 Paseo 无法停止 daemon。",
+          "内置 daemon 已启动，但 Helm 无法保存 localhost 连接。请关闭后重新开启 daemon 管理，或手动添加 localhost。",
+        pausedStopFailed: "内置 daemon 管理已暂停，但 Helm 无法停止 daemon。",
         updateFailed: "无法更新内置 daemon 管理设置。",
       },
       keepRunning: {
         title: "退出后保持 daemon 运行",
-        hint: "退出 Paseo 后 daemon 会继续运行",
+        hint: "退出 Helm 后 daemon 会继续运行",
       },
       logs: {
         title: "日志文件",
@@ -945,7 +920,7 @@ export const zhCN: TranslationResources = {
     },
     rosetta: {
       title: "下载 Apple Silicon 构建",
-      runningIntel: "你正在 Apple Silicon 上通过 Rosetta 运行 Paseo 的 Intel 构建。",
+      runningIntel: "你正在 Apple Silicon 上通过 Rosetta 运行 Helm 的 Intel 构建。",
       highCpu: "这会导致较高 CPU 使用率。下载 Apple Silicon 构建即可修复。",
       download: "下载",
     },
@@ -985,7 +960,7 @@ export const zhCN: TranslationResources = {
         microphone: "尚未检查麦克风状态。",
       },
       testNotification: {
-        title: "Paseo 通知测试",
+        title: "Helm 通知测试",
         body: "如果你能看到这条通知，说明桌面通知可用。",
         notDelivered: "通知未送达。请检查 System Settings > Notifications。",
         failed: "发送通知失败。",
@@ -994,7 +969,7 @@ export const zhCN: TranslationResources = {
     integrations: {
       cli: {
         statusFailed: "无法检查 CLI 安装状态。",
-        installFailed: "无法安装 Paseo CLI。",
+        installFailed: "无法安装 Helm CLI。",
       },
       skills: {
         statusFailed: "无法检查编排 skills 状态。",
@@ -1090,10 +1065,28 @@ export const zhCN: TranslationResources = {
     },
   },
   onboarding: {
-    title: "欢迎使用 Paseo",
-    subtitle: "连接你的电脑即可开始",
+    title: "欢迎使用 Helm",
+    subtitle: "连接你本机/远程的 AI 编码代理，一处统管。你的代码留在你机器上。",
     actions: {
-      settings: "设置",
+      start: "开始使用",
+      connectRemote: "连接远程主机",
+      cancel: "取消",
+      retryLocal: "重试本地",
+      retry: "重试",
+      useOtherMethods: "改用其它连接方式",
+      diagnostics: "查看诊断",
+    },
+    connecting: {
+      title: "正在连接本地 daemon...",
+    },
+    picker: {
+      title: "选择连接方式",
+      description: "直连主机、粘贴配对链接，或扫码连接。",
+    },
+    error: {
+      title: "无法连接本地 daemon",
+      description: "可能原因：daemon 未运行、本地端口被占用，或连接超时。",
+      reasonLabel: "详情：{{reason}}",
     },
   },
   modelSelector: {
@@ -1166,7 +1159,7 @@ export const zhCN: TranslationResources = {
     },
     direct: {
       title: "直接连接",
-      helper: "输入 Paseo server 的地址。",
+      helper: "输入 Helm server 的地址。",
       fields: {
         host: "Host",
         port: "端口",
@@ -1242,7 +1235,7 @@ export const zhCN: TranslationResources = {
       failedToLoadOffer: "加载配对 offer 失败。",
       relayDisabled: "Relay 未启用。启用 relay 后才能配对设备。",
       unavailable: "配对 offer 不可用。",
-      hint: "用手机上的 Paseo 扫描此二维码，或复制下方链接。",
+      hint: "用手机上的 Helm 扫描此二维码，或复制下方链接。",
       qrUnavailable: "二维码不可用。",
       retry: "重试",
       copy: "复制",
@@ -1274,7 +1267,7 @@ export const zhCN: TranslationResources = {
   serviceUrl: {
     title: "打开服务 URL",
     message: "打开 {{url}}？",
-    inPaseo: "在 Paseo 中",
+    inPaseo: "在 Helm 中",
     externalBrowser: "外部浏览器",
     dontAskAgain: "不再询问",
   },
@@ -1399,7 +1392,7 @@ export const zhCN: TranslationResources = {
         description: "运行脚本中的 URL 打开位置",
         options: {
           ask: "询问",
-          inApp: "在 Paseo 中",
+          inApp: "在 Helm 中",
           external: "外部浏览器",
         },
       },
@@ -1446,7 +1439,7 @@ export const zhCN: TranslationResources = {
         label: "应用更新",
         readyToInstall: "可安装：{{version}}",
         installTitle: "安装桌面版更新",
-        installMessage: "这会更新此电脑上的 Paseo",
+        installMessage: "这会更新此电脑上的 Helm",
         installConfirm: "安装更新",
         update: "更新",
         updateTo: "更新到 {{version}}",
@@ -1536,6 +1529,10 @@ export const zhCN: TranslationResources = {
         moveTabDown: "向下移动标签",
         closePane: "关闭窗格",
         newTerminal: "新建终端",
+        reviewChanges: "审查变更",
+        openFile: "打开文件",
+        newSideChat: "新建侧边聊天",
+        toggleToolPanel: "切换工具面板",
         toggleCommandCenter: "切换命令中心",
         showKeyboardShortcuts: "显示键盘快捷键",
         toggleLeftSidebar: "切换左侧边栏",
@@ -1572,10 +1569,10 @@ export const zhCN: TranslationResources = {
         title: "编排 skills",
         description: "教会 Agent 通过 CLI 编排任务",
         updateAvailable: "有更新可用",
-        updateTitle: "更新 Paseo skills？",
+        updateTitle: "更新 Helm skills？",
         updateFallback: "将内置 skills 同步到你的机器。",
-        uninstallTitle: "卸载 Paseo skills？",
-        uninstallMessage: "会从 ~/.agents、~/.claude、~/.codex 移除所有 Paseo 编排 skills。",
+        uninstallTitle: "卸载 Helm skills？",
+        uninstallMessage: "会从 ~/.agents、~/.claude、~/.codex 移除所有 Helm 编排 skills。",
       },
       actions: {
         install: "安装",
@@ -1630,9 +1627,9 @@ export const zhCN: TranslationResources = {
         title: "编排",
         unavailable: "连接到这个 Host 以管理编排",
         enableTools: {
-          title: "启用 Paseo tools",
+          title: "启用 Helm tools",
           hint: "Agent 将能够管理 worktree、Agent 和计划",
-          accessibilityLabel: "注入 Paseo tools",
+          accessibilityLabel: "注入 Helm tools",
         },
         systemPrompt: {
           title: "System prompt",
@@ -1695,9 +1692,9 @@ export const zhCN: TranslationResources = {
           unavailableTitle: "Host 不可用",
           unavailableMessage: "这个 Host 尚未连接。请等待它上线后再重启。",
           offlineTitle: "Host 离线",
-          offlineMessage: "这个 Host 已离线。Paseo 会自动重连，请等它恢复在线后再重启。",
+          offlineMessage: "这个 Host 已离线。Helm 会自动重连，请等它恢复在线后再重启。",
           requestFailedTitle: "错误",
-          requestFailedMessage: "发送重启请求失败。Paseo 会自动重连，请在 Host 显示在线后重试。",
+          requestFailedMessage: "发送重启请求失败。Helm 会自动重连，请在 Host 显示在线后重试。",
           dialogFailedMessage: "无法打开重启确认对话框。",
         },
         dangerZone: "危险区域",
@@ -1823,7 +1820,7 @@ export const zhCN: TranslationResources = {
         newScript: "新建 script",
         editScript: "编辑 {{name}}",
         runAsService: "作为服务运行",
-        serviceHint: "Paseo 会监管该进程，并通过 $PASEO_PORT 分配端口",
+        serviceHint: "Helm 会监管该进程，并通过 $PASEO_PORT 分配端口",
         actions: {
           add: "添加 script",
           edit: "编辑",
@@ -1832,7 +1829,7 @@ export const zhCN: TranslationResources = {
       },
       metadata: {
         title: "元数据生成",
-        info: "注入到 Paseo 用来生成元数据的 AI prompts 中的 Project 专属指令，可用于强制执行团队约定，例如分支命名、提交风格或 PR 格式",
+        info: "注入到 Helm 用来生成元数据的 AI prompts 中的 Project 专属指令，可用于强制执行团队约定，例如分支命名、提交风格或 PR 格式",
         branchName: "分支名称",
         branchNamePlaceholder: "分支以 feat/ 或 fix/ 开头，个人分支使用 mb/",
         commitMessage: "提交消息",

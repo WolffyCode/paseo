@@ -1,0 +1,1342 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · UI 设计稿（canonical · 首次启动 onboarding）</title>
+    <style>
+      :root {
+        --surface0: #ffffff;
+        --surface1: #fafafa;
+        --surface2: #f4f4f5;
+        --surface3: #e4e4e7;
+        --surface4: #d4d4d8;
+        --surfaceSidebar: #f4f4f5;
+        --surfaceWorkspace: #ffffff;
+        --fg: #1a1a1e;
+        --fgMuted: #71717a;
+        --border: #e4e4e7;
+        --borderAccent: #ececf1;
+        --accent: #20744a;
+        --accentBright: #239956;
+        --accentFg: #ffffff;
+        --success: #15803d;
+        --warning: #d97706;
+        --danger: #b91c1c;
+        --xs: 12px;
+        --sm: 14px;
+        --base: 16px;
+        --lg: 18px;
+        --xl: 20px;
+        --xxl: 22px;
+        --xxxl: 26px;
+        --r-sm: 2px;
+        --r-base: 4px;
+        --r-md: 6px;
+        --r-lg: 8px;
+        --r-xl: 12px;
+        --r-2xl: 16px;
+        --ui:
+          system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+          sans-serif;
+        --mono: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        background: #e8e8eb;
+        color: var(--fg);
+        font-family: var(--ui);
+        -webkit-font-smoothing: antialiased;
+        font-size: var(--base);
+        line-height: 1.45;
+      }
+      body {
+        padding: 40px 32px 120px;
+      }
+      svg.i {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        stroke-width: 2;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex: none;
+        display: block;
+      }
+      .i.xs {
+        width: 12px;
+        height: 12px;
+      }
+      .i.sm {
+        width: 14px;
+        height: 14px;
+      }
+      .i.md {
+        width: 16px;
+        height: 16px;
+      }
+      .i.lg {
+        width: 20px;
+        height: 20px;
+      }
+      .board-h {
+        max-width: 1180px;
+        margin: 0 auto 24px;
+      }
+      .board-h h1 {
+        font-size: 30px;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .board-h h1 .logo {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        background: linear-gradient(135deg, var(--accent), #15583a);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+      }
+      .board-h .sub {
+        color: var(--fgMuted);
+        font-size: var(--sm);
+        margin-top: 8px;
+        max-width: 860px;
+      }
+      .req-log {
+        max-width: 1180px;
+        margin: 0 auto 18px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface1);
+        overflow: hidden;
+      }
+      .req-log .rl-h {
+        padding: 10px 16px;
+        background: var(--surface2);
+        font-size: var(--xs);
+        font-weight: 600;
+        color: var(--fgMuted);
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      .req-log table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--sm);
+      }
+      .req-log td,
+      .req-log th {
+        padding: 8px 16px;
+        text-align: left;
+        border-top: 1px solid var(--border);
+        vertical-align: top;
+      }
+      .req-log th {
+        color: var(--fgMuted);
+        font-weight: 500;
+        font-size: var(--xs);
+      }
+      .req-log td:first-child {
+        color: var(--fgMuted);
+        white-space: nowrap;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 1px 8px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      .pill.done {
+        color: #15803d;
+        background: rgba(34, 197, 94, 0.12);
+      }
+      .pill.p0 {
+        color: var(--accentBright);
+        background: rgba(32, 116, 74, 0.16);
+      }
+      .nav-idx {
+        max-width: 1180px;
+        margin: 0 auto 30px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .nav-idx a {
+        font-size: var(--xs);
+        color: var(--fgMuted);
+        text-decoration: none;
+        padding: 5px 11px;
+        border: 1px solid var(--border);
+        border-radius: 9999px;
+        background: var(--surface1);
+      }
+      .nav-idx a:hover {
+        color: var(--fg);
+        background: var(--surface2);
+      }
+      .screen {
+        max-width: 1180px;
+        margin: 0 auto 52px;
+        scroll-margin-top: 20px;
+      }
+      .screen-head {
+        margin-bottom: 14px;
+      }
+      .screen-head .tag {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        color: var(--accentBright);
+        background: rgba(32, 116, 74, 0.16);
+        padding: 2px 9px;
+        border-radius: 9999px;
+        margin-bottom: 8px;
+      }
+      .screen-head h2 {
+        font-size: var(--xl);
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      .screen-head p {
+        color: var(--fgMuted);
+        font-size: var(--sm);
+        margin-top: 5px;
+        max-width: 900px;
+      }
+      .screen-body {
+        display: grid;
+        grid-template-columns: 1fr 330px;
+        gap: 20px;
+        align-items: start;
+      }
+      .screen-body.wide {
+        grid-template-columns: 1fr;
+      }
+      .anno {
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface1);
+        overflow: hidden;
+      }
+      .anno .anno-h {
+        font-size: var(--xs);
+        font-weight: 600;
+        color: var(--fgMuted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 9px 12px 6px;
+      }
+      .anno ol {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+      }
+      .anno li {
+        display: flex;
+        gap: 9px;
+        padding: 9px 12px;
+        border-top: 1px solid var(--border);
+        font-size: 13px;
+        line-height: 1.5;
+        color: var(--fgMuted);
+      }
+      .anno li b {
+        color: var(--fg);
+        font-weight: 500;
+      }
+      .pin {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .anno li .pin {
+        margin-top: 1px;
+      }
+      .pinb {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 9999px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        vertical-align: super;
+        margin-left: 3px;
+      }
+      .states {
+        border-top: 1px solid var(--border);
+        padding: 9px 12px;
+        background: var(--surface0);
+      }
+      .states .sh {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--fgMuted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 7px;
+      }
+      .states dl {
+        display: grid;
+        grid-template-columns: 64px 1fr;
+        gap: 5px 8px;
+        font-size: 12px;
+        line-height: 1.45;
+      }
+      .states dt {
+        color: var(--accentBright);
+        font-weight: 600;
+      }
+      .states dd {
+        margin: 0;
+        color: var(--fgMuted);
+      }
+      .states dd b {
+        color: var(--fg);
+        font-weight: 500;
+      }
+      .frame {
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        overflow: hidden;
+        background: var(--surface0);
+        box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.13);
+      }
+      .titlebar {
+        height: 38px;
+        background: var(--surfaceSidebar);
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        gap: 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      .lights {
+        display: flex;
+        gap: 8px;
+      }
+      .lights span {
+        width: 11px;
+        height: 11px;
+        border-radius: 9999px;
+      }
+      .lights .r {
+        background: #ff5f57;
+      }
+      .lights .y {
+        background: #febc2e;
+      }
+      .lights .g {
+        background: #28c840;
+      }
+      .tb-title {
+        margin-left: 10px;
+        font-size: 13px;
+        color: var(--fgMuted);
+      }
+      .stage {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 18px;
+        padding: 32px 24px;
+        text-align: center;
+        background: var(--surfaceWorkspace);
+      }
+      .logo-lg {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, var(--accent), #15583a);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+      }
+      .logo-lg .i {
+        width: 32px;
+        height: 32px;
+      }
+      .h-title {
+        font-size: 24px;
+        font-weight: 300;
+        letter-spacing: -0.3px;
+      }
+      .h-sub {
+        color: var(--fgMuted);
+        font-size: var(--sm);
+        max-width: 430px;
+        margin-top: 8px;
+        line-height: 1.55;
+      }
+      .actions {
+        width: 100%;
+        max-width: 360px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        margin-top: 4px;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: var(--sm);
+        font-weight: 500;
+        padding: 11px 16px;
+        border-radius: var(--r-xl);
+        border: 1px solid transparent;
+        white-space: nowrap;
+        width: 100%;
+      }
+      .btn.df {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+      .btn.df.hover {
+        background: #1b6340;
+      }
+      .btn.df.press {
+        background: #16512f;
+        transform: scale(0.985);
+      }
+      .btn.df.focus {
+        box-shadow: 0 0 0 3px rgba(32, 116, 74, 0.3);
+      }
+      .btn.out {
+        background: var(--surface2);
+        border-color: var(--border);
+        color: var(--fg);
+      }
+      .btn.out.hover {
+        background: var(--surface3);
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--fgMuted);
+        border-color: transparent;
+        width: auto;
+        padding: 8px 12px;
+        font-weight: 400;
+      }
+      .btn.ghost.hover {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      .btn.sm {
+        padding: 7px 12px;
+        font-size: var(--xs);
+        width: auto;
+      }
+      .btn .i {
+        width: 16px;
+        height: 16px;
+      }
+      .link {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--accent);
+        font-size: var(--sm);
+        font-weight: 500;
+      }
+      .link.hover {
+        text-decoration: underline;
+      }
+      .ver {
+        color: var(--fgMuted);
+        font-size: var(--xs);
+        margin-top: 10px;
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface1);
+        overflow: hidden;
+        width: 100%;
+        max-width: 400px;
+        text-align: left;
+      }
+      .row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 15px;
+        border-top: 1px solid var(--border);
+      }
+      .row:first-child {
+        border-top: none;
+      }
+      .row.hover {
+        background: var(--surface2);
+      }
+      .row .rc {
+        flex: 1;
+        min-width: 0;
+      }
+      .row .rt {
+        font-size: var(--sm);
+        color: var(--fg);
+      }
+      .row .rd {
+        font-size: var(--xs);
+        color: var(--fgMuted);
+        margin-top: 3px;
+        line-height: 1.5;
+      }
+      .row .chev {
+        color: var(--fgMuted);
+      }
+      .badge-ic {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--r-lg);
+        background: var(--surface2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--accentBright);
+        flex: none;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 2px 9px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      .badge.suc {
+        color: #15803d;
+        background: rgba(34, 197, 94, 0.12);
+      }
+      .badge.mut {
+        color: var(--fgMuted);
+        background: var(--surface2);
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 9999px;
+        flex: none;
+      }
+      .dot.run {
+        background: var(--success);
+      }
+      .spinner {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: 3px solid var(--surface3);
+        border-top-color: var(--accent);
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .alertbox {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 13px 15px;
+        border: 1px solid;
+        border-radius: var(--r-lg);
+        font-size: 13px;
+        width: 100%;
+        max-width: 400px;
+        text-align: left;
+        background: var(--surface0);
+      }
+      .alertbox.err {
+        border-color: rgba(220, 38, 38, 0.4);
+      }
+      .alertbox.err .i,
+      .alertbox.err .at {
+        color: #b91c1c;
+      }
+      .alertbox .at {
+        font-weight: 600;
+      }
+      .alertbox .ad {
+        color: var(--fgMuted);
+        margin-top: 3px;
+        line-height: 1.5;
+      }
+      .statehd {
+        font-size: var(--xs);
+        color: var(--fgMuted);
+        margin: 0 auto 8px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        justify-content: center;
+      }
+      .statebox {
+        border: 1px dashed var(--border);
+        border-radius: var(--r-lg);
+        padding: 18px;
+        background: var(--surface0);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .statestrip {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 14px;
+      }
+      @media (max-width: 760px) {
+        .statestrip {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      .phone {
+        width: 300px;
+        border: 1px solid var(--border);
+        border-radius: 30px;
+        overflow: hidden;
+        background: var(--surface0);
+        box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.13);
+        flex: none;
+      }
+      .pstatus {
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        color: var(--fgMuted);
+      }
+      .platforms {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+      .kbdkey {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--fgMuted);
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1px 6px;
+      }
+      *::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+      }
+      *::-webkit-scrollbar-thumb {
+        background: #c7c7cc;
+        border-radius: 9999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #c7c7cc transparent;
+      }
+      .note {
+        max-width: 1180px;
+        margin: 0 auto 10px;
+        color: var(--fgMuted);
+        font-size: var(--xs);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="gauge" viewBox="0 0 24 24">
+        <path d="m12 14 4-4" />
+        <path d="M3.34 19a10 10 0 1 1 17.32 0" />
+      </symbol>
+      <symbol id="network" viewBox="0 0 24 24">
+        <rect x="9" y="2" width="6" height="6" rx="1" />
+        <rect x="2" y="16" width="6" height="6" rx="1" />
+        <rect x="16" y="16" width="6" height="6" rx="1" />
+        <path d="M12 8v4M5 16v-2h14v2" />
+      </symbol>
+      <symbol id="qr" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <path d="M14 14h3v3h-3zM20 14v3M14 20h7" />
+      </symbol>
+      <symbol id="link" viewBox="0 0 24 24">
+        <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
+        <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />
+      </symbol>
+      <symbol id="clipboard" viewBox="0 0 24 24">
+        <rect width="8" height="4" x="8" y="2" rx="1" />
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+      </symbol>
+      <symbol id="settings" viewBox="0 0 24 24">
+        <path
+          d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z"
+        />
+        <circle cx="12" cy="12" r="3" />
+      </symbol>
+      <symbol id="refresh" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 0 1 9-9 9.7 9.7 0 0 1 6.7 2.7L21 8" />
+        <path d="M21 3v5h-5" />
+        <path d="M21 12a9 9 0 0 1-9 9 9.7 9.7 0 0 1-6.7-2.7L3 16" />
+        <path d="M8 16H3v5" />
+      </symbol>
+      <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+      <symbol id="alert" viewBox="0 0 24 24">
+        <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" />
+        <path d="M12 9v4" />
+        <path d="M12 17h.01" />
+      </symbol>
+      <symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="x" viewBox="0 0 24 24">
+        <path d="M18 6 6 18" />
+        <path d="m6 6 12 12" />
+      </symbol>
+      <symbol id="settings2" viewBox="0 0 24 24">
+        <line x1="21" x2="14" y1="4" y2="4" />
+        <line x1="10" x2="3" y1="4" y2="4" />
+        <line x1="21" x2="12" y1="12" y2="12" />
+        <line x1="8" x2="3" y1="12" y2="12" />
+        <line x1="21" x2="16" y1="20" y2="20" />
+        <line x1="12" x2="3" y1="20" y2="20" />
+      </symbol>
+      <symbol id="smartphone" viewBox="0 0 24 24">
+        <rect width="14" height="20" x="5" y="2" rx="2" />
+        <path d="M12 18h.01" />
+      </symbol>
+      <symbol id="globe" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+        <path d="M2 12h20" />
+      </symbol>
+      <symbol id="stethoscope" viewBox="0 0 24 24">
+        <path d="M4 3v6a5 5 0 0 0 10 0V3" />
+        <path d="M8 3H4M14 3h-4" />
+        <circle cx="20" cy="14" r="2" />
+        <path d="M18 14v2a6 6 0 0 1-12 0v-2" />
+      </symbol>
+    </svg>
+
+    <div class="board-h">
+      <h1>
+        <span class="logo"
+          ><svg class="i lg"><use href="#gauge" /></svg
+        ></span>
+        Helm · UI 设计稿 · 首次启动 onboarding
+      </h1>
+      <p class="sub">
+        canonical 活文档。当前包含需求
+        <b>2026-06-24-onboarding</b
+        >（连主机部分）。每屏含完整交互注解（布局/默认/hover/活跃/运行/禁用/空/加载/错误/离线/右键/点击效果）。
+      </p>
+    </div>
+
+    <div class="req-log">
+      <div class="rl-h">需求日志</div>
+      <table>
+        <tr>
+          <th style="width: 110px">日期</th>
+          <th>需求</th>
+          <th style="width: 300px">关键决策</th>
+        </tr>
+        <tr>
+          <td>2026-06-24</td>
+          <td>定义「软件首次打开的首页」= 首次启动 onboarding（连主机）</td>
+          <td>
+            <span class="pill p0">混合·本地自动连</span>
+            <span class="pill p0">一次性品牌欢迎</span> 提供方配置延后到下个需求
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="nav-idx">
+      <a href="#s1">S1 欢迎页（一次性·桌面与浏览器）</a>
+      <a href="#s1b">S1·态 按钮/链接全态</a>
+      <a href="#s2">S2 连接中（过场）</a>
+      <a href="#s3">S3 连接方式选择器</a>
+      <a href="#s4">S4 错误态（桌面）</a>
+      <a href="#s5">S5 平台变体（Web/手机）</a>
+    </div>
+
+    <!-- ============ S1 · WELCOME ============ -->
+    <section class="screen" id="s1">
+      <div class="screen-head">
+        <span class="tag">onboarding · 1</span>
+        <h2>欢迎页（一次性 · 桌面与浏览器首访都过）</h2>
+        <p>
+          真·第一次启动/访问时显示一次。logo + slogan + 主 CTA「开始使用」（检测并连接<b>本机</b>
+          daemon）+ 次要「连接远程主机」。<b>延后连接（Q）：看过欢迎前 App 不发起任何连接</b>，点「开始使用」才触发连本机。看过即置
+          <code>hasSeenWelcome</code>，之后启动静默自动连、不再显示本屏。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights">
+              <span class="r"></span><span class="y"></span><span class="g"></span>
+            </div>
+          </div>
+          <div class="stage" style="min-height: 480px">
+            <div class="logo-lg">
+              <svg class="i"><use href="#gauge" /></svg>
+            </div>
+            <div>
+              <div class="h-title">欢迎使用 Helm</div>
+              <div class="h-sub">
+                连接你本机/远程的 AI 编码代理，一处统管。你的代码留在你机器上。
+              </div>
+            </div>
+            <div class="actions">
+              <span class="btn df">开始使用<span class="pinb">1</span></span>
+              <span class="link" style="justify-content: center; margin-top: 2px"
+                >连接远程主机<span class="pinb">2</span></span
+              >
+            </div>
+            <div class="ver">Helm v1.0.0</div>
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">点击效果</div>
+          <ol>
+            <li>
+              <span class="pin">1</span>
+              <div>
+                <b>开始使用</b>（主 CTA）：<b>此刻才</b>检测并连接<b>本机</b> daemon（桌面 directPipe /
+                浏览器经 ws 探连本机；<b>不显具体端口</b>）→ 进 <b>S2 连接中</b>；成功落主页，失败→<b>S4</b>（桌面）或
+                <b>S3</b> 兜底（浏览器/手机）。<b>桌面与浏览器首访都走此路径</b>。
+              </div>
+            </li>
+            <li>
+              <span class="pin">2</span>
+              <div>
+                <b>连接远程主机</b>（次要链接）：跳
+                <b>S3 连接方式选择器</b>（直连/粘链/扫码），不自动连本地。
+              </div>
+            </li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态</div>
+            <dl>
+              <dt>布局</dt>
+              <dd>居中单列；桌面态。紧凑/手机态见 <b>S5</b>。</dd>
+              <dt>默认</dt>
+              <dd>
+                logo + 标题 + slogan + 开始使用 + 连接远程主机 + 版本号（<b>无设置入口</b>）。
+              </dd>
+              <dt>延后连接</dt>
+              <dd>
+                <b>看过欢迎前不发起任何连接</b>（Q）：本屏停留期间无连接中、无后台连接——<b>此前
+                host 不会突然上线把用户弹走</b>；点开始使用才触发连本机。
+              </dd>
+              <dt>hover</dt>
+              <dd>开始使用→加深底色；连接远程主机→下划线。全态见 <b>S1·态</b>。</dd>
+              <dt>活跃</dt>
+              <dd>开始使用 pressed→更深 + 轻微缩小(.985)。</dd>
+              <dt>运行</dt>
+              <dd>点开始使用后立即转 <b>S2</b>（按钮不进入 loading，整屏切过场）。</dd>
+              <dt>禁用</dt>
+              <dd>无（开始使用 恒可点）。</dd>
+              <dt>空</dt>
+              <dd>本屏即首跑空态（无任何主机/对话）。</dd>
+              <dt>加载</dt>
+              <dd>见 <b>S2</b> 连接中。</dd>
+              <dt>错误</dt>
+              <dd>本地连不上 → <b>S4</b>（桌面）/ <b>S3</b> 兜底（浏览器·手机）。</dd>
+              <dt>离线</dt>
+              <dd>N/A（尚未建立连接）。</dd>
+              <dt>不显本屏</dt>
+              <dd>
+                <b>已看过欢迎 / 老用户（已有主机记录）不显本屏</b>——视为已看过、直接走后续启动逻辑。
+              </dd>
+              <dt>后续启动</dt>
+              <dd>
+                <b>重开自愈</b>：静默重试本机一次 → 连上直接进主页；否则落 <b>S3 picker</b>（桌面落
+                <b>S4</b> 错误态），<b>不重弹本屏</b>。
+              </dd>
+              <dt>右键</dt>
+              <dd>无右键菜单。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S1b · BUTTON STATES ============ -->
+    <section class="screen" id="s1b">
+      <div class="screen-head">
+        <span class="tag">onboarding · 1 · 全态</span>
+        <h2>S1·态 — 开始使用 / 连接远程链接 的全交互态</h2>
+        <p>
+          逐元素列出 默认 / hover / pressed(活跃) / focus 键盘聚焦
+          四态（董事长要求「包裹点击悬浮活跃」描述清楚）。
+        </p>
+      </div>
+      <div class="screen-body wide">
+        <div class="frame" style="padding: 22px">
+          <div class="statestrip">
+            <div class="statebox">
+              <div class="statehd">默认</div>
+              <span class="btn df">开始使用</span>
+            </div>
+            <div class="statebox">
+              <div class="statehd">hover 悬浮</div>
+              <span class="btn df hover">开始使用</span>
+            </div>
+            <div class="statebox">
+              <div class="statehd">pressed 活跃</div>
+              <span class="btn df press">开始使用</span>
+            </div>
+            <div class="statebox">
+              <div class="statehd">focus 键盘聚焦</div>
+              <span class="btn df focus">开始使用</span>
+            </div>
+          </div>
+          <div class="statestrip" style="margin-top: 16px">
+            <div class="statebox">
+              <div class="statehd">连接远程·默认</div>
+              <span class="link">连接远程主机</span>
+            </div>
+            <div class="statebox">
+              <div class="statehd">连接远程·hover</div>
+              <span class="link hover">连接远程主机</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S2 · CONNECTING ============ -->
+    <section class="screen" id="s2">
+      <div class="screen-head">
+        <span class="tag">onboarding · 2</span>
+        <h2>连接中（过场）</h2>
+        <p>
+          点「开始使用」后短暂过场：连接<b>本机</b> daemon（桌面与本机浏览器同此）。<b>主文案「正在连接本机
+          daemon…」即写明当前主机+状态</b>（不显端口）。连上 → 主页空态；连不上/超时 → S4（桌面）或 S3
+          兜底（浏览器/手机）。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights">
+              <span class="r"></span><span class="y"></span><span class="g"></span>
+            </div>
+          </div>
+          <div class="stage" style="min-height: 480px">
+            <div class="spinner"></div>
+            <div>
+              <div class="h-title" style="font-size: 18px">正在连接本机 daemon…</div>
+            </div>
+            <span class="btn ghost">取消<span class="pinb">1</span></span>
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">点击效果</div>
+          <ol>
+            <li>
+              <span class="pin">1</span>
+              <div>
+                <b>取消</b>：中止连接 → <b>落 S3 连接方式选择器（picker）</b>（不再回 S1 欢迎页）。
+              </div>
+            </li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态</div>
+            <dl>
+              <dt>布局</dt>
+              <dd>居中：spinner + 主文案「正在连接本机 daemon…」+ 取消。</dd>
+              <dt>当前主机</dt>
+              <dd>
+                <b>由主文案表达</b>：「正在连接本机 daemon…」= 本机 + 连接中（<b>不显端口</b>）；远程会话则文案写远程主机名。不另设
+                chip。
+              </dd>
+              <dt>加载</dt>
+              <dd><b>本态即加载态</b>：旋转 spinner（accent）+「正在连接…」文案。</dd>
+              <dt>运行</dt>
+              <dd>握手中；典型 &lt;1s（本地 pipe）。</dd>
+              <dt>成功</dt>
+              <dd>连上 → 自动进主页空态（不停留）。</dd>
+              <dt>错误</dt>
+              <dd>失败/超时 → <b>S4</b>（桌面，带原因 + 重试）/ <b>S3</b> 兜底（浏览器·手机）。</dd>
+              <dt>hover</dt>
+              <dd>取消→surface2 底。</dd>
+              <dt>右键/禁用/离线</dt>
+              <dd>无。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S3 · CONNECTION METHODS ============ -->
+    <section class="screen" id="s3">
+      <div class="screen-head">
+        <span class="tag">onboarding · 3</span>
+        <h2>连接方式选择器（本地不可用 / 连远程 · picker）</h2>
+        <p>
+          当本机连不上（兜底）、用户点「连接远程主机」、或连接中取消时显示。复用真实 app
+          三方式：直连主机 / 粘贴配对链接 /（手机）扫码。<b>副标题「没检测到本地 daemon，或连接到其它主机。」即说明当前状态</b>（不显端口）。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights">
+              <span class="r"></span><span class="y"></span><span class="g"></span>
+            </div>
+          </div>
+          <div class="stage" style="min-height: 480px; gap: 14px">
+            <div class="logo-lg" style="width: 48px; height: 48px; border-radius: 12px">
+              <svg class="i lg"><use href="#network" /></svg>
+            </div>
+            <div>
+              <div class="h-title" style="font-size: 20px">选择连接方式</div>
+              <div class="h-sub">没检测到本地 daemon，或连接到其它主机。</div>
+            </div>
+            <div class="card">
+              <div class="row">
+                <div class="badge-ic">
+                  <svg class="i sm"><use href="#link" /></svg>
+                </div>
+                <div class="rc">
+                  <div class="rt">直连主机</div>
+                  <div class="rd">输入 host:port 直接连接</div>
+                </div>
+                <svg class="i sm chev"><use href="#chev-r" /></svg><span class="pinb">1</span>
+              </div>
+              <div class="row hover">
+                <div class="badge-ic">
+                  <svg class="i sm"><use href="#clipboard" /></svg>
+                </div>
+                <div class="rc">
+                  <div class="rt">粘贴配对链接</div>
+                  <div class="rd">粘贴 <code>#offer=</code> 配对链接（relay E2E）</div>
+                </div>
+                <svg class="i sm chev"><use href="#chev-r" /></svg><span class="pinb">2</span>
+              </div>
+              <div class="row">
+                <div class="badge-ic">
+                  <svg class="i sm"><use href="#qr" /></svg>
+                </div>
+                <div class="rc">
+                  <div class="rt">扫码连接 <span class="badge mut">手机优先</span></div>
+                  <div class="rd">用手机 Helm 扫码配对</div>
+                </div>
+                <svg class="i sm chev"><use href="#chev-r" /></svg><span class="pinb">3</span>
+              </div>
+            </div>
+            <span class="btn out" style="max-width: 400px"
+              ><svg class="i sm"><use href="#refresh" /></svg> 重试本地<span class="pinb"
+                >4</span
+              ></span
+            >
+            <div class="ver">Helm v1.0.0</div>
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">点击效果</div>
+          <ol>
+            <li>
+              <span class="pin">1</span>
+              <div>
+                <b>直连主机</b>：打开 <code>AddHostModal</code>（host:port + 测试连接 → 保存即连）。
+              </div>
+            </li>
+            <li>
+              <span class="pin">2</span>
+              <div>
+                <b>粘贴配对链接</b>：打开 <code>PairLinkModal</code>（粘 <code>#offer=</code> →
+                relay 协商 E2E）。
+              </div>
+            </li>
+            <li>
+              <span class="pin">3</span>
+              <div>
+                <b>扫码连接</b>：桌面=显示二维码待手机扫；手机=进
+                <code>/pair-scan</code> 相机。手机端此项置顶为主 CTA（S5）。
+              </div>
+            </li>
+            <li>
+              <span class="pin">4</span>
+              <div><b>重试本地</b>：重新检测本地 daemon → 命中则转 <b>S2</b>。</div>
+            </li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态</div>
+            <dl>
+              <dt>布局</dt>
+              <dd>居中：标题 + 副标题 + 三方式卡 + 重试本地 + 版本号。</dd>
+              <dt>进入来源</dt>
+              <dd>本机连不上兜底（浏览器/手机）· 后续启动重试失败 · 连接中取消 · 欢迎页/错误态选「连远程」。</dd>
+              <dt>当前状态</dt>
+              <dd>由副标题「没检测到本地 daemon，或连接到其它主机。」表达（<b>不显端口</b>）。</dd>
+              <dt>默认</dt>
+              <dd>三行方式（图标 + 标题 + 说明 + ›）。</dd>
+              <dt>hover</dt>
+              <dd>方式行→surface2 底（图示第 2 行）。</dd>
+              <dt>活跃</dt>
+              <dd>点击行短暂按下底色，随即弹出对应弹窗/流程。</dd>
+              <dt>加载</dt>
+              <dd>「重试本地」点击中→inline spinner；保存主机连接中→各弹窗自身 loading。</dd>
+              <dt>错误</dt>
+              <dd>直连/粘链/扫码失败的错误在各自弹窗内提示；本地重试失败留本屏。</dd>
+              <dt>空</dt>
+              <dd>本屏即「无主机」空态的可操作版。</dd>
+              <dt>禁用/离线/右键</dt>
+              <dd>无。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S4 · ERROR ============ -->
+    <section class="screen" id="s4">
+      <div class="screen-head">
+        <span class="tag">onboarding · 4</span>
+        <h2>错误态 — 本机连接失败（桌面）</h2>
+        <p>
+          桌面「开始使用」连本机失败、或后续启动重试失败时显示。<b>Alert 标题「无法连接本机
+          daemon」即写明当前主机+失败状态</b>（不显端口）+ 原因合并文案 + 主操作「重试」+
+          备选「改用其它连接方式」+「查看诊断」。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights">
+              <span class="r"></span><span class="y"></span><span class="g"></span>
+            </div>
+          </div>
+          <div class="stage" style="min-height: 480px; gap: 16px">
+            <div class="alertbox err">
+              <svg class="i"><use href="#alert" /></svg>
+              <div>
+                <div class="at">无法连接本机 daemon</div>
+                <div class="ad">可能原因：daemon 未运行 · 端口被占用 · 连接超时。</div>
+              </div>
+            </div>
+            <div class="actions">
+              <span class="btn df"
+                ><svg class="i sm"><use href="#refresh" /></svg> 重试<span class="pinb"
+                  >1</span
+                ></span
+              >
+              <span class="btn out">改用其它连接方式<span class="pinb">2</span></span>
+            </div>
+            <span class="btn ghost"
+              ><svg class="i sm"><use href="#stethoscope" /></svg> 查看诊断<span class="pinb"
+                >3</span
+              ></span
+            >
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">点击效果</div>
+          <ol>
+            <li>
+              <span class="pin">1</span>
+              <div><b>重试</b>：重新连本地 → 转 <b>S2</b>。</div>
+            </li>
+            <li>
+              <span class="pin">2</span>
+              <div><b>改用其它连接方式</b>：转 <b>S3</b> 选择器（直连/粘链/扫码）。</div>
+            </li>
+            <li>
+              <span class="pin">3</span>
+              <div>
+                <b>查看诊断</b>：打开 <code>/settings</code> › 诊断（daemon 日志 / 连接 / 版本）。
+              </div>
+            </li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态</div>
+            <dl>
+              <dt>错误</dt>
+              <dd>
+                Alert 标题「无法连接本机 daemon」写明主机+失败状态；三类原因合并文案（<b>daemon 未运行 /
+                端口被占 / 超时</b>，<b>不显具体端口号</b>），用 Alert（err 边框）。
+              </dd>
+              <dt>布局</dt>
+              <dd>居中：Alert + 重试(主) + 其它方式 + 诊断。</dd>
+              <dt>当前主机</dt>
+              <dd>
+                <b>由 Alert 标题表达</b>：「无法连接本机 daemon」= 本机 + 连接失败（<b>不显端口</b>）。不另设
+                chip。
+              </dd>
+              <dt>hover/活跃</dt>
+              <dd>同 S1 按钮规则。</dd>
+              <dt>加载</dt>
+              <dd>重试点击→转 S2 加载。</dd>
+              <dt>默认/空/禁用/离线/右键</dt>
+              <dd>无额外。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S5 · PLATFORM VARIANTS ============ -->
+    <section class="screen" id="s5">
+      <div class="screen-head">
+        <span class="tag">onboarding · 5 · 平台</span>
+        <h2>平台变体 — Web 浏览器 / 手机 native</h2>
+        <p>
+          同一套设计，平台差异：<b>Web 浏览器先自动连本机 daemon（同桌面走 S2）</b>，连不上才落选择器、无扫码；手机无本机
+          daemon → 自动连失败兜底到选择器、扫码优先。各屏当前主机+状态由主文案表达（不显端口）。
+        </p>
+      </div>
+      <div class="screen-body wide">
+        <div class="platforms">
+          <div style="flex: 1; min-width: 320px">
+            <div
+              style="
+                font-size: 13px;
+                font-weight: 500;
+                margin-bottom: 8px;
+                display: flex;
+                align-items: center;
+                gap: 7px;
+              "
+            >
+              <svg class="i sm" style="color: var(--fgMuted)"><use href="#globe" /></svg>
+              Web（浏览器）— 先自动连本机 daemon（同桌面）
+            </div>
+            <div class="frame">
+              <div class="titlebar">
+                <div class="lights">
+                  <span class="r"></span><span class="y"></span><span class="g"></span>
+                </div>
+                <span class="tb-title">app.helm — 浏览器标签</span>
+              </div>
+              <div class="stage" style="min-height: 340px; gap: 12px">
+                <div class="spinner"></div>
+                <div class="h-title" style="font-size: 18px">正在连接本机 daemon…</div>
+                <span class="btn ghost">取消</span>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div
+              style="
+                font-size: 13px;
+                font-weight: 500;
+                margin-bottom: 8px;
+                display: flex;
+                align-items: center;
+                gap: 7px;
+              "
+            >
+              <svg class="i sm" style="color: var(--fgMuted)"><use href="#smartphone" /></svg>
+              手机（native）— 扫码优先
+            </div>
+            <div class="phone">
+              <div class="pstatus">9:41 · Helm</div>
+              <div
+                class="stage"
+                style="min-height: 430px; border-top: 1px solid var(--border); gap: 14px"
+              >
+                <div class="logo-lg">
+                  <svg class="i"><use href="#gauge" /></svg>
+                </div>
+                <div>
+                  <div class="h-title" style="font-size: 21px">欢迎使用 Helm</div>
+                  <div class="h-sub" style="font-size: 13px">
+                    扫码连接你电脑上的 Helm，随身遥控本机代理。
+                  </div>
+                </div>
+                <div class="actions" style="max-width: 240px">
+                  <span class="btn df"
+                    ><svg class="i sm"><use href="#qr" /></svg> 扫码连接</span
+                  >
+                  <span class="btn out">粘贴配对链接</span>
+                  <span class="link" style="justify-content: center">直连主机</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="anno" style="margin-top: 18px">
+          <div class="anno-h">平台差异</div>
+          <ol>
+            <li>
+              <span class="pin">W</span>
+              <div>
+                <b>Web 浏览器</b>：「开始使用」先进 <b>S2 自动连本机 daemon</b>（经 ws 探本机，<b>不显端口</b>，过场主文案「正在连接本机
+                daemon…」）→ 连上落主页；<b>连不上才落选择器</b>（兜底 · 无扫码 · 带「重试本地」·
+                副标题转「没检测到本地 daemon」）。一次性品牌欢迎仍保留（首次访问）。
+              </div>
+            </li>
+            <li>
+              <span class="pin">M</span>
+              <div>
+                <b>手机 native</b>：本机无 daemon、自动连探不到 → 兜底到选择器（纯远程），<b>扫码连电脑主机为主
+                CTA</b>；粘链/直连为次。连上后即远程遥控本机代理（relay E2E）。
+              </div>
+            </li>
+            <li>
+              <span class="pin">D</span>
+              <div>
+                <b>桌面 Electron</b>：directPipe 自动连本机 → 走 S1→S2 主路径（与浏览器同路径，仅
+                transport 不同），连不上落 <b>S4 错误态</b>。
+              </div>
+            </li>
+            <li>
+              <span class="pin">R</span>
+              <div>
+                <b>重开自愈（全平台）</b>：已看过欢迎/老用户后续启动<b>不显欢迎</b>→静默重试本机一次→连上进主页，否则落
+                picker（桌面落 S4）；「连接远程」是会话级意图、不跨重启，重开仍先重试本机。
+              </div>
+            </li>
+          </ol>
+        </div>
+      </div>
+    </section>
+
+    <div class="note">Helm · canonical UI 设计稿 · 2026-06-24 · 浅色主题 · accent #20744A</div>
+  </body>
+</html>

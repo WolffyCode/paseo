@@ -3,6 +3,7 @@ import {
   createContext,
   memo,
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
@@ -11,6 +12,12 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
+import Animated, {
+  SlideInRight,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import {
   DndContext,
@@ -28,7 +35,7 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
-import { View, Text } from "react-native";
+import { View, Text, type LayoutChangeEvent } from "react-native";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { ResizeHandle } from "@/components/resize-handle";
@@ -56,6 +63,7 @@ import {
 import {
   WorkspaceDesktopTabsRow,
   type WorkspaceDesktopTabRowItem,
+  type WorkspaceToolsAddHandlers,
 } from "@/screens/workspace/workspace-desktop-tabs-row";
 import type { TerminalProfileInput } from "@/screens/workspace/terminals/use-workspace-terminals";
 import {
@@ -64,11 +72,13 @@ import {
 } from "@/screens/workspace/workspace-tab-presentation";
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
 import {
+  paneShowsTabBar,
   useWorkspaceLayoutStore,
   type SplitNode,
   type SplitPane,
   type WorkspaceLayout,
 } from "@/stores/workspace-layout-store";
+import { RIGHT_PANEL_PANE_ID } from "@/workspace-tabs/tab-surface";
 import type { WorkspaceTab } from "@/stores/workspace-tabs-store";
 import { RenderProfile } from "@/utils/render-profiler";
 import { workspaceTabTargetsEqual } from "@/workspace-tabs/identity";
@@ -77,6 +87,10 @@ import { isNative } from "@/constants/platform";
 // true = this tab slot is the active (visible) tab; false = mounted but hidden.
 // Defaults to true so consumers outside a slot (e.g. web preview) are unaffected.
 export const MountedTabActiveContext = createContext<boolean>(true);
+
+// true while the right tool panel is sliding out (collapse). Keeps the pane rendered +
+// animated until the layout removes it — web has no reliable Reanimated exit animation.
+const RightPanelCollapsingContext = createContext<boolean>(false);
 
 interface SplitContainerProps {
   layout: WorkspaceLayout;
@@ -101,6 +115,7 @@ interface SplitContainerProps {
   onCreateDraftTab: (input: { paneId?: string }) => void;
   onCreateTerminalTab: (input: { paneId?: string; profile?: TerminalProfileInput }) => void;
   onCreateBrowserTab: (input: { paneId?: string }) => void;
+  toolsAddHandlers: WorkspaceToolsAddHandlers;
   showCreateBrowserTab?: boolean;
   buildPaneContentModel: (input: {
     paneId: string;
@@ -119,7 +134,10 @@ interface SplitContainerProps {
   onMoveTabToPane: (tabId: string, toPaneId: string) => void;
   onResizeSplit: (groupId: string, sizes: number[]) => void;
   onReorderTabsInPane: (paneId: string, tabIds: string[]) => void;
-  renderPaneEmptyState?: () => ReactNode;
+  renderPaneEmptyState?: (paneId: string) => ReactNode;
+  renderPaneTabBarTrailing?: (paneId: string) => ReactNode;
+  renderPaneHeader?: (paneId: string) => ReactNode;
+  rightPanelCollapsing?: boolean;
   focusModeEnabled?: boolean;
 }
 
@@ -382,6 +400,7 @@ export function SplitContainer({
   onCreateDraftTab,
   onCreateTerminalTab,
   onCreateBrowserTab,
+  toolsAddHandlers,
   showCreateBrowserTab,
   buildPaneContentModel,
   onFocusPane,
@@ -391,6 +410,9 @@ export function SplitContainer({
   onResizeSplit,
   onReorderTabsInPane,
   renderPaneEmptyState = () => null,
+  renderPaneTabBarTrailing,
+  renderPaneHeader,
+  rightPanelCollapsing,
   focusModeEnabled,
 }: SplitContainerProps) {
   const [activeDragTabId, setActiveDragTabId] = useState<string | null>(null);
@@ -575,43 +597,48 @@ export function SplitContainer({
         onDragCancel={handleDragCancel}
         onDragEnd={handleDragEnd}
       >
-        <SplitNodeView
-          node={renderRoot}
-          workspaceKey={workspaceKey}
-          uiTabs={uiTabs}
-          focusedPaneId={layout.focusedPaneId}
-          normalizedServerId={normalizedServerId}
-          normalizedWorkspaceId={normalizedWorkspaceId}
-          isWorkspaceFocused={isWorkspaceFocused}
-          hoveredCloseTabKey={hoveredCloseTabKey}
-          setHoveredCloseTabKey={setHoveredCloseTabKey}
-          closingTabIds={closingTabIds}
-          onNavigateTab={onNavigateTab}
-          onCloseTab={onCloseTab}
-          onCopyResumeCommand={onCopyResumeCommand}
-          onCopyAgentId={onCopyAgentId}
-          onCopyFilePath={onCopyFilePath}
-          onReloadAgent={onReloadAgent}
-          onRenameTab={onRenameTab}
-          onCloseTabsToLeft={onCloseTabsToLeft}
-          onCloseTabsToRight={onCloseTabsToRight}
-          onCloseOtherTabs={onCloseOtherTabs}
-          onCreateDraftTab={onCreateDraftTab}
-          onCreateTerminalTab={onCreateTerminalTab}
-          onCreateBrowserTab={onCreateBrowserTab}
-          showCreateBrowserTab={showCreateBrowserTab}
-          buildPaneContentModel={buildPaneContentModel}
-          onFocusPane={onFocusPane}
-          onSplitPane={onSplitPane}
-          onSplitPaneEmpty={onSplitPaneEmpty}
-          onResizeSplit={onResizeSplit}
-          onReorderTabsInPane={onReorderTabsInPane}
-          renderPaneEmptyState={renderPaneEmptyState}
-          activeDragTabId={activeDragTabId}
-          showDropZones={activeDragTabId !== null}
-          dropPreview={dropPreview}
-          tabDropPreview={tabDropPreview}
-        />
+        <RightPanelCollapsingContext.Provider value={rightPanelCollapsing ?? false}>
+          <SplitNodeView
+            node={renderRoot}
+            workspaceKey={workspaceKey}
+            uiTabs={uiTabs}
+            focusedPaneId={layout.focusedPaneId}
+            normalizedServerId={normalizedServerId}
+            normalizedWorkspaceId={normalizedWorkspaceId}
+            isWorkspaceFocused={isWorkspaceFocused}
+            hoveredCloseTabKey={hoveredCloseTabKey}
+            setHoveredCloseTabKey={setHoveredCloseTabKey}
+            closingTabIds={closingTabIds}
+            onNavigateTab={onNavigateTab}
+            onCloseTab={onCloseTab}
+            onCopyResumeCommand={onCopyResumeCommand}
+            onCopyAgentId={onCopyAgentId}
+            onCopyFilePath={onCopyFilePath}
+            onReloadAgent={onReloadAgent}
+            onRenameTab={onRenameTab}
+            onCloseTabsToLeft={onCloseTabsToLeft}
+            onCloseTabsToRight={onCloseTabsToRight}
+            onCloseOtherTabs={onCloseOtherTabs}
+            onCreateDraftTab={onCreateDraftTab}
+            onCreateTerminalTab={onCreateTerminalTab}
+            onCreateBrowserTab={onCreateBrowserTab}
+            toolsAddHandlers={toolsAddHandlers}
+            showCreateBrowserTab={showCreateBrowserTab}
+            buildPaneContentModel={buildPaneContentModel}
+            onFocusPane={onFocusPane}
+            onSplitPane={onSplitPane}
+            onSplitPaneEmpty={onSplitPaneEmpty}
+            onResizeSplit={onResizeSplit}
+            onReorderTabsInPane={onReorderTabsInPane}
+            renderPaneEmptyState={renderPaneEmptyState}
+            renderPaneTabBarTrailing={renderPaneTabBarTrailing}
+            renderPaneHeader={renderPaneHeader}
+            activeDragTabId={activeDragTabId}
+            showDropZones={activeDragTabId !== null}
+            dropPreview={dropPreview}
+            tabDropPreview={tabDropPreview}
+          />
+        </RightPanelCollapsingContext.Provider>
         <DragOverlay dropAnimation={null}>
           {activeDragTabId ? (
             <DragOverlayTabChip
@@ -742,6 +769,7 @@ function SplitNodeView({
   onCreateDraftTab,
   onCreateTerminalTab,
   onCreateBrowserTab,
+  toolsAddHandlers,
   showCreateBrowserTab,
   buildPaneContentModel,
   onFocusPane,
@@ -750,6 +778,8 @@ function SplitNodeView({
   onResizeSplit,
   onReorderTabsInPane,
   renderPaneEmptyState,
+  renderPaneTabBarTrailing,
+  renderPaneHeader,
   activeDragTabId,
   showDropZones,
   dropPreview,
@@ -795,6 +825,7 @@ function SplitNodeView({
         onCreateDraftTab={onCreateDraftTab}
         onCreateTerminalTab={onCreateTerminalTab}
         onCreateBrowserTab={onCreateBrowserTab}
+        toolsAddHandlers={toolsAddHandlers}
         showCreateBrowserTab={showCreateBrowserTab}
         buildPaneContentModel={buildPaneContentModel}
         onFocusPane={onFocusPane}
@@ -802,6 +833,8 @@ function SplitNodeView({
         onSplitPaneEmpty={onSplitPaneEmpty}
         onReorderTabsInPane={onReorderTabsInPane}
         renderPaneEmptyState={renderPaneEmptyState}
+        renderPaneTabBarTrailing={renderPaneTabBarTrailing}
+        renderPaneHeader={renderPaneHeader}
         activeDragTabId={activeDragTabId}
         showDropZones={showDropZones}
         dropPreview={dropPreview}
@@ -841,6 +874,7 @@ function SplitNodeView({
               onCreateDraftTab={onCreateDraftTab}
               onCreateTerminalTab={onCreateTerminalTab}
               onCreateBrowserTab={onCreateBrowserTab}
+              toolsAddHandlers={toolsAddHandlers}
               showCreateBrowserTab={showCreateBrowserTab}
               buildPaneContentModel={buildPaneContentModel}
               onFocusPane={onFocusPane}
@@ -849,6 +883,8 @@ function SplitNodeView({
               onResizeSplit={onResizeSplit}
               onReorderTabsInPane={onReorderTabsInPane}
               renderPaneEmptyState={renderPaneEmptyState}
+              renderPaneTabBarTrailing={renderPaneTabBarTrailing}
+              renderPaneHeader={renderPaneHeader}
               activeDragTabId={activeDragTabId}
               showDropZones={showDropZones}
               dropPreview={dropPreview}
@@ -893,6 +929,7 @@ function SplitPaneView({
   onCreateDraftTab,
   onCreateTerminalTab,
   onCreateBrowserTab,
+  toolsAddHandlers,
   showCreateBrowserTab,
   buildPaneContentModel,
   onFocusPane,
@@ -900,6 +937,8 @@ function SplitPaneView({
   onSplitPaneEmpty,
   onReorderTabsInPane,
   renderPaneEmptyState,
+  renderPaneTabBarTrailing,
+  renderPaneHeader,
   activeDragTabId,
   showDropZones,
   dropPreview,
@@ -976,6 +1015,33 @@ function SplitPaneView({
   }, [stableOnFocusPane, pane.id]);
 
   const paneId = pane.id;
+  const showTabBar = paneShowsTabBar(pane);
+  // Slide the right tool panel out on collapse. Web has no reliable Reanimated exit
+  // animation, so the pane stays mounted + animates here while workspace-screen keeps it in
+  // the layout for the slide-out window, then removes it.
+  const isRightPanel = paneId === RIGHT_PANEL_PANE_ID;
+  const rightPanelCollapsing = useContext(RightPanelCollapsingContext);
+  const rightPaneWidthSv = useSharedValue(0);
+  const rightPaneExitProgress = useSharedValue(0);
+  useEffect(() => {
+    rightPaneExitProgress.value = withTiming(isRightPanel && rightPanelCollapsing ? 1 : 0, {
+      duration: 180,
+    });
+  }, [isRightPanel, rightPanelCollapsing, rightPaneExitProgress]);
+  const rightPaneExitStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: rightPaneExitProgress.value * rightPaneWidthSv.value }],
+  }));
+  const rightPaneAnimatedStyle = useMemo(
+    () => [styles.paneFill, rightPaneExitStyle],
+    [rightPaneExitStyle],
+  );
+  const handleRightPaneLayout = useCallback(
+    (event: LayoutChangeEvent) => {
+      rightPaneWidthSv.value = event.nativeEvent.layout.width;
+    },
+    [rightPaneWidthSv],
+  );
+  const addMenuVariant = pane.id === RIGHT_PANEL_PANE_ID ? "tools" : "main";
   const handleCloseTabsToLeft = useCallback(
     (tabId: string) => onCloseTabsToLeft(tabId, paneTabs),
     [onCloseTabsToLeft, paneTabs],
@@ -1010,13 +1076,15 @@ function SplitPaneView({
     [padding.left, padding.right],
   );
 
-  return (
-    <RenderProfile id={`SplitPaneView:${pane.id}`}>
-      <View ref={paneRef} collapsable={false} style={styles.pane}>
+  const paneBody = (
+    <View ref={paneRef} collapsable={false} style={styles.pane}>
+      {renderPaneHeader?.(pane.id)}
+      {showTabBar ? (
         <View style={paneTabsStyle}>
           <TitlebarDragRegion />
           <WorkspaceDesktopTabsRow
             paneId={pane.id}
+            trailing={renderPaneTabBarTrailing?.(pane.id)}
             isFocused={isFocused}
             tabs={desktopTabRowItems}
             normalizedServerId={normalizedServerId}
@@ -1035,10 +1103,13 @@ function SplitPaneView({
             onCreateDraftTab={onCreateDraftTab}
             onCreateTerminalTab={onCreateTerminalTab}
             onCreateBrowserTab={onCreateBrowserTab}
+            addMenuVariant={addMenuVariant}
+            toolsAddHandlers={toolsAddHandlers}
             showCreateBrowserTab={showCreateBrowserTab}
             onReorderTabs={handleReorderTabs}
             onSplitRight={handleSplitRight}
             onSplitDown={handleSplitDown}
+            showPaneSplitActions={false}
             externalDndContext
             activeDragTabId={activeDragTabId}
             tabDropPreviewIndex={
@@ -1046,32 +1117,48 @@ function SplitPaneView({
             }
           />
         </View>
+      ) : null}
 
-        <View style={styles.paneContent}>
-          {mountedPaneTabIds.length > 0
-            ? mountedPaneTabIds.map((tabId) => {
-                const tabDescriptor = tabDescriptorMap.get(tabId);
-                if (!tabDescriptor) {
-                  return null;
-                }
+      <View style={styles.paneContent}>
+        {mountedPaneTabIds.length > 0
+          ? mountedPaneTabIds.map((tabId) => {
+              const tabDescriptor = tabDescriptorMap.get(tabId);
+              if (!tabDescriptor) {
+                return null;
+              }
 
-                return (
-                  <MountedTabSlot
-                    key={tabId}
-                    tabDescriptor={tabDescriptor}
-                    isVisible={tabId === activeTabDescriptor?.tabId}
-                    isWorkspaceFocused={isWorkspaceFocused}
-                    isPaneFocused={isFocused && tabId === activeTabDescriptor?.tabId}
-                    paneId={pane.id}
-                    onFocusPane={stableOnFocusPane}
-                    buildPaneContentModel={buildPaneContentModel}
-                  />
-                );
-              })
-            : (renderPaneEmptyState?.() ?? null)}
-          <SplitDropZone paneId={pane.id} active={showDropZones} preview={dropPreview} />
-        </View>
+              return (
+                <MountedTabSlot
+                  key={tabId}
+                  tabDescriptor={tabDescriptor}
+                  isVisible={tabId === activeTabDescriptor?.tabId}
+                  isWorkspaceFocused={isWorkspaceFocused}
+                  isPaneFocused={isFocused && tabId === activeTabDescriptor?.tabId}
+                  paneId={pane.id}
+                  onFocusPane={stableOnFocusPane}
+                  buildPaneContentModel={buildPaneContentModel}
+                />
+              );
+            })
+          : (renderPaneEmptyState?.(pane.id) ?? null)}
+        <SplitDropZone paneId={pane.id} active={showDropZones} preview={dropPreview} />
       </View>
+    </View>
+  );
+
+  return (
+    <RenderProfile id={`SplitPaneView:${pane.id}`}>
+      {isRightPanel ? (
+        <Animated.View
+          style={rightPaneAnimatedStyle}
+          entering={SlideInRight.duration(200)}
+          onLayout={handleRightPaneLayout}
+        >
+          {paneBody}
+        </Animated.View>
+      ) : (
+        paneBody
+      )}
     </RenderProfile>
   );
 }
@@ -1138,6 +1225,12 @@ const styles = StyleSheet.create((theme) => ({
     minHeight: 0,
     backgroundColor: theme.colors.surface0,
     overflow: "hidden",
+  },
+  // Animated wrapper around the right tool pane so it slides in/out on expand/collapse.
+  paneFill: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 0,
   },
   paneTabs: {
     position: "relative",

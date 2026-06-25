@@ -2,20 +2,21 @@ import { memo, useCallback, useMemo, useState, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { View, Text, Pressable, type PressableStateCallbackType } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { Archive, CircleCheck, Copy, MoreVertical, Pencil } from "lucide-react-native";
+import { Archive, CircleCheck, Copy, FolderOpen, Pencil, Pin } from "lucide-react-native";
 import { useMutation } from "@tanstack/react-query";
 import * as Clipboard from "expo-clipboard";
 import type { Theme } from "@/styles/theme";
 import type { SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
 import type { DraggableListDragHandleProps } from "@/components/draggable-list.types";
 import type { ShortcutKey } from "@/utils/format-shortcut";
-import { DiffStat } from "@/components/diff-stat";
+import { formatTimeAgoShort } from "@/utils/time";
 import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
+  ContextMenu,
+  ContextMenuTrigger,
+  ContextMenuContent,
+  ContextMenuItem,
+  useContextMenu,
+} from "@/components/ui/context-menu";
 import { Shortcut } from "@/components/ui/shortcut";
 import { AdaptiveRenameModal } from "@/components/rename-modal";
 import { useToast } from "@/contexts/toast-context";
@@ -28,6 +29,14 @@ import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
 import { useClearWorkspaceAttention } from "@/hooks/use-clear-workspace-attention";
 import { redirectIfArchivingActiveWorkspace } from "@/utils/sidebar-workspace-archive-redirect";
 import { requireWorkspaceDirectory, resolveWorkspaceDirectory } from "@/utils/workspace-directory";
+import { useSidebarPinsStore } from "@/stores/sidebar-pins-store";
+import { useSessionStore, type Agent } from "@/stores/session-store";
+import { buildProviderCommand } from "@/utils/provider-command-templates";
+import {
+  hasDesktopOpenTargetsBridge,
+  listDesktopOpenTargets,
+  openDesktopTarget,
+} from "@/workspace/desktop-open-targets";
 import { isWeb as platformIsWeb, isNative as platformIsNative } from "@/constants/platform";
 import { useLongPressDragInteraction } from "@/components/sidebar/use-long-press-drag-interaction";
 import {
@@ -41,22 +50,53 @@ import {
 const foregroundColorMapping = (theme: Theme) => ({ color: theme.colors.foreground });
 const foregroundMutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
-const ThemedMoreVertical = withUnistyles(MoreVertical);
-const ThemedCopy = withUnistyles(Copy);
+const ThemedPin = withUnistyles(Pin);
+const ThemedFolderOpen = withUnistyles(FolderOpen);
 const ThemedArchive = withUnistyles(Archive);
 const ThemedPencil = withUnistyles(Pencil);
 const ThemedCircleCheck = withUnistyles(CircleCheck);
+const ThemedCopy = withUnistyles(Copy);
 
-const copyLeadingIcon = <ThemedCopy size={14} uniProps={foregroundMutedColorMapping} />;
+const pinLeadingIcon = <ThemedPin size={14} uniProps={foregroundMutedColorMapping} />;
+const pinnedLeadingIcon = (
+  <ThemedPin size={14} fill="currentColor" uniProps={foregroundMutedColorMapping} />
+);
+const revealLeadingIcon = <ThemedFolderOpen size={14} uniProps={foregroundMutedColorMapping} />;
 const renameLeadingIcon = <ThemedPencil size={14} uniProps={foregroundMutedColorMapping} />;
 const markAsReadLeadingIcon = (
   <ThemedCircleCheck size={14} uniProps={foregroundMutedColorMapping} />
 );
 const archiveLeadingIcon = <ThemedArchive size={14} uniProps={foregroundMutedColorMapping} />;
+const copyLeadingIcon = <ThemedCopy size={14} uniProps={foregroundMutedColorMapping} />;
 
-function renderKebabTriggerIcon({ hovered }: { hovered?: boolean }) {
+// The pin glyph is tilted 45° (Codex-style). Outline (hollow) = not pinned →
+// click to pin; filled = pinned → click to unpin.
+function renderUnpinnedPinIcon({ hovered }: { hovered?: boolean }) {
   return (
-    <ThemedMoreVertical
+    <View style={styles.pinIconRotated}>
+      <ThemedPin
+        size={14}
+        uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
+      />
+    </View>
+  );
+}
+
+function renderPinnedPinIcon({ hovered }: { hovered?: boolean }) {
+  return (
+    <View style={styles.pinIconRotated}>
+      <ThemedPin
+        size={14}
+        fill="currentColor"
+        uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
+      />
+    </View>
+  );
+}
+
+function renderRemoveIcon({ hovered }: { hovered?: boolean }) {
+  return (
+    <ThemedArchive
       size={14}
       uniProps={hovered ? foregroundColorMapping : foregroundMutedColorMapping}
     />
@@ -70,7 +110,6 @@ interface SidebarWorkspaceRowProps {
   selected: boolean;
   shortcutNumber: number | null;
   showShortcutBadge: boolean;
-  canCopyBranchName: boolean;
   onPress: () => void;
   /** Secondary line under the name (status grouping shows the project name). */
   subtitle?: string | null;
@@ -87,7 +126,6 @@ export function SidebarWorkspaceRow({
   selected,
   shortcutNumber,
   showShortcutBadge,
-  canCopyBranchName,
   onPress,
   subtitle,
   isCreating = false,
@@ -142,10 +180,12 @@ export function SidebarWorkspaceRow({
     archiveController.archive();
   }, [archiveController, isArchiving]);
 
-  const handleCopyPath = useCallback(() => {
-    let copyTargetDirectory: string;
+  // "Reveal in Finder" (在 Finder 中显示) — desktop-only, routes the workspace directory
+  // through the Electron file-manager open target. Hidden on web/native (no bridge).
+  const handleRevealInFinder = useCallback(() => {
+    let revealTargetDirectory: string;
     try {
-      copyTargetDirectory = requireWorkspaceDirectory({
+      revealTargetDirectory = requireWorkspaceDirectory({
         workspaceId: workspace.workspaceId,
         workspaceDirectory: workspace.workspaceDirectory,
       });
@@ -157,17 +197,22 @@ export function SidebarWorkspaceRow({
       );
       return;
     }
-    void Clipboard.setStringAsync(copyTargetDirectory);
-    toast.copied(t("sidebar.workspace.toasts.pathCopied"));
+    void (async () => {
+      const targets = await listDesktopOpenTargets();
+      const fileManager = targets.find((target) => target.kind === "file-manager");
+      if (!fileManager) {
+        return;
+      }
+      await openDesktopTarget({
+        editorId: fileManager.id,
+        path: revealTargetDirectory,
+        mode: "reveal",
+      });
+    })().catch((error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to reveal in Finder");
+    });
   }, [t, toast, workspace.workspaceDirectory, workspace.workspaceId]);
-
-  const handleCopyBranchName = useCallback(() => {
-    if (!workspace.currentBranch) {
-      return;
-    }
-    void Clipboard.setStringAsync(workspace.currentBranch);
-    toast.copied(t("sidebar.workspace.toasts.branchNameCopied"));
-  }, [t, toast, workspace.currentBranch]);
+  const canRevealInFinder = hasDesktopOpenTargetsBridge();
 
   const renameMutation = useMutation({
     mutationFn: async (title: string) => {
@@ -223,8 +268,10 @@ export function SidebarWorkspaceRow({
     archiveStatus = "pending";
   }
 
+  // Right-click (web) / long-press (native) opens the row's actions; there is no
+  // kebab button. The provider wraps the row trigger and the menu content.
   return (
-    <>
+    <ContextMenu>
       <WorkspaceRowBody
         workspace={workspace}
         selected={selected}
@@ -238,13 +285,17 @@ export function SidebarWorkspaceRow({
         isDragging={isDragging}
         dragHandleProps={dragHandleProps}
         archiveLabel={t("sidebar.workspace.actions.archive")}
-        archiveStatus={archiveStatus}
-        archivePendingLabel={t("sidebar.workspace.actions.archiving")}
         onArchive={handleArchive}
-        onCopyBranchName={canCopyBranchName ? handleCopyBranchName : undefined}
-        onCopyPath={handleCopyPath}
+      />
+      <WorkspaceRowContextMenu
+        workspace={workspace}
+        onArchive={handleArchive}
+        onRevealInFinder={canRevealInFinder ? handleRevealInFinder : undefined}
         onRename={handleOpenRename}
         onMarkAsRead={hasClearableAttention ? handleMarkAsRead : undefined}
+        archiveLabel={t("sidebar.workspace.actions.archive")}
+        archiveStatus={archiveStatus}
+        archivePendingLabel={t("sidebar.workspace.actions.archiving")}
         archiveShortcutKeys={selected ? archiveShortcutKeys : null}
       />
       <AdaptiveRenameModal
@@ -257,7 +308,7 @@ export function SidebarWorkspaceRow({
         onSubmit={handleSubmitRename}
         testID={`sidebar-workspace-rename-modal-${workspace.workspaceKey}`}
       />
-    </>
+    </ContextMenu>
   );
 }
 
@@ -274,14 +325,7 @@ interface WorkspaceRowBodyProps {
   isDragging: boolean;
   dragHandleProps?: DraggableListDragHandleProps;
   archiveLabel?: string;
-  archiveStatus?: "idle" | "pending" | "success";
-  archivePendingLabel?: string;
   onArchive?: () => void;
-  onCopyBranchName?: () => void;
-  onCopyPath?: () => void;
-  onRename?: () => void;
-  onMarkAsRead?: () => void;
-  archiveShortcutKeys?: ShortcutKey[][] | null;
 }
 
 function WorkspaceRowBody({
@@ -297,20 +341,14 @@ function WorkspaceRowBody({
   isDragging,
   dragHandleProps,
   archiveLabel,
-  archiveStatus = "idle",
-  archivePendingLabel,
   onArchive,
-  onCopyBranchName,
-  onCopyPath,
-  onRename,
-  onMarkAsRead,
-  archiveShortcutKeys,
 }: WorkspaceRowBodyProps) {
   const isTouchPlatform = platformIsNative;
   const draggable = Boolean(drag);
+  const menuController = useContextMenu();
   const interaction = useLongPressDragInteraction({
     drag: drag ?? noop,
-    menuController: null,
+    menuController,
   });
   const {
     role: _dragRole,
@@ -352,15 +390,16 @@ function WorkspaceRowBody({
             style={styles.workspaceRowContainer}
             {...hoverHandlers}
           >
-            <Pressable
+            <ContextMenuTrigger
+              enabledOnMobile={false}
               disabled={isArchiving}
               aria-selected={selected}
               accessibilityRole="button"
               accessibilityState={accessibilityState}
               style={workspaceRowStyle}
-              onPressIn={draggable ? interaction.handlePressIn : undefined}
-              onTouchMove={draggable ? interaction.handleTouchMove : undefined}
-              onPressOut={draggable ? interaction.handlePressOut : undefined}
+              onPressIn={interaction.handlePressIn}
+              onTouchMove={interaction.handleTouchMove}
+              onPressOut={interaction.handlePressOut}
               onPress={handlePress}
               testID={`sidebar-workspace-row-${workspace.workspaceKey}`}
             >
@@ -382,17 +421,10 @@ function WorkspaceRowBody({
                   showShortcutBadge={showShortcutBadge}
                   shortcutNumber={shortcutNumber}
                   archiveLabel={archiveLabel}
-                  archiveStatus={archiveStatus}
-                  archivePendingLabel={archivePendingLabel}
-                  archiveShortcutKeys={archiveShortcutKeys}
                   onArchive={onArchive}
-                  onCopyBranchName={onCopyBranchName}
-                  onCopyPath={onCopyPath}
-                  onRename={onRename}
-                  onMarkAsRead={onMarkAsRead}
                 />
               </SidebarWorkspaceRowContent>
-            </Pressable>
+            </ContextMenuTrigger>
           </View>
         );
       }}
@@ -408,14 +440,7 @@ function WorkspaceRowTrailingActions({
   showShortcutBadge,
   shortcutNumber,
   archiveLabel,
-  archiveStatus,
-  archivePendingLabel,
-  archiveShortcutKeys,
   onArchive,
-  onMarkAsRead,
-  onCopyBranchName,
-  onCopyPath,
-  onRename,
 }: {
   workspace: SidebarWorkspaceEntry;
   isHovered: boolean;
@@ -424,20 +449,21 @@ function WorkspaceRowTrailingActions({
   showShortcutBadge: boolean;
   shortcutNumber: number | null;
   archiveLabel?: string;
-  archiveStatus?: "idle" | "pending" | "success";
-  archivePendingLabel?: string;
-  archiveShortcutKeys?: ShortcutKey[][] | null;
   onArchive?: () => void;
-  onMarkAsRead?: () => void;
-  onCopyBranchName?: () => void;
-  onCopyPath?: () => void;
-  onRename?: () => void;
 }) {
   const { t } = useTranslation();
+  const isPinned = useSidebarPinsStore((state) =>
+    state.isPinned(workspace.serverId, { kind: "workspace", workspaceId: workspace.workspaceId }),
+  );
   const showShortcut = showShortcutBadge && shortcutNumber !== null;
-  const showKebab = Boolean(onArchive && (isHovered || isTouchPlatform));
-  const showKebabInSlot = showKebab && !showShortcut;
-  const shouldRenderActionSlot = Boolean(onArchive || workspace.diffStat);
+  const showActions = Boolean(onArchive && (isHovered || isTouchPlatform));
+  const showActionsInSlot = showActions && !showShortcut;
+  // Codex-style file tree: the trailing slot shows a relative "time ago" label sourced from
+  // when the workspace entered its current status, in place of the old +/- diff stat.
+  const timeAgoLabel = workspace.statusEnteredAt
+    ? formatTimeAgoShort(workspace.statusEnteredAt, t)
+    : null;
+  const shouldRenderActionSlot = Boolean(onArchive || timeAgoLabel);
 
   return (
     <>
@@ -447,30 +473,23 @@ function WorkspaceRowTrailingActions({
       {shouldRenderActionSlot ? (
         <SidebarWorkspaceTrailingActionSlot>
           <SidebarWorkspaceTrailingActionBase
-            visible={Boolean(workspace.diffStat && !showKebabInSlot && !showShortcut)}
+            visible={Boolean(timeAgoLabel && !showActionsInSlot && !showShortcut)}
           >
-            {workspace.diffStat ? (
-              <DiffStat
-                additions={workspace.diffStat.additions}
-                deletions={workspace.diffStat.deletions}
-              />
+            {timeAgoLabel ? (
+              <View style={styles.timeAgoContainer}>
+                <Text style={styles.timeAgoText} numberOfLines={1}>
+                  {timeAgoLabel}
+                </Text>
+              </View>
             ) : null}
           </SidebarWorkspaceTrailingActionBase>
-          <SidebarWorkspaceTrailingActionOverlay visible={showKebabInSlot}>
-            {onArchive ? (
-              <WorkspaceKebabMenu
-                workspaceKey={workspace.workspaceKey}
-                onCopyPath={onCopyPath}
-                onCopyBranchName={onCopyBranchName}
-                onRename={onRename}
-                onMarkAsRead={onMarkAsRead}
-                onArchive={onArchive}
-                archiveLabel={archiveLabel}
-                archiveStatus={archiveStatus}
-                archivePendingLabel={archivePendingLabel}
-                archiveShortcutKeys={archiveShortcutKeys}
-              />
-            ) : null}
+          <SidebarWorkspaceTrailingActionOverlay visible={showActionsInSlot}>
+            <WorkspaceRowOverlayActions
+              isPinned={isPinned}
+              workspace={workspace}
+              onArchive={onArchive}
+              archiveLabel={archiveLabel}
+            />
           </SidebarWorkspaceTrailingActionOverlay>
         </SidebarWorkspaceTrailingActionSlot>
       ) : null}
@@ -478,101 +497,199 @@ function WorkspaceRowTrailingActions({
   );
 }
 
-function WorkspaceKebabMenu({
-  workspaceKey,
-  onCopyPath,
-  onCopyBranchName,
+// Inline hover quick-actions: a pin toggle (outline = pin, filled = unpin) and a
+// remove. Everything else lives in the right-click context menu.
+function WorkspaceRowOverlayActions({
+  isPinned,
+  workspace,
+  onArchive,
+  archiveLabel,
+}: {
+  isPinned: boolean;
+  workspace: SidebarWorkspaceEntry;
+  onArchive?: () => void;
+  archiveLabel?: string;
+}) {
+  const { t } = useTranslation();
+  const togglePinTarget = useSidebarPinsStore((state) => state.togglePin);
+  const handleTogglePin = useCallback(() => {
+    togglePinTarget(workspace.serverId, {
+      kind: "workspace",
+      workspaceId: workspace.workspaceId,
+    });
+  }, [togglePinTarget, workspace.serverId, workspace.workspaceId]);
+  if (!onArchive) return null;
+  return (
+    <View style={styles.pinnedTrailingActions}>
+      <Pressable
+        style={workspacePinButtonStyle}
+        onPress={handleTogglePin}
+        hitSlop={4}
+        accessibilityRole={platformIsWeb ? undefined : "button"}
+        accessibilityLabel={
+          isPinned ? t("sidebar.workspace.actions.unpin") : t("sidebar.workspace.actions.pin")
+        }
+        testID={`sidebar-workspace-pin-toggle-${workspace.workspaceKey}`}
+      >
+        {isPinned ? renderPinnedPinIcon : renderUnpinnedPinIcon}
+      </Pressable>
+      <Pressable
+        style={workspacePinButtonStyle}
+        onPress={onArchive}
+        hitSlop={4}
+        accessibilityRole={platformIsWeb ? undefined : "button"}
+        accessibilityLabel={archiveLabel ?? t("sidebar.workspace.actions.archive")}
+        testID={`sidebar-workspace-remove-${workspace.workspaceKey}`}
+      >
+        {renderRemoveIcon}
+      </Pressable>
+    </View>
+  );
+}
+
+// Resolve a workspace's provider-native resume command. Picks the workspace's
+// most-recently-updated agent that carries a provider session id, then renders
+// the provider template (e.g. `claude --resume <id>` / `codex resume <id>`).
+type WorkspaceResumeResult = { command: string } | { error: "id" | "command" };
+
+function agentResumeSessionId(agent: Agent): string | null {
+  return agent.runtimeInfo?.sessionId ?? agent.persistence?.sessionId ?? null;
+}
+
+function resolveWorkspaceResumeCommand(
+  serverId: string,
+  workspaceId: string,
+): WorkspaceResumeResult {
+  const agents = useSessionStore.getState().sessions[serverId]?.agents;
+  let best: Agent | null = null;
+  if (agents) {
+    for (const agent of agents.values()) {
+      if (agent.workspaceId !== workspaceId) continue;
+      if (!agentResumeSessionId(agent)) continue;
+      if (!best || agent.updatedAt > best.updatedAt) best = agent;
+    }
+  }
+  const sessionId = best ? agentResumeSessionId(best) : null;
+  if (!best || !sessionId) return { error: "id" };
+  const command = buildProviderCommand({ provider: best.provider, id: "resume", sessionId });
+  return command ? { command } : { error: "command" };
+}
+
+// The row's right-click / long-press menu. Mirrors the old kebab's items.
+function WorkspaceRowContextMenu({
+  workspace,
+  onArchive,
+  onRevealInFinder,
   onRename,
   onMarkAsRead,
-  onArchive,
   archiveLabel,
   archiveStatus,
   archivePendingLabel,
   archiveShortcutKeys,
 }: {
-  workspaceKey: string;
-  onCopyPath?: () => void;
-  onCopyBranchName?: () => void;
+  workspace: SidebarWorkspaceEntry;
+  onArchive: () => void;
+  onRevealInFinder?: () => void;
   onRename?: () => void;
   onMarkAsRead?: () => void;
-  onArchive: () => void;
   archiveLabel?: string;
   archiveStatus?: "idle" | "pending" | "success";
   archivePendingLabel?: string;
   archiveShortcutKeys?: ShortcutKey[][] | null;
 }) {
   const { t } = useTranslation();
+  const isPinned = useSidebarPinsStore((state) =>
+    state.isPinned(workspace.serverId, { kind: "workspace", workspaceId: workspace.workspaceId }),
+  );
+  const togglePin = useSidebarPinsStore((state) => state.togglePin);
+  const handleTogglePin = useCallback(() => {
+    togglePin(workspace.serverId, { kind: "workspace", workspaceId: workspace.workspaceId });
+  }, [togglePin, workspace.serverId, workspace.workspaceId]);
+  const toast = useToast();
+  // "复制会话 ID" copies the provider-native resume command so it can be pasted
+  // and run directly (see resolveWorkspaceResumeCommand above).
+  const handleCopyConversationId = useCallback(() => {
+    const result = resolveWorkspaceResumeCommand(workspace.serverId, workspace.workspaceId);
+    if ("error" in result) {
+      toast.error(
+        result.error === "id"
+          ? t("workspace.tabs.toasts.resumeIdUnavailable")
+          : t("workspace.tabs.toasts.resumeCommandUnavailable"),
+      );
+      return;
+    }
+    void Clipboard.setStringAsync(result.command);
+    toast.copied(t("workspace.tabs.toasts.resumeCommandCopiedLabel"));
+  }, [workspace.serverId, workspace.workspaceId, toast, t]);
   const archiveTrailing = useMemo(
     () => (archiveShortcutKeys ? <Shortcut chord={archiveShortcutKeys} /> : null),
     [archiveShortcutKeys],
   );
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        hitSlop={8}
-        style={workspaceKebabStyle}
-        accessibilityRole={platformIsWeb ? undefined : "button"}
-        accessibilityLabel={t("sidebar.workspace.actions.menu")}
-        testID={`sidebar-workspace-kebab-${workspaceKey}`}
-      >
-        {renderKebabTriggerIcon}
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" width={260}>
-        {onCopyPath ? (
-          <DropdownMenuItem
-            testID={`sidebar-workspace-menu-copy-path-${workspaceKey}`}
-            leading={copyLeadingIcon}
-            onSelect={onCopyPath}
-          >
-            {t("sidebar.workspace.actions.copyPath")}
-          </DropdownMenuItem>
-        ) : null}
-        {onCopyBranchName ? (
-          <DropdownMenuItem
-            testID={`sidebar-workspace-menu-copy-branch-name-${workspaceKey}`}
-            leading={copyLeadingIcon}
-            onSelect={onCopyBranchName}
-          >
-            {t("sidebar.workspace.actions.copyBranchName")}
-          </DropdownMenuItem>
-        ) : null}
-        {onRename ? (
-          <DropdownMenuItem
-            testID={`sidebar-workspace-menu-rename-${workspaceKey}`}
-            leading={renameLeadingIcon}
-            onSelect={onRename}
-          >
-            {t("sidebar.workspace.actions.rename")}
-          </DropdownMenuItem>
-        ) : null}
-        {onMarkAsRead ? (
-          <DropdownMenuItem
-            testID={`sidebar-workspace-menu-mark-as-read-${workspaceKey}`}
-            leading={markAsReadLeadingIcon}
-            onSelect={onMarkAsRead}
-          >
-            Mark as read
-          </DropdownMenuItem>
-        ) : null}
-        <DropdownMenuItem
-          testID={`sidebar-workspace-menu-archive-${workspaceKey}`}
-          leading={archiveLeadingIcon}
-          trailing={archiveTrailing}
-          status={archiveStatus}
-          pendingLabel={archivePendingLabel}
-          onSelect={onArchive}
+    <ContextMenuContent
+      align="start"
+      width={220}
+      testID={`sidebar-workspace-context-menu-${workspace.workspaceKey}`}
+    >
+      {onMarkAsRead ? (
+        <ContextMenuItem
+          testID={`sidebar-workspace-menu-mark-as-read-${workspace.workspaceKey}`}
+          leading={markAsReadLeadingIcon}
+          onSelect={onMarkAsRead}
         >
-          {archiveLabel ?? t("sidebar.workspace.actions.archive")}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          Mark as read
+        </ContextMenuItem>
+      ) : null}
+      <ContextMenuItem
+        testID={`sidebar-workspace-menu-pin-${workspace.workspaceKey}`}
+        leading={isPinned ? pinnedLeadingIcon : pinLeadingIcon}
+        onSelect={handleTogglePin}
+      >
+        {isPinned ? t("sidebar.workspace.actions.unpin") : t("sidebar.workspace.actions.pin")}
+      </ContextMenuItem>
+      {onRevealInFinder ? (
+        <ContextMenuItem
+          testID={`sidebar-workspace-menu-reveal-${workspace.workspaceKey}`}
+          leading={revealLeadingIcon}
+          onSelect={onRevealInFinder}
+        >
+          {t("sidebar.workspace.actions.revealInFinder")}
+        </ContextMenuItem>
+      ) : null}
+      {onRename ? (
+        <ContextMenuItem
+          testID={`sidebar-workspace-menu-rename-${workspace.workspaceKey}`}
+          leading={renameLeadingIcon}
+          onSelect={onRename}
+        >
+          {t("sidebar.workspace.actions.rename")}
+        </ContextMenuItem>
+      ) : null}
+      <ContextMenuItem
+        testID={`sidebar-workspace-menu-copy-id-${workspace.workspaceKey}`}
+        leading={copyLeadingIcon}
+        onSelect={handleCopyConversationId}
+      >
+        {t("sidebar.workspace.actions.copyConversationId")}
+      </ContextMenuItem>
+      <ContextMenuItem
+        testID={`sidebar-workspace-menu-archive-${workspace.workspaceKey}`}
+        leading={archiveLeadingIcon}
+        trailing={archiveTrailing}
+        status={archiveStatus}
+        pendingLabel={archivePendingLabel}
+        onSelect={onArchive}
+      >
+        {archiveLabel ?? t("sidebar.workspace.actions.archive")}
+      </ContextMenuItem>
+    </ContextMenuContent>
   );
 }
 
-function workspaceKebabStyle({
+function workspacePinButtonStyle({
   hovered = false,
 }: PressableStateCallbackType & { hovered?: boolean }) {
-  return [styles.kebabButton, hovered && styles.kebabButtonHovered];
+  return [styles.pinButton, hovered && styles.pinButtonHovered];
 }
 
 function getWorkspaceRowStyle({
@@ -630,12 +747,38 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.xs,
     flexShrink: 0,
   },
-  kebabButton: {
-    padding: 2,
-    borderRadius: 4,
-    marginLeft: 2,
+  timeAgoContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 20,
+    flexShrink: 0,
   },
-  kebabButtonHovered: {
+  timeAgoText: {
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.normal,
+    color: theme.colors.foregroundMuted,
+  },
+  pinnedTrailingActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+    flexShrink: 0,
+  },
+  pinIconRotated: {
+    width: 14,
+    height: 14,
+    alignItems: "center",
+    justifyContent: "center",
+    transform: [{ rotate: "45deg" }],
+  },
+  pinButton: {
+    width: 20,
+    height: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 4,
+  },
+  pinButtonHovered: {
     backgroundColor: theme.colors.surface2,
   },
 }));

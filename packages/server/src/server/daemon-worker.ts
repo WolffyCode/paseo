@@ -6,7 +6,7 @@ import { resolvePaseoHome } from "./paseo-home.js";
 import { createRootLogger } from "./logger.js";
 import type { DaemonLifecycleIntent } from "./bootstrap.js";
 
-process.title = "Paseo Daemon";
+process.title = "Helm Daemon";
 
 type SupervisorLifecycleMessage =
   | {

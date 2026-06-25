@@ -1,9 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  connectLocalOnBoot,
+  resolveOnboardingLocalConnectState,
+  resolveOnboardingPhase,
+  resolveOnboardingPlatformCapability,
   resolveStartupBlocker,
   resolveStartupNavigationReady,
   resolveStartupRoute,
   shouldRunStartupGiveUpTimer,
+  startDaemonIfGateAllows,
   startHostRuntimeBootstrap,
 } from "./host-runtime-bootstrap";
 
@@ -18,13 +23,18 @@ function createFakeDaemonStartService() {
 }
 
 describe("startHostRuntimeBootstrap", () => {
-  it("fires boot and daemon-start without awaiting the daemon-start promise", () => {
+  it("loads the host registry at mount without forcing a connection decision", () => {
+    const store = createFakeStore();
+
+    startHostRuntimeBootstrap({ store });
+
+    expect(store.boot).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("startDaemonIfGateAllows", () => {
+  it("starts the desktop daemon without awaiting the daemon-start promise", () => {
     const events: string[] = [];
-    const store = {
-      boot: vi.fn(() => {
-        events.push("boot");
-      }),
-    };
     const daemonStartService = {
       start: vi.fn(async () => {
         events.push("daemon-start");
@@ -32,53 +42,34 @@ describe("startHostRuntimeBootstrap", () => {
       }),
     };
 
-    startHostRuntimeBootstrap({
-      store,
-      daemonStartService,
-      shouldStartDaemon: true,
-    });
+    startDaemonIfGateAllows({ daemonStartService, shouldStartDaemon: true });
 
-    expect(store.boot).toHaveBeenCalledTimes(1);
     expect(daemonStartService.start).toHaveBeenCalledTimes(1);
-    expect(events).toEqual(["boot", "daemon-start"]);
+    expect(events).toEqual(["daemon-start"]);
   });
 
   it("skips daemon-start when shouldStartDaemon is false", () => {
-    const store = createFakeStore();
     const daemonStartService = createFakeDaemonStartService();
 
-    startHostRuntimeBootstrap({
-      store,
-      daemonStartService,
-      shouldStartDaemon: false,
-    });
+    startDaemonIfGateAllows({ daemonStartService, shouldStartDaemon: false });
 
-    expect(store.boot).toHaveBeenCalledTimes(1);
     expect(daemonStartService.start).not.toHaveBeenCalled();
   });
 
   it("skips daemon-start when the startup gate resolves false", async () => {
-    const store = createFakeStore();
     const daemonStartService = createFakeDaemonStartService();
 
-    startHostRuntimeBootstrap({
-      store,
-      daemonStartService,
-      shouldStartDaemon: async () => false,
-    });
+    startDaemonIfGateAllows({ daemonStartService, shouldStartDaemon: async () => false });
     await Promise.resolve();
 
-    expect(store.boot).toHaveBeenCalledTimes(1);
     expect(daemonStartService.start).not.toHaveBeenCalled();
   });
 
   it("surfaces gate rejection to onGateError without starting the daemon", async () => {
-    const store = createFakeStore();
     const daemonStartService = createFakeDaemonStartService();
     const onGateError = vi.fn();
 
-    startHostRuntimeBootstrap({
-      store,
+    startDaemonIfGateAllows({
       daemonStartService,
       shouldStartDaemon: async () => {
         throw new Error("settings file unreadable");
@@ -94,7 +85,6 @@ describe("startHostRuntimeBootstrap", () => {
   });
 
   it("does not await the daemon-start promise", () => {
-    const store = createFakeStore();
     let resolveStart: ((value: { ok: true }) => void) | undefined;
     const daemonStartService = {
       start: vi.fn(
@@ -105,16 +95,29 @@ describe("startHostRuntimeBootstrap", () => {
       ),
     };
 
-    startHostRuntimeBootstrap({
-      store,
-      daemonStartService,
-      shouldStartDaemon: true,
-    });
+    startDaemonIfGateAllows({ daemonStartService, shouldStartDaemon: true });
 
-    expect(store.boot).toHaveBeenCalledTimes(1);
     expect(daemonStartService.start).toHaveBeenCalledTimes(1);
 
     resolveStart?.({ ok: true });
+  });
+});
+
+describe("connectLocalOnBoot", () => {
+  it("defers local connection on a genuine first run so the welcome cannot be skipped", () => {
+    const connectLocal = vi.fn();
+
+    connectLocalOnBoot({ hasSeenWelcome: false, connectLocal });
+
+    expect(connectLocal).not.toHaveBeenCalled();
+  });
+
+  it("eagerly self-heals the local connection once the welcome has been seen", () => {
+    const connectLocal = vi.fn();
+
+    connectLocalOnBoot({ hasSeenWelcome: true, connectLocal });
+
+    expect(connectLocal).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -170,7 +173,7 @@ describe("startup blocking policy", () => {
     expect(resolveStartupNavigationReady({ startupBlocker: blocker })).toBe(true);
   });
 
-  it("keeps desktop daemon startup errors on the startup error surface", () => {
+  it("keeps desktop daemon startup errors navigable so onboarding can show local recovery actions", () => {
     const blocker = resolveStartupBlocker({
       ...noBlockerInput,
       isDesktopRuntime: true,
@@ -192,6 +195,281 @@ describe("startup blocking policy", () => {
   });
 });
 
+describe("resolveOnboardingPhase", () => {
+  it("shows the one-time welcome on desktop before the user has seen it", () => {
+    expect(
+      resolveOnboardingPhase({
+        hasSeenWelcome: false,
+        platformCapability: { kind: "desktop-local" },
+        localConnect: { kind: "idle" },
+        userRequestedRemote: false,
+      }),
+    ).toEqual({ kind: "welcome" });
+  });
+
+  it("starts the desktop local connection after the welcome has been seen", () => {
+    expect(
+      resolveOnboardingPhase({
+        hasSeenWelcome: true,
+        platformCapability: { kind: "desktop-local" },
+        localConnect: { kind: "idle" },
+        userRequestedRemote: false,
+      }),
+    ).toEqual({ kind: "connecting" });
+  });
+
+  it("keeps desktop startup on the connecting phase while local connection is active", () => {
+    expect(
+      resolveOnboardingPhase({
+        hasSeenWelcome: true,
+        platformCapability: { kind: "desktop-local" },
+        localConnect: { kind: "connecting" },
+        userRequestedRemote: false,
+      }),
+    ).toEqual({ kind: "connecting" });
+  });
+
+  it("shows the desktop local connection error and preserves the raw reason for diagnostics", () => {
+    expect(
+      resolveOnboardingPhase({
+        hasSeenWelcome: true,
+        platformCapability: { kind: "desktop-local" },
+        localConnect: { kind: "failed", reason: "port already in use" },
+        userRequestedRemote: false,
+      }),
+    ).toEqual({ kind: "error", reason: "port already in use" });
+  });
+
+  it("honors the user's remote-connection intent over desktop local connection state", () => {
+    expect(
+      resolveOnboardingPhase({
+        hasSeenWelcome: true,
+        platformCapability: { kind: "desktop-local" },
+        localConnect: { kind: "failed", reason: "timeout" },
+        userRequestedRemote: true,
+      }),
+    ).toEqual({ kind: "picker" });
+  });
+
+  it("keeps the one-time welcome on local-candidate platforms before automatic local connection", () => {
+    expect(
+      resolveOnboardingPhase({
+        hasSeenWelcome: false,
+        platformCapability: { kind: "local-candidate" },
+        localConnect: { kind: "idle" },
+        userRequestedRemote: false,
+      }),
+    ).toEqual({ kind: "welcome" });
+  });
+
+  it("starts the local-candidate automatic connection after the welcome has been seen", () => {
+    expect(
+      resolveOnboardingPhase({
+        hasSeenWelcome: true,
+        platformCapability: { kind: "local-candidate" },
+        localConnect: { kind: "idle" },
+        userRequestedRemote: false,
+      }),
+    ).toEqual({ kind: "connecting" });
+  });
+
+  it("keeps local-candidate startup on the connecting phase while probing is active", () => {
+    expect(
+      resolveOnboardingPhase({
+        hasSeenWelcome: true,
+        platformCapability: { kind: "local-candidate" },
+        localConnect: { kind: "connecting" },
+        userRequestedRemote: false,
+      }),
+    ).toEqual({ kind: "connecting" });
+  });
+
+  it("falls back to the picker when a local-candidate probe fails", () => {
+    expect(
+      resolveOnboardingPhase({
+        hasSeenWelcome: true,
+        platformCapability: { kind: "local-candidate" },
+        localConnect: { kind: "failed", reason: "connection timed out" },
+        userRequestedRemote: false,
+      }),
+    ).toEqual({ kind: "picker" });
+  });
+
+  it("honors the user's remote-connection intent over local-candidate probing", () => {
+    expect(
+      resolveOnboardingPhase({
+        hasSeenWelcome: true,
+        platformCapability: { kind: "local-candidate" },
+        localConnect: { kind: "connecting" },
+        userRequestedRemote: true,
+      }),
+    ).toEqual({ kind: "picker" });
+  });
+
+  it("keeps the one-time welcome on remote-only platforms before choosing a connection method", () => {
+    expect(
+      resolveOnboardingPhase({
+        hasSeenWelcome: false,
+        platformCapability: { kind: "remote-only" },
+        localConnect: { kind: "idle" },
+        userRequestedRemote: false,
+      }),
+    ).toEqual({ kind: "welcome" });
+  });
+
+  it("sends true remote-only platforms to the method picker after the welcome", () => {
+    expect(
+      resolveOnboardingPhase({
+        hasSeenWelcome: true,
+        platformCapability: { kind: "remote-only" },
+        localConnect: { kind: "connecting" },
+        userRequestedRemote: false,
+      }),
+    ).toEqual({ kind: "picker" });
+  });
+});
+
+describe("resolveOnboardingPlatformCapability", () => {
+  it("uses desktop-local when the desktop daemon runtime is available", () => {
+    expect(
+      resolveOnboardingPlatformCapability({
+        isDesktopLocalRuntime: true,
+        hasLocalDaemonCandidate: false,
+      }),
+    ).toEqual({ kind: "desktop-local" });
+  });
+
+  it("uses local-candidate for non-desktop runtimes with a boot-time local daemon candidate", () => {
+    expect(
+      resolveOnboardingPlatformCapability({
+        isDesktopLocalRuntime: false,
+        hasLocalDaemonCandidate: true,
+      }),
+    ).toEqual({ kind: "local-candidate" });
+  });
+
+  it("keeps remote-only as the explicit no-local-candidate fallback", () => {
+    expect(
+      resolveOnboardingPlatformCapability({
+        isDesktopLocalRuntime: false,
+        hasLocalDaemonCandidate: false,
+      }),
+    ).toEqual({ kind: "remote-only" });
+  });
+});
+
+describe("resolveOnboardingLocalConnectState", () => {
+  it("uses the managed-daemon-starting blocker as the connecting state before host snapshots settle", () => {
+    expect(
+      resolveOnboardingLocalConnectState({
+        hostSnapshots: [],
+        splashError: null,
+        startupBlockerKind: "managed-daemon-starting",
+        hasGivenUpWaitingForHost: false,
+      }),
+    ).toEqual({ kind: "connecting" });
+  });
+
+  it("treats an online host as idle because startup routing owns the landing redirect", () => {
+    expect(
+      resolveOnboardingLocalConnectState({
+        hostSnapshots: [{ connectionStatus: "online", lastError: null }],
+        splashError: null,
+        startupBlockerKind: "none",
+        hasGivenUpWaitingForHost: true,
+      }),
+    ).toEqual({ kind: "idle" });
+  });
+
+  it("keeps pending host snapshots in the connecting state", () => {
+    expect(
+      resolveOnboardingLocalConnectState({
+        hostSnapshots: [
+          { connectionStatus: "offline", lastError: null },
+          { connectionStatus: "connecting", lastError: null },
+        ],
+        splashError: null,
+        startupBlockerKind: "none",
+        hasGivenUpWaitingForHost: false,
+      }),
+    ).toEqual({ kind: "connecting" });
+    expect(
+      resolveOnboardingLocalConnectState({
+        hostSnapshots: [{ connectionStatus: "idle", lastError: null }],
+        splashError: null,
+        startupBlockerKind: "none",
+        hasGivenUpWaitingForHost: false,
+      }),
+    ).toEqual({ kind: "connecting" });
+  });
+
+  it("preserves a host-runtime error reason for onboarding recovery details", () => {
+    expect(
+      resolveOnboardingLocalConnectState({
+        hostSnapshots: [{ connectionStatus: "error", lastError: "port already in use" }],
+        splashError: null,
+        startupBlockerKind: "none",
+        hasGivenUpWaitingForHost: false,
+      }),
+    ).toEqual({ kind: "failed", reason: "port already in use" });
+  });
+
+  it("falls back to the local timeout reason when a failed host has no raw error", () => {
+    expect(
+      resolveOnboardingLocalConnectState({
+        hostSnapshots: [{ connectionStatus: "error", lastError: null }],
+        splashError: null,
+        startupBlockerKind: "none",
+        hasGivenUpWaitingForHost: false,
+      }),
+    ).toEqual({ kind: "failed", reason: "Timed out waiting for the local daemon." });
+  });
+
+  it("moves managed-daemon-error from a splash dead end into onboarding recovery details", () => {
+    expect(
+      resolveOnboardingLocalConnectState({
+        hostSnapshots: [],
+        splashError: "daemon failed to start",
+        startupBlockerKind: "managed-daemon-error",
+        hasGivenUpWaitingForHost: false,
+      }),
+    ).toEqual({ kind: "failed", reason: "daemon failed to start" });
+  });
+
+  it("uses the timeout recovery state once startup has given up waiting for local hosts", () => {
+    expect(
+      resolveOnboardingLocalConnectState({
+        hostSnapshots: [],
+        splashError: null,
+        startupBlockerKind: "none",
+        hasGivenUpWaitingForHost: true,
+      }),
+    ).toEqual({ kind: "failed", reason: "Timed out waiting for the local daemon." });
+  });
+
+  it("stays idle when there is no local connection signal yet", () => {
+    expect(
+      resolveOnboardingLocalConnectState({
+        hostSnapshots: [],
+        splashError: null,
+        startupBlockerKind: "none",
+        hasGivenUpWaitingForHost: false,
+      }),
+    ).toEqual({ kind: "idle" });
+  });
+
+  it("treats offline-only host snapshots as idle until timeout or daemon errors provide recovery detail", () => {
+    expect(
+      resolveOnboardingLocalConnectState({
+        hostSnapshots: [{ connectionStatus: "offline", lastError: null }],
+        splashError: null,
+        startupBlockerKind: "none",
+        hasGivenUpWaitingForHost: false,
+      }),
+    ).toEqual({ kind: "idle" });
+  });
+});
+
 describe("resolveStartupRoute", () => {
   const baseIndexInput = {
     route: { kind: "index" as const, pathname: "/" },
@@ -202,6 +480,7 @@ describe("resolveStartupRoute", () => {
     workspaceSelection: null,
     isWorkspaceSelectionLoaded: true,
     hasGivenUpWaitingForHost: false,
+    hasSeenWelcome: true,
   };
   const baseHostInput = {
     route: { kind: "host" as const, serverId: "server-saved" },
@@ -227,6 +506,18 @@ describe("resolveStartupRoute", () => {
         isWorkspaceSelectionLoaded: false,
       }),
     ).toEqual({ kind: "splash" });
+  });
+
+  it("restores a saved workspace before the one-time welcome so upgraded users are not intercepted", () => {
+    expect(
+      resolveStartupRoute({
+        ...baseIndexInput,
+        hosts: [{ serverId: "server-1" }],
+        anyOnlineHostServerId: "server-1",
+        workspaceSelection: { serverId: "server-1", workspaceId: "workspace-a" },
+        hasSeenWelcome: false,
+      }),
+    ).toEqual({ kind: "redirect", href: "/h/server-1/workspace/workspace-a" });
   });
 
   it("keeps startup on the splash while the host registry is loading", () => {
@@ -285,15 +576,34 @@ describe("resolveStartupRoute", () => {
         ...baseIndexInput,
         hosts: [{ serverId: "server-saved" }],
         hasGivenUpWaitingForHost: true,
+        hasSeenWelcome: false,
       }),
     ).toEqual({ kind: "redirect", href: "/h/server-saved" });
   });
 
-  it("shows welcome after root startup gives up and no host exists", () => {
+  it("routes a first-run empty root startup to onboarding only after no host can land", () => {
+    expect(
+      resolveStartupRoute({
+        ...baseIndexInput,
+        hasSeenWelcome: false,
+      }),
+    ).toEqual({ kind: "redirect", href: "/welcome" });
+  });
+
+  it("routes an empty root startup to onboarding after waiting for local hosts", () => {
     expect(
       resolveStartupRoute({
         ...baseIndexInput,
         hasGivenUpWaitingForHost: true,
+      }),
+    ).toEqual({ kind: "redirect", href: "/welcome" });
+  });
+
+  it("routes managed-daemon-error from the old splash dead end into onboarding recovery when no host can land", () => {
+    expect(
+      resolveStartupRoute({
+        ...baseIndexInput,
+        startupBlocker: { kind: "managed-daemon-error", message: "port in use" },
       }),
     ).toEqual({ kind: "redirect", href: "/welcome" });
   });
@@ -314,6 +624,15 @@ describe("resolveStartupRoute", () => {
         startupBlocker: { kind: "managed-daemon-starting" },
       }),
     ).toEqual({ kind: "render" });
+  });
+
+  it("lets host routes fall back to onboarding when the managed daemon reports a startup error", () => {
+    expect(
+      resolveStartupRoute({
+        ...baseHostInput,
+        startupBlocker: { kind: "managed-daemon-error", message: "port in use" },
+      }),
+    ).toEqual({ kind: "redirect", href: "/welcome" });
   });
 
   it("renders a host route once the route host is known", () => {
@@ -342,5 +661,44 @@ describe("resolveStartupRoute", () => {
         route: { kind: "host", serverId: "server-removed" },
       }),
     ).toEqual({ kind: "redirect", href: "/welcome" });
+  });
+
+  it("does not let onboarding intercept the homepage when a host comes online", () => {
+    expect(
+      resolveStartupRoute({
+        ...baseIndexInput,
+        anyOnlineHostServerId: "srv-online",
+        hasGivenUpWaitingForHost: true,
+        hasSeenWelcome: false,
+      }),
+    ).toEqual({ kind: "redirect", href: "/h/srv-online" });
+  });
+
+  it("lets the onboarding route reuse saved workspace landing without component-owned home redirects", () => {
+    expect(
+      resolveStartupRoute({
+        route: { kind: "welcome" },
+        startupBlocker: { kind: "none" },
+        hostRegistryStatus: "ready",
+        hosts: [{ serverId: "server-1" }],
+        anyOnlineHostServerId: "server-1",
+        workspaceSelection: { serverId: "server-1", workspaceId: "workspace-a" },
+        isWorkspaceSelectionLoaded: true,
+      }),
+    ).toEqual({ kind: "redirect", href: "/h/server-1/workspace/workspace-a" });
+  });
+
+  it("renders the onboarding route when startup has no host landing target", () => {
+    expect(
+      resolveStartupRoute({
+        route: { kind: "welcome" },
+        startupBlocker: { kind: "managed-daemon-error", message: "port in use" },
+        hostRegistryStatus: "ready",
+        hosts: [],
+        anyOnlineHostServerId: null,
+        workspaceSelection: null,
+        isWorkspaceSelectionLoaded: true,
+      }),
+    ).toEqual({ kind: "render" });
   });
 });

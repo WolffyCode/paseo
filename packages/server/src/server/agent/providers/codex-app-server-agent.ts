@@ -119,7 +119,7 @@ const CODEX_PROVIDER = "codex" as const;
 const CODEX_IMAGE_ATTACHMENT_DIR = "paseo-attachments";
 // Codex treats most app-server client names as the model-request originator.
 // This reserved Codex name is non-originating, so requests keep Codex's default
-// CLI identity instead of showing up as Paseo in provider usage logs.
+// CLI identity instead of showing up as Helm in provider usage logs.
 const CODEX_NON_ORIGINATING_APP_SERVER_CLIENT_INFO = {
   name: "codex_app_server_daemon",
   title: "Codex App Server Daemon",

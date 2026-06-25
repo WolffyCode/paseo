@@ -8,6 +8,12 @@ import {
   normalizeWorkspaceTabTarget,
   workspaceTabTargetsEqual,
 } from "@/workspace-tabs/identity";
+import {
+  MAIN_PANE_ID,
+  RIGHT_PANEL_PANE_ID,
+  type TabSurface,
+  tabSurfaceForKind,
+} from "@/workspace-tabs/tab-surface";
 
 export interface SplitPane {
   id: string;
@@ -208,7 +214,7 @@ export interface WorkspaceTabSnapshot {
   hasActivePendingDraftCreate?: boolean;
 }
 
-const DEFAULT_PANE_ID = "main";
+const DEFAULT_PANE_ID = MAIN_PANE_ID;
 
 function trimNonEmpty(value: string | null | undefined): string | null {
   if (typeof value !== "string") {
@@ -1463,6 +1469,221 @@ export function reorderPaneTabsInLayout(
   });
 }
 
+export function getMainPaneId(layout: WorkspaceLayout): string | null {
+  if (findPaneById(layout.root, MAIN_PANE_ID)) {
+    return MAIN_PANE_ID;
+  }
+  const panes = collectAllPanes(layout.root);
+  const nonRight = panes.find((pane) => pane.id !== RIGHT_PANEL_PANE_ID);
+  return nonRight?.id ?? panes[0]?.id ?? null;
+}
+
+export function getRightToolPane(layout: WorkspaceLayout | null | undefined): SplitPane | null {
+  if (!layout) {
+    return null;
+  }
+  return findPaneById(layout.root, RIGHT_PANEL_PANE_ID);
+}
+
+export function isRightToolPanelOpen(layout: WorkspaceLayout | null | undefined): boolean {
+  return getRightToolPane(layout) !== null;
+}
+
+export function paneShowsTabBar(pane: SplitPane): boolean {
+  // The right tool panel always shows its tab strip (it needs the "+" and tabs).
+  // The main conversation pane stays chrome-free until it holds more than one
+  // conversation, keeping the default canvas clean.
+  return pane.id === RIGHT_PANEL_PANE_ID || pane.tabIds.length > 1;
+}
+
+export function removeRightToolPanelFromLayout(layout: WorkspaceLayout): WorkspaceLayout {
+  if (!findPaneById(layout.root, RIGHT_PANEL_PANE_ID)) {
+    return layout;
+  }
+  return normalizeLayout({
+    root: removePaneFromTree(layout.root, RIGHT_PANEL_PANE_ID),
+    focusedPaneId: MAIN_PANE_ID,
+    parentTabIdByTabId: layout.parentTabIdByTabId,
+  });
+}
+
+/**
+ * Render-time transform for the maximized right tool panel: drop the MAIN pane so the tools pane
+ * fills the canvas. Only the *rendered* layout loses MAIN — the persisted layout is untouched, so
+ * restoring brings the conversation back.
+ */
+export function keepOnlyRightToolPanelInLayout(layout: WorkspaceLayout): WorkspaceLayout {
+  if (!findPaneById(layout.root, RIGHT_PANEL_PANE_ID) || !findPaneById(layout.root, MAIN_PANE_ID)) {
+    return layout;
+  }
+  return normalizeLayout({
+    root: removePaneFromTree(layout.root, MAIN_PANE_ID),
+    focusedPaneId: RIGHT_PANEL_PANE_ID,
+    parentTabIdByTabId: layout.parentTabIdByTabId,
+  });
+}
+
+interface EnsureRightToolPaneInput {
+  layout: WorkspaceLayout;
+  maxTreeDepth: number;
+  createNodeId?: (prefix: WorkspaceLayoutNodeIdPrefix) => string;
+}
+
+/**
+ * Opens the right tool panel as an empty pane (so the in-panel tool picker can
+ * render), or focuses it if already present. Used by the header toggle; tools
+ * are then chosen from the picker, which fills the pane.
+ */
+export function ensureRightToolPaneInLayout(input: EnsureRightToolPaneInput): WorkspaceLayout {
+  if (findPaneById(input.layout.root, RIGHT_PANEL_PANE_ID)) {
+    return focusPaneInLayout({ layout: input.layout, paneId: RIGHT_PANEL_PANE_ID }) ?? input.layout;
+  }
+  const createNodeId = input.createNodeId ?? defaultWorkspaceLayoutIds.createNodeId;
+  const mainId = getMainPaneId(input.layout) ?? MAIN_PANE_ID;
+  const createToolsPaneId = (prefix: WorkspaceLayoutNodeIdPrefix): string =>
+    prefix === "pane" ? RIGHT_PANEL_PANE_ID : createNodeId(prefix);
+  const created = splitPaneEmptyInLayout({
+    layout: input.layout,
+    targetPaneId: mainId,
+    position: "right",
+    createNodeId: createToolsPaneId,
+    maxTreeDepth: input.maxTreeDepth,
+  });
+  return created?.layout ?? input.layout;
+}
+
+interface OpenTabOnSurfaceInput {
+  layout: WorkspaceLayout;
+  target: WorkspaceTabTarget;
+  now: number;
+  focus: boolean;
+  surface?: TabSurface;
+  maxTreeDepth: number;
+  createNodeId?: (prefix: WorkspaceLayoutNodeIdPrefix) => string;
+}
+
+/**
+ * Opens a tab on the surface implied by its kind (or an explicit override). The
+ * right tool pane is created on demand the first time a tool opens, and torn
+ * down automatically when its last tab closes (see `closeTabInLayout`). When
+ * `focus` is false the tab is inserted into its destination pane without moving
+ * focus — this is what keeps reconcile from stealing focus to the main pane.
+ */
+export function openTabOnSurface(input: OpenTabOnSurfaceInput): OpenTabInLayoutResult {
+  const surface = input.surface ?? tabSurfaceForKind(input.target.kind);
+  const createNodeId = input.createNodeId ?? defaultWorkspaceLayoutIds.createNodeId;
+
+  const existingTab = findExistingTabForTarget(asInternalNode(input.layout.root), input.target);
+  if (existingTab) {
+    const updated = updateExistingTabTarget(input.layout, existingTab, input.target);
+    if (!input.focus) {
+      return { tabId: existingTab.tabId, layout: updated };
+    }
+    return {
+      tabId: existingTab.tabId,
+      layout: focusTabInLayout({ layout: updated, tabId: existingTab.tabId }) ?? updated,
+    };
+  }
+
+  let layout = input.layout;
+  let destPaneId = getMainPaneId(layout) ?? MAIN_PANE_ID;
+
+  if (surface === "right" && !findPaneById(layout.root, RIGHT_PANEL_PANE_ID)) {
+    const createToolsPaneId = (prefix: WorkspaceLayoutNodeIdPrefix): string =>
+      prefix === "pane" ? RIGHT_PANEL_PANE_ID : createNodeId(prefix);
+    const created = splitPaneEmptyInLayout({
+      layout,
+      targetPaneId: destPaneId,
+      position: "right",
+      createNodeId: createToolsPaneId,
+      maxTreeDepth: input.maxTreeDepth,
+    });
+    if (created) {
+      layout = created.layout;
+      destPaneId = created.paneId;
+    }
+  } else if (surface === "right") {
+    destPaneId = RIGHT_PANEL_PANE_ID;
+  }
+
+  const tabId = buildDeterministicWorkspaceTabId(input.target);
+  const nextTab: WorkspaceTab = { tabId, target: input.target, createdAt: input.now };
+  const destPane = findPaneById(layout.root, destPaneId);
+  const preservedFocusTabId = destPane?.focusedTabId ?? tabId;
+
+  return {
+    tabId,
+    layout: withNormalizedParentTabMap({
+      root: insertTabIntoPane(asInternalNode(layout.root), {
+        paneId: destPaneId,
+        tab: nextTab,
+        focusTabId: input.focus ? tabId : preservedFocusTabId,
+      }),
+      focusedPaneId: input.focus ? destPaneId : layout.focusedPaneId,
+      parentTabIdByTabId: layout.parentTabIdByTabId,
+    }),
+  };
+}
+
+/**
+ * Collapses any layout into the canonical shape: a single `main` conversation
+ * pane, optionally beside a `tools` pane. Already-canonical layouts pass through
+ * untouched (so a side-chat parked in the tools pane survives a reload). Legacy
+ * multi-split layouts are re-partitioned by tab surface — agents to `main`,
+ * tools to `tools` — once, on load.
+ */
+export function coerceToCanonicalLayout(input: unknown): WorkspaceLayout {
+  const layout = normalizeLayout(input);
+  const panes = collectAllPanes(layout.root);
+  const ids = panes.map((pane) => pane.id);
+  const alreadyCanonical =
+    (panes.length === 1 && ids[0] === MAIN_PANE_ID) ||
+    (panes.length === 2 && ids.includes(MAIN_PANE_ID) && ids.includes(RIGHT_PANEL_PANE_ID));
+  if (alreadyCanonical) {
+    return layout;
+  }
+
+  const allTabs = collectAllTabs(layout.root);
+  const mainTabs = allTabs.filter((tab) => tabSurfaceForKind(tab.target.kind) === "main");
+  const rightTabs = allTabs.filter((tab) => tabSurfaceForKind(tab.target.kind) === "right");
+
+  const focusedPane = findPaneById(layout.root, layout.focusedPaneId);
+  const focusedTabId = focusedPane?.focusedTabId ?? null;
+  const focusedOnRight =
+    focusedTabId !== null && rightTabs.some((tab) => tab.tabId === focusedTabId);
+
+  const mainNode = createPaneNode({
+    id: MAIN_PANE_ID,
+    tabs: mainTabs,
+    focusedTabId: focusedOnRight ? null : focusedTabId,
+  });
+
+  if (rightTabs.length === 0) {
+    return normalizeLayout({
+      root: mainNode,
+      focusedPaneId: MAIN_PANE_ID,
+      parentTabIdByTabId: layout.parentTabIdByTabId,
+    });
+  }
+
+  const toolsNode = createPaneNode({
+    id: RIGHT_PANEL_PANE_ID,
+    tabs: rightTabs,
+    focusedTabId: focusedOnRight ? focusedTabId : null,
+  });
+
+  return normalizeLayout({
+    root: createGroupNode({
+      id: defaultWorkspaceLayoutIds.createNodeId("group"),
+      direction: "horizontal",
+      children: [mainNode, toolsNode],
+      sizes: [0.62, 0.38],
+    }),
+    focusedPaneId: focusedOnRight ? RIGHT_PANEL_PANE_ID : MAIN_PANE_ID,
+    parentTabIdByTabId: layout.parentTabIdByTabId,
+  });
+}
+
 function normalizeStringSet(values: Iterable<string>): Set<string> {
   const next = new Set<string>();
   for (const value of values) {
@@ -1576,23 +1797,31 @@ function openEntityTabWithoutFocusing(
   layout: WorkspaceLayout,
   target: WorkspaceTabTarget,
 ): WorkspaceLayout {
+  // Reconcile routes by surface, never by focus: agents always land in the main
+  // conversation pane, and tools only attach to the right panel when it already
+  // exists — reconcile must never force the tool panel open.
+  const surface = tabSurfaceForKind(target.kind);
+  if (surface === "right" && !findPaneById(layout.root, RIGHT_PANEL_PANE_ID)) {
+    return layout;
+  }
+
   const internalLayout = asInternalLayout(layout);
-  const focusedPane =
-    findPaneById(internalLayout.root, internalLayout.focusedPaneId) ??
-    collectAllPanes(internalLayout.root)[0] ??
-    findPaneById(createDefaultLayout().root, DEFAULT_PANE_ID);
-  invariant(focusedPane, "Workspace layout must always have a pane");
+  const destPaneId =
+    surface === "right" ? RIGHT_PANEL_PANE_ID : (getMainPaneId(layout) ?? DEFAULT_PANE_ID);
+  const destPane =
+    findPaneById(internalLayout.root, destPaneId) ?? collectAllPanes(internalLayout.root)[0];
+  invariant(destPane, "Workspace layout must always have a pane");
 
   const tabId = buildDeterministicWorkspaceTabId(target);
   return withNormalizedParentTabMap({
     root: insertTabIntoPane(internalLayout.root, {
-      paneId: focusedPane.id,
+      paneId: destPane.id,
       tab: {
         tabId,
         target,
         createdAt: Date.now(),
       },
-      focusTabId: focusedPane.focusedTabId ?? tabId,
+      focusTabId: destPane.focusedTabId ?? tabId,
     }),
     focusedPaneId: internalLayout.focusedPaneId,
     parentTabIdByTabId: layout.parentTabIdByTabId,

@@ -164,7 +164,7 @@ class StartupAssertions {
     await expect(this.page.getByRole("button", { name: "Add project" })).toBeVisible();
     await expect(this.page.getByRole("button", { name: "Home" })).toBeVisible();
     await expect(this.page.getByRole("button", { name: "Settings" })).toBeVisible();
-    await expect(this.page.getByTestId("welcome-screen")).toHaveCount(0);
+    await expect(this.page.getByTestId("onboarding-welcome")).toHaveCount(0);
     return this;
   }
 

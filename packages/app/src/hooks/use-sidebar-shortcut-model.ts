@@ -14,6 +14,9 @@ export function useSidebarShortcutModel(input: { projects: SidebarProjectEntry[]
   const toggleProjectCollapsed = useSidebarCollapsedSectionsStore(
     (state) => state.toggleProjectCollapsed,
   );
+  const setAllProjectsCollapsed = useSidebarCollapsedSectionsStore(
+    (state) => state.setAllProjectsCollapsed,
+  );
 
   const shortcutModel = useMemo(
     () =>
@@ -29,5 +32,6 @@ export function useSidebarShortcutModel(input: { projects: SidebarProjectEntry[]
     shortcutIndexByWorkspaceKey: shortcutModel.shortcutIndexByWorkspaceKey,
     setProjectCollapsed,
     toggleProjectCollapsed,
+    setAllProjectsCollapsed,
   };
 }

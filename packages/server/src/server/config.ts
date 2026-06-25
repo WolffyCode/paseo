@@ -21,7 +21,9 @@ import { hashDaemonPassword } from "./auth.js";
 import { resolveSpeechConfig } from "./speech/speech-config-resolver.js";
 import { mergeHostnames, parseHostnamesEnv, type HostnamesConfig } from "./hostnames.js";
 
-const DEFAULT_PORT = 6767;
+// Helm's daemon port. Upstream Paseo uses 6767; keeping these distinct lets a
+// Helm daemon run alongside a Paseo daemon without a port collision.
+const DEFAULT_PORT = 7070;
 const DEFAULT_RELAY_ENDPOINT = "relay.paseo.sh:443";
 const DEFAULT_APP_BASE_URL = "https://app.paseo.sh";
 
@@ -270,7 +272,7 @@ function resolveCorsAllowedOrigins(
 // - host:port (TCP)
 // - /path/to/socket (Unix socket)
 // - unix:///path/to/socket (Unix socket)
-// Default is TCP at 127.0.0.1:6767
+// Default is TCP at 127.0.0.1:7070
 function resolveListenAddress(
   env: NodeJS.ProcessEnv,
   cli: CliConfigOverrides | undefined,

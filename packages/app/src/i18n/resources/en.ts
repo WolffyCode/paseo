@@ -1,4 +1,15 @@
 export const en = {
+  time: {
+    short: {
+      justNow: "now",
+      minutes: "{{n}}m",
+      hours: "{{n}}h",
+      days: "{{n}}d",
+      weeks: "{{n}}w",
+      months: "{{n}}mo",
+      years: "{{n}}y",
+    },
+  },
   common: {
     back: "Back",
     loading: "Loading...",
@@ -476,12 +487,19 @@ export const en = {
         pinTarget: "Pin",
         unpinTarget: "Unpin",
       },
-      explorer: {
-        open: "Open explorer",
-        close: "Close explorer",
-        toggle: "Toggle explorer",
-        changes: "Changes",
-        files: "Files",
+      toolsMenu: {
+        addTool: "Add tool",
+        review: "Review",
+        terminal: "Terminal",
+        browser: "Browser",
+        file: "File",
+        sideChat: "Side chat",
+      },
+      toolPanel: {
+        open: "Open tool panel",
+        close: "Close tool panel",
+        maximize: "Maximize tool panel",
+        restore: "Restore tool panel",
       },
       toasts: {
         copyFailed: "Copy failed",
@@ -526,6 +544,9 @@ export const en = {
         newAgent: "New agent",
         newTerminal: "New terminal",
         newBrowser: "New browser tab",
+        newFile: "Open file",
+        newSideChat: "New side chat",
+        review: "Review changes",
         importSession: "Import session",
         copyPath: "Copy workspace path",
         copyBranchName: "Copy branch name",
@@ -581,12 +602,6 @@ export const en = {
           pending: "Pulling and pushing...",
           success: "Pulled and pushed",
         },
-        viewPr: "View PR",
-        createPr: {
-          label: "Create PR",
-          pending: "Creating PR...",
-          success: "PR Created",
-        },
         mergeBranch: {
           label: "Merge locally",
           pending: "Merging...",
@@ -602,24 +617,7 @@ export const en = {
           pending: "Archiving...",
           success: "Archived",
         },
-        mergePr: {
-          squash: "Merge PR (squash)",
-          merge: "Merge PR (merge)",
-          rebase: "Merge PR (rebase)",
-          pending: "Merging PR...",
-          success: "PR merged",
-        },
-        autoMerge: {
-          enableSquash: "Auto merge (squash)",
-          enableMerge: "Auto merge (merge)",
-          enableRebase: "Auto merge (rebase)",
-          enabled: "Auto-merge enabled",
-          enabling: "Enabling auto-merge...",
-          disabling: "Disabling auto-merge...",
-          disabled: "Auto-merge disabled",
-        },
         unavailable: {
-          viewPrNoGithub: "View PR isn't available right now because GitHub isn't connected",
           pullNoRemote:
             "Pull isn't available here because this branch is not connected to a remote yet",
           pullDirty:
@@ -634,9 +632,6 @@ export const en = {
           pullAndPushDirty:
             "Pull and push isn't available while you have local changes so commit or stash them first",
           pullAndPushInSync: "Pull and push isn't available because this branch is already in sync",
-          createPrNoGithub: "Create PR isn't available right now because GitHub isn't connected",
-          createPrNoCommits:
-            "Create PR isn't available because this branch doesn't have any new commits yet",
           mergeNoBase: "Merge isn't available because we couldn't determine the base branch",
           mergeDirty:
             "Merge isn't available while you have local changes so commit or stash them first",
@@ -648,25 +643,13 @@ export const en = {
           updateCurrent:
             "Update isn't available because this branch is already up to date with {{baseRef}}",
           archiveNotWorktree:
-            "Archive isn't available here because this workspace was not created as a Paseo worktree",
-          mergePrNoGithub: "Merge PR isn't available right now because GitHub isn't connected",
-          mergePrMissing: "Merge PR isn't available because there isn't a pull request yet",
-          mergePrDraft: "Merge PR isn't available because the pull request is still a draft",
-          mergePrMerged: "Merge PR isn't available because the pull request is already merged",
-          mergePrClosed: "Merge PR isn't available because the pull request is closed",
-          mergePrConflicts: "Merge PR isn't available because the pull request has conflicts",
-          mergePrQueue: "Merge PR isn't available here because this repository uses a merge queue",
-          mergePrNotReady:
-            "Merge PR isn't available until GitHub reports the pull request is ready to merge",
-          autoMergeCannotDisable: "Auto-merge is enabled, but this account can't disable it",
+            "Archive isn't available here because this workspace was not created as a Helm worktree",
         },
         toasts: {
           failedCommit: "Failed to commit",
           failedPull: "Failed to pull",
           failedPush: "Failed to push",
           failedPullAndPush: "Failed to pull and push",
-          failedCreatePr: "Failed to create PR",
-          failedMergePr: "Failed to merge PR",
           failedEnableAutoMerge: "Failed to enable auto-merge",
           failedDisableAutoMerge: "Failed to disable auto-merge",
           baseRefUnavailable: "Base ref unavailable",
@@ -726,29 +709,9 @@ export const en = {
       pr: {
         sections: {
           checks: "Checks",
-          reviews: "Reviews",
         },
         accessibility: {
           pullRequest: "Pull request #{{number}}",
-        },
-        states: {
-          draft: "Draft",
-          merged: "Merged",
-          closed: "Closed",
-          open: "Open",
-        },
-        activity: {
-          commented: "Commented",
-          approved: "Approved",
-          requestedChanges: "Requested changes",
-          reviewed: "Reviewed",
-        },
-        time: {
-          justNow: "just now",
-        },
-        errors: {
-          statusLoadFailed: "Unable to load pull request status",
-          activityLoadFailed: "Unable to load pull request activity",
         },
       },
     },
@@ -761,13 +724,15 @@ export const en = {
     },
     actions: {
       addProject: "Add project",
-      newWorkspace: "New workspace",
+      newConversation: "New conversation",
+      search: "Search",
       home: "Home",
       settings: "Settings",
       closeSidebar: "Close sidebar",
     },
     sections: {
-      sessions: "History",
+      pinned: "Pinned",
+      projects: "Projects",
     },
     worktreeSetup: {
       title: "Set up worktree scripts",
@@ -778,6 +743,9 @@ export const en = {
     project: {
       actions: {
         menu: "Project actions",
+        pin: "Pin",
+        unpin: "Unpin",
+        rename: "Rename",
         openSettings: "Open project settings",
         openNewWindow: "Open in new window",
         openNewWindowFailed: "Couldn't open a new window",
@@ -808,15 +776,20 @@ export const en = {
       },
       actions: {
         menu: "Workspace actions",
+        pin: "Pin",
+        unpin: "Unpin",
+        revealInFinder: "Reveal in Finder",
         newWorkspace: "New workspace",
+        newConversation: "New conversation",
         createWorkspaceFor: "Create a new workspace for {{projectName}}",
         copyPath: "Copy path",
         copyBranchName: "Copy branch name",
-        rename: "Rename workspace",
-        archive: "Archive",
+        rename: "Rename",
+        copyConversationId: "Copy conversation ID",
+        archive: "Remove",
         archiveWorktree: "Archive worktree",
         hideFromSidebar: "Hide from sidebar",
-        archiving: "Archiving...",
+        archiving: "Removing...",
         hiding: "Hiding...",
       },
       confirmations: {
@@ -876,7 +849,7 @@ export const en = {
   },
   desktop: {
     quitting: {
-      title: "Quitting Paseo...",
+      title: "Quitting Helm...",
       detail: "Stopping the local daemon.",
     },
     daemon: {
@@ -890,20 +863,20 @@ export const en = {
       },
       management: {
         title: "Manage built-in daemon",
-        hint: "Let Paseo start and stop the built-in daemon",
+        hint: "Let Helm start and stop the built-in daemon",
         pauseTitle: "Pause built-in daemon",
         pauseMessage:
           "This will stop the built-in daemon immediately. Running agents and terminals connected to the built-in daemon will be stopped.",
         pauseAndStop: "Pause and stop",
         registrationFailed:
-          "Built-in daemon started, but Paseo could not save the localhost connection. Toggle daemon management off and on again, or add localhost manually.",
+          "Built-in daemon started, but Helm could not save the localhost connection. Toggle daemon management off and on again, or add localhost manually.",
         pausedStopFailed:
-          "Built-in daemon management was paused, but Paseo could not stop the daemon.",
+          "Built-in daemon management was paused, but Helm could not stop the daemon.",
         updateFailed: "Unable to update built-in daemon management.",
       },
       keepRunning: {
         title: "Keep daemon running after quit",
-        hint: "Daemon keeps running when you quit Paseo",
+        hint: "Daemon keeps running when you quit Helm",
       },
       logs: {
         title: "Log file",
@@ -963,7 +936,7 @@ export const en = {
     },
     rosetta: {
       title: "Download the Apple Silicon build",
-      runningIntel: "You're running the Intel build of Paseo under Rosetta on Apple Silicon.",
+      runningIntel: "You're running the Intel build of Helm under Rosetta on Apple Silicon.",
       highCpu: "This causes high CPU usage. Download the Apple Silicon build to fix it.",
       download: "Download",
     },
@@ -1005,7 +978,7 @@ export const en = {
         microphone: "Microphone status has not been checked yet.",
       },
       testNotification: {
-        title: "Paseo notification test",
+        title: "Helm notification test",
         body: "If you can see this, desktop notifications work.",
         notDelivered: "Notification was not delivered. Check System Settings > Notifications.",
         failed: "Failed to send notification.",
@@ -1014,7 +987,7 @@ export const en = {
     integrations: {
       cli: {
         statusFailed: "Unable to check CLI install status.",
-        installFailed: "Unable to install the Paseo CLI.",
+        installFailed: "Unable to install the Helm CLI.",
       },
       skills: {
         statusFailed: "Unable to check orchestration skills status.",
@@ -1112,10 +1085,30 @@ export const en = {
     },
   },
   onboarding: {
-    title: "Welcome to Paseo",
-    subtitle: "Connect your computer to get started",
+    title: "Welcome to Helm",
+    subtitle:
+      "Connect local or remote AI coding agents from one place. Your code stays on your machine.",
     actions: {
-      settings: "Settings",
+      start: "Get started",
+      connectRemote: "Connect remote host",
+      cancel: "Cancel",
+      retryLocal: "Retry local",
+      retry: "Retry",
+      useOtherMethods: "Use another connection method",
+      diagnostics: "View diagnostics",
+    },
+    connecting: {
+      title: "Connecting to local daemon...",
+    },
+    picker: {
+      title: "Choose connection method",
+      description: "Connect directly, paste a pairing link, or scan a QR code.",
+    },
+    error: {
+      title: "Unable to connect to local daemon",
+      description:
+        "Possible causes: daemon not running, the local port is in use, or the connection timed out.",
+      reasonLabel: "Details: {{reason}}",
     },
   },
   modelSelector: {
@@ -1188,7 +1181,7 @@ export const en = {
     },
     direct: {
       title: "Direct connection",
-      helper: "Enter the address of a Paseo server.",
+      helper: "Enter the address of a Helm server.",
       fields: {
         host: "Host",
         port: "Port",
@@ -1266,7 +1259,7 @@ export const en = {
       failedToLoadOffer: "Failed to load pairing offer.",
       relayDisabled: "Relay is not enabled. Enable relay to pair a device.",
       unavailable: "Pairing offer unavailable.",
-      hint: "Scan this QR code with Paseo on your phone, or copy the link below.",
+      hint: "Scan this QR code with Helm on your phone, or copy the link below.",
       qrUnavailable: "QR code unavailable.",
       retry: "Retry",
       copy: "Copy",
@@ -1298,7 +1291,7 @@ export const en = {
   serviceUrl: {
     title: "Open service URL",
     message: "Open {{url}}?",
-    inPaseo: "In Paseo",
+    inPaseo: "In Helm",
     externalBrowser: "External browser",
     dontAskAgain: "Don't ask again",
   },
@@ -1423,7 +1416,7 @@ export const en = {
         description: "Where to open URLs from running scripts",
         options: {
           ask: "Ask",
-          inApp: "In Paseo",
+          inApp: "In Helm",
           external: "External browser",
         },
       },
@@ -1470,7 +1463,7 @@ export const en = {
         label: "App updates",
         readyToInstall: "Ready to install: {{version}}",
         installTitle: "Install desktop update",
-        installMessage: "This updates Paseo on this computer",
+        installMessage: "This updates Helm on this computer",
         installConfirm: "Install update",
         update: "Update",
         updateTo: "Update to {{version}}",
@@ -1561,6 +1554,10 @@ export const en = {
         moveTabDown: "Move tab down",
         closePane: "Close pane",
         newTerminal: "New terminal",
+        reviewChanges: "Review changes",
+        openFile: "Open file",
+        newSideChat: "New side chat",
+        toggleToolPanel: "Toggle tool panel",
         toggleCommandCenter: "Toggle command center",
         showKeyboardShortcuts: "Show keyboard shortcuts",
         toggleLeftSidebar: "Toggle left sidebar",
@@ -1597,11 +1594,11 @@ export const en = {
         title: "Orchestration skills",
         description: "Teach your agents to orchestrate through the CLI",
         updateAvailable: "Update available",
-        updateTitle: "Update Paseo skills?",
+        updateTitle: "Update Helm skills?",
         updateFallback: "Sync bundled skills to your machine.",
-        uninstallTitle: "Uninstall Paseo skills?",
+        uninstallTitle: "Uninstall Helm skills?",
         uninstallMessage:
-          "Removes all Paseo orchestration skills from ~/.agents, ~/.claude, ~/.codex.",
+          "Removes all Helm orchestration skills from ~/.agents, ~/.claude, ~/.codex.",
       },
       actions: {
         install: "Install",
@@ -1656,9 +1653,9 @@ export const en = {
         title: "Orchestration",
         unavailable: "Connect to this host to manage orchestration",
         enableTools: {
-          title: "Enable Paseo tools",
+          title: "Enable Helm tools",
           hint: "Agents will be able to manage worktrees, agents and schedules",
-          accessibilityLabel: "Inject Paseo tools",
+          accessibilityLabel: "Inject Helm tools",
         },
         systemPrompt: {
           title: "System prompt",
@@ -1725,10 +1722,10 @@ export const en = {
             "This host is not connected. Wait for it to come online before restarting.",
           offlineTitle: "Host offline",
           offlineMessage:
-            "This host is offline. Paseo reconnects automatically-wait until it's back online before restarting.",
+            "This host is offline. Helm reconnects automatically-wait until it's back online before restarting.",
           requestFailedTitle: "Error",
           requestFailedMessage:
-            "Failed to send the restart request. Paseo reconnects automatically-try again once the host shows as online.",
+            "Failed to send the restart request. Helm reconnects automatically-try again once the host shows as online.",
           dialogFailedMessage: "Unable to open the restart confirmation dialog.",
         },
         dangerZone: "Danger zone",
@@ -1855,7 +1852,7 @@ export const en = {
         newScript: "New script",
         editScript: "Edit {{name}}",
         runAsService: "Run as a service",
-        serviceHint: "Paseo supervises the process and assigns a port via $PASEO_PORT",
+        serviceHint: "Helm supervises the process and assigns a port via $PASEO_PORT",
         actions: {
           add: "Add script",
           edit: "Edit",
@@ -1864,7 +1861,7 @@ export const en = {
       },
       metadata: {
         title: "Metadata generation",
-        info: "Project-specific instructions injected into the AI prompts Paseo uses to generate metadata - use them to enforce your team's conventions like branch naming, commit style, or PR format",
+        info: "Project-specific instructions injected into the AI prompts Helm uses to generate metadata - use them to enforce your team's conventions like branch naming, commit style, or PR format",
         branchName: "Branch names",
         branchNamePlaceholder: "Prefix branches with feat/ or fix/, mb/ for personal branches",
         commitMessage: "Commit messages",

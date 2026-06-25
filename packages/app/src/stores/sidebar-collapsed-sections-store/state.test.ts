@@ -3,6 +3,7 @@ import {
   type CollapsedProjectsState,
   mergePersistedCollapsedProjects,
   serializeCollapsedProjects,
+  setAllProjectsCollapsed,
   setProjectCollapsed,
   toggleProjectCollapsed,
   toggleStatusGroupCollapsed,
@@ -23,6 +24,22 @@ describe("sidebar collapsed projects transitions", () => {
 
     expect(Array.from(state.collapsedProjectKeys)).toEqual(["project-b"]);
     expect(Array.from(state.collapsedStatusGroupKeys)).toEqual(["running"]);
+  });
+
+  it("collapses and expands all given project keys in bulk", () => {
+    let state = emptyState();
+    state = setProjectCollapsed(state, "project-c", true); // pre-existing, outside the set
+
+    state = setAllProjectsCollapsed(state, ["project-a", "project-b"], true);
+    expect(Array.from(state.collapsedProjectKeys).sort()).toEqual([
+      "project-a",
+      "project-b",
+      "project-c",
+    ]);
+
+    state = setAllProjectsCollapsed(state, ["project-a", "project-b"], false);
+    // only the given keys are expanded; unrelated collapsed keys are untouched
+    expect(Array.from(state.collapsedProjectKeys)).toEqual(["project-c"]);
   });
 
   it("serializes collapsed project keys for preference storage", () => {

@@ -680,12 +680,12 @@ export interface AgentClient {
   getDiagnostic?(): Promise<{ diagnostic: string }>;
   /**
    * Archive a persisted session in the native provider (best-effort).
-   * Called when Paseo archives an agent so the provider's own UI reflects the same state.
+   * Called when Helm archives an agent so the provider's own UI reflects the same state.
    */
   archiveNativeSession?(handle: AgentPersistenceHandle): Promise<void>;
   /**
    * Unarchive a persisted session in the native provider.
-   * Called before Paseo clears its archived flag so provider resume can succeed.
+   * Called before Helm clears its archived flag so provider resume can succeed.
    */
   unarchiveNativeSession?(handle: AgentPersistenceHandle): Promise<void>;
   /**

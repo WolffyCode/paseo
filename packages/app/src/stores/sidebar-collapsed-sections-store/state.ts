@@ -48,6 +48,22 @@ export function setProjectCollapsed(
   return { ...state, collapsedProjectKeys: next };
 }
 
+export function setAllProjectsCollapsed(
+  state: CollapsedProjectsState,
+  projectKeys: readonly string[],
+  collapsed: boolean,
+): CollapsedProjectsState {
+  const next = new Set(state.collapsedProjectKeys);
+  for (const projectKey of projectKeys) {
+    if (collapsed) {
+      next.add(projectKey);
+    } else {
+      next.delete(projectKey);
+    }
+  }
+  return { ...state, collapsedProjectKeys: next };
+}
+
 export function serializeCollapsedProjects(state: CollapsedProjectsState): {
   collapsedProjectKeys: string[];
   collapsedStatusGroupKeys: string[];

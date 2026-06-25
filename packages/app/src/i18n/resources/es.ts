@@ -1,6 +1,17 @@
 import type { TranslationResources } from "./en";
 
 export const es: TranslationResources = {
+  time: {
+    short: {
+      justNow: "ahora",
+      minutes: "{{n}}min",
+      hours: "{{n}}h",
+      days: "{{n}}d",
+      weeks: "{{n}}sem",
+      months: "{{n}}mes",
+      years: "{{n}}a",
+    },
+  },
   common: {
     back: "Atrás",
     loading: "Cargando...",
@@ -481,12 +492,19 @@ export const es: TranslationResources = {
         pinTarget: "Fijar",
         unpinTarget: "Desfijar",
       },
-      explorer: {
-        open: "Explorador abierto",
-        close: "Cerrar explorador",
-        toggle: "Alternar explorador",
-        changes: "Cambios",
-        files: "Archivos",
+      toolsMenu: {
+        addTool: "Añadir herramienta",
+        review: "Revisar",
+        terminal: "Terminal",
+        browser: "Navegador",
+        file: "Archivo",
+        sideChat: "Chat lateral",
+      },
+      toolPanel: {
+        open: "Abrir panel de herramientas",
+        close: "Cerrar panel de herramientas",
+        maximize: "Maximizar el panel de herramientas",
+        restore: "Restaurar el panel de herramientas",
       },
       toasts: {
         copyFailed: "Copia fallida",
@@ -532,6 +550,9 @@ export const es: TranslationResources = {
         newAgent: "Nuevo agente",
         newTerminal: "Nueva terminal",
         newBrowser: "Nueva pestaña del navegador",
+        newFile: "Abrir archivo",
+        newSideChat: "Nuevo chat lateral",
+        review: "Revisar cambios",
         importSession: "Importar sesión",
         copyPath: "Copiar ruta del espacio de trabajo",
         copyBranchName: "Copiar nombre de sucursal",
@@ -588,12 +609,6 @@ export const es: TranslationResources = {
           pending: "Tirando y empujando...",
           success: "Tirado y empujado",
         },
-        viewPr: "VerPR",
-        createPr: {
-          label: "CrearPR",
-          pending: "CreandoPR...",
-          success: "PRcreado",
-        },
         mergeBranch: {
           label: "Fusionar localmente",
           pending: "Fusionando...",
@@ -609,24 +624,7 @@ export const es: TranslationResources = {
           pending: "Archivando...",
           success: "Archivado",
         },
-        mergePr: {
-          squash: "Fusionar PR (squash)",
-          merge: "Fusionar PR (merge)",
-          rebase: "Fusionar PR (rebase)",
-          pending: "Fusionando PR...",
-          success: "PR fusionado",
-        },
-        autoMerge: {
-          enableSquash: "Fusión automática (squash)",
-          enableMerge: "Fusión automática (merge)",
-          enableRebase: "Fusión automática (rebase)",
-          enabled: "Combinación automática habilitada",
-          enabling: "Habilitando la fusión automática...",
-          disabling: "Desactivando la fusión automática...",
-          disabled: "Fusión automática deshabilitada",
-        },
         unavailable: {
-          viewPrNoGithub: "VerPRno está disponible en este momento porqueGitHubno está conectado",
           pullNoRemote:
             "Pull no está disponible aquí porque esta rama aún no está conectada a un control remoto",
           pullDirty:
@@ -643,10 +641,6 @@ export const es: TranslationResources = {
             "Tirar y empujar no está disponible mientras tenga cambios locales, así que confírmelos o guárdelos primero",
           pullAndPushInSync:
             "Pull and push no está disponible porque esta rama ya está sincronizada",
-          createPrNoGithub:
-            "CrearPRno está disponible en este momento porqueGitHubno está conectado",
-          createPrNoCommits:
-            "CrearPRno está disponible porque esta rama aún no tiene nuevas confirmaciones",
           mergeNoBase:
             "La combinación no está disponible porque no pudimos determinar la rama base",
           mergeDirty:
@@ -661,32 +655,12 @@ export const es: TranslationResources = {
             "La actualización no está disponible porque esta rama ya está actualizada con{{baseRef}}",
           archiveNotWorktree:
             "El archivo no está disponible aquí porque este espacio de trabajo no se creó como un árbol de trabajoPaseo",
-          mergePrNoGithub:
-            "FusionarPRno está disponible en este momento porqueGitHubno está conectado",
-          mergePrMissing:
-            "FusionarPRno está disponible porque aún no hay una solicitud de extracción",
-          mergePrDraft:
-            "FusionarPRno está disponible porque la solicitud de extracción aún es un borrador",
-          mergePrMerged:
-            "FusionarPRno está disponible porque la solicitud de extracción ya está fusionada",
-          mergePrClosed:
-            "FusionarPRno está disponible porque la solicitud de extracción está cerrada",
-          mergePrConflicts:
-            "FusionarPRno está disponible porque la solicitud de extracción tiene conflictos",
-          mergePrQueue:
-            "FusionarPRno está disponible aquí porque este repositorio utiliza una cola de fusión",
-          mergePrNotReady:
-            "FusionarPRno está disponible hasta queGitHubinforme que la solicitud de extracción está lista para fusionarse",
-          autoMergeCannotDisable:
-            "La combinación automática está habilitada, pero esta cuenta no puede deshabilitarla",
         },
         toasts: {
           failedCommit: "No se pudo comprometer",
           failedPull: "No se pudo tirar",
           failedPush: "No se pudo empujar",
           failedPullAndPush: "No se pudo tirar y empujar",
-          failedCreatePr: "No se pudo crearPR",
-          failedMergePr: "No se pudo fusionarPR",
           failedEnableAutoMerge: "No se pudo habilitar la combinación automática",
           failedDisableAutoMerge: "No se pudo deshabilitar la combinación automática",
           baseRefUnavailable: "Referencia base no disponible",
@@ -746,29 +720,9 @@ export const es: TranslationResources = {
       pr: {
         sections: {
           checks: "cheques",
-          reviews: "Reseñas",
         },
         accessibility: {
           pullRequest: "Solicitud de extracción n.°{{number}}",
-        },
-        states: {
-          draft: "Borrador",
-          merged: "Fusionado",
-          closed: "Cerrado",
-          open: "Abierto",
-        },
-        activity: {
-          commented: "Comentado",
-          approved: "Aprobado",
-          requestedChanges: "Cambios solicitados",
-          reviewed: "Revisado",
-        },
-        time: {
-          justNow: "En este momento",
-        },
-        errors: {
-          statusLoadFailed: "No se puede cargar el estado de la solicitud de extracción",
-          activityLoadFailed: "No se puede cargar la actividad de solicitud de extracción",
         },
       },
     },
@@ -781,13 +735,15 @@ export const es: TranslationResources = {
     },
     actions: {
       addProject: "Agregar proyecto",
-      newWorkspace: "Nuevo espacio de trabajo",
+      newConversation: "Nueva conversación",
+      search: "Buscar",
       home: "Hogar",
       settings: "Ajustes",
       closeSidebar: "Cerrar barra lateral",
     },
     sections: {
-      sessions: "Historial",
+      pinned: "Fijados",
+      projects: "Proyectos",
     },
     worktreeSetup: {
       title: "Configurar secuencias de comandos del árbol de trabajo",
@@ -798,6 +754,9 @@ export const es: TranslationResources = {
     project: {
       actions: {
         menu: "Acciones del proyecto",
+        pin: "Fijar proyecto",
+        unpin: "Dejar de fijar",
+        rename: "Cambiar nombre",
         openSettings: "Abrir la configuración del proyecto",
         openNewWindow: "Open in new window",
         openNewWindowFailed: "Couldn't open a new window",
@@ -828,15 +787,20 @@ export const es: TranslationResources = {
       },
       actions: {
         menu: "AccionesWorkspace",
+        pin: "Fijar",
+        unpin: "Quitar fijación",
+        revealInFinder: "Mostrar en Finder",
         newWorkspace: "Nuevo espacio de trabajo",
+        newConversation: "Nueva conversación",
         createWorkspaceFor: "Crea un nuevo espacio de trabajo para{{projectName}}",
         copyPath: "Copiar ruta",
         copyBranchName: "Copiar nombre de sucursal",
-        rename: "Cambiar nombre del espacio de trabajo",
-        archive: "Archivo",
+        rename: "Cambiar nombre",
+        copyConversationId: "Copiar ID de conversación",
+        archive: "Quitar",
         archiveWorktree: "Árbol de trabajo de archivo",
         hideFromSidebar: "Ocultar de la barra lateral",
-        archiving: "Archivando...",
+        archiving: "Quitando...",
         hiding: "Ocultación...",
       },
       confirmations: {
@@ -916,7 +880,7 @@ export const es: TranslationResources = {
           "Esto detendrá el demonio incorporado inmediatamente. Se detendrán los agentes en ejecución y los terminales conectados al demonio integrado.",
         pauseAndStop: "Pausa y para",
         registrationFailed:
-          "Built-in daemon started, but Paseo could not save the localhost connection. Toggle daemon management off and on again, or add localhost manually.",
+          "Built-in daemon started, but Helm could not save the localhost connection. Toggle daemon management off and on again, or add localhost manually.",
         pausedStopFailed:
           "La gestión del demonio integrado se pausó, peroPaseono pudo detener el demonio.",
         updateFailed: "No se puede actualizar la gestión de demonios integrada.",
@@ -1139,10 +1103,30 @@ export const es: TranslationResources = {
     },
   },
   onboarding: {
-    title: "Bienvenido aPaseo",
-    subtitle: "Conecte su computadora para comenzar",
+    title: "Te damos la bienvenida a Helm",
+    subtitle:
+      "Conecta agentes de codificación de IA locales o remotos desde un solo lugar. Tu código permanece en tu máquina.",
     actions: {
-      settings: "Ajustes",
+      start: "Comenzar",
+      connectRemote: "Conectar host remoto",
+      cancel: "Cancelar",
+      retryLocal: "Reintentar local",
+      retry: "Reintentar",
+      useOtherMethods: "Usar otro método",
+      diagnostics: "Ver diagnósticos",
+    },
+    connecting: {
+      title: "Conectando al daemon local...",
+    },
+    picker: {
+      title: "Elegir método de conexión",
+      description: "Conecta directamente, pega un enlace de emparejamiento o escanea un QR.",
+    },
+    error: {
+      title: "No se puede conectar al daemon local",
+      description:
+        "Causas posibles: el daemon no se está ejecutando, el puerto local está en uso o la conexión agotó el tiempo.",
+      reasonLabel: "Detalles: {{reason}}",
     },
   },
   modelSelector: {
@@ -1327,7 +1311,7 @@ export const es: TranslationResources = {
   serviceUrl: {
     title: "Servicio abiertoURL",
     message: "¿Abrir{{url}}?",
-    inPaseo: "EnPaseo",
+    inPaseo: "EnHelm",
     externalBrowser: "Navegador externo",
     dontAskAgain: "no vuelvas a preguntar",
   },
@@ -1454,7 +1438,7 @@ export const es: TranslationResources = {
         description: "Dónde abrir URL desde scripts en ejecución",
         options: {
           ask: "Preguntar",
-          inApp: "EnPaseo",
+          inApp: "EnHelm",
           external: "Navegador externo",
         },
       },
@@ -1593,6 +1577,10 @@ export const es: TranslationResources = {
         moveTabDown: "Mover pestaña hacia abajo",
         closePane: "Cerrar panel",
         newTerminal: "Nueva terminal",
+        reviewChanges: "Revisar cambios",
+        openFile: "Abrir archivo",
+        newSideChat: "Nuevo chat lateral",
+        toggleToolPanel: "Alternar panel de herramientas",
         toggleCommandCenter: "Alternar centro de comando",
         showKeyboardShortcuts: "Mostrar atajos de teclado",
         toggleLeftSidebar: "Alternar barra lateral izquierda",
@@ -1757,10 +1745,10 @@ export const es: TranslationResources = {
             "Este host no está conectado. Espere a que se conecte antes de reiniciar.",
           offlineTitle: "Hostfuera de línea",
           offlineMessage:
-            "Este anfitrión está desconectado.Paseose vuelve a conectar automáticamente; espere hasta que vuelva a estar en línea antes de reiniciar.",
+            "Este anfitrión está desconectado.Helmse vuelve a conectar automáticamente; espere hasta que vuelva a estar en línea antes de reiniciar.",
           requestFailedTitle: "Error",
           requestFailedMessage:
-            "No se pudo enviar la solicitud de reinicio.Paseose vuelve a conectar automáticamente; inténtelo nuevamente una vez que el host se muestre en línea.",
+            "No se pudo enviar la solicitud de reinicio.Helmse vuelve a conectar automáticamente; inténtelo nuevamente una vez que el host se muestre en línea.",
           dialogFailedMessage:
             "No se puede abrir el cuadro de diálogo de confirmación de reinicio.",
         },
@@ -1888,7 +1876,7 @@ export const es: TranslationResources = {
         newScript: "Nuevo guión",
         editScript: "Editar{{name}}",
         runAsService: "Ejecutar como servicio",
-        serviceHint: "Paseosupervisa el proceso y asigna un puerto vía $PASEO_PORT",
+        serviceHint: "Helm supervisa el proceso y asigna un puerto vía $PASEO_PORT",
         actions: {
           add: "Agregar guión",
           edit: "Editar",

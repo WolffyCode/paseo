@@ -468,7 +468,7 @@ async function createMcpWorktree(
 ): Promise<CreatePaseoWorktreeWorkflowResult> {
   try {
     if (!options.createPaseoWorktree) {
-      throw new Error("Paseo worktree service is not configured");
+      throw new Error("Helm worktree service is not configured");
     }
     return await options.createPaseoWorktree(options.input, {
       ...(options.resolveDefaultBranch

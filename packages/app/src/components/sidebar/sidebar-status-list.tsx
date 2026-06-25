@@ -280,7 +280,6 @@ const StatusWorkspaceRow = memo(function StatusWorkspaceRow({
       selected={selected}
       shortcutNumber={shortcutNumber}
       showShortcutBadge={showShortcutBadge}
-      canCopyBranchName={hydratedWorkspace.projectKind === "git"}
       onPress={handlePress}
       subtitle={projectName}
     />

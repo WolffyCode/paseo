@@ -14,6 +14,7 @@ import {
 import {
   clampNormalizedSizes,
   closeTabInLayout,
+  coerceToCanonicalLayout,
   collectAllPanes,
   collectAllTabs,
   convertDraftToAgentInLayout,
@@ -23,14 +24,19 @@ import {
   focusPaneInLayout,
   focusTabInLayout,
   getFocusedBrowserId,
+  getMainPaneId,
+  getRightToolPane,
   getTreeDepth,
   insertSplit,
+  isRightToolPanelOpen,
   moveTabToPaneInLayout,
   normalizeLayout,
-  openTabInLayoutBackground,
-  openTabInLayoutFocused,
+  openTabOnSurface,
+  paneShowsTabBar,
   reconcileWorkspaceTabs,
   removePaneFromTree,
+  ensureRightToolPaneInLayout,
+  removeRightToolPanelFromLayout,
   removeTabFromTree,
   reorderFocusedPaneTabsInLayout,
   reorderPaneTabsInLayout,
@@ -44,6 +50,7 @@ import {
   type WorkspaceTabSnapshot,
   type WorkspaceLayout,
 } from "@/stores/workspace-layout-actions";
+import { tabSurfaceForKind, type TabSurface } from "@/workspace-tabs/tab-surface";
 import { normalizeWorkspaceTabTarget } from "@/workspace-tabs/identity";
 
 export { buildWorkspaceTabPersistenceKey };
@@ -54,9 +61,13 @@ export {
   findPaneById,
   findPaneContainingTab,
   getFocusedBrowserId,
+  getMainPaneId,
+  getRightToolPane,
   getTreeDepth,
   insertSplit,
+  isRightToolPanelOpen,
   normalizeLayout,
+  paneShowsTabBar,
   removePaneFromTree,
   removeTabFromTree,
 };
@@ -64,6 +75,7 @@ export type {
   SplitGroup,
   SplitNode,
   SplitPane,
+  TabSurface,
   WorkspaceLayout,
   WorkspaceTabReconcileState,
   WorkspaceTabSnapshot,
@@ -72,16 +84,34 @@ export type {
 interface WorkspaceLayoutStore {
   layoutByWorkspace: Record<string, WorkspaceLayout>;
   splitSizesByWorkspace: Record<string, Record<string, number[]>>;
+  /**
+   * Collapsed-but-kept state for the right tool panel, per workspace. Collapsing hides the panel
+   * without removing its pane/tabs from the layout, so re-expanding restores the same tabs. Only an
+   * explicit tab close (×) removes a tab. See docs/specs/2026-06-23-unified-topbar-redesign.md.
+   */
+  rightToolPanelCollapsedByWorkspace: Record<string, boolean>;
+  /** Maximized state for the right tool panel, per workspace — the tools pane fills the canvas. */
+  rightToolPanelMaximizedByWorkspace: Record<string, boolean>;
   pinnedAgentIdsByWorkspace: Record<string, Set<string>>;
   hiddenAgentIdsByWorkspace: Record<string, Set<string>>;
   focusRestorationByWorkspace: Record<string, WorkspaceFocusRestorationState>;
-  openTabFocused: (workspaceKey: string, target: WorkspaceTabTarget) => string | null;
+  openTabFocused: (
+    workspaceKey: string,
+    target: WorkspaceTabTarget,
+    surface?: TabSurface,
+  ) => string | null;
   openChildTabFocused: (
     workspaceKey: string,
     target: WorkspaceTabTarget,
     parentTabId: string,
   ) => string | null;
   openTabInBackground: (workspaceKey: string, target: WorkspaceTabTarget) => string | null;
+  openRightToolPanel: (workspaceKey: string) => void;
+  closeRightToolPanel: (workspaceKey: string) => void;
+  /** Maximize/restore the right tool panel (fills the canvas / returns to the split). */
+  setRightToolPanelMaximized: (workspaceKey: string, maximized: boolean) => void;
+  /** Clears the right tool panel entirely (removes its pane + tabs + collapsed flag). Used when switching workspaces. */
+  clearRightToolPanel: (workspaceKey: string) => void;
   closeTab: (workspaceKey: string, tabId: string) => void;
   focusTab: (workspaceKey: string, tabId: string) => void;
   retargetTab: (workspaceKey: string, tabId: string, target: WorkspaceTabTarget) => string | null;
@@ -226,20 +256,26 @@ export function createWorkspaceLayoutStore(
       (set, get) => ({
         layoutByWorkspace: {},
         splitSizesByWorkspace: {},
+        rightToolPanelCollapsedByWorkspace: {},
+        rightToolPanelMaximizedByWorkspace: {},
         pinnedAgentIdsByWorkspace: {},
         hiddenAgentIdsByWorkspace: {},
         focusRestorationByWorkspace: {},
-        openTabFocused: (workspaceKey, target) => {
+        openTabFocused: (workspaceKey, target, surface) => {
           const normalizedWorkspaceKey = trimNonEmpty(workspaceKey);
           const normalizedTarget = normalizeWorkspaceTabTarget(target);
           if (!normalizedWorkspaceKey || !normalizedTarget) {
             return null;
           }
 
-          const result = openTabInLayoutFocused({
+          const result = openTabOnSurface({
             layout: getWorkspaceLayout(get().layoutByWorkspace, normalizedWorkspaceKey),
             target: normalizedTarget,
             now: Date.now(),
+            focus: true,
+            surface,
+            maxTreeDepth: MAX_TREE_DEPTH,
+            createNodeId: ids.createNodeId,
           });
 
           set((state) => ({
@@ -252,6 +288,14 @@ export function createWorkspaceLayoutStore(
                     normalizedWorkspaceKey,
                     normalizedTarget.agentId,
                   ),
+            // Opening a right-surface tab un-collapses the panel so the new tab is visible (see D).
+            rightToolPanelCollapsedByWorkspace:
+              tabSurfaceForKind(normalizedTarget.kind) === "right"
+                ? {
+                    ...state.rightToolPanelCollapsedByWorkspace,
+                    [normalizedWorkspaceKey]: false,
+                  }
+                : state.rightToolPanelCollapsedByWorkspace,
             layoutByWorkspace: {
               ...state.layoutByWorkspace,
               [normalizedWorkspaceKey]: result.layout,
@@ -268,10 +312,13 @@ export function createWorkspaceLayoutStore(
             return null;
           }
 
-          const result = openTabInLayoutFocused({
+          const result = openTabOnSurface({
             layout: getWorkspaceLayout(get().layoutByWorkspace, normalizedWorkspaceKey),
             target: normalizedTarget,
             now: Date.now(),
+            focus: true,
+            maxTreeDepth: MAX_TREE_DEPTH,
+            createNodeId: ids.createNodeId,
           });
 
           set((state) => {
@@ -306,10 +353,13 @@ export function createWorkspaceLayoutStore(
             return null;
           }
 
-          const result = openTabInLayoutBackground({
+          const result = openTabOnSurface({
             layout: getWorkspaceLayout(get().layoutByWorkspace, normalizedWorkspaceKey),
             target: normalizedTarget,
             now: Date.now(),
+            focus: false,
+            maxTreeDepth: MAX_TREE_DEPTH,
+            createNodeId: ids.createNodeId,
           });
 
           set((state) => ({
@@ -328,6 +378,99 @@ export function createWorkspaceLayoutStore(
           }));
 
           return result.tabId;
+        },
+        openRightToolPanel: (workspaceKey) => {
+          const normalizedWorkspaceKey = trimNonEmpty(workspaceKey);
+          if (!normalizedWorkspaceKey) {
+            return;
+          }
+
+          set((state) => {
+            const current = getWorkspaceLayout(state.layoutByWorkspace, normalizedWorkspaceKey);
+            const nextLayout = ensureRightToolPaneInLayout({
+              layout: current,
+              maxTreeDepth: MAX_TREE_DEPTH,
+            });
+            return {
+              ...withoutFocusRestoration(state, normalizedWorkspaceKey),
+              rightToolPanelCollapsedByWorkspace: {
+                ...state.rightToolPanelCollapsedByWorkspace,
+                [normalizedWorkspaceKey]: false,
+              },
+              layoutByWorkspace: {
+                ...state.layoutByWorkspace,
+                [normalizedWorkspaceKey]: nextLayout,
+              },
+            };
+          });
+        },
+        closeRightToolPanel: (workspaceKey) => {
+          const normalizedWorkspaceKey = trimNonEmpty(workspaceKey);
+          if (!normalizedWorkspaceKey) {
+            return;
+          }
+
+          set((state) => {
+            // Collapse-but-keep: hide the panel without dropping its pane/tabs, so re-expanding
+            // restores the same tabs. The layout tree is left intact.
+            if (state.rightToolPanelCollapsedByWorkspace[normalizedWorkspaceKey]) {
+              return state;
+            }
+            return {
+              rightToolPanelCollapsedByWorkspace: {
+                ...state.rightToolPanelCollapsedByWorkspace,
+                [normalizedWorkspaceKey]: true,
+              },
+            };
+          });
+        },
+        setRightToolPanelMaximized: (workspaceKey, maximized) => {
+          const normalizedWorkspaceKey = trimNonEmpty(workspaceKey);
+          if (!normalizedWorkspaceKey) {
+            return;
+          }
+          set((state) => {
+            const current =
+              state.rightToolPanelMaximizedByWorkspace[normalizedWorkspaceKey] ?? false;
+            if (current === maximized) {
+              return state;
+            }
+            return {
+              rightToolPanelMaximizedByWorkspace: {
+                ...state.rightToolPanelMaximizedByWorkspace,
+                [normalizedWorkspaceKey]: maximized,
+              },
+            };
+          });
+        },
+        clearRightToolPanel: (workspaceKey) => {
+          const normalizedWorkspaceKey = trimNonEmpty(workspaceKey);
+          if (!normalizedWorkspaceKey) {
+            return;
+          }
+
+          set((state) => {
+            const current = getWorkspaceLayout(state.layoutByWorkspace, normalizedWorkspaceKey);
+            const nextLayout = removeRightToolPanelFromLayout(current);
+            const hadCollapsed = normalizedWorkspaceKey in state.rightToolPanelCollapsedByWorkspace;
+            const hadMaximized = normalizedWorkspaceKey in state.rightToolPanelMaximizedByWorkspace;
+            if (nextLayout === current && !hadCollapsed && !hadMaximized) {
+              return state;
+            }
+            const nextCollapsed = { ...state.rightToolPanelCollapsedByWorkspace };
+            delete nextCollapsed[normalizedWorkspaceKey];
+            const nextMaximized = { ...state.rightToolPanelMaximizedByWorkspace };
+            delete nextMaximized[normalizedWorkspaceKey];
+            return {
+              ...withoutFocusRestoration(state, normalizedWorkspaceKey),
+              rightToolPanelCollapsedByWorkspace: nextCollapsed,
+              rightToolPanelMaximizedByWorkspace: nextMaximized,
+              layoutByWorkspace: {
+                ...state.layoutByWorkspace,
+                [normalizedWorkspaceKey]: nextLayout,
+              },
+            };
+          });
         },
         closeTab: (workspaceKey, tabId) => {
           const normalizedWorkspaceKey = trimNonEmpty(workspaceKey);
@@ -897,8 +1040,22 @@ export function createWorkspaceLayoutStore(
       }),
       {
         name: "workspace-layout-state",
-        version: 1,
+        version: 2,
         storage: createJSONStorage(() => AsyncStorage),
+        migrate: (persistedState) => {
+          // v1 → v2: collapse any legacy multi-split layout into the canonical
+          // single-conversation + right-tool-panel shape, once, on load.
+          const prior = (persistedState ?? {}) as {
+            layoutByWorkspace?: Record<string, unknown>;
+            splitSizesByWorkspace?: Record<string, Record<string, number[]>>;
+          };
+          const priorLayouts = prior.layoutByWorkspace ?? {};
+          const layoutByWorkspace: Record<string, WorkspaceLayout> = {};
+          for (const key in priorLayouts) {
+            layoutByWorkspace[key] = coerceToCanonicalLayout(priorLayouts[key]);
+          }
+          return { ...prior, layoutByWorkspace };
+        },
         partialize: (state) => {
           const layoutByWorkspace: Record<string, WorkspaceLayout> = {};
           for (const key in state.layoutByWorkspace) {
@@ -907,6 +1064,7 @@ export function createWorkspaceLayoutStore(
           return {
             layoutByWorkspace,
             splitSizesByWorkspace: state.splitSizesByWorkspace,
+            rightToolPanelCollapsedByWorkspace: state.rightToolPanelCollapsedByWorkspace,
           };
         },
       },

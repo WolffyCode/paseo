@@ -5,7 +5,6 @@ import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CheckoutStatusUpdate } from "@getpaseo/protocol/messages";
 import { checkoutPrStatusQueryKey, checkoutStatusQueryKey } from "@/git/query-keys";
-import { prPaneTimelineQueryKey } from "@/git/pull-request-panel/query-keys";
 import { resetReviewDraftStore, useReviewDraftStore } from "@/review/store";
 import {
   applyCheckoutStatusUpdateFromEvent,
@@ -164,52 +163,5 @@ describe("applyCheckoutStatusUpdateFromEvent", () => {
     });
 
     expect(useReviewDraftStore.getState().diffModeOverrides["review:scope"]).toBeDefined();
-  });
-
-  it("invalidates the PR timeline when the prStatus changes, ignoring the volatile requestId", () => {
-    const queryClient = createQueryClient();
-    queryClient.setQueryData(
-      checkoutPrStatusQueryKey(serverId, cwd),
-      prStatus({ requestId: "pr-v1" }),
-    );
-    const timelineKey = prPaneTimelineQueryKey({ serverId, cwd, prNumber: 42 });
-    queryClient.setQueryData(timelineKey, { items: [] });
-
-    applyCheckoutStatusUpdateFromEvent({
-      queryClient,
-      serverId,
-      message: checkoutStatusUpdate(checkoutStatus(), prStatus({ requestId: "pr-v2" })),
-    });
-    expect(queryClient.getQueryState(timelineKey)?.isInvalidated).toBe(false);
-
-    applyCheckoutStatusUpdateFromEvent({
-      queryClient,
-      serverId,
-      message: checkoutStatusUpdate(
-        checkoutStatus(),
-        prStatus({
-          requestId: "pr-v3",
-          status: { ...prStatus().status!, state: "closed" },
-        }),
-      ),
-    });
-    expect(queryClient.getQueryState(timelineKey)?.isInvalidated).toBe(true);
-  });
-
-  it("invalidates the PR timeline on the first prStatus emission, scoped to its cwd", () => {
-    const queryClient = createQueryClient();
-    const timelineKey = prPaneTimelineQueryKey({ serverId, cwd, prNumber: 42 });
-    const otherTimelineKey = prPaneTimelineQueryKey({ serverId, cwd: "/repo2", prNumber: 42 });
-    queryClient.setQueryData(timelineKey, { items: [] });
-    queryClient.setQueryData(otherTimelineKey, { items: [] });
-
-    applyCheckoutStatusUpdateFromEvent({
-      queryClient,
-      serverId,
-      message: checkoutStatusUpdate(checkoutStatus(), prStatus()),
-    });
-
-    expect(queryClient.getQueryState(timelineKey)?.isInvalidated).toBe(true);
-    expect(queryClient.getQueryState(otherTimelineKey)?.isInvalidated).toBe(false);
   });
 });

@@ -1,11 +1,6 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { CheckoutStatusResponse, CheckoutStatusUpdate } from "@getpaseo/protocol/messages";
-import equal from "fast-deep-equal/es6";
-import {
-  checkoutPrStatusQueryKey,
-  checkoutStatusQueryKey,
-  invalidatePrPaneTimelineForCheckout,
-} from "@/git/query-keys";
+import { checkoutPrStatusQueryKey, checkoutStatusQueryKey } from "@/git/query-keys";
 import { expireStaleDiffModeOverrides } from "@/review/store";
 
 export type CheckoutStatusPayload = CheckoutStatusResponse["payload"];
@@ -55,32 +50,6 @@ export function applyCheckoutStatusUpdateFromEvent({
     return;
   }
 
-  const previous = queryClient.getQueryData<CheckoutPrStatusPayload>(
-    checkoutPrStatusQueryKey(serverId, prStatus.cwd),
-  );
+  // Keep the workspace PR status cache fresh so the sidebar PR hint reflects pushed updates.
   queryClient.setQueryData(checkoutPrStatusQueryKey(serverId, prStatus.cwd), prStatus);
-
-  // The PR activity timeline has no push channel; mark it stale when the pushed PR status
-  // meaningfully changed. Active panes refetch immediately, evicted ones on next mount.
-  if (hasPrStatusChanged(previous, prStatus)) {
-    void invalidatePrPaneTimelineForCheckout(queryClient, { serverId, cwd: prStatus.cwd });
-  }
-}
-
-// requestId changes on every emission and carries no PR state.
-function prStatusWithoutVolatileFields(
-  prStatus: CheckoutPrStatusPayload,
-): Omit<CheckoutPrStatusPayload, "requestId"> {
-  const { requestId: _requestId, ...rest } = prStatus;
-  return rest;
-}
-
-function hasPrStatusChanged(
-  previous: CheckoutPrStatusPayload | undefined,
-  next: CheckoutPrStatusPayload,
-): boolean {
-  if (!previous) {
-    return true;
-  }
-  return !equal(prStatusWithoutVolatileFields(previous), prStatusWithoutVolatileFields(next));
 }

@@ -13,7 +13,10 @@ function expandHomeDir(input: string): string {
 }
 
 export function resolvePaseoHome(env: NodeJS.ProcessEnv = process.env): string {
-  const raw = env.PASEO_HOME ?? "~/.paseo";
+  // Helm reads HELM_HOME first (its own identity), then falls back to PASEO_HOME
+  // (set by the dev scripts) and finally its own default home, so it never shares
+  // ~/.paseo with an upstream Paseo install.
+  const raw = env.HELM_HOME ?? env.PASEO_HOME ?? "~/.helm";
   const resolved = path.resolve(expandHomeDir(raw));
   ensurePrivateDirectory(resolved);
   return resolved;

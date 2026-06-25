@@ -1,6 +1,17 @@
 import type { TranslationResources } from "./en";
 
 export const ar: TranslationResources = {
+  time: {
+    short: {
+      justNow: "الآن",
+      minutes: "{{n}} د",
+      hours: "{{n}} س",
+      days: "{{n}} ي",
+      weeks: "{{n}} أ",
+      months: "{{n}} ش",
+      years: "{{n}} سنة",
+    },
+  },
   common: {
     back: "خلف",
     loading: "تحميل...",
@@ -476,12 +487,19 @@ export const ar: TranslationResources = {
         pinTarget: "تثبيت",
         unpinTarget: "إلغاء التثبيت",
       },
-      explorer: {
-        open: "افتح المستكشف",
-        close: "إغلاق المستكشف",
-        toggle: "تبديل المستكشف",
-        changes: "التغييرات",
-        files: "ملفات",
+      toolsMenu: {
+        addTool: "إضافة أداة",
+        review: "مراجعة",
+        terminal: "محطة",
+        browser: "متصفح",
+        file: "ملف",
+        sideChat: "محادثة جانبية",
+      },
+      toolPanel: {
+        open: "فتح لوحة الأدوات",
+        close: "إغلاق لوحة الأدوات",
+        maximize: "تكبير لوحة الأدوات",
+        restore: "استعادة لوحة الأدوات",
       },
       toasts: {
         copyFailed: "فشل النسخ",
@@ -527,6 +545,9 @@ export const ar: TranslationResources = {
         newAgent: "وكيل جديد",
         newTerminal: "محطة جديدة",
         newBrowser: "علامة تبويب متصفح جديدة",
+        newFile: "فتح ملف",
+        newSideChat: "محادثة جانبية جديدة",
+        review: "مراجعة التغييرات",
         importSession: "جلسة الاستيراد",
         copyPath: "نسخ مسار مساحة العمل",
         copyBranchName: "انسخ اسم الفرع",
@@ -582,12 +603,6 @@ export const ar: TranslationResources = {
           pending: "سحب و دفع...",
           success: "سحبت ودفعت",
         },
-        viewPr: "عرض PR",
-        createPr: {
-          label: "إنشاء PR",
-          pending: "إنشاء PR...",
-          success: "تم إنشاء PR",
-        },
         mergeBranch: {
           label: "دمج محليا",
           pending: "جار الدمج...",
@@ -603,24 +618,7 @@ export const ar: TranslationResources = {
           pending: "أرشفة...",
           success: "مؤرشف",
         },
-        mergePr: {
-          squash: "دمج PR (squash)",
-          merge: "دمج PR (merge)",
-          rebase: "دمج PR (rebase)",
-          pending: "دمج PR...",
-          success: "تم دمج PR",
-        },
-        autoMerge: {
-          enableSquash: "دمج تلقائي (squash)",
-          enableMerge: "دمج تلقائي (merge)",
-          enableRebase: "دمج تلقائي (rebase)",
-          enabled: "تم تمكين الدمج التلقائي",
-          enabling: "تمكين الدمج التلقائي...",
-          disabling: "تعطيل الدمج التلقائي...",
-          disabled: "تم تعطيل الدمج التلقائي",
-        },
         unavailable: {
-          viewPrNoGithub: "عرض PR غير متاح الآن لأن GitHub غير متصل",
           pullNoRemote: "السحب غير متاح هنا لأن هذا الفرع غير متصل بجهاز التحكم عن بعد بعد",
           pullDirty: "السحب غير متاح أثناء وجود تغييرات محلية، لذا قم بتنفيذها أو تخزينها أولاً",
           pullUpToDate: "السحب غير متاح لأن هذا الفرع محدث بالفعل",
@@ -632,8 +630,6 @@ export const ar: TranslationResources = {
           pullAndPushDirty:
             "لا يتوفر السحب والدفع أثناء وجود تغييرات محلية، لذا قم بتنفيذها أو تخزينها أولاً",
           pullAndPushInSync: "السحب والدفع غير متاح لأن هذا الفرع متزامن بالفعل",
-          createPrNoGithub: "إنشاء PR غير متاح حاليًا لأن GitHub غير متصل",
-          createPrNoCommits: "إنشاء PR غير متاح لأن هذا الفرع ليس لديه أي التزامات جديدة حتى الآن",
           mergeNoBase: "الدمج غير متاح لأننا لم نتمكن من تحديد الفرع الأساسي",
           mergeDirty:
             "الدمج غير متاح عندما تكون لديك تغييرات محلية، لذا قم بتنفيذها أو تخزينها أولاً",
@@ -641,25 +637,13 @@ export const ar: TranslationResources = {
           updateNoBase: "التحديث غير متاح لأننا لم نتمكن من تحديد الفرع الأساسي",
           updateDirty: "التحديث غير متاح أثناء وجود تغييرات محلية، لذا قم بتنفيذها أو تخزينها أولاً",
           updateCurrent: "التحديث غير متاح لأن هذا الفرع محدث بالفعل باستخدام{{baseRef}}",
-          archiveNotWorktree:
-            "الأرشيف غير متاح هنا لأنه لم يتم إنشاء مساحة العمل هذه كشجرة عمل Paseo",
-          mergePrNoGithub: "دمج PR غير متاح الآن لأن GitHub غير متصل",
-          mergePrMissing: "دمج PR غير متاح لأنه لا يوجد طلب سحب حتى الآن",
-          mergePrDraft: "دمج PR غير متاح لأن طلب السحب لا يزال مسودة",
-          mergePrMerged: "دمج PR غير متاح لأن طلب السحب مدمج بالفعل",
-          mergePrClosed: "دمج PR غير متاح لأن طلب السحب مغلق",
-          mergePrConflicts: "دمج PR غير متاح لأن طلب السحب به تعارضات",
-          mergePrQueue: "دمج PR غير متاح هنا لأن هذا المستودع يستخدم قائمة انتظار دمج",
-          mergePrNotReady: "دمج PR غير متاح حتى يبلغ GitHub أن طلب السحب جاهز للدمج",
-          autoMergeCannotDisable: "تم تمكين الدمج التلقائي، ولكن لا يمكن لهذا الحساب تعطيله",
+          archiveNotWorktree: "الأرشيف غير متاح هنا لأنه لم يتم إنشاء مساحة العمل هذه كشجرة عمل Helm",
         },
         toasts: {
           failedCommit: "فشل في الالتزام",
           failedPull: "فشل في السحب",
           failedPush: "فشل في الدفع",
           failedPullAndPush: "فشل في السحب والدفع",
-          failedCreatePr: "فشل في إنشاء PR",
-          failedMergePr: "فشل دمج PR",
           failedEnableAutoMerge: "فشل في تمكين الدمج التلقائي",
           failedDisableAutoMerge: "فشل في تعطيل الدمج التلقائي",
           baseRefUnavailable: "المرجع الأساسي غير متاح",
@@ -719,29 +703,9 @@ export const ar: TranslationResources = {
       pr: {
         sections: {
           checks: "الشيكات",
-          reviews: "التعليقات",
         },
         accessibility: {
           pullRequest: "سحب الطلب #{{number}}",
-        },
-        states: {
-          draft: "مسودة",
-          merged: "تم الدمج",
-          closed: "مغلق",
-          open: "يفتح",
-        },
-        activity: {
-          commented: "علق",
-          approved: "موافقة",
-          requestedChanges: "التغييرات المطلوبة",
-          reviewed: "تمت المراجعة",
-        },
-        time: {
-          justNow: "الآن",
-        },
-        errors: {
-          statusLoadFailed: "غير قادر على تحميل حالة طلب السحب",
-          activityLoadFailed: "غير قادر على تحميل نشاط طلب السحب",
         },
       },
     },
@@ -754,13 +718,15 @@ export const ar: TranslationResources = {
     },
     actions: {
       addProject: "إضافة مشروع",
-      newWorkspace: "مساحة عمل جديدة",
+      newConversation: "محادثة جديدة",
+      search: "بحث",
       home: "بيت",
       settings: "إعدادات",
       closeSidebar: "إغلاق الشريط الجانبي",
     },
     sections: {
-      sessions: "السجل",
+      pinned: "المثبتة",
+      projects: "المشاريع",
     },
     worktreeSetup: {
       title: "إعداد البرامج النصية لشجرة العمل",
@@ -771,6 +737,9 @@ export const ar: TranslationResources = {
     project: {
       actions: {
         menu: "إجراءات المشروع",
+        pin: "تثبيت المشروع",
+        unpin: "إلغاء التثبيت",
+        rename: "إعادة تسمية",
         openSettings: "افتح إعدادات المشروع",
         openNewWindow: "Open in new window",
         openNewWindowFailed: "Couldn't open a new window",
@@ -801,15 +770,20 @@ export const ar: TranslationResources = {
       },
       actions: {
         menu: "إجراءات Workspace",
+        pin: "تثبيت",
+        unpin: "إلغاء التثبيت",
+        revealInFinder: "إظهار في Finder",
         newWorkspace: "مساحة عمل جديدة",
+        newConversation: "محادثة جديدة",
         createWorkspaceFor: "قم بإنشاء مساحة عمل جديدة لـ{{projectName}}",
         copyPath: "نسخ المسار",
         copyBranchName: "انسخ اسم الفرع",
-        rename: "إعادة تسمية مساحة العمل",
-        archive: "أرشيف",
+        rename: "إعادة تسمية",
+        copyConversationId: "نسخ معرّف المحادثة",
+        archive: "إزالة",
         archiveWorktree: "أرشفة شجرة العمل",
         hideFromSidebar: "إخفاء من الشريط الجانبي",
-        archiving: "أرشفة...",
+        archiving: "جارٍ الإزالة...",
         hiding: "إخفاء...",
       },
       confirmations: {
@@ -869,7 +843,7 @@ export const ar: TranslationResources = {
   },
   desktop: {
     quitting: {
-      title: "جارٍ إنهاء Paseo...",
+      title: "جارٍ إنهاء Helm...",
       detail: "إيقاف البرنامج الخفي المحلي.",
     },
     daemon: {
@@ -883,20 +857,20 @@ export const ar: TranslationResources = {
       },
       management: {
         title: "إدارة البرنامج الخفي المدمج",
-        hint: "اسمح لـ Paseo ببدء تشغيل البرنامج الخفي المدمج وإيقافه",
+        hint: "اسمح لـ Helm ببدء تشغيل البرنامج الخفي المدمج وإيقافه",
         pauseTitle: "وقفة المدمج في البرنامج الخفي",
         pauseMessage:
           "سيؤدي هذا إلى إيقاف البرنامج الخفي المدمج على الفور. سيتم إيقاف تشغيل الوكلاء والمحطات الطرفية المتصلة بالبرنامج الخفي المدمج.",
         pauseAndStop: "وقفة وتوقف",
         registrationFailed:
-          "Built-in daemon started, but Paseo could not save the localhost connection. Toggle daemon management off and on again, or add localhost manually.",
+          "Built-in daemon started, but Helm could not save the localhost connection. Toggle daemon management off and on again, or add localhost manually.",
         pausedStopFailed:
-          "تم إيقاف إدارة البرنامج الخفي المضمنة مؤقتًا، لكن لم يتمكن Paseo من إيقاف البرنامج الخفي.",
+          "تم إيقاف إدارة البرنامج الخفي المضمنة مؤقتًا، لكن لم يتمكن Helm من إيقاف البرنامج الخفي.",
         updateFailed: "غير قادر على تحديث إدارة البرنامج الخفي المضمنة.",
       },
       keepRunning: {
         title: "استمر في تشغيل البرنامج الخفي بعد الإقلاع عن التدخين",
-        hint: "يستمر تشغيل Daemon عند إنهاء Paseo",
+        hint: "يستمر تشغيل Daemon عند إنهاء Helm",
       },
       logs: {
         title: "ملف السجل",
@@ -956,7 +930,7 @@ export const ar: TranslationResources = {
     },
     rosetta: {
       title: "قم بتنزيل نسخة Apple Silicon",
-      runningIntel: "أنت تقوم بتشغيل إصدار Intel من Paseo ضمن Rosetta على Apple Silicon.",
+      runningIntel: "أنت تقوم بتشغيل إصدار Intel من Helm ضمن Rosetta على Apple Silicon.",
       highCpu:
         "يؤدي هذا إلى ارتفاع استخدام وحدة المعالجة المركزية. قم بتنزيل إصدار Apple Silicon لإصلاحه.",
       download: "تحميل",
@@ -999,7 +973,7 @@ export const ar: TranslationResources = {
         microphone: "لم يتم التحقق من حالة الميكروفون بعد.",
       },
       testNotification: {
-        title: "اختبار الإخطار Paseo",
+        title: "اختبار الإخطار Helm",
         body: "إذا كان بإمكانك رؤية ذلك، فهذا يعني أن إشعارات سطح المكتب تعمل.",
         notDelivered: "لم يتم تسليم الإخطار. تحقق من إعدادات النظام > الإشعارات.",
         failed: "فشل في إرسال الإخطار.",
@@ -1008,7 +982,7 @@ export const ar: TranslationResources = {
     integrations: {
       cli: {
         statusFailed: "غير قادر على التحقق من حالة تثبيت CLI.",
-        installFailed: "غير قادر على تثبيت PaseoCLI.",
+        installFailed: "غير قادر على تثبيت HelmCLI.",
       },
       skills: {
         statusFailed: "غير قادر على التحقق من حالة مهارات التنسيق.",
@@ -1105,10 +1079,30 @@ export const ar: TranslationResources = {
     },
   },
   onboarding: {
-    title: "مرحبا بكم في Paseo",
-    subtitle: "قم بتوصيل جهاز الكمبيوتر الخاص بك للبدء",
+    title: "مرحبًا بك في Helm",
+    subtitle:
+      "وصّل وكلاء ترميز الذكاء الاصطناعي المحليين أو البعيدين من مكان واحد. يظل رمزك على جهازك.",
     actions: {
-      settings: "إعدادات",
+      start: "ابدأ",
+      connectRemote: "وصّل host بعيد",
+      cancel: "إلغاء",
+      retryLocal: "إعادة محاولة المحلي",
+      retry: "إعادة المحاولة",
+      useOtherMethods: "استخدم طريقة أخرى",
+      diagnostics: "عرض التشخيصات",
+    },
+    connecting: {
+      title: "جارٍ الاتصال بالـ daemon المحلي...",
+    },
+    picker: {
+      title: "اختر طريقة الاتصال",
+      description: "اتصل مباشرة، أو الصق رابط الاقتران، أو امسح رمز QR.",
+    },
+    error: {
+      title: "تعذر الاتصال بالـ daemon المحلي",
+      description:
+        "الأسباب المحتملة: الـ daemon لا يعمل، أو المنفذ المحلي مستخدم، أو انتهت مهلة الاتصال.",
+      reasonLabel: "التفاصيل: {{reason}}",
     },
   },
   modelSelector: {
@@ -1181,7 +1175,7 @@ export const ar: TranslationResources = {
     },
     direct: {
       title: "اتصال مباشر",
-      helper: "أدخل عنوان خادم Paseo.",
+      helper: "أدخل عنوان خادم Helm.",
       fields: {
         host: "Host",
         port: "ميناء",
@@ -1259,7 +1253,7 @@ export const ar: TranslationResources = {
       failedToLoadOffer: "فشل تحميل عرض الاقتران.",
       relayDisabled: "لم يتم تمكين التتابع. تمكين التتابع لإقران جهاز.",
       unavailable: "عرض الاقتران غير متاح.",
-      hint: "قم بمسح رمز QR هذا باستخدام Paseo على هاتفك، أو انسخ الرابط أدناه.",
+      hint: "قم بمسح رمز QR هذا باستخدام Helm على هاتفك، أو انسخ الرابط أدناه.",
       qrUnavailable: "رمز QR غير متاح.",
       retry: "أعد المحاولة",
       copy: "ينسخ",
@@ -1291,7 +1285,7 @@ export const ar: TranslationResources = {
   serviceUrl: {
     title: "افتح الخدمة URL",
     message: "افتح{{url}}؟",
-    inPaseo: "في Paseo",
+    inPaseo: "في Helm",
     externalBrowser: "متصفح خارجي",
     dontAskAgain: "لا تسأل مرة أخرى",
   },
@@ -1417,7 +1411,7 @@ export const ar: TranslationResources = {
         description: "مكان فتح عناوين URL من تشغيل البرامج النصية",
         options: {
           ask: "بسأل",
-          inApp: "في Paseo",
+          inApp: "في Helm",
           external: "متصفح خارجي",
         },
       },
@@ -1464,7 +1458,7 @@ export const ar: TranslationResources = {
         label: "تحديثات التطبيق",
         readyToInstall: "جاهز للتثبيت:{{version}}",
         installTitle: "تثبيت تحديث سطح المكتب",
-        installMessage: "يؤدي هذا إلى تحديث Paseo على هذا الكمبيوتر",
+        installMessage: "يؤدي هذا إلى تحديث Helm على هذا الكمبيوتر",
         installConfirm: "تثبيت التحديث",
         update: "تحديث",
         updateTo: "التحديث إلى{{version}}",
@@ -1555,6 +1549,10 @@ export const ar: TranslationResources = {
         moveTabDown: "حرك علامة التبويب لأسفل",
         closePane: "إغلاق الجزء",
         newTerminal: "محطة جديدة",
+        reviewChanges: "مراجعة التغييرات",
+        openFile: "فتح ملف",
+        newSideChat: "محادثة جانبية جديدة",
+        toggleToolPanel: "تبديل لوحة الأدوات",
         toggleCommandCenter: "تبديل مركز القيادة",
         showKeyboardShortcuts: "إظهار اختصارات لوحة المفاتيح",
         toggleLeftSidebar: "تبديل الشريط الجانبي الأيسر",
@@ -1591,10 +1589,10 @@ export const ar: TranslationResources = {
         title: "مهارات التنسيق",
         description: "قم بتعليم عملائك كيفية التنسيق من خلال CLI",
         updateAvailable: "التحديث متاح",
-        updateTitle: "تحديث مهارات Paseo ؟",
+        updateTitle: "تحديث مهارات Helm ؟",
         updateFallback: "مزامنة المهارات المجمعة لجهازك.",
-        uninstallTitle: "إلغاء تثبيت مهارات Paseo ؟",
-        uninstallMessage: "يزيل جميع مهارات تنسيق Paseo من ~/.agents ، ~/.claude ، ~/.codex.",
+        uninstallTitle: "إلغاء تثبيت مهارات Helm ؟",
+        uninstallMessage: "يزيل جميع مهارات تنسيق Helm من ~/.agents ، ~/.claude ، ~/.codex.",
       },
       actions: {
         install: "ثَبَّتَ",
@@ -1649,9 +1647,9 @@ export const ar: TranslationResources = {
         title: "التنسيق",
         unavailable: "اتصل بهذا المضيف لإدارة التنسيق",
         enableTools: {
-          title: "تمكين أدوات Paseo",
+          title: "تمكين أدوات Helm",
           hint: "سيتمكن الوكلاء من إدارة أشجار العمل والوكلاء والجداول الزمنية",
-          accessibilityLabel: "حقن أدوات Paseo",
+          accessibilityLabel: "حقن أدوات Helm",
         },
         systemPrompt: {
           title: "موجه النظام",
@@ -1717,10 +1715,10 @@ export const ar: TranslationResources = {
             "هذا المضيف غير متصل. انتظر حتى يصبح متصلاً بالإنترنت قبل إعادة التشغيل.",
           offlineTitle: "Host غير متصل",
           offlineMessage:
-            "هذا المضيف غير متصل.  يقوم Paseo بإعادة الاتصال تلقائيًا - انتظر حتى يتم الاتصال بالإنترنت مرة أخرى قبل إعادة التشغيل.",
+            "هذا المضيف غير متصل.  يقوم Helm بإعادة الاتصال تلقائيًا - انتظر حتى يتم الاتصال بالإنترنت مرة أخرى قبل إعادة التشغيل.",
           requestFailedTitle: "خطأ",
           requestFailedMessage:
-            "فشل في إرسال طلب إعادة التشغيل.  يقوم Paseo بإعادة الاتصال تلقائيًا - حاول مرة أخرى بمجرد ظهور المضيف على أنه متصل بالإنترنت.",
+            "فشل في إرسال طلب إعادة التشغيل.  يقوم Helm بإعادة الاتصال تلقائيًا - حاول مرة أخرى بمجرد ظهور المضيف على أنه متصل بالإنترنت.",
           dialogFailedMessage: "غير قادر على فتح مربع حوار تأكيد إعادة التشغيل.",
         },
         dangerZone: "منطقة الخطر",
@@ -1846,7 +1844,7 @@ export const ar: TranslationResources = {
         newScript: "نص جديد",
         editScript: "تحرير{{name}}",
         runAsService: "تشغيل كخدمة",
-        serviceHint: "يشرف Paseo على العملية ويعين منفذًا عبر $PASEO_PORT",
+        serviceHint: "يشرف Helm على العملية ويعين منفذًا عبر $PASEO_PORT",
         actions: {
           add: "إضافة البرنامج النصي",
           edit: "يحرر",
@@ -1855,7 +1853,7 @@ export const ar: TranslationResources = {
       },
       metadata: {
         title: "توليد البيانات الوصفية",
-        info: "تعليمات خاصة بالمشروع يتم إدخالها في الذكاء الاصطناعي الذي يستخدمه Paseo لإنشاء بيانات التعريف - استخدمها لفرض اصطلاحات فريقك مثل تسمية الفرع أو نمط الالتزام أو تنسيق PR",
+        info: "تعليمات خاصة بالمشروع يتم إدخالها في الذكاء الاصطناعي الذي يستخدمه Helm لإنشاء بيانات التعريف - استخدمها لفرض اصطلاحات فريقك مثل تسمية الفرع أو نمط الالتزام أو تنسيق PR",
         branchName: "اسماء الفروع",
         branchNamePlaceholder: "بادئة الفروع بـ fet/ أو Fix/, mb/ للفروع الشخصية",
         commitMessage: "ارتكاب الرسائل",

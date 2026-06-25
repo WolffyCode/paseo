@@ -854,7 +854,7 @@ export async function isPaseoOwnedWorktreeCwd(
   const paseoWorktreesPrefix = normalizePathForOwnership(worktreesBaseRoot) + sep;
 
   // Ownership is defined by the path living under <worktrees-root>/<hash>/<slug>[/...].
-  // The <hash>/<slug> prefix is Paseo-private — nothing else writes there — so the
+  // The <hash>/<slug> prefix is Helm-private — nothing else writes there — so the
   // path shape alone is sufficient proof of ownership, even when git has already
   // forgotten about the worktree.
   if (!resolvedCwd.startsWith(paseoWorktreesPrefix)) {
@@ -1074,7 +1074,7 @@ export async function deletePaseoWorktree({
   } else if (cwd) {
     resolvedWorktreesRoot = await getPaseoWorktreesRoot(cwd, paseoHome, worktreesBaseRoot);
   } else {
-    throw new Error("cwd or worktreesRoot is required to delete a Paseo worktree");
+    throw new Error("cwd or worktreesRoot is required to delete a Helm worktree");
   }
 
   const resolvedRoot = normalizePathForOwnership(resolvedWorktreesRoot) + sep;
@@ -1089,7 +1089,7 @@ export async function deletePaseoWorktree({
     )?.worktreePath ?? resolvedRequested;
 
   if (!resolvedWorktree.startsWith(resolvedRoot)) {
-    throw new Error("Refusing to delete non-Paseo worktree");
+    throw new Error("Refusing to delete non-Helm worktree");
   }
 
   if (await pathExists(resolvedWorktree)) {
@@ -1374,10 +1374,10 @@ async function validateExistingWorktreeBranchName(cwd: string, branchName: strin
 function normalizeRequiredBaseBranch(baseBranch: string): string {
   const normalizedBaseBranch = normalizeBaseRefName(baseBranch);
   if (!normalizedBaseBranch) {
-    throw new Error("Base branch is required when creating a Paseo worktree");
+    throw new Error("Base branch is required when creating a Helm worktree");
   }
   if (normalizedBaseBranch === "HEAD") {
-    throw new Error("Base branch cannot be HEAD when creating a Paseo worktree");
+    throw new Error("Base branch cannot be HEAD when creating a Helm worktree");
   }
   return normalizedBaseBranch;
 }

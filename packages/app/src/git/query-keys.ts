@@ -1,5 +1,4 @@
 import type { Query, QueryClient } from "@tanstack/react-query";
-import { prPaneTimelineQueryKind } from "./pull-request-panel/query-keys";
 
 interface CheckoutQueryIdentity {
   serverId: string;
@@ -45,9 +44,6 @@ export async function invalidateCheckoutGitQueriesForClient(
     queryClient.invalidateQueries({
       predicate: checkoutQueryPredicate("checkoutPrStatus", identity),
     }),
-    queryClient.invalidateQueries({
-      predicate: checkoutQueryPredicate(prPaneTimelineQueryKind, identity),
-    }),
   ]);
 }
 
@@ -58,21 +54,12 @@ export async function invalidateCheckoutGitQueriesForServer(
   queryClient: QueryClient,
   serverId: string,
 ) {
-  const kinds = ["checkoutStatus", "checkoutPrStatus", prPaneTimelineQueryKind];
+  const kinds = ["checkoutStatus", "checkoutPrStatus"];
   await Promise.all(
     kinds.map((kind) =>
       queryClient.invalidateQueries({ predicate: checkoutQueryPredicate(kind, { serverId }) }),
     ),
   );
-}
-
-export async function invalidatePrPaneTimelineForCheckout(
-  queryClient: QueryClient,
-  identity: CheckoutQueryIdentity,
-) {
-  await queryClient.invalidateQueries({
-    predicate: checkoutQueryPredicate(prPaneTimelineQueryKind, identity),
-  });
 }
 
 function checkoutQueryPredicate(

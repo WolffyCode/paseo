@@ -542,7 +542,7 @@ function createPiPaseoExtensionFile(): PiTempFile {
 	  });
 
 	  pi.registerCommand("${PASEO_PI_CAPTURE_EXTENSION_COMMAND}", {
-	    description: "Internal Paseo entry capture bridge",
+	    description: "Internal Helm entry capture bridge",
 	    handler: async (args, ctx) => {
 	      const payload = decodePayload(args.trim());
 	      emitEntryCapture(ctx, "command", payload.requestId);
@@ -550,7 +550,7 @@ function createPiPaseoExtensionFile(): PiTempFile {
 	  });
 
 	  pi.registerCommand("${PASEO_PI_TREE_EXTENSION_COMMAND}", {
-	    description: "Internal Paseo tree navigation bridge",
+	    description: "Internal Helm tree navigation bridge",
 	    handler: async (args, ctx) => {
 	      const payload = decodePayload(args.trim());
 	      try {
@@ -2087,7 +2087,7 @@ export class PiRpcAgentClient implements AgentClient {
             value: existsSync(authConfigPath) ? "found" : "not found",
           },
           { label: "Models", value: modelsValue },
-          { label: "Paseo MCP tools", value: mcpToolsValue },
+          { label: "Helm MCP tools", value: mcpToolsValue },
           { label: "Status", value: status },
         ]),
       };

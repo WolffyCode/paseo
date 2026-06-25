@@ -46,7 +46,7 @@ export function createCli(): Command {
 
   program
     .name("paseo")
-    .description("Paseo CLI - control your AI coding agents from the command line")
+    .description("Helm CLI - control your AI coding agents from the command line")
     .version(VERSION, "-v, --version", "output the version number")
     // Global output options
     .option("-o, --format <format>", "output format: table, json, yaml", "table")
@@ -104,7 +104,7 @@ export function createCli(): Command {
       .command("status")
       .description('Show local daemon status (alias for "paseo daemon status")'),
   )
-    .option("--home <path>", "Paseo home directory (default: ~/.paseo)")
+    .option("--home <path>", "Helm home directory (default: ~/.helm)")
     .action(withOutput(runDaemonStatusCommand));
 
   addJsonOption(
@@ -112,7 +112,7 @@ export function createCli(): Command {
       .command("restart")
       .description('Restart local daemon (alias for "paseo daemon restart")'),
   )
-    .option("--home <path>", "Paseo home directory (default: ~/.paseo)")
+    .option("--home <path>", "Helm home directory (default: ~/.helm)")
     .option("--timeout <seconds>", "Wait timeout before force step (default: 15)")
     .option("--force", "Send SIGKILL if graceful stop times out")
     .option(

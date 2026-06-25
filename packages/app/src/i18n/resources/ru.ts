@@ -1,6 +1,17 @@
 import type { TranslationResources } from "./en";
 
 export const ru: TranslationResources = {
+  time: {
+    short: {
+      justNow: "сейчас",
+      minutes: "{{n}}м",
+      hours: "{{n}}ч",
+      days: "{{n}}д",
+      weeks: "{{n}}нед",
+      months: "{{n}}мес",
+      years: "{{n}}г",
+    },
+  },
   common: {
     back: "Назад",
     loading: "Загрузка...",
@@ -480,12 +491,19 @@ export const ru: TranslationResources = {
         pinTarget: "Закрепить",
         unpinTarget: "Открепить",
       },
-      explorer: {
-        open: "Открыть проводник",
-        close: "Закрыть проводник",
-        toggle: "Переключить проводник",
-        changes: "Изменения",
-        files: "Файлы",
+      toolsMenu: {
+        addTool: "Добавить инструмент",
+        review: "Обзор",
+        terminal: "Терминал",
+        browser: "Браузер",
+        file: "Файл",
+        sideChat: "Боковой чат",
+      },
+      toolPanel: {
+        open: "Открыть панель инструментов",
+        close: "Закрыть панель инструментов",
+        maximize: "Развернуть панель инструментов",
+        restore: "Восстановить панель инструментов",
       },
       toasts: {
         copyFailed: "Не удалось скопировать",
@@ -532,6 +550,9 @@ export const ru: TranslationResources = {
         newAgent: "Новый агент",
         newTerminal: "Новый терминал",
         newBrowser: "Новая вкладка браузера",
+        newFile: "Открыть файл",
+        newSideChat: "Новый боковой чат",
+        review: "Обзор изменений",
         importSession: "Импортировать сеанс",
         copyPath: "Копировать путь к рабочей области",
         copyBranchName: "Скопировать название ветки",
@@ -587,12 +608,6 @@ export const ru: TranslationResources = {
           pending: "Тянет и толкает...",
           success: "Вытащил и толкнул",
         },
-        viewPr: "Посмотреть PR",
-        createPr: {
-          label: "Создать PR",
-          pending: "Создание PR...",
-          success: "PR создано",
-        },
         mergeBranch: {
           label: "Объединить локально",
           pending: "Слияние...",
@@ -608,24 +623,7 @@ export const ru: TranslationResources = {
           pending: "Архивирование...",
           success: "В архиве",
         },
-        mergePr: {
-          squash: "Объединить PR (squash)",
-          merge: "Объединить PR (merge)",
-          rebase: "Объединить PR (rebase)",
-          pending: "Объединение PR...",
-          success: "PR объединен",
-        },
-        autoMerge: {
-          enableSquash: "Автообъединение (squash)",
-          enableMerge: "Автообъединение (merge)",
-          enableRebase: "Автообъединение (rebase)",
-          enabled: "Автоматическое объединение включено",
-          enabling: "Включение автоматического объединения...",
-          disabling: "Отключение автоматического объединения...",
-          disabled: "Автоматическое объединение отключено",
-        },
         unavailable: {
-          viewPrNoGithub: "Просмотр PR сейчас недоступен, поскольку GitHub не подключен.",
           pullNoRemote:
             "Функция Pull здесь недоступна, поскольку эта ветка еще не подключена к удаленному серверу.",
           pullDirty:
@@ -641,10 +639,6 @@ export const ru: TranslationResources = {
             "Функция извлечения и отправки недоступна, пока у вас есть локальные изменения, поэтому сначала зафиксируйте или сохраните их.",
           pullAndPushInSync:
             "Функция Pull and Push недоступна, поскольку эта ветвь уже синхронизирована.",
-          createPrNoGithub:
-            "Функция «Создать PR» сейчас недоступна, поскольку GitHub не подключен.",
-          createPrNoCommits:
-            "Функция «Создать PR» недоступна, поскольку в этой ветке еще нет новых коммитов.",
           mergeNoBase: "Объединение недоступно, поскольку нам не удалось определить базовую ветку.",
           mergeDirty:
             "Объединение недоступно, пока у вас есть локальные изменения, поэтому сначала зафиксируйте или сохраните их.",
@@ -656,29 +650,13 @@ export const ru: TranslationResources = {
           updateCurrent:
             "Обновление недоступно, поскольку эта ветка уже обновлена ​​до версии{{baseRef}}.",
           archiveNotWorktree:
-            "Архив здесь недоступен, поскольку это рабочее пространство не было создано как рабочее дерево Paseo.",
-          mergePrNoGithub: "Объединение PR сейчас недоступно, поскольку GitHub не подключен.",
-          mergePrMissing: "Объединение PR недоступно, поскольку еще нет запроса на включение",
-          mergePrDraft:
-            "Объединение PR недоступно, поскольку запрос на включение все еще находится на стадии черновика.",
-          mergePrMerged: "Объединение PR недоступно, поскольку запрос на включение уже объединен.",
-          mergePrClosed: "Объединение PR недоступно, поскольку запрос на включение закрыт.",
-          mergePrConflicts:
-            "Объединение PR недоступно, поскольку запрос на включение содержит конфликты.",
-          mergePrQueue:
-            "Слияние PR здесь недоступно, поскольку этот репозиторий использует очередь слияния.",
-          mergePrNotReady:
-            "Функция слияния PR недоступна до тех пор, пока GitHub не сообщит, что запрос на включение готов к слиянию.",
-          autoMergeCannotDisable:
-            "Автоматическое объединение включено, но этот аккаунт не может его отключить.",
+            "Архив здесь недоступен, поскольку это рабочее пространство не было создано как рабочее дерево Helm.",
         },
         toasts: {
           failedCommit: "Не удалось совершить фиксацию",
           failedPull: "Не удалось вытащить",
           failedPush: "Не удалось нажать",
           failedPullAndPush: "Не удалось тянуть и толкать",
-          failedCreatePr: "Не удалось создать PR.",
-          failedMergePr: "Не удалось объединить PR.",
           failedEnableAutoMerge: "Не удалось включить автоматическое объединение",
           failedDisableAutoMerge: "Не удалось отключить автоматическое объединение",
           baseRefUnavailable: "Базовый номер недоступен.",
@@ -738,29 +716,9 @@ export const ru: TranslationResources = {
       pr: {
         sections: {
           checks: "Чеки",
-          reviews: "Отзывы",
         },
         accessibility: {
           pullRequest: "Запрос на извлечение №{{number}}",
-        },
-        states: {
-          draft: "Черновик",
-          merged: "Объединено",
-          closed: "Закрыто",
-          open: "Открыть",
-        },
-        activity: {
-          commented: "Прокомментировал",
-          approved: "Одобренный",
-          requestedChanges: "Запрошенные изменения",
-          reviewed: "Рассмотрено",
-        },
-        time: {
-          justNow: "прямо сейчас",
-        },
-        errors: {
-          statusLoadFailed: "Невозможно загрузить статус запроса на включение",
-          activityLoadFailed: "Невозможно загрузить активность запроса на включение",
         },
       },
     },
@@ -773,13 +731,15 @@ export const ru: TranslationResources = {
     },
     actions: {
       addProject: "Добавить проект",
-      newWorkspace: "Новое рабочее пространство",
+      newConversation: "Новый чат",
+      search: "Поиск",
       home: "Дом",
       settings: "Настройки",
       closeSidebar: "Закрыть боковую панель",
     },
     sections: {
-      sessions: "История",
+      pinned: "Закреплённые",
+      projects: "Проекты",
     },
     worktreeSetup: {
       title: "Настройка сценариев рабочего дерева",
@@ -790,6 +750,9 @@ export const ru: TranslationResources = {
     project: {
       actions: {
         menu: "Действия проекта",
+        pin: "Закрепить проект",
+        unpin: "Открепить",
+        rename: "Переименовать",
         openSettings: "Открыть настройки проекта",
         openNewWindow: "Open in new window",
         openNewWindowFailed: "Couldn't open a new window",
@@ -820,15 +783,20 @@ export const ru: TranslationResources = {
       },
       actions: {
         menu: "Действия Workspace",
+        pin: "Закрепить",
+        unpin: "Открепить",
+        revealInFinder: "Показать в Finder",
         newWorkspace: "Новое рабочее пространство",
+        newConversation: "Новый разговор",
         createWorkspaceFor: "Создайте новое рабочее пространство для{{projectName}}.",
         copyPath: "Копировать путь",
         copyBranchName: "Скопировать название ветки",
-        rename: "Переименовать рабочую область",
-        archive: "Архив",
+        rename: "Переименовать",
+        copyConversationId: "Копировать ID разговора",
+        archive: "Удалить",
         archiveWorktree: "Архив рабочего дерева",
         hideFromSidebar: "Скрыть с боковой панели",
-        archiving: "Архивирование...",
+        archiving: "Удаление...",
         hiding: "Скрытие...",
       },
       confirmations: {
@@ -888,7 +856,7 @@ export const ru: TranslationResources = {
   },
   desktop: {
     quitting: {
-      title: "Выход из Paseo...",
+      title: "Выход из Helm...",
       detail: "Остановка локального демона.",
     },
     daemon: {
@@ -902,20 +870,20 @@ export const ru: TranslationResources = {
       },
       management: {
         title: "Управление встроенным демоном",
-        hint: "Позвольте Paseo запустить и остановить встроенный демон.",
+        hint: "Позвольте Helm запустить и остановить встроенный демон.",
         pauseTitle: "Приостановить встроенный демон",
         pauseMessage:
           "Это немедленно остановит встроенный демон. Запущенные агенты и терминалы, подключенные к встроенному демону, будут остановлены.",
         pauseAndStop: "Пауза и остановка",
         registrationFailed:
-          "Built-in daemon started, but Paseo could not save the localhost connection. Toggle daemon management off and on again, or add localhost manually.",
+          "Built-in daemon started, but Helm could not save the localhost connection. Toggle daemon management off and on again, or add localhost manually.",
         pausedStopFailed:
-          "Встроенное управление демоном было приостановлено, но Paseo не смог остановить демон.",
+          "Встроенное управление демоном было приостановлено, но Helm не смог остановить демон.",
         updateFailed: "Невозможно обновить встроенное управление демонами.",
       },
       keepRunning: {
         title: "Продолжать работу демона после выхода",
-        hint: "Daemon продолжает работать, когда вы выходите из Paseo",
+        hint: "Daemon продолжает работать, когда вы выходите из Helm",
       },
       logs: {
         title: "Файл журнала",
@@ -976,7 +944,7 @@ export const ru: TranslationResources = {
     },
     rosetta: {
       title: "Загрузите сборку Apple Silicon",
-      runningIntel: "Вы используете сборку Intel для Paseo под Rosetta на Apple Silicon.",
+      runningIntel: "Вы используете сборку Intel для Helm под Rosetta на Apple Silicon.",
       highCpu:
         "Это приводит к высокой загрузке ЦП. Загрузите сборку Apple Silicon, чтобы исправить это.",
       download: "Скачать",
@@ -1021,7 +989,7 @@ export const ru: TranslationResources = {
         microphone: "Состояние микрофона еще не проверялось.",
       },
       testNotification: {
-        title: "Тест уведомлений Paseo",
+        title: "Тест уведомлений Helm",
         body: "Если вы это видите, уведомления на рабочем столе работают.",
         notDelivered:
           "Уведомление не было доставлено. Проверьте Системные настройки > Уведомления.",
@@ -1031,7 +999,7 @@ export const ru: TranslationResources = {
     integrations: {
       cli: {
         statusFailed: "Невозможно проверить статус установки CLI.",
-        installFailed: "Невозможно установить PaseoCLI.",
+        installFailed: "Невозможно установить HelmCLI.",
       },
       skills: {
         statusFailed: "Невозможно проверить статус навыков оркестровки.",
@@ -1131,10 +1099,30 @@ export const ru: TranslationResources = {
     },
   },
   onboarding: {
-    title: "Добро пожаловать в Paseo",
-    subtitle: "Подключите компьютер, чтобы начать",
+    title: "Добро пожаловать в Helm",
+    subtitle:
+      "Подключайте локальных или удаленных AI-агентов для кодинга из одного места. Ваш код остается на вашей машине.",
     actions: {
-      settings: "Настройки",
+      start: "Начать",
+      connectRemote: "Подключить удаленный host",
+      cancel: "Отмена",
+      retryLocal: "Повторить локально",
+      retry: "Повторить",
+      useOtherMethods: "Использовать другой способ",
+      diagnostics: "Открыть диагностику",
+    },
+    connecting: {
+      title: "Подключение к локальному daemon...",
+    },
+    picker: {
+      title: "Выберите способ подключения",
+      description: "Подключитесь напрямую, вставьте ссылку сопряжения или отсканируйте QR-код.",
+    },
+    error: {
+      title: "Не удалось подключиться к локальному daemon",
+      description:
+        "Возможные причины: daemon не запущен, локальный порт занят или истекло время подключения.",
+      reasonLabel: "Подробности: {{reason}}",
     },
   },
   modelSelector: {
@@ -1207,7 +1195,7 @@ export const ru: TranslationResources = {
     },
     direct: {
       title: "Прямое подключение",
-      helper: "Введите адрес сервера Paseo.",
+      helper: "Введите адрес сервера Helm.",
       fields: {
         host: "Host",
         port: "Порт",
@@ -1287,7 +1275,7 @@ export const ru: TranslationResources = {
       failedToLoadOffer: "Не удалось загрузить предложение сопряжения.",
       relayDisabled: "Реле не включено. Включите реле для сопряжения устройства.",
       unavailable: "Предложение по сопряжению недоступно.",
-      hint: "Отсканируйте этот код QR с помощью Paseo на своем телефоне или скопируйте ссылку ниже.",
+      hint: "Отсканируйте этот код QR с помощью Helm на своем телефоне или скопируйте ссылку ниже.",
       qrUnavailable: "Код QR недоступен.",
       retry: "Повторить попытку",
       copy: "Копировать",
@@ -1319,7 +1307,7 @@ export const ru: TranslationResources = {
   serviceUrl: {
     title: "Открыть сервис URL",
     message: "Открыть{{url}}?",
-    inPaseo: "В Paseo",
+    inPaseo: "В Helm",
     externalBrowser: "Внешний браузер",
     dontAskAgain: "Не спрашивай больше",
   },
@@ -1444,7 +1432,7 @@ export const ru: TranslationResources = {
         description: "Где открыть URL- адреса запущенных скриптов",
         options: {
           ask: "Просить",
-          inApp: "В Paseo",
+          inApp: "В Helm",
           external: "Внешний браузер",
         },
       },
@@ -1492,7 +1480,7 @@ export const ru: TranslationResources = {
         label: "Обновления приложений",
         readyToInstall: "Готово к установке:{{version}}",
         installTitle: "Установить обновление рабочего стола",
-        installMessage: "Это обновит Paseo на этом компьютере.",
+        installMessage: "Это обновит Helm на этом компьютере.",
         installConfirm: "Установить обновление",
         update: "Обновлять",
         updateTo: "Обновление до{{version}}",
@@ -1585,6 +1573,10 @@ export const ru: TranslationResources = {
         moveTabDown: "Переместить вкладку вниз",
         closePane: "Закрыть панель",
         newTerminal: "Новый терминал",
+        reviewChanges: "Обзор изменений",
+        openFile: "Открыть файл",
+        newSideChat: "Новый боковой чат",
+        toggleToolPanel: "Переключить панель инструментов",
         toggleCommandCenter: "Переключить командный центр",
         showKeyboardShortcuts: "Показать сочетания клавиш",
         toggleLeftSidebar: "Переключить левую боковую панель",
@@ -1621,10 +1613,10 @@ export const ru: TranslationResources = {
         title: "Навыки оркестровки",
         description: "Научите своих агентов организовывать работу через CLI",
         updateAvailable: "Доступно обновление",
-        updateTitle: "Обновить навыки Paseo?",
+        updateTitle: "Обновить навыки Helm?",
         updateFallback: "Синхронизируйте связанные навыки с вашим компьютером.",
-        uninstallTitle: "Удалить навыки Paseo?",
-        uninstallMessage: "Удаляет все навыки оркестровки Paseo из ~/.agents, ~/.claude, ~/.codex.",
+        uninstallTitle: "Удалить навыки Helm?",
+        uninstallMessage: "Удаляет все навыки оркестровки Helm из ~/.agents, ~/.claude, ~/.codex.",
       },
       actions: {
         install: "Установить",
@@ -1680,9 +1672,9 @@ export const ru: TranslationResources = {
         title: "оркестровка",
         unavailable: "Подключитесь к этому хосту, чтобы управлять оркестрацией.",
         enableTools: {
-          title: "Включить инструменты Paseo",
+          title: "Включить инструменты Helm",
           hint: "Агенты смогут управлять рабочими деревьями, агентами и расписаниями.",
-          accessibilityLabel: "Инструменты внедрения Paseo",
+          accessibilityLabel: "Инструменты внедрения Helm",
         },
         systemPrompt: {
           title: "Системная подсказка",
@@ -1749,10 +1741,10 @@ export const ru: TranslationResources = {
             "Этот хост не подключен. Подождите, пока он подключится к сети, прежде чем перезапустить.",
           offlineTitle: "Host оффлайн",
           offlineMessage:
-            "Этот хост не в сети.Paseo автоматически повторно подключается — подождите, пока он снова подключится к сети, прежде чем перезапускаться.",
+            "Этот хост не в сети.Helm автоматически повторно подключается — подождите, пока он снова подключится к сети, прежде чем перезапускаться.",
           requestFailedTitle: "Ошибка",
           requestFailedMessage:
-            "Не удалось отправить запрос на перезапуск.Paseo автоматически повторно подключается. Повторите попытку, как только хост окажется в сети.",
+            "Не удалось отправить запрос на перезапуск.Helm автоматически повторно подключается. Повторите попытку, как только хост окажется в сети.",
           dialogFailedMessage: "Невозможно открыть диалоговое окно подтверждения перезапуска.",
         },
         dangerZone: "Опасная зона",
@@ -1880,7 +1872,7 @@ export const ru: TranslationResources = {
         newScript: "Новый сценарий",
         editScript: "Изменить{{name}}",
         runAsService: "Запуск как служба",
-        serviceHint: "Paseo контролирует процесс и назначает порт через $PASEO_PORT.",
+        serviceHint: "Helm контролирует процесс и назначает порт через $PASEO_PORT.",
         actions: {
           add: "Добавить скрипт",
           edit: "Редактировать",
@@ -1889,7 +1881,7 @@ export const ru: TranslationResources = {
       },
       metadata: {
         title: "Генерация метаданных",
-        info: "Инструкции для конкретного проекта, внедренные в подсказки ИИ, которые Paseo использует для генерации метаданных. Используйте их для обеспечения соблюдения соглашений вашей команды, таких как наименование ветвей, стиль фиксации или формат PR.",
+        info: "Инструкции для конкретного проекта, внедренные в подсказки ИИ, которые Helm использует для генерации метаданных. Используйте их для обеспечения соблюдения соглашений вашей команды, таких как наименование ветвей, стиль фиксации или формат PR.",
         branchName: "Названия ветвей",
         branchNamePlaceholder: "Префиксные ветки с feat/ или fix/, mb/ для личных веток",
         commitMessage: "Фиксировать сообщения",

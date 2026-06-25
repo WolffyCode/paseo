@@ -54,6 +54,20 @@ export function createWorkspaceFileTabTarget(
   };
 }
 
+export function createWorkspaceReviewTabTarget(workspaceId: string): {
+  kind: "review";
+  workspaceId: string;
+} {
+  return { kind: "review", workspaceId };
+}
+
+export function createWorkspaceFilesTabTarget(workspaceId: string): {
+  kind: "files";
+  workspaceId: string;
+} {
+  return { kind: "files", workspaceId };
+}
+
 function normalizeLineNumber(value: number | null | undefined): number | undefined {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? Math.floor(value)

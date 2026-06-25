@@ -84,7 +84,7 @@ export async function acquirePidLock(
       }
 
       throw new PidLockError(
-        `Another Paseo daemon is already running (PID ${existingLock.pid}, started ${existingLock.startedAt})`,
+        `Another Helm daemon is already running (PID ${existingLock.pid}, started ${existingLock.startedAt})`,
         existingLock,
       );
     }
@@ -115,7 +115,7 @@ export async function acquirePidLock(
         const raceLock = parsePidLockInfo(JSON.parse(content));
         if (raceLock) {
           throw new PidLockError(
-            `Another Paseo daemon is already running (PID ${raceLock.pid})`,
+            `Another Helm daemon is already running (PID ${raceLock.pid})`,
             raceLock,
           );
         }

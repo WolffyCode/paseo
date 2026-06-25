@@ -764,7 +764,7 @@ export async function createAgentMcpServer(options: AgentMcpServerOptions): Prom
           .string()
           .min(1)
           .optional()
-          .describe("Optional worktree slug/path label. Omit to let Paseo generate one."),
+          .describe("Optional worktree slug/path label. Omit to let Helm generate one."),
         branchName: z
           .string()
           .min(1)
@@ -777,21 +777,21 @@ export async function createAgentMcpServer(options: AgentMcpServerOptions): Prom
           .describe("Optional base branch. Defaults to the repository default branch."),
       })
       .strict()
-      .describe("Create a new branch in a new Paseo worktree."),
+      .describe("Create a new branch in a new Helm worktree."),
     z
       .object({
         kind: z.literal("checkout-branch"),
         branch: z.string().min(1).describe("Existing branch to check out."),
       })
       .strict()
-      .describe("Check out an existing branch in a new Paseo worktree."),
+      .describe("Check out an existing branch in a new Helm worktree."),
     z
       .object({
         kind: z.literal("checkout-pr"),
         githubPrNumber: z.number().int().positive().describe("GitHub pull request number."),
       })
       .strict()
-      .describe("Check out a GitHub pull request in a new Paseo worktree."),
+      .describe("Check out a GitHub pull request in a new Helm worktree."),
   ]);
   const AgentWorkspaceInputSchema = z.discriminatedUnion("kind", [
     z
@@ -2292,7 +2292,7 @@ export async function createAgentMcpServer(options: AgentMcpServerOptions): Prom
     "list_worktrees",
     {
       title: "List worktrees",
-      description: "List Paseo-managed git worktrees for a repository.",
+      description: "List Helm-managed git worktrees for a repository.",
       inputSchema: {
         cwd: z
           .string()
@@ -2328,7 +2328,7 @@ export async function createAgentMcpServer(options: AgentMcpServerOptions): Prom
     {
       title: "Create worktree",
       description:
-        "Create a Paseo-managed git worktree. Branch off a new branch, check out an existing branch, or check out a GitHub PR.",
+        "Create a Helm-managed git worktree. Branch off a new branch, check out an existing branch, or check out a GitHub PR.",
       inputSchema: {
         cwd: z.string().optional().describe("Repository directory. Defaults to the agent's cwd."),
         target: AgentCreateWorktreeTargetInputSchema.describe("What the worktree should contain."),
@@ -2373,7 +2373,7 @@ export async function createAgentMcpServer(options: AgentMcpServerOptions): Prom
     "archive_worktree",
     {
       title: "Archive worktree",
-      description: "Delete a Paseo-managed git worktree.",
+      description: "Delete a Helm-managed git worktree.",
       inputSchema: {
         cwd: z
           .string()

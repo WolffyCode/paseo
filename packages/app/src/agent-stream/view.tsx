@@ -27,7 +27,6 @@ import { MAX_CONTENT_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
 import { useMutation } from "@tanstack/react-query";
 import Animated, { FadeIn, FadeOut } from "react-native-reanimated";
 import { Check, ChevronDown, X } from "lucide-react-native";
-import { usePanelStore } from "@/stores/panel-store";
 import {
   AssistantMessage,
   SpeakMessage,
@@ -70,6 +69,7 @@ import {
   normalizeInlinePathTarget,
 } from "@/assistant-file-links";
 import {
+  createWorkspaceFilesTabTarget,
   createWorkspaceFileTabTarget,
   normalizeWorkspaceFileLocation,
   type OpenFileDisposition,
@@ -263,8 +263,6 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
     const [expandedInlineToolCallIds, setExpandedInlineToolCallIds] = useState<Set<string>>(
       new Set(),
     );
-    const openFileExplorerForCheckout = usePanelStore((state) => state.openFileExplorerForCheckout);
-    const setExplorerTabForCheckout = usePanelStore((state) => state.setExplorerTabForCheckout);
 
     // Get serverId (fallback to agent's serverId if not provided)
     const resolvedServerId = serverId ?? agent.serverId ?? "";
@@ -344,16 +342,13 @@ const AgentStreamViewComponent = forwardRef<AgentStreamViewHandle, AgentStreamVi
           setCurrentPath: false,
         });
 
-        const checkout = {
-          serverId: resolvedServerId,
-          cwd: agent.cwd,
-          isGit: agent.projectPlacement?.checkout?.isGit ?? true,
-        };
-        setExplorerTabForCheckout({ ...checkout, tab: "files" });
-        openFileExplorerForCheckout({
-          isCompact: isMobile,
-          checkout,
-        });
+        if (agent.workspaceId) {
+          navigateToPreparedWorkspaceTab({
+            serverId: resolvedServerId,
+            workspaceId: agent.workspaceId,
+            target: createWorkspaceFilesTabTarget(agent.workspaceId),
+          });
+        }
       },
     );
 

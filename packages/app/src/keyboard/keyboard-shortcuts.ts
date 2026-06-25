@@ -143,6 +143,10 @@ const SHORTCUT_HELP_LABEL_KEYS: Record<string, string> = {
   "workspace-pane-move-tab-down": "settings.shortcuts.help.moveTabDown",
   "workspace-pane-close": "settings.shortcuts.help.closePane",
   "workspace-terminal-new": "settings.shortcuts.help.newTerminal",
+  "workspace-review-open": "settings.shortcuts.help.reviewChanges",
+  "workspace-file-open": "settings.shortcuts.help.openFile",
+  "workspace-side-chat-open": "settings.shortcuts.help.newSideChat",
+  "workspace-tool-panel-toggle": "settings.shortcuts.help.toggleToolPanel",
   "toggle-command-center": "settings.shortcuts.help.toggleCommandCenter",
   "show-shortcuts": "settings.shortcuts.help.showKeyboardShortcuts",
   "toggle-left-sidebar": "settings.shortcuts.help.toggleLeftSidebar",
@@ -678,6 +682,110 @@ const SHORTCUT_BINDINGS: readonly ShortcutBinding[] = [
       section: "panels",
       label: "New terminal",
       keys: ["mod", "shift", "T"],
+    },
+  },
+
+  // --- Review changes (tool panel) ---
+  {
+    id: "workspace-review-open-cmd-shift-g-mac",
+    action: "workspace.review.open",
+    combo: "Cmd+Shift+G",
+    when: { mac: true, commandCenter: false },
+    help: {
+      id: "workspace-review-open",
+      section: "panels",
+      label: "Review changes",
+      keys: ["ctrl", "shift", "G"],
+    },
+  },
+  {
+    id: "workspace-review-open-ctrl-shift-g-non-mac",
+    action: "workspace.review.open",
+    combo: "Ctrl+Shift+G",
+    when: { mac: false, commandCenter: false, terminal: false },
+    help: {
+      id: "workspace-review-open",
+      section: "panels",
+      label: "Review changes",
+      keys: ["ctrl", "shift", "G"],
+    },
+  },
+
+  // --- Open file (tool panel) ---
+  {
+    id: "workspace-file-open-cmd-p-mac",
+    action: "workspace.file.open",
+    combo: "Cmd+P",
+    when: { mac: true, commandCenter: false },
+    help: {
+      id: "workspace-file-open",
+      section: "panels",
+      label: "Open file",
+      keys: ["mod", "P"],
+    },
+  },
+  {
+    id: "workspace-file-open-ctrl-p-non-mac",
+    action: "workspace.file.open",
+    combo: "Ctrl+P",
+    when: { mac: false, commandCenter: false, terminal: false },
+    help: {
+      id: "workspace-file-open",
+      section: "panels",
+      label: "Open file",
+      keys: ["mod", "P"],
+    },
+  },
+
+  // --- New side chat (tool panel) ---
+  {
+    id: "workspace-side-chat-open-cmd-alt-s-mac",
+    action: "workspace.side-chat.open",
+    combo: "Cmd+Alt+S",
+    when: { mac: true, commandCenter: false },
+    help: {
+      id: "workspace-side-chat-open",
+      section: "panels",
+      label: "New side chat",
+      keys: ["alt", "mod", "S"],
+    },
+  },
+  {
+    id: "workspace-side-chat-open-ctrl-alt-s-non-mac",
+    action: "workspace.side-chat.open",
+    combo: "Ctrl+Alt+S",
+    when: { mac: false, commandCenter: false, terminal: false },
+    help: {
+      id: "workspace-side-chat-open",
+      section: "panels",
+      label: "New side chat",
+      keys: ["alt", "mod", "S"],
+    },
+  },
+
+  // --- Toggle tool panel ---
+  {
+    id: "workspace-tool-panel-toggle-cmd-alt-b-mac",
+    action: "workspace.tool-panel.toggle",
+    combo: "Cmd+Alt+B",
+    when: { mac: true, commandCenter: false },
+    help: {
+      id: "workspace-tool-panel-toggle",
+      section: "panels",
+      label: "Toggle tool panel",
+      keys: ["mod", "alt", "B"],
+    },
+  },
+  {
+    id: "workspace-tool-panel-toggle-ctrl-alt-b-non-mac",
+    action: "workspace.tool-panel.toggle",
+    combo: "Ctrl+Alt+B",
+    when: { mac: false, commandCenter: false, terminal: false },
+    help: {
+      id: "workspace-tool-panel-toggle",
+      section: "panels",
+      label: "Toggle tool panel",
+      keys: ["mod", "alt", "B"],
     },
   },
 

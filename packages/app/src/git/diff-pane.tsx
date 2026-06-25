@@ -53,7 +53,6 @@ import {
   type HighlightToken,
 } from "@/git/use-diff-query";
 import { useCheckoutStatusQuery } from "@/git/use-status-query";
-import { useCheckoutPrStatusQuery } from "@/git/use-pr-status-query";
 import { useChangesPreferences } from "@/hooks/use-changes-preferences";
 import { useAppSettings } from "@/hooks/use-settings";
 import { DiffScroll } from "@/components/diff-scroll";
@@ -75,7 +74,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { GitHubIcon } from "@/components/icons/github-icon";
 import { lineNumberGutterWidth } from "@/components/code-insets";
 import { useWebScrollViewScrollbar } from "@/components/use-web-scrollbar";
 import { GitActionsSplitButton } from "@/git/actions-split-button";
@@ -1107,7 +1105,6 @@ const ThemedGitCommitHorizontal = withUnistyles(GitCommitHorizontal);
 const ThemedDownload = withUnistyles(Download);
 const ThemedUpload = withUnistyles(Upload);
 const ThemedArrowDownUp = withUnistyles(ArrowDownUp);
-const ThemedGitHubIcon = withUnistyles(GitHubIcon);
 const ThemedGitMerge = withUnistyles(GitMerge);
 const ThemedRefreshCcw = withUnistyles(RefreshCcw);
 const ThemedArchive = withUnistyles(Archive);
@@ -1546,14 +1543,6 @@ function computeCommittedDiffDescription(
   return branchLabel === baseRefLabel ? undefined : `${branchLabel} -> ${baseRefLabel}`;
 }
 
-function computePrErrorMessage(
-  githubFeaturesEnabled: boolean,
-  prPayloadError: { message?: string } | null | undefined,
-): string | null {
-  if (!githubFeaturesEnabled) return null;
-  return prPayloadError?.message ?? null;
-}
-
 function buildDiffModeTriggerStyle(): PressableStyleFn {
   return ({ hovered, pressed, open }) => [
     styles.diffModeTrigger,
@@ -1775,11 +1764,6 @@ export function GitDiffPane({ serverId, workspaceId, cwd, enabled }: GitDiffPane
     setWorkspaceAttachments,
     workspaceAttachmentScopeKey,
   ]);
-  const { githubFeaturesEnabled, payloadError: prPayloadError } = useCheckoutPrStatusQuery({
-    serverId,
-    cwd,
-    enabled: isGit,
-  });
   const normalizedWorkspaceRoot = useMemo(() => cwd.trim(), [cwd]);
   const workspaceStateKey = useMemo(
     () =>
@@ -2081,7 +2065,6 @@ export function GitDiffPane({ serverId, workspaceId, cwd, enabled }: GitDiffPane
 
   const hasChanges = files.length > 0;
   const diffErrorMessage = diffPayloadError?.message ?? null;
-  const prErrorMessage = computePrErrorMessage(githubFeaturesEnabled, prPayloadError);
   const baseRefLabel = useMemo(
     () => computeBaseRefLabel(baseRef, t("workspace.git.diff.base")),
     [baseRef, t],
@@ -2092,11 +2075,6 @@ export function GitDiffPane({ serverId, workspaceId, cwd, enabled }: GitDiffPane
       pull: <ThemedDownload size={16} uniProps={foregroundMutedIconColorMapping} />,
       push: <ThemedUpload size={16} uniProps={foregroundMutedIconColorMapping} />,
       pullAndPush: <ThemedArrowDownUp size={16} uniProps={foregroundMutedIconColorMapping} />,
-      viewPr: <ThemedGitHubIcon size={16} uniProps={foregroundMutedIconColorMapping} />,
-      createPr: <ThemedGitHubIcon size={16} uniProps={foregroundMutedIconColorMapping} />,
-      mergePrSquash: <ThemedGitHubIcon size={16} uniProps={foregroundMutedIconColorMapping} />,
-      mergePrMerge: <ThemedGitHubIcon size={16} uniProps={foregroundMutedIconColorMapping} />,
-      mergePrRebase: <ThemedGitHubIcon size={16} uniProps={foregroundMutedIconColorMapping} />,
       merge: <ThemedGitMerge size={16} uniProps={foregroundMutedIconColorMapping} />,
       mergeFromBase: <ThemedRefreshCcw size={16} uniProps={foregroundMutedIconColorMapping} />,
       archive: <ThemedArchive size={16} uniProps={foregroundMutedIconColorMapping} />,
@@ -2240,8 +2218,6 @@ export function GitDiffPane({ serverId, workspaceId, cwd, enabled }: GitDiffPane
         </View>
       ) : null}
 
-      {prErrorMessage ? <Text style={styles.actionErrorText}>{prErrorMessage}</Text> : null}
-
       <View style={styles.diffContainer}>
         {bodyContent}
         {hasChanges ? scrollbar.overlay : null}
@@ -2378,12 +2354,6 @@ const styles = StyleSheet.create((theme) => ({
     },
     borderRadius: theme.borderRadius.base,
     flexShrink: 0,
-  },
-  actionErrorText: {
-    paddingHorizontal: theme.spacing[3],
-    paddingBottom: theme.spacing[1],
-    fontSize: theme.fontSize.xs,
-    color: theme.colors.destructive,
   },
   diffContainer: {
     flex: 1,
