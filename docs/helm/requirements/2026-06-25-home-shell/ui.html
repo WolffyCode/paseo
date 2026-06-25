@@ -2059,8 +2059,7 @@
         <span class="tag">主壳 · 4 · 核心</span>
         <h2>右面板 · 审查（Codex 停靠列 + 标签头）</h2>
         <p>
-          整屏 = 左栏 + 中区 + 可拖的分隔手柄 + 右面板。右面板顶部是<b>标签头</b>（审查 / 终端 / 浏览器 / 文件
-          + 右上 ✕ 收起）；审查 = 当前工作区的 Git diff（文件 +N −N / 增删行 / 底部 Stage、Revert、行评论）。<b>没有悬浮侧条</b>，顶栏控件区 的右面板开关此时高亮。
+          整屏 = 左栏 + 中区 + 可拖的分隔手柄 + 右面板。右面板是 Codex 式停靠列：标签栏 <b>第一个固定「审查」</b>，右边 <b>「新选项卡 +」</b>点开下拉【终端 / 浏览器 ⌘T / 文件 ⌘P】新增标签；<b>放大 ⤢ + 收起在面板自己的右上角</b>。审查 = 当前工作区的 Git diff（文件 +N −N / 增删行 / 底部 Stage、Revert、行评论）。<b>没有悬浮侧条、没有平铺的四标签</b>。
         </p>
       </div>
       <div class="screen-body">
@@ -2109,7 +2108,7 @@
               </div>
             </div>
             <div class="resize"><span class="pinb" style="position: absolute; top: 8px; left: -8px">3</span></div>
-            <div class="rpanel" style="width: 354px">
+            <div class="rpanel" style="width: 354px; position: relative">
               <div class="rp-tabs">
                 <div class="rp-tab on"><svg class="i sm"><use href="#spark" /></svg> 审查<span class="pinb">1</span></div>
                 <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg> 新选项卡<span class="pinb">2</span></div>
@@ -2117,6 +2116,12 @@
                   <div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg><span class="pinb">4</span></div>
                   <div class="rp-btn"><svg class="i sm"><use href="#panel-r" /></svg></div>
                 </div>
+              </div>
+              <!-- “新选项卡 +” dropdown (open) -->
+              <div class="menu" style="top: 38px; left: 78px; min-width: 188px">
+                <div class="mi"><svg class="i sm"><use href="#terminal" /></svg> 终端</div>
+                <div class="mi"><svg class="i sm"><use href="#globe" /></svg> 浏览器 <span class="r kbd">⌘T</span></div>
+                <div class="mi"><svg class="i sm"><use href="#file" /></svg> 文件 <span class="r kbd">⌘P</span></div>
               </div>
               <div class="diff-file">
                 <svg class="i xs"><use href="#file" /></svg> combined-model-selector.tsx
@@ -2133,7 +2138,7 @@
               <div style="padding: 9px 13px; border-top: 1px solid var(--border); display: flex; gap: 7px">
                 <span class="btn out sm"><svg class="i xs"><use href="#check" /></svg> Stage</span>
                 <span class="btn ghost sm">Revert</span>
-                <span class="btn ghost sm" style="margin-left: auto"><svg class="i xs"><use href="#plus" /></svg> 行评论<span class="pinb">2</span></span>
+                <span class="btn ghost sm" style="margin-left: auto"><svg class="i xs"><use href="#plus" /></svg> 行评论<span class="pinb">3</span></span>
               </div>
             </div>
           </div>
@@ -2144,10 +2149,11 @@
             <div class="anno-card">
               <div class="ac-h">点击效果</div>
               <ol>
-                <li><span class="pin">1</span><div><b>标签头切换</b>：在面板顶部的 审查 / 终端 / 浏览器 / 文件 之间切换内容（也可用 ⌃⇧G / ⌘T / ⌘P 直接打开某标签）。</div></li>
-                <li><span class="pin">2</span><div><b>diff 行操作</b>：悬浮行尾出现「+ 行评论」；可按块 / 文件 Stage 或 Revert；标题汇总增删行数。</div></li>
-                <li><span class="pin">3</span><div><b>拖拽改宽</b>：拖动左缘的分隔手柄改面板宽度（每个工作区单独记忆）。</div></li>
-                <li><span class="pin">4</span><div><b>右上 ✕</b>：收起整列，开关回到右上 顶栏控件区（见 S3）。</div></li>
+                <li><span class="pin">1</span><div><b>审查标签（固定）</b>：标签栏第一个固定为「审查」；点它回到改动 diff。</div></li>
+                <li><span class="pin">2</span><div><b>新选项卡 +</b>：点开下拉【终端 / 浏览器 ⌘T / 文件 ⌘P】，选一个就在面板里新增对应类型的标签（见 S5）。也可用 ⌃⇧G / ⌘T / ⌘P 快捷键直接打开。</div></li>
+                <li><span class="pin">3</span><div><b>diff 行操作</b>：悬浮行尾出现「+ 行评论」；可按块 / 文件 Stage 或 Revert；标题汇总增删行数。</div></li>
+                <li><span class="pin">4</span><div><b>放大 / 收起（面板右上角）</b>：⤢ 放大 = 面板占满中区 / 还原；旁边的收起把整列收起、开关回到顶栏右侧（屏幕位置不变，见 S3）。<b>放大 / 缩小只在右面板内提供</b>。</div></li>
+                <li><span class="pin">+</span><div><b>拖拽改宽</b>：拖动左缘的分隔手柄改面板宽度（每个工作区单独记忆）。</div></li>
               </ol>
             </div>
             <div class="anno-card">
@@ -2159,9 +2165,9 @@
                   <dt>默认</dt>
                   <dd>审查标签高亮（绿色图标）；diff 文件 + 行；底部 Stage / Revert / 行评论。</dd>
                   <dt>悬浮</dt>
-                  <dd>未选标签底色变浅；diff 行悬浮出现行评论入口；✕ 悬浮底色变浅。</dd>
+                  <dd>未选标签底色变浅；diff 行悬浮出现行评论入口；放大 / 收起按钮悬浮底色变浅。</dd>
                   <dt>活跃</dt>
-                  <dd>当前标签高亮（浅底 + 绿图标）；顶栏控件区 的右面板开关高亮。</dd>
+                  <dd>当前标签高亮（浅底 + 绿图标）；顶栏右侧的右面板开关高亮。</dd>
                   <dt>运行</dt>
                   <dd>代理改动中 diff 增量刷新（文件 / 行实时累加）。</dd>
                   <dt>禁用</dt>
@@ -2185,7 +2191,7 @@
                 <div class="ml-i"><b>添加行评论</b> → 在该行下展开评论输入</div>
                 <div class="ml-grp">文件标题右键（3 项）</div>
                 <div class="ml-i"><b>Stage 文件</b> · <b>Revert 文件</b> · <b>在 Finder 中显示</b></div>
-                <div class="ml-i ml-note">标签头本身无右键菜单（标签的拆分 / 关闭走「+」菜单，见 S5）。</div>
+                <div class="ml-i ml-note">已开的标签可右键关闭 / 移动；新增标签走标签栏的「新选项卡 +」下拉（见 S5）。</div>
               </div>
             </div>
           </div>
@@ -2197,10 +2203,9 @@
     <section class="screen" id="s5">
       <div class="screen-head">
         <span class="tag">主壳 · 5</span>
-        <h2>右面板 · 终端（右/底停靠）+ 浏览器 + 文件</h2>
+        <h2>右面板 · 空态 / 浏览器 / 文件 / 终端（标签内）</h2>
         <p>
-          画底部停靠的终端（顶栏「移到右侧」切换 + 「底部停靠」标记 + 等宽输出）+ 右面板里的浏览器（地址栏 +
-          刷新 + 页面预览占位）；文件面板（文件树 + 预览）作为第三态在注解里说明。
+          右面板的四种内容都在标签里，对齐 Codex：主图是<b>浏览器标签</b>（地址栏 ← → ⟳ + URL + 空态「开始浏览」+ 地球）；下方三个小图依次是<b>空态可选列表</b>、<b>文件标签</b>（文件树 + 筛选 + 空态）、<b>终端标签</b>。<b>终端只在右面板里、不在中区底部停靠</b>。
         </p>
       </div>
       <div class="screen-body">
