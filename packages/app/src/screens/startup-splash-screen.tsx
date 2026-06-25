@@ -26,7 +26,7 @@ import { CODE_SURFACE_DATASET } from "@/styles/code-surface";
 interface StartupSplashScreenProps {
   bootstrapState?: {
     splashError: string | null;
-    connectLocal: () => void;
+    retry: () => void;
   };
 }
 
@@ -444,7 +444,7 @@ export function StartupSplashScreen({ bootstrapState }: StartupSplashScreenProps
             <Button variant="outline" leftIcon={bookIcon} onPress={openDocs}>
               Docs
             </Button>
-            <Button variant="default" leftIcon={retryIcon} onPress={bootstrapState.connectLocal}>
+            <Button variant="default" leftIcon={retryIcon} onPress={bootstrapState.retry}>
               Retry
             </Button>
           </View>
