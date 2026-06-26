@@ -735,6 +735,22 @@ export const ar: TranslationResources = {
       conversations: "المحادثات",
       noConversations: "لا محادثات بعد",
     },
+    conversation: {
+      actions: {
+        pin: "تثبيت المحادثة",
+        unpin: "إلغاء تثبيت المحادثة",
+        rename: "إعادة تسمية المحادثة",
+        archive: "أرشفة المحادثة",
+        markUnread: "وضع علامة كغير مقروءة",
+        revealInFinder: "إظهار في Finder",
+        copyWorkingDir: "نسخ دليل العمل",
+        copyConversationId: "نسخ معرّف المحادثة",
+        copyDeepLink: "نسخ الرابط العميق",
+        forkToLocal: "تفريع إلى محلي",
+        forkToWorktree: "تفريع إلى شجرة عمل جديدة",
+        openInNewWindow: "فتح في نافذة جديدة",
+      },
+    },
     worktreeSetup: {
       title: "إعداد البرامج النصية لشجرة العمل",
       description:
@@ -1341,6 +1357,8 @@ export const ar: TranslationResources = {
   },
   renameModal: {
     rename: "إعادة تسمية",
+    save: "حفظ",
+    keepShort: "اجعله قصيرًا وسهل التمييز",
     saving: "جارٍ الحفظ...",
   },
   sidebarCallout: {

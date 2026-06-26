@@ -741,6 +741,22 @@ export const en = {
       conversations: "Conversations",
       noConversations: "No conversations yet",
     },
+    conversation: {
+      actions: {
+        pin: "Pin conversation",
+        unpin: "Unpin conversation",
+        rename: "Rename conversation",
+        archive: "Archive conversation",
+        markUnread: "Mark as unread",
+        revealInFinder: "Reveal in Finder",
+        copyWorkingDir: "Copy working directory",
+        copyConversationId: "Copy conversation ID",
+        copyDeepLink: "Copy deep link",
+        forkToLocal: "Fork to local",
+        forkToWorktree: "Fork to new worktree",
+        openInNewWindow: "Open in new window",
+      },
+    },
     worktreeSetup: {
       title: "Set up worktree scripts",
       description:
@@ -1347,6 +1363,8 @@ export const en = {
   },
   renameModal: {
     rename: "Rename",
+    save: "Save",
+    keepShort: "Keep it short and easy to recognize",
     saving: "Saving...",
   },
   sidebarCallout: {

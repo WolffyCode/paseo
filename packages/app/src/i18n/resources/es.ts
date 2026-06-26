@@ -752,6 +752,22 @@ export const es: TranslationResources = {
       conversations: "Conversaciones",
       noConversations: "Aún no hay conversaciones",
     },
+    conversation: {
+      actions: {
+        pin: "Fijar conversación",
+        unpin: "Dejar de fijar conversación",
+        rename: "Renombrar conversación",
+        archive: "Archivar conversación",
+        markUnread: "Marcar como no leída",
+        revealInFinder: "Mostrar en Finder",
+        copyWorkingDir: "Copiar directorio de trabajo",
+        copyConversationId: "Copiar ID de conversación",
+        copyDeepLink: "Copiar enlace profundo",
+        forkToLocal: "Bifurcar a local",
+        forkToWorktree: "Bifurcar a nuevo árbol de trabajo",
+        openInNewWindow: "Abrir en nueva ventana",
+      },
+    },
     worktreeSetup: {
       title: "Configurar secuencias de comandos del árbol de trabajo",
       description:
@@ -1367,6 +1383,8 @@ export const es: TranslationResources = {
   },
   renameModal: {
     rename: "Rebautizar",
+    save: "Guardar",
+    keepShort: "Manténlo corto y fácil de reconocer",
     saving: "Guardando...",
   },
   sidebarCallout: {

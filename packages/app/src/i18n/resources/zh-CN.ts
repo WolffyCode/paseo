@@ -730,6 +730,22 @@ export const zhCN: TranslationResources = {
       conversations: "对话",
       noConversations: "暂无对话",
     },
+    conversation: {
+      actions: {
+        pin: "置顶对话",
+        unpin: "取消置顶对话",
+        rename: "重命名对话",
+        archive: "归档对话",
+        markUnread: "标记为未读",
+        revealInFinder: "在 Finder 中显示",
+        copyWorkingDir: "复制工作目录",
+        copyConversationId: "复制会话 ID",
+        copyDeepLink: "复制深度链接",
+        forkToLocal: "派生到本地",
+        forkToWorktree: "派生到新工作树",
+        openInNewWindow: "在新窗口中打开",
+      },
+    },
     worktreeSetup: {
       title: "设置 worktree scripts",
       description: "添加 setup 命令，让新的 worktree 自动安装依赖并完成准备。",
@@ -1323,6 +1339,8 @@ export const zhCN: TranslationResources = {
   },
   renameModal: {
     rename: "重命名",
+    save: "保存",
+    keepShort: "保持简短且易于识别",
     saving: "正在保存...",
   },
   sidebarCallout: {

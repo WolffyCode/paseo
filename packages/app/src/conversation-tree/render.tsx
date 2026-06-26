@@ -3,10 +3,15 @@ import {
   Archive,
   Bot,
   ChevronRight,
+  Circle,
+  Copy,
+  ExternalLink,
   Folder,
   FolderOpen,
   FolderPlus,
   GitBranch,
+  GitFork,
+  Link2,
   MoreHorizontal,
   Pencil,
   Pin,
@@ -14,7 +19,6 @@ import {
   Trash2,
 } from "lucide-react-native";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
@@ -25,21 +29,32 @@ import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
+  ContextMenuSeparator,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
-import { getHostRuntimeStore } from "@/runtime/host-runtime";
-import { useToast } from "@/contexts/toast-context";
-import type { SidebarProjectEntry } from "@/hooks/sidebar-workspaces-view-model";
+import type {
+  SidebarProjectEntry,
+  SidebarWorkspaceEntry,
+} from "@/hooks/sidebar-workspaces-view-model";
+import { WorkspaceHoverCard } from "@/components/workspace-hover-card";
+import { createSidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list";
 import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { useSessionStore } from "@/stores/session-store";
 import { useSidebarCollapsedSectionsStore } from "@/stores/sidebar-collapsed-sections-store";
+import { useSidebarPinsStore } from "@/stores/sidebar-pins-store";
 import type { Theme } from "@/styles/theme";
 import { navigateToAgent } from "@/utils/navigate-to-agent";
+import { normalizeWorkspaceOpaqueId } from "@/utils/workspace-identity";
 import { type ProjectRowActions, useProjectRowActions } from "./use-project-row-actions";
+import {
+  type ConversationRowActions,
+  useConversationRowActions,
+} from "./use-conversation-row-actions";
 import {
   buildConversationTree,
   type ConversationTreeProject,
   flattenConversationTreeRows,
+  partitionPinnedNodes,
 } from "./select";
 import type { ConversationTreeNode, ConversationTreeRow } from "./types";
 
@@ -65,6 +80,11 @@ const ThemedFolderOpen = withUnistyles(FolderOpen);
 const ThemedGitBranch = withUnistyles(GitBranch);
 const ThemedArchive = withUnistyles(Archive);
 const ThemedTrash2 = withUnistyles(Trash2);
+const ThemedCircle = withUnistyles(Circle);
+const ThemedCopy = withUnistyles(Copy);
+const ThemedExternalLink = withUnistyles(ExternalLink);
+const ThemedGitFork = withUnistyles(GitFork);
+const ThemedLink2 = withUnistyles(Link2);
 
 const mutedIconColor = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
@@ -75,6 +95,12 @@ const revealMenuIcon = <ThemedFolderOpen size={16} uniProps={mutedIconColor} />;
 const worktreeMenuIcon = <ThemedGitBranch size={16} uniProps={mutedIconColor} />;
 const archiveMenuIcon = <ThemedArchive size={16} uniProps={mutedIconColor} />;
 const removeMenuIcon = <ThemedTrash2 size={16} uniProps={mutedIconColor} />;
+// Conversation-menu (Codex #45) leading icons.
+const markUnreadMenuIcon = <ThemedCircle size={16} uniProps={mutedIconColor} />;
+const copyMenuIcon = <ThemedCopy size={16} uniProps={mutedIconColor} />;
+const deepLinkMenuIcon = <ThemedLink2 size={16} uniProps={mutedIconColor} />;
+const forkLocalMenuIcon = <ThemedGitFork size={16} uniProps={mutedIconColor} />;
+const openInNewWindowMenuIcon = <ThemedExternalLink size={16} uniProps={mutedIconColor} />;
 
 const EMPTY_AGENTS: never[] = [];
 
@@ -107,6 +133,12 @@ export function ConversationTree({
   const pathname = usePathname();
   const agents = useSessionStore((state) =>
     serverId ? state.sessions[serverId]?.agents : undefined,
+  );
+  // Live workspace descriptors — the sidebar `projects` snapshot revalidates async, so a rename
+  // (setWorkspaceTitle) wouldn't surface there for a while; the live store updates immediately
+  // (same source the title bar uses). 反馈: 对话重命名保存后名称不变。
+  const workspacesMap = useSessionStore((state) =>
+    serverId ? state.sessions[serverId]?.workspaces : undefined,
   );
   const selection = useActiveWorkspaceSelection();
   const collapsedProjectKeys = useSidebarCollapsedSectionsStore(
@@ -145,6 +177,49 @@ export function ConversationTree({
     () => new Map(projects.map((project) => [project.projectKey, project])),
     [projects],
   );
+  // workspaceId → 显示名(用户 rename 的 title 优先, 否则 name); 喂给树让顶层对话标题反映 rename。
+  const workspaceDisplayById = useMemo(() => {
+    const map = new Map<string, string>();
+    // Base layer: the sidebar projects snapshot (covers every listed workspace).
+    for (const project of projects) {
+      for (const workspace of project.workspaces) {
+        const display = workspace.title?.trim() || workspace.name;
+        const key = normalizeWorkspaceOpaqueId(workspace.workspaceId);
+        if (key && display.length > 0) map.set(key, display);
+      }
+    }
+    // Override with the LIVE descriptor title so a rename reflects instantly (反馈: 保存不生效)。
+    if (workspacesMap) {
+      for (const [workspaceId, descriptor] of workspacesMap) {
+        const display = descriptor.title?.trim() || descriptor.name;
+        const key = normalizeWorkspaceOpaqueId(workspaceId);
+        if (key && display && display.length > 0) map.set(key, display);
+      }
+    }
+    return map;
+  }, [projects, workspacesMap]);
+  // workspaceId → 完整 workspace entry(供对话行 hover 右侧卡片显示标题/目录/分支/最后更改时间, 反馈 #48)。
+  const workspaceEntryById = useMemo(() => {
+    const map = new Map<string, SidebarWorkspaceEntry>();
+    // Base: projects snapshot (covers workspaces not yet in the live descriptor map)。
+    for (const project of projects) {
+      for (const workspace of project.workspaces) {
+        const key = normalizeWorkspaceOpaqueId(workspace.workspaceId);
+        if (key) map.set(key, workspace);
+      }
+    }
+    // Override with a LIVE entry built from the descriptor so the card shows fresh 标题/目录/分支/
+    // 最后更改时间 —— the projects snapshot lags (same staleness as title; 反馈 #48)。
+    if (workspacesMap && serverId) {
+      for (const [workspaceId, descriptor] of workspacesMap) {
+        const key = normalizeWorkspaceOpaqueId(workspaceId);
+        if (key) {
+          map.set(key, createSidebarWorkspaceEntry({ serverId, workspace: descriptor, agents }));
+        }
+      }
+    }
+    return map;
+  }, [projects, workspacesMap, serverId, agents]);
   const handleNewConversationForProject = useCallback(
     (projectKey: string) => {
       const project = projectByKey.get(projectKey);
@@ -156,24 +231,42 @@ export function ConversationTree({
   const tree = useMemo(
     () =>
       serverId
-        ? buildConversationTree({ serverId, agents: agentList, projects: treeProjects })
+        ? buildConversationTree({
+            serverId,
+            agents: agentList,
+            projects: treeProjects,
+            workspaceDisplayById,
+          })
         : [],
-    [serverId, agentList, treeProjects],
+    [serverId, agentList, treeProjects, workspaceDisplayById],
   );
 
   const projectNodes = useMemo(() => tree.filter((node) => node.kind === "project"), [tree]);
   const looseNodes = useMemo(() => tree.filter((node) => node.kind === "conversation"), [tree]);
+  // 置顶分组(反馈 #12 + 对话右键置顶): 置顶项目整棵进「置顶」, 置顶对话(项目下或游离)提升进「置顶」,
+  // 其余留「项目」/「对话」。读 pin store → 置顶状态变化时分组实时刷新。
+  const pinnedTargets = useSidebarPinsStore((state) =>
+    serverId ? state.pinnedByServerId[serverId] : undefined,
+  );
+  const { pinnedNodes, unpinnedProjectNodes, unpinnedLooseNodes } = useMemo(
+    () => partitionPinnedNodes({ projectNodes, looseNodes, pinnedTargets }),
+    [projectNodes, looseNodes, pinnedTargets],
+  );
   const flattenOptions = useMemo(
     () => ({ collapsedProjectKeys, collapsedConversationIds, maxDepth: MAX_RENDER_DEPTH }),
     [collapsedProjectKeys, collapsedConversationIds],
   );
+  const pinnedRows = useMemo(
+    () => flattenConversationTreeRows(pinnedNodes, flattenOptions),
+    [pinnedNodes, flattenOptions],
+  );
   const projectRows = useMemo(
-    () => flattenConversationTreeRows(projectNodes, flattenOptions),
-    [projectNodes, flattenOptions],
+    () => flattenConversationTreeRows(unpinnedProjectNodes, flattenOptions),
+    [unpinnedProjectNodes, flattenOptions],
   );
   const looseRows = useMemo(
-    () => flattenConversationTreeRows(looseNodes, flattenOptions),
-    [looseNodes, flattenOptions],
+    () => flattenConversationTreeRows(unpinnedLooseNodes, flattenOptions),
+    [unpinnedLooseNodes, flattenOptions],
   );
 
   const handleToggleConversation = useCallback((conversationId: string) => {
@@ -208,8 +301,29 @@ export function ConversationTree({
       projectWorkingDir={
         row.node.kind === "project" ? projectByKey.get(row.node.id)?.iconWorkingDir : undefined
       }
+      workspaceEntry={
+        row.node.kind === "project" || !row.node.workspaceId
+          ? undefined
+          : workspaceEntryById.get(row.node.workspaceId)
+      }
     />
   );
+
+  // 项目行展开但无对话 → 紧跟一行"暂无对话"(反馈: 目录下没对话应展示暂无对话, 对齐 Codex)。
+  // 置顶组与项目组共用此渲染(两者都可能含项目节点)。
+  const renderProjectRows = (rows: ConversationTreeRow[]) =>
+    rows.flatMap((row) => {
+      const rowElement = renderRow(row);
+      if (row.node.kind === "project" && row.isExpanded && row.node.children.length === 0) {
+        return [
+          rowElement,
+          <Text key={`empty-${row.node.id}`} style={styles.emptyHintProject}>
+            {t("sidebar.sections.noConversations")}
+          </Text>,
+        ];
+      }
+      return rowElement;
+    });
 
   return (
     <ScrollView
@@ -217,6 +331,16 @@ export function ConversationTree({
       contentContainerStyle={styles.scrollContent}
       testID="conversation-tree"
     >
+      {/* 置顶组(反馈 #12): 仅在有置顶项时出现, 排在「项目」之上。 */}
+      {pinnedRows.length > 0 ? (
+        <>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>{t("sidebar.sections.pinned")}</Text>
+          </View>
+          {renderProjectRows(pinnedRows)}
+        </>
+      ) : null}
+
       <View
         style={styles.sectionHeader}
         onPointerEnter={handleProjectsHeaderEnter}
@@ -235,19 +359,7 @@ export function ConversationTree({
           </Pressable>
         ) : null}
       </View>
-      {projectRows.flatMap((row) => {
-        const rowElement = renderRow(row);
-        // 项目展开但没有对话 → 紧跟一行"暂无对话"(反馈: 目录下没对话应展示暂无对话, 对齐 Codex)。
-        if (row.node.kind === "project" && row.isExpanded && row.node.children.length === 0) {
-          return [
-            rowElement,
-            <Text key={`empty-${row.node.id}`} style={styles.emptyHintProject}>
-              {t("sidebar.sections.noConversations")}
-            </Text>,
-          ];
-        }
-        return rowElement;
-      })}
+      {renderProjectRows(projectRows)}
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{t("sidebar.sections.conversations")}</Text>
@@ -285,6 +397,7 @@ function ConversationTreeRowView({
   onToggleConversation,
   onNewConversation,
   projectWorkingDir,
+  workspaceEntry,
 }: {
   row: ConversationTreeRow;
   selected: boolean;
@@ -293,6 +406,8 @@ function ConversationTreeRowView({
   onToggleConversation: (conversationId: string) => void;
   onNewConversation: (projectKey: string) => void;
   projectWorkingDir?: string;
+  /** Conversation rows only: full workspace entry backing the hover card (标题/目录/分支/最后更改时间)。 */
+  workspaceEntry?: SidebarWorkspaceEntry;
 }) {
   const { node, depth, canExpand, isExpanded } = row;
   const isProject = node.kind === "project";
@@ -348,43 +463,24 @@ function ConversationTreeRowView({
     onNewConversation(node.id);
   }, [onNewConversation, node.id]);
 
-  // Conversation rows support double-tap-to-rename (反馈13); the title persists via
-  // setWorkspaceTitle. Project rows have no workspace, so the modal stays inert for them.
-  const { t } = useTranslation();
-  const toast = useToast();
-  const [isRenameOpen, setIsRenameOpen] = useState(false);
-  const renameMutation = useMutation({
-    mutationFn: async (title: string) => {
-      if (!node.workspaceId) return;
-      const client = getHostRuntimeStore().getClient(node.serverId);
-      if (!client) throw new Error(t("sidebar.workspace.toasts.hostDisconnected"));
-      await client.setWorkspaceTitle(node.workspaceId, title.length === 0 ? null : title);
-    },
+  // 对话行右键菜单 + 双击重命名的全部 model(项目行也无条件调用但只在非项目行使用 —— hooks 规则)。
+  const conversationActions = useConversationRowActions({
+    serverId: node.serverId,
+    agentId: node.id,
+    workspaceId: node.workspaceId,
   });
   const lastTapRef = useRef(0);
   const handleRowPress = useCallback(() => {
     const now = Date.now();
     if (!isProject && node.workspaceId && now - lastTapRef.current < 300) {
-      setIsRenameOpen(true);
+      conversationActions.onOpenRename();
     } else {
       handlePress();
     }
     lastTapRef.current = now;
-  }, [handlePress, isProject, node.workspaceId]);
-  const handleSubmitRename = useCallback(
-    async (value: string) => {
-      try {
-        await renameMutation.mutateAsync(value.trim());
-      } catch (error) {
-        toast.error(error instanceof Error ? error.message : "Rename failed");
-      }
-    },
-    [renameMutation, toast],
-  );
-  const handleCloseRename = useCallback(() => setIsRenameOpen(false), []);
-  const openRename = useCallback(() => setIsRenameOpen(true), []);
+  }, [handlePress, isProject, node.workspaceId, conversationActions]);
 
-  return (
+  const rowBody = (
     // Hover 靶: plain View + onPointerEnter/Leave —— 内部 action(Pressable) 不再抢占 hover, 鼠标移到
     // 按钮上行 hover 不丢失 (docs/hover.md Failure Mode 1; 反馈: 悬浮到按钮时行的悬浮效果没了)。
     <View
@@ -469,35 +565,26 @@ function ConversationTreeRowView({
         {isProject ? (
           <ProjectRowMenu node={node} projectActions={projectActions} />
         ) : (
-          <>
-            <ContextMenuContent side="bottom" align="start" minWidth={200}>
-              {node.workspaceId ? (
-                <ContextMenuItem
-                  onSelect={openRename}
-                  leading={renameMenuIcon}
-                  testID={`conversation-tree-menu-rename-${node.id}`}
-                >
-                  {t("sidebar.workspace.rename.title")}
-                </ContextMenuItem>
-              ) : null}
-            </ContextMenuContent>
-            {node.workspaceId ? (
-              <AdaptiveRenameModal
-                visible={isRenameOpen}
-                title={t("sidebar.workspace.rename.title")}
-                initialValue={node.title}
-                placeholder={node.title}
-                submitLabel={t("sidebar.workspace.rename.submit")}
-                onClose={handleCloseRename}
-                onSubmit={handleSubmitRename}
-                testID={`conversation-rename-modal-${node.id}`}
-              />
-            ) : null}
-          </>
+          <ConversationRowMenu node={node} actions={conversationActions} />
         )}
       </ContextMenu>
     </View>
   );
+
+  // 对话行外层包一层 WorkspaceHoverCard —— web 桌面 hover 时右侧浮出标题/目录/分支/最后更改时间卡片
+  // (反馈 #48); native/compact 上透传, 项目行或无 entry(如游离会话)时不包裹。
+  if (!isProject && workspaceEntry) {
+    return (
+      <WorkspaceHoverCard
+        workspace={workspaceEntry}
+        prHint={workspaceEntry.prHint}
+        isDragging={false}
+      >
+        {rowBody}
+      </WorkspaceHoverCard>
+    );
+  }
+  return rowBody;
 }
 
 // 项目(目录)行右键菜单 —— 对照 Codex #40(置顶/Finder/创建永久工作树/重命名/归档/移除)。提取成独立
@@ -569,12 +656,143 @@ function ProjectRowMenu({
       <AdaptiveRenameModal
         visible={projectActions.isRenameOpen}
         title={t("sidebar.project.actions.renameProject")}
+        description={t("renameModal.keepShort")}
         initialValue={node.title}
         placeholder={node.title}
+        submitLabel={t("renameModal.save")}
         onClose={projectActions.onCloseRename}
         onSubmit={projectActions.onSubmitRename}
         testID={`conversation-tree-project-rename-modal-${node.id}`}
       />
+    </>
+  );
+}
+
+// 对话(会话)行右键菜单 —— 对照 Codex #45。功能项: 置顶 / 重命名 / 在 Finder 显示 / 复制会话 ID /
+// 在新窗口打开; 占位项(disabled, 语义或能力待定, 董事长指示先占位): 归档 / 标记为未读 / 复制工作目录 /
+// 复制深度链接 / 派生到本地 / 派生到新工作树。全部 state/handler 来自 useConversationRowActions。
+function ConversationRowMenu({
+  node,
+  actions,
+}: {
+  node: ConversationTreeNode;
+  actions: ConversationRowActions;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <ContextMenuContent side="bottom" align="start" minWidth={220}>
+        {actions.hasWorkspace ? (
+          <ContextMenuItem
+            onSelect={actions.onTogglePin}
+            leading={pinMenuIcon}
+            testID={`conversation-tree-menu-pin-${node.id}`}
+          >
+            {actions.isPinned
+              ? t("sidebar.conversation.actions.unpin")
+              : t("sidebar.conversation.actions.pin")}
+          </ContextMenuItem>
+        ) : null}
+        {actions.hasWorkspace ? (
+          <ContextMenuItem
+            onSelect={actions.onOpenRename}
+            leading={renameMenuIcon}
+            testID={`conversation-tree-menu-rename-${node.id}`}
+          >
+            {t("sidebar.conversation.actions.rename")}
+          </ContextMenuItem>
+        ) : null}
+        {/* 归档对话: 大功能(归档记录 + 按会话 id 恢复最新会话内容)单独一轮, 先占位。 */}
+        <ContextMenuItem
+          disabled
+          leading={archiveMenuIcon}
+          testID={`conversation-tree-menu-archive-${node.id}`}
+        >
+          {t("sidebar.conversation.actions.archive")}
+        </ContextMenuItem>
+        {/* 标记为未读: 现仅有 clearWorkspaceAttention(标记已读), 无 raise-attention 能力, 先占位。 */}
+        <ContextMenuItem
+          disabled
+          leading={markUnreadMenuIcon}
+          testID={`conversation-tree-menu-mark-unread-${node.id}`}
+        >
+          {t("sidebar.conversation.actions.markUnread")}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        {actions.canReveal ? (
+          <ContextMenuItem
+            onSelect={actions.onReveal}
+            leading={revealMenuIcon}
+            testID={`conversation-tree-menu-reveal-${node.id}`}
+          >
+            {t("sidebar.conversation.actions.revealInFinder")}
+          </ContextMenuItem>
+        ) : null}
+        {/* 复制工作目录: 语义待定(董事长), 先占位。 */}
+        <ContextMenuItem
+          disabled
+          leading={copyMenuIcon}
+          testID={`conversation-tree-menu-copy-dir-${node.id}`}
+        >
+          {t("sidebar.conversation.actions.copyWorkingDir")}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={actions.onCopyConversationId}
+          leading={copyMenuIcon}
+          testID={`conversation-tree-menu-copy-id-${node.id}`}
+        >
+          {t("sidebar.conversation.actions.copyConversationId")}
+        </ContextMenuItem>
+        {/* 复制深度链接: 语义待定(董事长), 先占位。 */}
+        <ContextMenuItem
+          disabled
+          leading={deepLinkMenuIcon}
+          testID={`conversation-tree-menu-copy-deep-link-${node.id}`}
+        >
+          {t("sidebar.conversation.actions.copyDeepLink")}
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        {/* 派生到本地 / 派生到新工作树: 语义待定(董事长), 先占位。 */}
+        <ContextMenuItem
+          disabled
+          leading={forkLocalMenuIcon}
+          testID={`conversation-tree-menu-fork-local-${node.id}`}
+        >
+          {t("sidebar.conversation.actions.forkToLocal")}
+        </ContextMenuItem>
+        <ContextMenuItem
+          disabled
+          leading={worktreeMenuIcon}
+          testID={`conversation-tree-menu-fork-worktree-${node.id}`}
+        >
+          {t("sidebar.conversation.actions.forkToWorktree")}
+        </ContextMenuItem>
+        {actions.canOpenInNewWindow ? (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem
+              onSelect={actions.onOpenInNewWindow}
+              leading={openInNewWindowMenuIcon}
+              testID={`conversation-tree-menu-open-new-window-${node.id}`}
+            >
+              {t("sidebar.conversation.actions.openInNewWindow")}
+            </ContextMenuItem>
+          </>
+        ) : null}
+      </ContextMenuContent>
+      {node.workspaceId ? (
+        <AdaptiveRenameModal
+          visible={actions.isRenameOpen}
+          title={t("sidebar.conversation.actions.rename")}
+          description={t("renameModal.keepShort")}
+          initialValue={node.title}
+          placeholder={node.title}
+          submitLabel={t("renameModal.save")}
+          onClose={actions.onCloseRename}
+          onSubmit={actions.onSubmitRename}
+          testID={`conversation-rename-modal-${node.id}`}
+        />
+      ) : null}
     </>
   );
 }

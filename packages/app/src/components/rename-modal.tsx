@@ -16,6 +16,8 @@ export interface AdaptiveRenameModalProps {
   initialValue: string;
   placeholder?: string;
   submitLabel?: string;
+  /** Optional subtitle under the title (Codex 风格: "保持简短且易于识别")。 */
+  description?: string;
   onClose: () => void;
   onSubmit: (value: string) => Promise<void> | void;
   validate?: (value: string) => string | null;
@@ -29,6 +31,7 @@ export function AdaptiveRenameModal({
   initialValue,
   placeholder,
   submitLabel,
+  description,
   onClose,
   onSubmit,
   validate,
@@ -123,6 +126,7 @@ export function AdaptiveRenameModal({
       testID={testID}
     >
       <View style={styles.body}>
+        {description ? <Text style={styles.description}>{description}</Text> : null}
         <AdaptiveTextInput
           ref={inputRef}
           initialValue={initialValue}
@@ -172,6 +176,11 @@ const styles = StyleSheet.create((theme) => ({
   body: {
     gap: theme.spacing[3],
     paddingBottom: theme.spacing[2],
+  },
+  description: {
+    fontSize: theme.fontSize.sm,
+    color: theme.colors.foregroundMuted,
+    marginTop: -theme.spacing[1],
   },
   input: {
     backgroundColor: theme.colors.surface0,

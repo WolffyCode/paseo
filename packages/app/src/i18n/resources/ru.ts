@@ -748,6 +748,22 @@ export const ru: TranslationResources = {
       conversations: "Беседы",
       noConversations: "Пока нет бесед",
     },
+    conversation: {
+      actions: {
+        pin: "Закрепить беседу",
+        unpin: "Открепить беседу",
+        rename: "Переименовать беседу",
+        archive: "Архивировать беседу",
+        markUnread: "Отметить как непрочитанное",
+        revealInFinder: "Показать в Finder",
+        copyWorkingDir: "Копировать рабочий каталог",
+        copyConversationId: "Копировать ID беседы",
+        copyDeepLink: "Копировать глубокую ссылку",
+        forkToLocal: "Ответвить локально",
+        forkToWorktree: "Ответвить в новое рабочее дерево",
+        openInNewWindow: "Открыть в новом окне",
+      },
+    },
     worktreeSetup: {
       title: "Настройка сценариев рабочего дерева",
       description:
@@ -1363,6 +1379,8 @@ export const ru: TranslationResources = {
   },
   renameModal: {
     rename: "Переименовать",
+    save: "Сохранить",
+    keepShort: "Сделайте его коротким и легко узнаваемым",
     saving: "Сохранение...",
   },
   sidebarCallout: {

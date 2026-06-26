@@ -2,9 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   buildConversationTree,
   type ConversationTreeAgent,
+  type ConversationTreePinTarget,
   type ConversationTreeProject,
   flattenConversationTreeRows,
+  partitionPinnedNodes,
 } from "@/conversation-tree/select";
+import type { ConversationTreeNode } from "@/conversation-tree/types";
 
 function agent(id: string, overrides: Partial<ConversationTreeAgent> = {}): ConversationTreeAgent {
   return {
@@ -224,5 +227,85 @@ describe("flattenConversationTreeRows", () => {
     expect(rows[0]?.canExpand).toBe(true);
     expect(rows[0]?.isExpanded).toBe(true);
     expect(rows[0]?.node.children).toHaveLength(0);
+  });
+});
+
+describe("partitionPinnedNodes", () => {
+  // Two projects (p1: w1+w2, p2: w3) plus a loose conversation (wX).
+  function sampleTree(): ConversationTreeNode[] {
+    return buildConversationTree({
+      serverId: "s1",
+      agents: [
+        agent("a1", { workspaceId: "w1" }),
+        agent("a2", { workspaceId: "w2" }),
+        agent("a3", { workspaceId: "w3" }),
+        agent("loose", { workspaceId: "wX" }),
+      ],
+      projects: [project("p1", ["w1", "w2"]), project("p2", ["w3"])],
+    });
+  }
+
+  function split(tree: ConversationTreeNode[]) {
+    return {
+      projectNodes: tree.filter((node) => node.kind === "project"),
+      looseNodes: tree.filter((node) => node.kind === "conversation"),
+    };
+  }
+
+  function partition(pinnedTargets: ConversationTreePinTarget[] | undefined) {
+    return partitionPinnedNodes({ ...split(sampleTree()), pinnedTargets });
+  }
+
+  it("with no pins, leaves projects and loose conversations in place and 置顶 empty", () => {
+    const { pinnedNodes, unpinnedProjectNodes, unpinnedLooseNodes } = partition(undefined);
+
+    expect(pinnedNodes).toHaveLength(0);
+    expect(unpinnedProjectNodes.map((node) => node.id)).toEqual(["p1", "p2"]);
+    expect(unpinnedLooseNodes.map((node) => node.id)).toEqual(["loose"]);
+  });
+
+  it("moves a pinned project (whole subtree) into 置顶", () => {
+    const { pinnedNodes, unpinnedProjectNodes } = partition([
+      { kind: "project", projectKey: "p2" },
+    ]);
+
+    expect(pinnedNodes.map((node) => node.id)).toEqual(["p2"]);
+    expect(pinnedNodes[0]?.children.map((child) => child.id)).toEqual(["a3"]);
+    expect(unpinnedProjectNodes.map((node) => node.id)).toEqual(["p1"]);
+  });
+
+  it("lifts a pinned conversation out of its (unpinned) project into 置顶", () => {
+    const { pinnedNodes, unpinnedProjectNodes } = partition([
+      { kind: "workspace", workspaceId: "w1" },
+    ]);
+
+    expect(pinnedNodes.map((node) => node.id)).toEqual(["a1"]);
+    const p1 = unpinnedProjectNodes.find((node) => node.id === "p1");
+    // a1 lifted out; only a2 remains under p1.
+    expect(p1?.children.map((child) => child.id)).toEqual(["a2"]);
+  });
+
+  it("lifts a pinned loose conversation into 置顶", () => {
+    const { pinnedNodes, unpinnedLooseNodes } = partition([
+      { kind: "workspace", workspaceId: "wX" },
+    ]);
+
+    expect(pinnedNodes.map((node) => node.id)).toEqual(["loose"]);
+    expect(unpinnedLooseNodes).toHaveLength(0);
+  });
+
+  it("orders 置顶 as pinned projects first, then lifted conversations", () => {
+    const { pinnedNodes } = partition([
+      { kind: "project", projectKey: "p2" },
+      { kind: "workspace", workspaceId: "w1" },
+    ]);
+
+    expect(pinnedNodes.map((node) => node.id)).toEqual(["p2", "a1"]);
+  });
+
+  it("ignores agent-kind pins (only projects and conversations group)", () => {
+    const { pinnedNodes } = partition([{ kind: "agent", agentId: "a1" }]);
+
+    expect(pinnedNodes).toHaveLength(0);
   });
 });
