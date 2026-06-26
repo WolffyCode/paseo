@@ -1313,6 +1313,7 @@ export class HostRuntimeStore {
   private lastConnectionStatusByServer = new Map<string, HostRuntimeConnectionStatus>();
   private agentDirectoryBootstrapInFlight = new Map<string, Promise<void>>();
   private configuredOverrideBootstrapInFlight: Promise<void> | null = null;
+  private defaultLocalhostBootstrapInFlight: Promise<void> | null = null;
   private bootStarted = false;
 
   constructor(input?: { deps?: HostRuntimeControllerDeps }) {
@@ -1348,10 +1349,19 @@ export class HostRuntimeStore {
     void this.runBoot();
   }
 
+  // Loads the persisted host registry only; probing the local daemon is deferred to connectLocalCandidate.
+  // Onboarding's welcome gate must run before any connection, so boot no longer probes localhost here.
   private async runBoot(): Promise<void> {
-    const override = readConfiguredLocalDaemonOverride();
     await this.loadFromStorage();
+  }
 
+  // Probes the local/configured daemon candidate on demand so onboarding can trigger connection after welcome.
+  // Idempotent and guard-respecting: no-ops under E2E and on desktop (where the managed daemon, not localhost, is the path).
+  connectLocalCandidate(): void {
+    void this.runConnectLocalCandidate();
+  }
+
+  private async runConnectLocalCandidate(): Promise<void> {
     let isE2E: string | null = null;
     try {
       isE2E = await AsyncStorage.getItem(E2E_STORAGE_KEY);
@@ -1366,6 +1376,7 @@ export class HostRuntimeStore {
       return;
     }
 
+    const override = readConfiguredLocalDaemonOverride();
     if (override) {
       this.bootstrapConfiguredOverride(override);
     } else {
@@ -1404,12 +1415,26 @@ export class HostRuntimeStore {
     }
   }
 
-  private async bootstrapDefaultLocalhost(): Promise<void> {
+  // Probes the default localhost daemon, deduping concurrent calls so repeated connectLocalCandidate() probes once.
+  private bootstrapDefaultLocalhost(): Promise<void> {
     const connection = connectionFromListen(LOCALHOST_FALLBACK_ENDPOINT);
     if (!connection || registryHasConnection(this.hosts, connection)) {
-      return;
+      return Promise.resolve();
+    }
+    if (this.defaultLocalhostBootstrapInFlight) {
+      return this.defaultLocalhostBootstrapInFlight;
     }
 
+    const bootstrap = this.runDefaultLocalhostBootstrap(connection).finally(() => {
+      if (this.defaultLocalhostBootstrapInFlight === bootstrap) {
+        this.defaultLocalhostBootstrapInFlight = null;
+      }
+    });
+    this.defaultLocalhostBootstrapInFlight = bootstrap;
+    return bootstrap;
+  }
+
+  private async runDefaultLocalhostBootstrap(connection: HostConnection): Promise<void> {
     try {
       await this.probeAndUpsertConnection({
         connection,

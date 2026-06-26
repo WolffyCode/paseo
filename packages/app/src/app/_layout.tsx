@@ -48,6 +48,7 @@ import { SidebarCalloutProvider } from "@/contexts/sidebar-callout-context";
 import { ToastProvider } from "@/contexts/toast-context";
 import { VoiceProvider } from "@/contexts/voice-context";
 import {
+  connectLocalOnBoot,
   resolveStartupBlocker,
   resolveStartupNavigationReady,
   shouldRunStartupGiveUpTimer,
@@ -82,6 +83,7 @@ import {
 } from "@/runtime/host-runtime";
 import { getDaemonStartService } from "@/runtime/daemon-start-service";
 import { applyAppearance } from "@/screens/settings/appearance/apply-appearance";
+import { useOnboardingStore, useOnboardingStoreHydrated } from "@/stores/onboarding-store";
 import { usePanelStore } from "@/stores/panel-store";
 import { THEME_TO_UNISTYLES, type ThemeName } from "@/styles/theme";
 import type { HostProfile } from "@/types/host-connection";
@@ -106,7 +108,7 @@ polyfillCrypto();
 
 export interface HostRuntimeBootstrapState {
   splashError: string | null;
-  retry: () => void;
+  connectLocal: () => void;
   hasGivenUpWaitingForHost: boolean;
   storeReady: boolean;
   startupBlocker: StartupBlocker;
@@ -114,7 +116,7 @@ export interface HostRuntimeBootstrapState {
 
 const HostRuntimeBootstrapContext = createContext<HostRuntimeBootstrapState>({
   splashError: null,
-  retry: () => {},
+  connectLocal: () => {},
   hasGivenUpWaitingForHost: false,
   storeReady: false,
   startupBlocker: { kind: "none" },
@@ -307,17 +309,13 @@ async function shouldStartBuiltInDaemon(): Promise<boolean> {
 }
 
 function HostRuntimeBootstrapProvider({ children }: { children: ReactNode }) {
+  // Load the host registry at mount so startup routing can resolve; connection is gated on the welcome flag below.
   useEffect(() => {
-    const store = getHostRuntimeStore();
-    const daemonStartService = getDaemonStartService({ store });
-    startHostRuntimeBootstrap({
-      store,
-      daemonStartService,
-      shouldStartDaemon: shouldStartBuiltInDaemon,
-      onGateError: (message) => daemonStartService.recordError(message),
-    });
+    startHostRuntimeBootstrap({ store: getHostRuntimeStore() });
   }, []);
 
+  const hasSeenWelcome = useOnboardingStore((state) => state.hasSeenWelcome);
+  const isOnboardingStoreHydrated = useOnboardingStoreHydrated();
   const anyOnlineHostServerId = useEarliestOnlineHostServerId();
   const daemonStartError = useDaemonStartLastError();
   const daemonStartIsRunning = useDaemonStartIsRunning();
@@ -351,22 +349,38 @@ function HostRuntimeBootstrapProvider({ children }: { children: ReactNode }) {
     };
   }, [shouldRunGiveUpTimer]);
 
-  const retry = useCallback(() => {
-    const daemonStartService = getDaemonStartService({ store: getHostRuntimeStore() });
-    startDaemonIfGateAllows({
-      daemonStartService,
-      shouldStartDaemon: shouldStartBuiltInDaemon,
-      onGateError: (message) => daemonStartService.recordError(message),
-    });
+  // Triggers a local-host connection attempt: managed daemon on desktop, localhost candidate probe on web/native.
+  // Idempotent and non-throwing; phase/route re-derive from the resulting runtime snapshot, so it never computes the next screen.
+  const connectLocal = useCallback(() => {
+    const store = getHostRuntimeStore();
+    if (shouldUseDesktopDaemon()) {
+      const daemonStartService = getDaemonStartService({ store });
+      startDaemonIfGateAllows({
+        daemonStartService,
+        shouldStartDaemon: shouldStartBuiltInDaemon,
+        onGateError: (message) => daemonStartService.recordError(message),
+      });
+      return;
+    }
+    store.connectLocalCandidate();
   }, []);
+
+  // Run the boot connection decision only after the welcome flag has hydrated, so a first-frame default never
+  // misreads a returning user as a first run (which would skip self-heal and hang desktop on no daemon).
+  useEffect(() => {
+    if (!isOnboardingStoreHydrated) {
+      return;
+    }
+    connectLocalOnBoot({ hasSeenWelcome, connectLocal });
+  }, [isOnboardingStoreHydrated, hasSeenWelcome, connectLocal]);
 
   const splashError =
     startupBlocker.kind === "managed-daemon-error" ? startupBlocker.message : null;
   const storeReady = resolveStartupNavigationReady({ startupBlocker });
 
   const state = useMemo<HostRuntimeBootstrapState>(
-    () => ({ splashError, retry, hasGivenUpWaitingForHost, storeReady, startupBlocker }),
-    [splashError, retry, hasGivenUpWaitingForHost, storeReady, startupBlocker],
+    () => ({ splashError, connectLocal, hasGivenUpWaitingForHost, storeReady, startupBlocker }),
+    [splashError, connectLocal, hasGivenUpWaitingForHost, storeReady, startupBlocker],
   );
 
   return (
@@ -872,8 +886,8 @@ function RootStack() {
   return (
     <Stack screenOptions={stackScreenOptions}>
       <Stack.Screen name="index" />
+      <Stack.Screen name="welcome" />
       <Stack.Protected guard={storeReady}>
-        <Stack.Screen name="welcome" />
         <Stack.Screen name="settings/index" />
         <Stack.Screen name="settings/[section]" />
         <Stack.Screen name="settings/projects/index" />
