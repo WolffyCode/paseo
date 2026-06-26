@@ -1497,9 +1497,9 @@ svg.i {
 
 <section class="screen" id="mp1">
       <div class="screen-head">
-        <span class="tag">H2 · mp1 · L1 · 简化</span>
-        <h2>提供方 — 5 个内置 agent + 从目录新增（启停 / 移除目录项）</h2>
-        <p>「模型与提供方」落地页。<b>内置 5 个</b>（Claude Code / Codex / GitHub Copilot / OpenCode / Pi）+ <b>从目录新增的 ACP 提供方</b>（如 Qwen Code）。每行＝图标 + 名称 + CLI 已装 / 未装 + 模型数 + 开关 + ⚙ 设置；点行或 ⚙ 下钻 L2。顶部 <b>「+ 新增提供方」= 从目录（catalog）选已存在的加入</b>（Gemini CLI / Qwen Code / Kimi / Cursor / DeepAgents 等真实 ACP 目录项），<b>不支持自造命令 / 名字（无自定义新增）</b>；<b>内置不可删，目录新增的可移除</b>。做减法、少术语。</p>
+        <span class="tag">H2 · mp1 · L1 · 启停 / 删除 / 一键装 CLI</span>
+        <h2>提供方 — 内置 5 + 从目录新增（启停 / 删除 / 检测 + 一键安装 CLI）</h2>
+        <p>「模型与提供方」落地页。<b>内置 5 个</b>（Claude Code / Codex / GitHub Copilot / OpenCode / Pi）+ <b>从目录新增的 ACP 提供方</b>（如 Qwen Code）。每行＝图标 + 名称 + <b>CLI 已装 / 未装检测</b> + 模型数 + 开关 + ⚙ 设置；点行或 ⚙ 下钻 L2。顶部 <b>「+ 新增提供方」= 从目录（catalog）选已存在的</b>（真实 ACP 目录，非自造）。<b>右键含「删除」</b>（董事长本次加回）：<b>目录新增的＝真实删除（回目录可再加）；内置的＝需新主机能力（标注，不假装能删）</b>。<b>CLI 未安装行给「一键安装」</b>（agent CLI 一键装可能需新主机能力，标注；安装指引为真实兜底）。做减法、少术语。</p>
       </div>
       <div class="screen-body wide">
         <div class="frame" style="position: relative">
@@ -1539,7 +1539,7 @@ svg.i {
               <div class="set-dbody">
                 <div class="alertbox info">
                   <svg class="i sm"><use href="#info" /></svg>
-                  <div><div class="at">三级：提供方 → 中转站 → 模型</div><div class="ad"><b>提供方</b>＝ 5 个内置 agent，只启用 / 停用。<b>中转站</b>＝该提供方下 base_url + key 的 API 供应商，<b>≠ relay 远程</b>（远程连接在「主机」tab）。</div></div>
+                  <div><div class="at">三级：提供方 → 中转站 → 模型</div><div class="ad"><b>提供方</b>＝内置 5 + 从目录新增的 ACP（启用 / 停用 / 删除）。<b>中转站</b>＝该提供方下 base_url + key 的 API 供应商，<b>≠ relay 远程</b>（远程连接在「主机」tab）。</div></div>
                 </div>
 
                 <!-- 已启用组 -->
@@ -1559,10 +1559,13 @@ svg.i {
                           <div class="mp-cog" title="设置"><svg class="i sm"><use href="#settings" /></svg></div>
                         </div>
                       </div>
+                      <!-- 内置行右键（含「删除」· 内置删除需新后端能力，诚实门控） -->
                       <div class="ctx-pop" style="top: calc(100% - 10px); right: 14px;">
-                        <div class="ctxmenu">
+                        <div class="ctxmenu" style="width:236px">
                           <div class="ci"><svg class="i sm"><use href="#settings" /></svg> 设置 <span style="margin-left:auto;color:var(--fgFaint)">→ L2</span></div>
                           <div class="ci"><svg class="i sm"><use href="#power" /></svg> 停用</div>
+                          <div class="csep"></div>
+                          <div class="ci danger"><svg class="i sm"><use href="#trash" /></svg> 删除 <span style="margin-left:auto;font-size:10px;color:var(--fgFaint)">需新主机能力</span></div>
                         </div>
                       </div>
                     </div>
@@ -1590,12 +1593,12 @@ svg.i {
                         <div class="mp-cog" title="设置"><svg class="i sm"><use href="#settings" /></svg></div>
                       </div>
                     </div>
-                    <!-- Qwen Code（从目录新增的 ACP 提供方 · 与内置并列，可启停 / 可移除） -->
+                    <!-- Qwen Code（从目录新增的 ACP 提供方 · 与内置并列，可启停 / 删除＝真实移除回目录） -->
                     <div class="mp-prow">
                       <div class="mp-pic">Q</div>
                       <div class="mp-pmain">
                         <div class="mp-pname">Qwen Code <span class="badge acc">ACP · 目录新增</span> <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div>
-                        <div class="mp-pmeta"><span>3 个模型</span><span class="sep">·</span><span>当前 阿里云百炼</span><span class="sep">·</span><span>来自目录 · 可移除</span></div>
+                        <div class="mp-pmeta"><span>3 个模型</span><span class="sep">·</span><span>当前 阿里云百炼</span><span class="sep">·</span><span>来自目录 · 删除＝回目录可再加</span></div>
                       </div>
                       <div class="mp-prow-act">
                         <div class="set-toggle on"></div>
@@ -1609,16 +1612,16 @@ svg.i {
                 <div class="set-group">
                   <div class="set-grouph">未安装 · 已停用 <span class="badge mut">2</span></div>
                   <div class="set-card">
-                    <!-- OpenCode（CLI 未安装） -->
-                    <div class="mp-prow dis">
+                    <!-- OpenCode（CLI 未安装 · 一键安装入口；安装 agent CLI 可能需新主机能力 → 标注） -->
+                    <div class="mp-prow">
                       <div class="mp-pic">O</div>
                       <div class="mp-pmain">
                         <div class="mp-pname">OpenCode <span class="badge warn"><svg class="i xs"><use href="#alert" /></svg> CLI 未安装</span></div>
-                        <div class="mp-pmeta"><span>安装 <span class="cmd">opencode</span> 后可启用</span></div>
+                        <div class="mp-pmeta"><span>未检测到 <span class="cmd">opencode</span></span><span class="sep">·</span><span>一键安装后可启用</span></div>
                       </div>
                       <div class="mp-prow-act">
-                        <div class="set-toggle dis"></div>
-                        <div class="mp-cog" title="设置"><svg class="i sm"><use href="#settings" /></svg></div>
+                        <span class="btn df sm"><svg class="i"><use href="#download" /></svg> 一键安装</span>
+                        <div class="mp-cog" title="安装指引 / 只读设置"><svg class="i sm"><use href="#settings" /></svg></div>
                       </div>
                     </div>
                     <!-- Pi（已停用） -->
@@ -1644,11 +1647,12 @@ svg.i {
           <div class="anno-h">点击效果</div>
           <ol>
             <li><span class="pin">1</span><div><b>提供方行 / ⚙ 设置</b>：点行任意处或行尾 ⚙ → 下钻 <b>L2 提供方设置（mp2）</b>，L2 顶部带「‹ 返回提供方」面包屑。</div></li>
-            <li><span class="pin">2</span><div><b>启用开关</b>（行尾 toggle）：切 <code>enabled</code>（<b>stopPropagation，不触发下钻</b>）；关 = 该提供方从对话选型与启动隐藏，其中转站配置保留。<b>内置与目录新增的都能启停</b>；<b>内置不可删，目录新增的可移除</b>（见右键）。</div></li>
+            <li><span class="pin">2</span><div><b>启用开关</b>（行尾 toggle）：切 <code>enabled</code>（<b>stopPropagation，不触发下钻</b>）；关 = 该提供方从对话选型与启动隐藏，其中转站配置保留。<b>内置与目录新增的都能启停</b>。CLI 未安装的提供方开关不可用（先一键安装）。</div></li>
             <li><span class="pin">3</span><div><b>+ 新增提供方</b>（dhead，df）：打开<b>目录选择器（mp1-add）</b>——从真实 ACP 目录里挑一个还没加的（Gemini CLI / Kimi / Cursor / DeepAgents …）加入；<b>只从目录选已存在的，不支持自造命令 / 名字</b>。已加入的（如 Qwen Code）不在目录里出现。</div></li>
-            <li><span class="pin">4</span><div><b>未安装行</b>（OpenCode，<code>dis</code>）：opacity 55 + 开关禁用 +「CLI 未安装」warn badge；点行 → 只读详情 + 安装指引（不可启用 / 不可改配置），见 mp5 第 7 box。</div></li>
-            <li><span class="pin">5</span><div><b>目录新增行</b>（Qwen Code，<code>ACP · 目录新增</code>）：与内置同样可启停、可下钻 L2；<b>行右键多一项「移除」</b>（把该目录项从这台主机移除、回到目录可再加；走 <code>agents.providers</code>，非自造）。内置行<b>无</b>「移除」。</div></li>
-            <li><span class="pin">6</span><div><b>排序</b>：已启用在上、未安装 / 已停用在下；组内固定顺序。CLI badge 仅「已安装 / 未安装」<b>不显版本号</b>（无结构化版本字段）。<b>host 选择器 / 左导航</b>：切主机重载该主机提供方与中转站；切导航换 section（栈重置回 L1）。</div></li>
+            <li><span class="pin">4</span><div><b>右键「删除」（董事长本次加回 · danger）</b>：<b>目录新增的（如 Qwen Code）＝真实删除</b>——二次确认 → 从这台主机 <code>agents.providers</code> 移除该项（回目录可再加，连带其中转站 / 放出模型从对话选型移除），见 mp5 删除确认态。<b>内置 5 个的删除＝需新主机能力</b>——菜单<b>给「删除」入口但标注「需新主机能力」</b>，点击落能力门「更新主机后可删」（<b>不假装能删</b>，架构阶段给方案），见 mp5 内置删除门控态。</div></li>
+            <li><span class="pin">5</span><div><b>CLI 存在检测（每行都有）</b>：5 内置 + 目录新增<b>每行</b>都有「CLI 已安装 / 未安装」检测 badge（探测中 = 「检测中…」+ mini-spin）；命令 = 该提供方 agent CLI 启动命令。<b>不显结构化版本号</b>。</div></li>
+            <li><span class="pin">6</span><div><b>一键安装 CLI（新增 · 未安装行）</b>：CLI 未安装行（如 OpenCode）行尾「一键安装」(df) → <b>安装中（loading）</b>→ 成功转「CLI 已安装」、开关可用；<b>失败 → 行内红字 + 重试</b>（见 mp5）。<b>诚实标注：</b>Helm CLI 安装是真实能力；<b>agent CLI（claude/codex/opencode…）一键装 / 更新可能需新主机能力</b>——能真装的真做，缺能力时按钮转「需更新主机」并回落<b>「安装指引」外链（今天即真实可用）</b>。</div></li>
+            <li><span class="pin">7</span><div><b>排序</b>：已启用在上、未安装 / 已停用在下；组内固定顺序。<b>host 选择器 / 左导航</b>：切主机重载该主机提供方与中转站；切导航换 section（栈重置回 L1）。</div></li>
           </ol>
           <div class="states">
             <div class="sh">状态（四维度齐全）</div>
@@ -1657,14 +1661,14 @@ svg.i {
               <dt>默认</dt><dd>进入落 L1 列表，已启用组在上，当前主机于 host 选择器高亮。<b>dhead 右上「+ 新增提供方」（从目录）常驻</b>。</dd>
               <dt>hover</dt><dd>提供方行 → surface1；⚙ / 开关 / 「+ 新增提供方」各自 hover；行整体提示可下钻。</dd>
               <dt>活跃</dt><dd>列表无持久选中（点即下钻 L2）；左导航「模型与提供方」accentSoft 高亮。</dd>
-              <dt>运行</dt><dd>启停切换 = 开关 inline 过渡；CLI 探测中 = badge「检测中…」+ mini-spin（替代已装 / 未装）；从目录新增中 = 见 mp1-add 该行「新增中…」。</dd>
-              <dt>禁用</dt><dd>CLI 未安装 → 行 <code>dis</code> + 开关灰、不可启用、不可下钻编辑（仅只读 + 安装指引）。</dd>
+              <dt>运行</dt><dd>启停切换 = 开关 inline 过渡；CLI 探测中 = badge「检测中…」+ mini-spin（替代已装 / 未装）；<b>CLI 安装中 = 「一键安装」转 spinner「安装中…」+ 防重复</b>；删除中 = 确认后按钮 inline spinner；从目录新增中 = 见 mp1-add 该行「新增中…」。</dd>
+              <dt>禁用</dt><dd>CLI 未安装 → 开关不可用（先一键安装）、不可下钻编辑（仅只读 + 安装指引）；<b>内置删除入口可见但门控</b>（标「需新主机能力」，点击落「更新主机」门、不执行）；一键安装在缺能力主机上转「需更新主机」。</dd>
               <dt>空</dt><dd>无任何提供方启用（已启用组空）→ 顶部提示「还没有启用任何提供方 · 打开下方开关即可」（5 个内置始终在列）；<b>dhead「+ 新增提供方」仍在</b>（可从目录加更多），见 mp5 第 1 box。</dd>
               <dt>加载</dt><dd>首次进入 / 切 host → 列表行骨架 + 页级 spinner。</dd>
-              <dt>错误</dt><dd>提供方配置损坏 / CLI 探测失败 → 行尾红角标「配置错误」+ 详情面顶 alertbox err（可去「配置文件（JSON）」修）。</dd>
-              <dt>离线</dt><dd>所选 host 离线 → host 选择器 dot 转红 + 顶 callout；列表显缓存值，启停 / 下钻编辑 / 新增 / 移除禁用，只读可看。</dd>
-              <dt>右键</dt><dd><b>内置行右键 2 项</b>：① 设置（→ L2）② 停用 / 启用（<b>无删除</b>，内置不可删）。<b>目录新增（ACP）行右键 3 项</b>：① 设置 ② 停用 / 启用 ③ <b>移除</b>（从这台主机移除该目录项、回目录可再加；非自造，走 <code>agents.providers</code> / config.json 兜底）。</dd>
-              <dt>术语</dt><dd>提供方 = 内置 agent CLI <b>或 从目录新增的 ACP 代理</b>（目录 = 真实 ACP catalog 已知项，<b>非自造命令 / 名字</b>）；中转站 = 其下 base_url+key 的 API 供应商，<b>≠ relay 远程</b>。命令（CLI 启动命令）<b>≠ 终端 PTY profile</b>。CLI badge 无版本号。</dd>
+              <dt>错误</dt><dd>提供方配置损坏 / CLI 探测失败 → 行尾红角标「配置错误」+ 详情面顶 alertbox err（可去「配置文件（JSON）」修）；<b>CLI 一键安装失败 → 行内红字 + 重试</b>（见 mp5）；删除失败 → 保留行 + 可重试。</dd>
+              <dt>离线</dt><dd>所选 host 离线 → host 选择器 dot 转红 + 顶 callout；列表显缓存值，启停 / 下钻编辑 / 新增 / 删除 / 一键安装禁用，只读可看。</dd>
+              <dt>右键</dt><dd><b>每行右键 3 项</b>：① 设置（→ L2）② 停用 / 启用 ③ <b>删除</b>（danger）。<b>「删除」分两态（诚实）</b>：<b>目录新增（ACP）行＝真实删除</b>（二次确认 → 从 <code>agents.providers</code> 移除、回目录可再加）；<b>内置 5 行＝标「需新主机能力」</b>（给入口但点击落能力门「更新主机后可删」，不假装能删 · 架构阶段给方案）。config.json 始终可兜底改。</dd>
+              <dt>术语</dt><dd>提供方 = 内置 agent CLI <b>或 从目录新增的 ACP 代理</b>（目录 = 真实 ACP catalog 已知项，<b>非自造命令 / 名字</b>）；中转站 = 其下 base_url+key 的 API 供应商，<b>≠ relay 远程</b>。命令（CLI 启动命令）<b>≠ 终端 PTY profile</b>。CLI badge 无版本号。<b>删除内置、一键装 agent CLI = 需新主机能力（缺口标注，待架构）</b>。</dd>
             </dl>
           </div>
         </div>
@@ -1832,7 +1836,7 @@ svg.i {
         <div class="anno">
           <div class="anno-h">点击效果</div>
           <ol>
-            <li><span class="pin">1</span><div><b>某行「新增」</b>（df）：把该目录项写入这台主机 <code>agents.providers.&lt;id&gt;</code>（<code>extends:"acp"</code> + label + command，来自目录预置），按钮转 <b>「新增中…」spinner</b>（如 Cline）；成功 → 该行<b>从目录移出</b>、回到 mp1 列表成为可启停的一行（默认启用）。</div></li>
+            <li><span class="pin">1</span><div><b>某行「新增」</b>（df）：把该目录项写入这台主机 <code>agents.providers.&lt;id&gt;</code>（<code>extends:"acp"</code> + label + command，来自目录预置），按钮转 <b>「新增中…」spinner</b>（如 Cline）；成功 → 该行<b>从目录移出</b>、回到 mp1 列表成为一行。<b>同样走 CLI 检测</b>：CLI 已装 → 可启停；<b>CLI 未装 → 行尾「一键安装」</b>（与内置未装行一致）。该行右键「删除」＝真实删除（回目录可再加）。</div></li>
             <li><span class="pin">2</span><div><b>搜索框</b>：按名称 / id / 简介过滤目录；无命中 → 空态「没有匹配的提供方 · 清除搜索」。</div></li>
             <li><span class="pin">3</span><div><b>安装说明 ↗</b>：开外链到该代理的安装文档（系统浏览器 / 内置浏览器，按应用设置）；不改配置。</div></li>
             <li><span class="pin">4</span><div><b>关闭</b>（× / 取消 / 点遮罩）：收起弹窗，回 mp1 列表，不新增任何项。</div></li>
@@ -1986,7 +1990,7 @@ svg.i {
             <li><span class="pin">3</span><div><b>基础信息</b>（名称 / 图标 / 命令）：失焦 / 回车<b>即时持久化</b>到该主机提供方配置，无独立保存按钮；「恢复默认」还原内置默认。</div></li>
             <li><span class="pin">4</span><div><b>中转站卡</b>：点卡 → 下钻 <b>L3 中转站详情（mp3）</b>，面包屑「‹ 返回 Claude Code」；卡上「当前✓」= 该提供方对话时实际启用的中转站。</div></li>
             <li><span class="pin">5</span><div><b>+ 新增中转站</b> → 空白 L3 编辑；<b>cc-switch 同步</b> → 从 <code>~/.cc-switch/cc-switch.db</code> 勾选导入（不覆盖本地放出 / 限额）。</div></li>
-            <li><span class="pin">6</span><div><b>做减法（本轮删）</b>：删除旧稿底部「提供方管理（停用 / 删除提供方 · 需新后端能力）」整块 —— 与顶部 toggle 重复且引入「内置不可删」噪音；内置启停统一收敛到顶部一处开关。</div></li>
+            <li><span class="pin">6</span><div><b>删除旧稿底部「提供方管理」重复块</b>：启停收敛到顶部一处开关；<b>提供方「删除」改到 mp1 行右键</b>（目录新增＝真实删除；内置＝需新主机能力门控，不在 L2 堆危险区）。</div></li>
           </ol>
           <div class="states">
             <div class="sh">状态（四维度齐全）</div>
@@ -1996,13 +2000,13 @@ svg.i {
               <dt>hover</dt><dd>set-row → surface1；中转站卡 → surface1 + 边加深 + 行尾 chev 提示可下钻；按钮各自 hover。</dd>
               <dt>活跃</dt><dd>当前中转站卡 accent 边 + accentSoft 底 +「当前」✓ badge；顶部启用开关 on。</dd>
               <dt>运行</dt><dd>cc-switch 同步中 = 按钮 inline spinner；某卡测速中 = 健康位 mini-spin「测速中…」。</dd>
-              <dt>禁用</dt><dd>CLI 未安装的提供方 L2 只读 + 安装指引、新增 / 编辑禁用（见 mp5）；<b>内置提供方本屏无删除</b>（内置不可删；目录新增的 ACP 提供方在 mp1 行右键「移除」，不在本屏堆危险区）。</dd>
+              <dt>禁用</dt><dd>CLI 未安装的提供方 L2 只读 + 一键安装 / 安装指引、新增 / 编辑禁用（见 mp5）；<b>「删除提供方」不在本屏</b>（统一在 mp1 行右键：目录新增＝真实删除、内置＝需新主机能力门控），L2 不堆危险区。</dd>
               <dt>空</dt><dd>该提供方下无中转站 → 列表区 emptybox「Claude Code 还没有中转站」+「+ 新增中转站」「cc-switch 同步」（见 mp5 第 2 box）。</dd>
               <dt>加载</dt><dd>进入 L2 拉中转站列表 → 卡骨架；基础信息字段就绪前字段级骨架。</dd>
               <dt>错误</dt><dd>某中转站不健康 → 卡红点 + 红字（连接失败 / 超时 / 401，如 Moonshot）；配置写回失败 → 顶 alertbox err + 重试。</dd>
               <dt>离线</dt><dd>host 离线 → 顶 callout，编辑 / 新增 / 设当前 / 同步 / 启停禁用，中转站显缓存值。</dd>
               <dt>右键</dt><dd><b>中转站卡右键 5 项</b>：① 设为当前 ② 编辑（→ L3）③ 测速 ④ 复制 ⑤ 删除（danger）。基础信息行无右键；提供方层（启停）在顶部 toggle，不进右键。</dd>
-              <dt>术语</dt><dd>命令 <b>≠ PTY profile</b>；中转站（vendor，base_url+key）<b>≠ relay 远程</b>；提供方层<b>新增 = 从目录</b>（mp1 顶部「+ 新增提供方」，非自造命令 / 名字），<b>内置不可删、目录新增的可移除</b>（mp1 行右键），不做任意自定义新增。</dd>
+              <dt>术语</dt><dd>命令 <b>≠ PTY profile</b>；中转站（vendor，base_url+key）<b>≠ relay 远程</b>；提供方层<b>新增 = 从目录</b>（mp1 顶部，非自造命令 / 名字）；<b>删除</b>（mp1 行右键）：目录新增＝真实删除、<b>内置＝需新主机能力</b>（门控、不假装）；不做任意自定义新增。</dd>
             </dl>
           </div>
         </div>
@@ -2221,9 +2225,9 @@ svg.i {
 
 <section class="screen" id="mp5">
       <div class="screen-head">
-        <span class="tag">H2 · mp5 · 简化</span>
-        <h2>空 / 状态合屏 — 边界态画廊（去掉自定义删除相关态）</h2>
-        <p>三级界面各边界态合屏（评审用，实际每次只出现其一）：无提供方启用 / 提供方无中转站 / 加载 / 端点测速中 / 拉模型失败 / 不健康 401 / CLI 未安装 / 删除中转站确认 / 主机离线。<b>本轮删：</b>「删除自定义提供方确认（缺口）」—— 提供方为内置、不可删。每态都给出口。</p>
+        <span class="tag">H2 · mp5 · 边界态（含删除 / 一键装 CLI）</span>
+        <h2>空 / 状态合屏 — 边界态画廊（加回删除态 + 一键安装 CLI 态）</h2>
+        <p>三级界面各边界态合屏（评审用，实际每次只出现其一）：无提供方启用 / 提供方无中转站 / 加载 / 端点测速中 / 拉模型失败 / 不健康 401 / <b>CLI 未安装·一键安装</b> / <b>CLI 安装中·失败</b> / 删除中转站确认 / <b>删除目录新增提供方确认（真实）</b> / <b>删除内置提供方（需新主机能力·门控）</b> / 主机离线。<b>本轮加回：</b>提供方「删除」态（董事长本次要回）——目录新增＝真实、内置＝需新后端门控；并新增「一键安装 CLI」相关态。每态都给出口。</p>
       </div>
       <div class="screen-body wide">
         <div class="frame">
@@ -2324,21 +2328,35 @@ svg.i {
                     </div>
                   </div>
 
-                  <!-- 7 禁用 · CLI 未安装 -->
+                  <!-- 7 CLI 未安装 · 一键安装入口 -->
                   <div class="mr-statebox">
-                    <div class="mr-statebox-h"><svg class="i sm"><use href="#terminal" /></svg> 禁用 · CLI 未安装 <span class="badge warn">禁用</span></div>
+                    <div class="mr-statebox-h"><svg class="i sm"><use href="#download" /></svg> CLI 未安装 · 一键安装 <span class="badge warn">未装</span></div>
                     <div class="mr-statebox-b">
-                      <div class="set-card"><div class="mp-prow dis" style="cursor:default">
+                      <div class="set-card"><div class="mp-prow" style="cursor:default">
                         <div class="mp-pic">O</div>
-                        <div class="mp-pmain"><div class="mp-pname">OpenCode <span class="badge warn"><svg class="i xs"><use href="#alert" /></svg> CLI 未安装</span></div><div class="mp-pmeta"><span class="cmd">opencode</span></div></div>
-                        <div class="set-toggle dis"></div>
+                        <div class="mp-pmain"><div class="mp-pname">OpenCode <span class="badge warn"><svg class="i xs"><use href="#alert" /></svg> CLI 未安装</span></div><div class="mp-pmeta"><span>未检测到 <span class="cmd">opencode</span></span></div></div>
+                        <div class="mp-prow-act"><span class="btn df sm"><svg class="i"><use href="#download" /></svg> 一键安装</span></div>
                       </div></div>
-                      <div class="alertbox warn"><svg class="i sm"><use href="#info" /></svg><div><div class="at">未检测到 opencode CLI</div><div class="ad">安装后自动可启用；可只读查看但不可改配置。</div></div></div>
+                      <div class="alertbox info"><svg class="i sm"><use href="#info" /></svg><div><div class="at">检测到未安装 → 可一键安装</div><div class="ad">Helm CLI 安装为真实能力；<b>agent CLI 一键装 / 更新可能需新主机能力</b>，缺则按钮转「需更新主机」+ 回落「安装指引」。</div></div></div>
                       <div class="mr-frow"><span style="flex:1"></span><span class="btn out sm"><svg class="i"><use href="#external" /></svg> 安装指引</span></div>
                     </div>
                   </div>
 
-                  <!-- 8 删除确认 · 中转站（保留：中转站可删） -->
+                  <!-- 8 CLI 一键安装 · 安装中 / 失败 -->
+                  <div class="mr-statebox">
+                    <div class="mr-statebox-h"><svg class="i sm"><use href="#refresh" /></svg> 运行 / 错误 · CLI 安装中 / 失败 <span class="badge warn">运行</span></div>
+                    <div class="mr-statebox-b">
+                      <div class="set-card"><div class="mp-prow" style="cursor:default">
+                        <div class="mp-pic">O</div>
+                        <div class="mp-pmain"><div class="mp-pname">OpenCode <span class="badge mut">安装中…</span></div><div class="mp-pmeta"><span class="cmd">opencode</span></div></div>
+                        <div class="mp-prow-act"><span class="btn df sm" style="opacity:.75"><span class="mini-spin" style="border-color:rgba(255,255,255,0.45);border-top-color:#fff"></span> 安装中…</span></div>
+                      </div></div>
+                      <div class="alertbox err"><svg class="i sm"><use href="#alert" /></svg><div><div class="at">安装失败（示例）</div><div class="ad">命令不可用 / 网络失败 → 行内红字；「重试」再装一次，或「安装指引」手动装。</div></div></div>
+                      <div class="mr-frow"><span style="flex:1"></span><span class="btn out sm"><svg class="i"><use href="#external" /></svg> 安装指引</span><span class="btn df sm"><svg class="i"><use href="#refresh" /></svg> 重试</span></div>
+                    </div>
+                  </div>
+
+                  <!-- 9 删除确认 · 中转站（保留：中转站可删） -->
                   <div class="mr-statebox">
                     <div class="mr-statebox-h"><svg class="i sm"><use href="#trash" /></svg> 删除确认 · 中转站 <span class="badge err">确认</span></div>
                     <div class="mr-statebox-b">
@@ -2347,7 +2365,25 @@ svg.i {
                     </div>
                   </div>
 
-                  <!-- 9 离线 · 主机断开 -->
+                  <!-- 10 删除确认 · 目录新增提供方（真实删除，回目录可再加） -->
+                  <div class="mr-statebox">
+                    <div class="mr-statebox-h"><svg class="i sm"><use href="#trash" /></svg> 删除确认 · 目录新增提供方 <span class="badge err">确认</span></div>
+                    <div class="mr-statebox-b">
+                      <div class="alertbox err"><svg class="i sm"><use href="#trash" /></svg><div><div class="at">删除提供方「Qwen Code」？</div><div class="ad"><b>目录新增（ACP）= 真实删除</b>：从这台主机移除该项及其中转站 / 放出模型（对话选型一并移除）；<b>回目录可再加</b>。</div></div></div>
+                      <div class="mp-confirm-act"><span class="btn ghost sm">取消</span><span class="btn danger sm"><svg class="i"><use href="#trash" /></svg> 删除</span></div>
+                    </div>
+                  </div>
+
+                  <!-- 11 删除 · 内置提供方（需新主机能力 · 门控，不假装能删） -->
+                  <div class="mr-statebox">
+                    <div class="mr-statebox-h"><svg class="i sm"><use href="#lock" /></svg> 删除 · 内置提供方 <span class="badge lock">需新主机能力</span></div>
+                    <div class="mr-statebox-b">
+                      <div class="alertbox warn"><svg class="i sm"><use href="#info" /></svg><div><div class="at">删除内置提供方需主机新能力</div><div class="ad">右键给「删除」入口但<b>不假装能删</b>：点击落此门控——「更新主机后可删除内置提供方」（架构阶段给方案）。当前可「停用」隐藏，或在 config.json 调整。</div></div></div>
+                      <div class="mr-frow"><span style="flex:1"></span><span class="btn out sm"><svg class="i"><use href="#power" /></svg> 改为停用</span><span class="btn out sm"><svg class="i"><use href="#file-text" /></svg> 在 config.json 编辑</span></div>
+                    </div>
+                  </div>
+
+                  <!-- 12 离线 · 主机断开 -->
                   <div class="mr-statebox">
                     <div class="mr-statebox-h"><svg class="i sm"><use href="#server" /></svg> 离线 · 主机断开 <span class="badge mut">离线</span></div>
                     <div class="mr-statebox-b">
@@ -2368,26 +2404,26 @@ svg.i {
             <li><span class="pin">1</span><div><b>空 · 无提供方</b>：5 个内置始终在列 → 打开下方任一开关即启用；<b>顶部「+ 新增提供方」仍在</b>（从目录加更多，见 mp1-add）。<b>空 · 无中转站</b>「+ 新增中转站」→ 空白 L3，「cc-switch 同步」→ 导入弹窗。</div></li>
             <li><span class="pin">2</span><div><b>加载</b>：切提供方 / 切 host 页级 spinner，纯过渡无可点；<b>测速中</b>：mini-spinner，完成转延迟 + 健康点，再点可重测。</div></li>
             <li><span class="pin">3</span><div><b>拉模型失败</b>「重试拉取」再抓一次；「手动添加」→ L3 模型放出手填 id。<b>不健康 401</b>「更新 key」→ L3 改 key 后测试。</div></li>
-            <li><span class="pin">4</span><div><b>CLI 未安装</b>：行 dis + 开关灰；「安装指引」→ 外链 / 复制安装命令；只读可看，不可启用 / 改配置。</div></li>
-            <li><span class="pin">5</span><div><b>删除中转站</b>：confirmDialog 二次确认 → 移除该中转站 + 放出模型 + 本地限额（连带 composer 选型移除该项）。</div></li>
-            <li><span class="pin">6</span><div><b>离线</b>「重连主机」→ 触发 host 重连；只读显缓存，所有写操作（启停 / 新增 / 编辑 / 测速 / 删除）禁用直到恢复。</div></li>
-            <li><span class="pin">7</span><div><b>做减法（本轮删）</b>：旧稿「删除确认 · 自定义提供方（缺口）」box 已删 —— 提供方固定 5 个内置、不可删，无此态。</div></li>
+            <li><span class="pin">4</span><div><b>CLI 未安装 · 一键安装</b>（box 7）：「一键安装」→ 安装中（box 8 spinner）→ 成功转「CLI 已安装」、开关可用；<b>失败 → 红字 + 重试</b>；「安装指引」外链=真实兜底。<b>诚实：</b>agent CLI 一键装可能需新主机能力，缺则按钮转「需更新主机」。</div></li>
+            <li><span class="pin">5</span><div><b>删除中转站</b>（box 9）：confirmDialog 二次确认 → 移除该中转站 + 放出模型 + 本地限额（连带 composer 选型移除该项）。</div></li>
+            <li><span class="pin">6</span><div><b>删除提供方（董事长本次加回）</b>：<b>目录新增（box 10）= 真实删除</b>，二次确认 → 从 <code>agents.providers</code> 移除，回目录可再加；<b>内置（box 11）= 需新主机能力</b>，给「删除」入口但落门控「更新主机后可删」（<b>不假装能删</b>），出口给「改为停用」/「在 config.json 编辑」。</div></li>
+            <li><span class="pin">7</span><div><b>离线</b>（box 12）「重连主机」→ 触发 host 重连；只读显缓存，所有写操作（启停 / 新增 / 编辑 / 测速 / 删除 / 一键安装）禁用直到恢复。</div></li>
           </ol>
           <div class="states">
             <div class="sh">状态（四维度齐全）</div>
             <dl>
-              <dt>布局</dt><dd>合屏画廊 = 2 列 <b>9 box</b>（空×2 / 加载 / 测速中 / 拉模型失败 / 不健康 401 / CLI 未装 / 删除中转站 / 离线）。实际运行<b>每次只出现一种</b>，嵌在三级对应层。<b>桌面 only</b>；紧凑 / 手机态各态单列等价呈现。</dd>
+              <dt>布局</dt><dd>合屏画廊 = 2 列 <b>12 box</b>（空×2 / 加载 / 测速中 / 拉模型失败 / 不健康 401 / CLI 未装·一键装 / CLI 安装中·失败 / 删除中转站 / 删除目录提供方·真实 / 删除内置·门控 / 离线）。实际运行<b>每次只出现一种</b>，嵌在三级对应层。<b>桌面 only</b>；紧凑 / 手机态各态单列等价呈现。</dd>
               <dt>默认</dt><dd>有数据且健康时不显任何边界态（回 mp1 / mp2 / mp3 正常态）。</dd>
-              <dt>hover</dt><dd>各态内按钮（新增 / 同步 / 重试 / 更新 key / 安装指引 / 删除 / 重连）各自 hover；emptybox 不响应 hover。</dd>
+              <dt>hover</dt><dd>各态内按钮（新增 / 同步 / 重试 / 更新 key / 一键安装 / 安装指引 / 删除 / 改为停用 / 重连）各自 hover；emptybox 不响应 hover。</dd>
               <dt>活跃</dt><dd>边界态本身即「非默认」呈现，无独立选中态；删除确认主按钮 danger 强调。</dd>
-              <dt>运行</dt><dd>测速中 mini-spinner；加载 spinner；重试 / 重连 / 删除点击后按钮转 inline spinner。</dd>
-              <dt>禁用</dt><dd>CLI 未装行 + 开关禁用；离线态所有写操作禁用。</dd>
+              <dt>运行</dt><dd>测速中 mini-spinner；加载 spinner；<b>CLI 安装中 = 「一键安装」转「安装中…」spinner</b>；重试 / 重连 / 删除点击后按钮转 inline spinner。</dd>
+              <dt>禁用</dt><dd>CLI 未装 → 开关不可用（先一键安装）；<b>内置删除 = 入口可见但门控（需新主机能力，不执行）</b>；离线态所有写操作（含一键安装 / 删除）禁用。</dd>
               <dt>空</dt><dd>box 1 / 2：无提供方启用（提示开关启用，5 内置常驻 + 顶部「+ 新增提供方」从目录加）/ 提供方无中转站（带「新增中转站」出口）。</dd>
               <dt>加载</dt><dd>box 3：页级 spinner +「正在加载…」；首进 / 切换通用。</dd>
-              <dt>错误</dt><dd>box 5 / 6：拉模型失败 / 不健康 401，alertbox err + 红 ping + 具体出口（重试 / 更新 key / 手动添加）。</dd>
-              <dt>离线</dt><dd>box 9：host 选择器 dot 转红、顶 callout、缓存值，写操作禁用 +「重连主机」。</dd>
-              <dt>右键</dt><dd>各边界态<b>无右键菜单</b>（出口都在显式按钮）；恢复正常后才回到各层右键（L1 提供方 / L2 中转站卡 / L3 模型行）。</dd>
-              <dt>术语</dt><dd>「连接失败 / 超时 / 401」= <b>中转站端点</b>健康；「离线」= <b>主机连接</b>；与 relay 远程三概念不混。<b>无「删除自定义提供方」缺口态</b>（内置不可删）。CLI badge 无版本号。</dd>
+              <dt>错误</dt><dd>box 5 / 6：拉模型失败 / 不健康 401，alertbox err + 红 ping + 具体出口；<b>box 8：CLI 一键安装失败</b> → alertbox err + 重试 / 安装指引。</dd>
+              <dt>离线</dt><dd>box 12：host 选择器 dot 转红、顶 callout、缓存值，写操作禁用 +「重连主机」。</dd>
+              <dt>右键</dt><dd>各边界态<b>无右键菜单</b>（出口都在显式按钮）；恢复正常后才回到各层右键（L1 提供方 3 项含「删除」/ L2 中转站卡 / L3 模型行）。</dd>
+              <dt>术语</dt><dd>「连接失败 / 超时 / 401」= <b>中转站端点</b>健康；「离线」= <b>主机连接</b>；与 relay 远程三概念不混。<b>删除分两态</b>：目录新增＝真实、内置＝需新主机能力（门控、不假装）。<b>一键装 agent CLI 可能需新主机能力</b>；Helm CLI 安装 + 安装指引为真实。CLI badge 无版本号。</dd>
             </dl>
           </div>
         </div>
