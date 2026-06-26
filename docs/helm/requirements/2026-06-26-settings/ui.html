@@ -815,6 +815,38 @@ svg.i {
 .hb-jsonlink:hover { background: rgba(32, 116, 74, 0.16); }
 .hb-jsonlink .i { color: var(--accentBright); }
 .hb-mono { font-family: var(--mono); font-size: var(--xs); color: var(--fgMuted); }
+/* ======================================================================
+   cf-（配置文件 · JSON 逃生舱）—— 董事长：「找一个 json 编辑器就行」。
+   接一个**现成 JSON 编辑器组件**（Monaco / CodeMirror 类）：行号 / 语法高亮 /
+   JSON 校验 / 查找 / 右键标准菜单都是组件**自带标准能力**，Helm 不自造导航、
+   不自定义右键。编辑器 chrome（容器 / gutter / 当前行 / 头）全走 design token；
+   语法配色 = 编辑器组件**内置主题示意**（非 Helm 语义 token，仅代表组件高亮）。
+   ====================================================================== */
+      .cf-body { display: flex; flex-direction: column; gap: 14px; }
+.cf-note { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.cf-note .alertbox { flex: 1; min-width: 280px; }
+.cf-path { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: var(--xs); color: var(--fgMuted); background: var(--surface1); border: 1px solid var(--border); border-radius: var(--r-md); padding: 6px 11px; white-space: nowrap; }
+.cf-path .i { color: var(--fgFaint); }
+/* 现成编辑器：单栏占满，行号槽 + 高亮代码，独立滚动 */
+      .cf-editor { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface0); overflow: hidden; display: flex; flex-direction: column; }
+.cf-editor-h { display: flex; align-items: center; gap: 10px; padding: 8px 13px; border-bottom: 1px solid var(--border); background: var(--surface1); }
+.cf-editor-h .ef-name { display: inline-flex; align-items: center; gap: 7px; font-size: var(--xs); color: var(--fgMuted); font-family: var(--mono); }
+.ef-dirty { width: 7px; height: 7px; border-radius: 9999px; background: var(--warning); display: inline-block; flex: none; }
+.ef-act { margin-left: auto; display: flex; align-items: center; gap: 13px; }
+.ef-pos { font-size: 11px; color: var(--fgFaint); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.cf-search { display: inline-flex; align-items: center; gap: 5px; font-size: var(--xs); color: var(--fgMuted); cursor: pointer; }
+.cf-search:hover { color: var(--fg); }
+.cf-editor-scroll { padding: 8px 0; overflow: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.65; max-height: 528px; }
+.cf-line { display: flex; align-items: flex-start; }
+.cf-line:hover { background: var(--surface1); }
+.cf-line.cur { background: var(--accentSoft); }
+.cf-ln { width: 46px; flex: none; text-align: right; padding-right: 16px; color: var(--fgFaint); user-select: none; font-variant-numeric: tabular-nums; }
+.cf-ct { white-space: pre; color: var(--fg); padding-right: 16px; }
+.cf-k { color: #2563a6; }
+.cf-s { color: #1a7f4b; }
+.cf-n { color: #b25000; }
+.cf-b { color: #8a3fb0; }
+.cf-p { color: var(--fgMuted); }
     </style>
   </head>
   <body>
@@ -884,7 +916,8 @@ svg.i {
       <a href="#hm1">hm1 · 主机 — 常用项（身份 / 连接状态 / 重启 / 远程访问 / 配对）留界面，技术</a>
       <a href="#hm1-pair">hm1-pair · 主机 — 配对手机 / 平板（就地展开，非弹窗）</a>
       <a href="#hm1-offline">hm1-offline · 主机 — 所选主机离线（简化）</a>
-      <a href="#mp1">mp1 · 提供方 — 5 个内置 agent（只启用 / 停用，不增删）</a>
+      <a href="#mp1">mp1 · 提供方 — 5 个内置 agent + 从目录新增（启停 / 移除目录项）</a>
+      <a href="#mp1-add">mp1-add · 新增提供方 — 从目录（catalog）选已存在的加入（非自定义）</a>
       <a href="#mp2">mp2 · 提供方设置 — 基础信息 + 中转站列表（删了底部「提供方管理」重复块）</a>
       <a href="#mp3">mp3 · 中转站详情 — 常用项突出（base_url / key / 测速 / 放出模型）·</a>
       <a href="#mp5">mp5 · 空 / 状态合屏 — 边界态画廊（去掉自定义删除相关态）</a>
@@ -1465,8 +1498,8 @@ svg.i {
 <section class="screen" id="mp1">
       <div class="screen-head">
         <span class="tag">H2 · mp1 · L1 · 简化</span>
-        <h2>提供方 — 5 个内置 agent（只启用 / 停用，不增删）</h2>
-        <p>「模型与提供方」落地页。<b>只内置 5 个</b>（Claude Code / Codex / GitHub Copilot / OpenCode / Pi），<b>只启用 / 停用</b>。每行＝图标 + 名称 + CLI 已装 / 未装 + 模型数 + 开关 + ⚙ 设置；点行或 ⚙ 下钻 L2。<b>本轮删：</b>顶部「+ 新增提供方」、行右键「删除提供方」、自定义提供方行（ZAI / Gemini / Hermes…）。做减法、少术语。</p>
+        <h2>提供方 — 5 个内置 agent + 从目录新增（启停 / 移除目录项）</h2>
+        <p>「模型与提供方」落地页。<b>内置 5 个</b>（Claude Code / Codex / GitHub Copilot / OpenCode / Pi）+ <b>从目录新增的 ACP 提供方</b>（如 Qwen Code）。每行＝图标 + 名称 + CLI 已装 / 未装 + 模型数 + 开关 + ⚙ 设置；点行或 ⚙ 下钻 L2。顶部 <b>「+ 新增提供方」= 从目录（catalog）选已存在的加入</b>（Gemini CLI / Qwen Code / Kimi / Cursor / DeepAgents 等真实 ACP 目录项），<b>不支持自造命令 / 名字（无自定义新增）</b>；<b>内置不可删，目录新增的可移除</b>。做减法、少术语。</p>
       </div>
       <div class="screen-body wide">
         <div class="frame" style="position: relative">
@@ -1498,6 +1531,9 @@ svg.i {
                   <div class="set-dtitle"><svg class="i" style="color:var(--accentBright)"><use href="#layers" /></svg> 模型与提供方</div>
                   <div class="set-dsub">为这台主机配置内置 agent →（下钻）其下中转站（base_url + key 的 API 供应商）→ 放出模型。中转站与「主机 › 连接与配对」的 relay 远程连接无关。</div>
                 </div>
+                <div class="ap-dhead-act" style="display:flex;align-items:center;gap:8px;">
+                  <span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增提供方</span>
+                </div>
               </header>
 
               <div class="set-dbody">
@@ -1508,7 +1544,7 @@ svg.i {
 
                 <!-- 已启用组 -->
                 <div class="set-group">
-                  <div class="set-grouph">已启用 <span class="badge mut">3</span></div>
+                  <div class="set-grouph">已启用 <span class="badge mut">4</span></div>
                   <div class="set-card" style="overflow: visible">
                     <!-- Claude Code（带右键演示） -->
                     <div class="ctx-anchor">
@@ -1548,6 +1584,18 @@ svg.i {
                       <div class="mp-pmain">
                         <div class="mp-pname">GitHub Copilot <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div>
                         <div class="mp-pmeta"><span>1 个模型</span><span class="sep">·</span><span>当前 直连</span></div>
+                      </div>
+                      <div class="mp-prow-act">
+                        <div class="set-toggle on"></div>
+                        <div class="mp-cog" title="设置"><svg class="i sm"><use href="#settings" /></svg></div>
+                      </div>
+                    </div>
+                    <!-- Qwen Code（从目录新增的 ACP 提供方 · 与内置并列，可启停 / 可移除） -->
+                    <div class="mp-prow">
+                      <div class="mp-pic">Q</div>
+                      <div class="mp-pmain">
+                        <div class="mp-pname">Qwen Code <span class="badge acc">ACP · 目录新增</span> <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div>
+                        <div class="mp-pmeta"><span>3 个模型</span><span class="sep">·</span><span>当前 阿里云百炼</span><span class="sep">·</span><span>来自目录 · 可移除</span></div>
                       </div>
                       <div class="mp-prow-act">
                         <div class="set-toggle on"></div>
@@ -1596,27 +1644,215 @@ svg.i {
           <div class="anno-h">点击效果</div>
           <ol>
             <li><span class="pin">1</span><div><b>提供方行 / ⚙ 设置</b>：点行任意处或行尾 ⚙ → 下钻 <b>L2 提供方设置（mp2）</b>，L2 顶部带「‹ 返回提供方」面包屑。</div></li>
-            <li><span class="pin">2</span><div><b>启用开关</b>（行尾 toggle）：切 <code>enabled</code>（<b>stopPropagation，不触发下钻</b>）；关 = 该提供方从对话选型与启动隐藏，其中转站配置保留。<b>内置只能停用、不可删除</b>。</div></li>
-            <li><span class="pin">3</span><div><b>未安装行</b>（OpenCode，<code>dis</code>）：opacity 55 + 开关禁用 +「CLI 未安装」warn badge；点行 → 只读详情 + 安装指引（不可启用 / 不可改配置），见 mp5 第 7 box。</div></li>
-            <li><span class="pin">4</span><div><b>做减法（本轮删）</b>：① 头部<b>无</b>「+ 新增提供方」② 行右键<b>无</b>「删除提供方」③ 列表<b>无</b>自定义 / ACP 行 —— 提供方固定为 5 个内置，需更高级的自定义提供方走「配置文件（JSON）」手改。</div></li>
-            <li><span class="pin">5</span><div><b>排序</b>：已启用在上、未安装 / 已停用在下；组内固定顺序。CLI badge 仅「已安装 / 未安装」<b>不显版本号</b>（无结构化版本字段）。</div></li>
-            <li><span class="pin">6</span><div><b>host 选择器 / 左导航</b>：切主机重载该主机提供方与中转站；切导航换 section（栈重置回 L1）。</div></li>
+            <li><span class="pin">2</span><div><b>启用开关</b>（行尾 toggle）：切 <code>enabled</code>（<b>stopPropagation，不触发下钻</b>）；关 = 该提供方从对话选型与启动隐藏，其中转站配置保留。<b>内置与目录新增的都能启停</b>；<b>内置不可删，目录新增的可移除</b>（见右键）。</div></li>
+            <li><span class="pin">3</span><div><b>+ 新增提供方</b>（dhead，df）：打开<b>目录选择器（mp1-add）</b>——从真实 ACP 目录里挑一个还没加的（Gemini CLI / Kimi / Cursor / DeepAgents …）加入；<b>只从目录选已存在的，不支持自造命令 / 名字</b>。已加入的（如 Qwen Code）不在目录里出现。</div></li>
+            <li><span class="pin">4</span><div><b>未安装行</b>（OpenCode，<code>dis</code>）：opacity 55 + 开关禁用 +「CLI 未安装」warn badge；点行 → 只读详情 + 安装指引（不可启用 / 不可改配置），见 mp5 第 7 box。</div></li>
+            <li><span class="pin">5</span><div><b>目录新增行</b>（Qwen Code，<code>ACP · 目录新增</code>）：与内置同样可启停、可下钻 L2；<b>行右键多一项「移除」</b>（把该目录项从这台主机移除、回到目录可再加；走 <code>agents.providers</code>，非自造）。内置行<b>无</b>「移除」。</div></li>
+            <li><span class="pin">6</span><div><b>排序</b>：已启用在上、未安装 / 已停用在下；组内固定顺序。CLI badge 仅「已安装 / 未安装」<b>不显版本号</b>（无结构化版本字段）。<b>host 选择器 / 左导航</b>：切主机重载该主机提供方与中转站；切导航换 section（栈重置回 L1）。</div></li>
           </ol>
           <div class="states">
             <div class="sh">状态（四维度齐全）</div>
             <dl>
               <dt>布局</dt><dd>设置外壳右详情面 = <b>单列提供方列表</b>，分「已启用 / 未安装·已停用」两组卡。<b>桌面 only</b>；紧凑 / 手机态意图：行收窄、⚙ 收进右键、两组堆叠。</dd>
-              <dt>默认</dt><dd>进入落 L1 列表，已启用组在上，当前主机于 host 选择器高亮。<b>不再有头部新增按钮</b>。</dd>
-              <dt>hover</dt><dd>提供方行 → surface1；⚙ / 开关各自 hover；行整体提示可下钻。</dd>
+              <dt>默认</dt><dd>进入落 L1 列表，已启用组在上，当前主机于 host 选择器高亮。<b>dhead 右上「+ 新增提供方」（从目录）常驻</b>。</dd>
+              <dt>hover</dt><dd>提供方行 → surface1；⚙ / 开关 / 「+ 新增提供方」各自 hover；行整体提示可下钻。</dd>
               <dt>活跃</dt><dd>列表无持久选中（点即下钻 L2）；左导航「模型与提供方」accentSoft 高亮。</dd>
-              <dt>运行</dt><dd>启停切换 = 开关 inline 过渡；CLI 探测中 = badge「检测中…」+ mini-spin（替代已装 / 未装）。</dd>
+              <dt>运行</dt><dd>启停切换 = 开关 inline 过渡；CLI 探测中 = badge「检测中…」+ mini-spin（替代已装 / 未装）；从目录新增中 = 见 mp1-add 该行「新增中…」。</dd>
               <dt>禁用</dt><dd>CLI 未安装 → 行 <code>dis</code> + 开关灰、不可启用、不可下钻编辑（仅只读 + 安装指引）。</dd>
-              <dt>空</dt><dd>无任何提供方启用（已启用组空）→ 顶部提示「还没有启用任何提供方 · 打开下方开关即可」（<b>不出现「新增」</b>，5 个内置始终在列），见 mp5 第 1 box。</dd>
+              <dt>空</dt><dd>无任何提供方启用（已启用组空）→ 顶部提示「还没有启用任何提供方 · 打开下方开关即可」（5 个内置始终在列）；<b>dhead「+ 新增提供方」仍在</b>（可从目录加更多），见 mp5 第 1 box。</dd>
               <dt>加载</dt><dd>首次进入 / 切 host → 列表行骨架 + 页级 spinner。</dd>
               <dt>错误</dt><dd>提供方配置损坏 / CLI 探测失败 → 行尾红角标「配置错误」+ 详情面顶 alertbox err（可去「配置文件（JSON）」修）。</dd>
-              <dt>离线</dt><dd>所选 host 离线 → host 选择器 dot 转红 + 顶 callout；列表显缓存值，启停 / 下钻编辑禁用，只读可看。</dd>
-              <dt>右键</dt><dd><b>提供方行右键 2 项</b>：① 设置（→ L2）② 停用 / 启用。<b>无删除</b>（内置不可删，做减法）。</dd>
-              <dt>术语</dt><dd>提供方 = 内置 agent CLI；中转站 = 其下 base_url+key 的 API 供应商，<b>≠ relay 远程</b>。命令（CLI 启动命令）<b>≠ 终端 PTY profile</b>。CLI badge 无版本号。</dd>
+              <dt>离线</dt><dd>所选 host 离线 → host 选择器 dot 转红 + 顶 callout；列表显缓存值，启停 / 下钻编辑 / 新增 / 移除禁用，只读可看。</dd>
+              <dt>右键</dt><dd><b>内置行右键 2 项</b>：① 设置（→ L2）② 停用 / 启用（<b>无删除</b>，内置不可删）。<b>目录新增（ACP）行右键 3 项</b>：① 设置 ② 停用 / 启用 ③ <b>移除</b>（从这台主机移除该目录项、回目录可再加；非自造，走 <code>agents.providers</code> / config.json 兜底）。</dd>
+              <dt>术语</dt><dd>提供方 = 内置 agent CLI <b>或 从目录新增的 ACP 代理</b>（目录 = 真实 ACP catalog 已知项，<b>非自造命令 / 名字</b>）；中转站 = 其下 base_url+key 的 API 供应商，<b>≠ relay 远程</b>。命令（CLI 启动命令）<b>≠ 终端 PTY profile</b>。CLI badge 无版本号。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+<section class="screen" id="mp1-add">
+      <div class="screen-head">
+        <span class="tag">H2 · mp1-add · 从目录新增（非自定义）</span>
+        <h2>新增提供方 — 从目录（catalog）选已存在的加入</h2>
+        <p>点 mp1 顶部「+ 新增提供方」弹出。<b>目录选择器</b>叠在提供方列表之上：列出<b>真实 ACP 目录</b>里还没加进这台主机的项（Gemini CLI / Kimi Code / Cursor / DeepAgents / Cline / goose…，<b>已加入的如 Qwen Code 不在列</b>）。每行＝图标 + 名称 + ACP + 版本 + 简介 + 安装说明↗ + 「新增」。<b>只从目录选已存在的，不支持自造命令 / 名字（无自定义新增）</b>；目录由 Helm 维护、不聚合第三方市场。</p>
+      </div>
+      <div class="screen-body wide">
+        <div class="frame" style="position: relative">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置 · 模型与提供方 · 从目录新增</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+
+            <!-- 背后 = mp1 提供方列表（被弹窗压暗） -->
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle"><svg class="i" style="color:var(--accentBright)"><use href="#layers" /></svg> 模型与提供方</div>
+                  <div class="set-dsub">为这台主机配置内置 agent →（下钻）其下中转站 → 放出模型。</div>
+                </div>
+                <div class="ap-dhead-act" style="display:flex;align-items:center;gap:8px;">
+                  <span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增提供方</span>
+                </div>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">已启用 <span class="badge mut">4</span></div>
+                  <div class="set-card">
+                    <div class="mp-prow">
+                      <div class="mp-pic">C</div>
+                      <div class="mp-pmain"><div class="mp-pname">Claude Code <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div><div class="mp-pmeta"><span>4 个模型</span><span class="sep">·</span><span>当前 智谱 GLM</span></div></div>
+                      <div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div>
+                    </div>
+                    <div class="mp-prow">
+                      <div class="mp-pic">X</div>
+                      <div class="mp-pmain"><div class="mp-pname">Codex <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div><div class="mp-pmeta"><span>2 个模型</span><span class="sep">·</span><span>当前 直连 · 官方</span></div></div>
+                      <div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div>
+                    </div>
+                    <div class="mp-prow">
+                      <div class="mp-pic">G</div>
+                      <div class="mp-pmain"><div class="mp-pname">GitHub Copilot <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div><div class="mp-pmeta"><span>1 个模型</span><span class="sep">·</span><span>当前 直连</span></div></div>
+                      <div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div>
+                    </div>
+                    <div class="mp-prow">
+                      <div class="mp-pic">Q</div>
+                      <div class="mp-pmain"><div class="mp-pname">Qwen Code <span class="badge acc">ACP · 目录新增</span></div><div class="mp-pmeta"><span>3 个模型</span><span class="sep">·</span><span>当前 阿里云百炼</span></div></div>
+                      <div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- 目录选择器弹窗（从目录新增 · 非自定义） -->
+          <div class="pl-backdrop">
+            <div class="pl-modal" style="width:600px">
+              <div class="pl-modal-h">
+                <svg class="i" style="color:var(--accentBright)"><use href="#package" /></svg>
+                <div class="pl-mtitle">从目录新增提供方</div>
+                <div class="pl-mx"><svg class="i sm"><use href="#x" /></svg></div>
+              </div>
+              <div class="pl-modal-b">
+                <div class="alertbox info">
+                  <svg class="i sm"><use href="#info" /></svg>
+                  <div><div class="at">从目录里挑一个加入</div><div class="ad">这里只列 <b>Helm 维护的真实 ACP 目录</b>里、这台主机还没加的项。<b>不支持自造命令 / 名字</b>（要更高级的自定义提供方走「配置文件（JSON）」手改）。<b>已加入的（如 Qwen Code）不在列</b>。</div></div>
+                </div>
+                <div style="display:flex;align-items:center;gap:8px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-lg);padding:9px 12px;color:var(--fgMuted);font-size:13px;">
+                  <svg class="i sm"><use href="#search" /></svg> 搜索提供方
+                </div>
+                <div class="set-card">
+                  <!-- Gemini CLI -->
+                  <div class="mp-prow" style="cursor:default">
+                    <div class="mp-pic">✦</div>
+                    <div class="mp-pmain">
+                      <div class="mp-pname">Gemini CLI <span class="badge mut">ACP</span> <span class="badge mut">0.47.0</span></div>
+                      <div class="mp-pmeta"><span>Google 官方 Gemini 命令行代理，ACP 接入对话</span></div>
+                      <div class="mp-pmeta" style="margin-top:3px"><span style="display:inline-flex;align-items:center;gap:4px;color:var(--accentBright);cursor:pointer">安装说明 <svg class="i xs"><use href="#external" /></svg></span></div>
+                    </div>
+                    <div class="mp-prow-act"><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增</span></div>
+                  </div>
+                  <!-- Kimi Code CLI -->
+                  <div class="mp-prow" style="cursor:default">
+                    <div class="mp-pic">K</div>
+                    <div class="mp-pmain">
+                      <div class="mp-pname">Kimi Code CLI <span class="badge mut">ACP</span> <span class="badge mut">0.11.0</span></div>
+                      <div class="mp-pmeta"><span>月之暗面 Kimi 开源终端代码代理，长上下文</span></div>
+                      <div class="mp-pmeta" style="margin-top:3px"><span style="display:inline-flex;align-items:center;gap:4px;color:var(--accentBright);cursor:pointer">安装说明 <svg class="i xs"><use href="#external" /></svg></span></div>
+                    </div>
+                    <div class="mp-prow-act"><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增</span></div>
+                  </div>
+                  <!-- Cline（演示「新增中…」运行态） -->
+                  <div class="mp-prow" style="cursor:default">
+                    <div class="mp-pic">Cl</div>
+                    <div class="mp-pmain">
+                      <div class="mp-pname">Cline <span class="badge mut">ACP</span> <span class="badge mut">3.0.29</span></div>
+                      <div class="mp-pmeta"><span>自主编码代理 CLI，可改文件 / 跑命令 / 用浏览器</span></div>
+                      <div class="mp-pmeta" style="margin-top:3px"><span style="display:inline-flex;align-items:center;gap:4px;color:var(--accentBright);cursor:pointer">安装说明 <svg class="i xs"><use href="#external" /></svg></span></div>
+                    </div>
+                    <div class="mp-prow-act"><span class="btn df sm" style="opacity:.75"><span class="mini-spin" style="border-color:rgba(255,255,255,0.45);border-top-color:#fff"></span> 新增中…</span></div>
+                  </div>
+                  <!-- Cursor -->
+                  <div class="mp-prow" style="cursor:default">
+                    <div class="mp-pic">Cu</div>
+                    <div class="mp-pmain">
+                      <div class="mp-pname">Cursor <span class="badge mut">ACP</span> <span class="badge mut">2026.03.30</span></div>
+                      <div class="mp-pmeta"><span>Cursor 命令行代码代理，ACP 接入统一对话</span></div>
+                      <div class="mp-pmeta" style="margin-top:3px"><span style="display:inline-flex;align-items:center;gap:4px;color:var(--accentBright);cursor:pointer">安装说明 <svg class="i xs"><use href="#external" /></svg></span></div>
+                    </div>
+                    <div class="mp-prow-act"><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增</span></div>
+                  </div>
+                  <!-- DeepAgents -->
+                  <div class="mp-prow" style="cursor:default">
+                    <div class="mp-pic">D</div>
+                    <div class="mp-pmain">
+                      <div class="mp-pname">DeepAgents <span class="badge mut">ACP</span> <span class="badge mut">0.1.15</span></div>
+                      <div class="mp-pmeta"><span>LangChain 出品的多步规划通用代理</span></div>
+                      <div class="mp-pmeta" style="margin-top:3px"><span style="display:inline-flex;align-items:center;gap:4px;color:var(--accentBright);cursor:pointer">安装说明 <svg class="i xs"><use href="#external" /></svg></span></div>
+                    </div>
+                    <div class="mp-prow-act"><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增</span></div>
+                  </div>
+                  <!-- goose -->
+                  <div class="mp-prow" style="cursor:default">
+                    <div class="mp-pic">Go</div>
+                    <div class="mp-pmain">
+                      <div class="mp-pname">goose <span class="badge mut">ACP</span> <span class="badge mut">1.33.1</span></div>
+                      <div class="mp-pmeta"><span>Block 开源、可扩展的本地 AI 代理</span></div>
+                      <div class="mp-pmeta" style="margin-top:3px"><span style="display:inline-flex;align-items:center;gap:4px;color:var(--accentBright);cursor:pointer">安装说明 <svg class="i xs"><use href="#external" /></svg></span></div>
+                    </div>
+                    <div class="mp-prow-act"><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="pl-modal-f">
+                <span class="pl-fsp">目录由 Helm 维护（真实 ACP catalog），<b>不聚合第三方市场、不支持自造命令 / 名字</b>。</span>
+                <span class="btn ghost sm">取消</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">点击效果</div>
+          <ol>
+            <li><span class="pin">1</span><div><b>某行「新增」</b>（df）：把该目录项写入这台主机 <code>agents.providers.&lt;id&gt;</code>（<code>extends:"acp"</code> + label + command，来自目录预置），按钮转 <b>「新增中…」spinner</b>（如 Cline）；成功 → 该行<b>从目录移出</b>、回到 mp1 列表成为可启停的一行（默认启用）。</div></li>
+            <li><span class="pin">2</span><div><b>搜索框</b>：按名称 / id / 简介过滤目录；无命中 → 空态「没有匹配的提供方 · 清除搜索」。</div></li>
+            <li><span class="pin">3</span><div><b>安装说明 ↗</b>：开外链到该代理的安装文档（系统浏览器 / 内置浏览器，按应用设置）；不改配置。</div></li>
+            <li><span class="pin">4</span><div><b>关闭</b>（× / 取消 / 点遮罩）：收起弹窗，回 mp1 列表，不新增任何项。</div></li>
+            <li><span class="pin">5</span><div><b>边界</b>：目录<b>只列已知 ACP 项</b>（真实 catalog），<b>无「自定义新增 / 自造命令」入口</b>；要自造高级提供方 → 走「配置文件（JSON）」手改 <code>agents.providers</code>。</div></li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态（四维度齐全）</div>
+            <dl>
+              <dt>布局</dt><dd>弹窗（pl-modal 600px）居中叠在 mp1 列表之上 + 半透明遮罩压暗背景；模态体 = 信息条 + 搜索框 + 目录行列表（图标 + 名称 + ACP + 版本 + 简介 + 安装说明↗ + 「新增」）+ 底部说明 / 取消。<b>桌面 only</b>；紧凑 / 手机态意图：弹窗转底部上拉全宽 sheet、行堆叠。</dd>
+              <dt>默认</dt><dd>列出真实 ACP 目录里这台主机还没加的项（已加入的如 Qwen Code 不在列），按目录顺序；每行「新增」可点。</dd>
+              <dt>hover</dt><dd>目录行 → surface1；「新增」/「安装说明」/「取消」/「×」各自 hover；行本身不下钻（cursor 默认）。</dd>
+              <dt>活跃</dt><dd>无持久选中；点「新增」即触发该行的加入动作。</dd>
+              <dt>运行</dt><dd>正在加入的行「新增」转 <b>「新增中…」mini-spin + 防重复</b>（如 Cline），其余行仍可点。</dd>
+              <dt>禁用</dt><dd>主机离线 → 所有「新增」禁用（目录可浏览、加入需在线）；某项加入中其按钮禁用。</dd>
+              <dt>空</dt><dd>目录里的项<b>都已加入</b> → 列表区 emptybox「目录里的提供方都已加入」；搜索<b>无命中</b> → 「没有匹配的提供方 · 清除搜索」。</dd>
+              <dt>加载</dt><dd>目录拉取中 → 列表区骨架行 + spinner（拉取 ACP catalog）。</dd>
+              <dt>错误</dt><dd>目录拉取失败 → 模态体顶 alertbox err + 重试；<b>某项加入失败</b>（命令无效 / 网络）→ 该行下红字 + 「新增」恢复可重试。</dd>
+              <dt>离线</dt><dd>所选 host 离线 → 顶 callout「主机离线」；目录可浏览，「新增」全禁用直到重连。</dd>
+              <dt>右键</dt><dd><b>无右键菜单</b>（出口都在显式「新增」/「安装说明」/「取消」按钮）。</dd>
+              <dt>术语</dt><dd><b>从目录新增 = 选目录里已存在的已知项</b>，<b>≠ 自定义新增</b>（不自造命令 / 名字）；加入写 <code>agents.providers</code>（<code>extends:"acp"</code>），是 mp1「目录新增」行与 cfg1 同一真相源。目录 = 真实 ACP catalog，<b>非第三方插件市场</b>。</dd>
             </dl>
           </div>
         </div>
@@ -1760,13 +1996,13 @@ svg.i {
               <dt>hover</dt><dd>set-row → surface1；中转站卡 → surface1 + 边加深 + 行尾 chev 提示可下钻；按钮各自 hover。</dd>
               <dt>活跃</dt><dd>当前中转站卡 accent 边 + accentSoft 底 +「当前」✓ badge；顶部启用开关 on。</dd>
               <dt>运行</dt><dd>cc-switch 同步中 = 按钮 inline spinner；某卡测速中 = 健康位 mini-spin「测速中…」。</dd>
-              <dt>禁用</dt><dd>CLI 未安装的提供方 L2 只读 + 安装指引、新增 / 编辑禁用（见 mp5）；本屏<b>无删除提供方按钮</b>（内置不可删）。</dd>
+              <dt>禁用</dt><dd>CLI 未安装的提供方 L2 只读 + 安装指引、新增 / 编辑禁用（见 mp5）；<b>内置提供方本屏无删除</b>（内置不可删；目录新增的 ACP 提供方在 mp1 行右键「移除」，不在本屏堆危险区）。</dd>
               <dt>空</dt><dd>该提供方下无中转站 → 列表区 emptybox「Claude Code 还没有中转站」+「+ 新增中转站」「cc-switch 同步」（见 mp5 第 2 box）。</dd>
               <dt>加载</dt><dd>进入 L2 拉中转站列表 → 卡骨架；基础信息字段就绪前字段级骨架。</dd>
               <dt>错误</dt><dd>某中转站不健康 → 卡红点 + 红字（连接失败 / 超时 / 401，如 Moonshot）；配置写回失败 → 顶 alertbox err + 重试。</dd>
               <dt>离线</dt><dd>host 离线 → 顶 callout，编辑 / 新增 / 设当前 / 同步 / 启停禁用，中转站显缓存值。</dd>
               <dt>右键</dt><dd><b>中转站卡右键 5 项</b>：① 设为当前 ② 编辑（→ L3）③ 测速 ④ 复制 ⑤ 删除（danger）。基础信息行无右键；提供方层（启停）在顶部 toggle，不进右键。</dd>
-              <dt>术语</dt><dd>命令 <b>≠ PTY profile</b>；中转站（vendor，base_url+key）<b>≠ relay 远程</b>；本轮提供方层只「启停」，删除 / 新增提供方均不做。</dd>
+              <dt>术语</dt><dd>命令 <b>≠ PTY profile</b>；中转站（vendor，base_url+key）<b>≠ relay 远程</b>；提供方层<b>新增 = 从目录</b>（mp1 顶部「+ 新增提供方」，非自造命令 / 名字），<b>内置不可删、目录新增的可移除</b>（mp1 行右键），不做任意自定义新增。</dd>
             </dl>
           </div>
         </div>
@@ -2030,7 +2266,7 @@ svg.i {
                       <div class="emptybox" style="border:none;padding:6px">
                         <svg class="i xl" style="color:var(--fgFaint)"><use href="#layers" /></svg>
                         <span style="color:var(--fg);font-weight:500">还没有启用任何提供方</span>
-                        <span class="set-rd">打开下方任意内置提供方的开关即可启用<br/>（提供方为内置，<b>不需新增</b>）</span>
+                        <span class="set-rd">打开下方任意内置提供方的开关即可启用<br/>（5 个内置始终在列；要更多可走顶部「+ 新增提供方」从目录加）</span>
                       </div>
                     </div>
                   </div>
@@ -2129,7 +2365,7 @@ svg.i {
         <div class="anno">
           <div class="anno-h">点击效果</div>
           <ol>
-            <li><span class="pin">1</span><div><b>空 · 无提供方</b>：纯提示，<b>无「新增」按钮</b>（5 个内置始终在列）→ 打开下方任一开关即启用；<b>空 · 无中转站</b>「+ 新增中转站」→ 空白 L3，「cc-switch 同步」→ 导入弹窗。</div></li>
+            <li><span class="pin">1</span><div><b>空 · 无提供方</b>：5 个内置始终在列 → 打开下方任一开关即启用；<b>顶部「+ 新增提供方」仍在</b>（从目录加更多，见 mp1-add）。<b>空 · 无中转站</b>「+ 新增中转站」→ 空白 L3，「cc-switch 同步」→ 导入弹窗。</div></li>
             <li><span class="pin">2</span><div><b>加载</b>：切提供方 / 切 host 页级 spinner，纯过渡无可点；<b>测速中</b>：mini-spinner，完成转延迟 + 健康点，再点可重测。</div></li>
             <li><span class="pin">3</span><div><b>拉模型失败</b>「重试拉取」再抓一次；「手动添加」→ L3 模型放出手填 id。<b>不健康 401</b>「更新 key」→ L3 改 key 后测试。</div></li>
             <li><span class="pin">4</span><div><b>CLI 未安装</b>：行 dis + 开关灰；「安装指引」→ 外链 / 复制安装命令；只读可看，不可启用 / 改配置。</div></li>
@@ -2146,7 +2382,7 @@ svg.i {
               <dt>活跃</dt><dd>边界态本身即「非默认」呈现，无独立选中态；删除确认主按钮 danger 强调。</dd>
               <dt>运行</dt><dd>测速中 mini-spinner；加载 spinner；重试 / 重连 / 删除点击后按钮转 inline spinner。</dd>
               <dt>禁用</dt><dd>CLI 未装行 + 开关禁用；离线态所有写操作禁用。</dd>
-              <dt>空</dt><dd>box 1 / 2：无提供方启用（只提示、无新增）/ 提供方无中转站（带「新增中转站」出口）。</dd>
+              <dt>空</dt><dd>box 1 / 2：无提供方启用（提示开关启用，5 内置常驻 + 顶部「+ 新增提供方」从目录加）/ 提供方无中转站（带「新增中转站」出口）。</dd>
               <dt>加载</dt><dd>box 3：页级 spinner +「正在加载…」；首进 / 切换通用。</dd>
               <dt>错误</dt><dd>box 5 / 6：拉模型失败 / 不健康 401，alertbox err + 红 ping + 具体出口（重试 / 更新 key / 手动添加）。</dd>
               <dt>离线</dt><dd>box 9：host 选择器 dot 转红、顶 callout、缓存值，写操作禁用 +「重连主机」。</dd>
@@ -2540,7 +2776,7 @@ svg.i {
       <div class="screen-head">
         <span class="tag">新增 · cfg1 · 配置文件（JSON）逃生舱</span>
         <h2>config.json 编辑器 — VSCode settings.json 式 · 界面没暴露的高级项都能在这改</h2>
-        <p>入口 = v3 nav「配置文件（JSON）」行 active。<b>左区段树 + 右 JSON 编辑器（行号 + 语法高亮）</b>，映射这台主机<b>真实 <code>config.json</code></b>（daemon / app / providers / worktrees / agents.providers / features / log）。顶部说明「界面没暴露的高级项都能在这改」+ 保存 / 格式化 / 恢复。改动即时校验，JSON 出错标红、保存挂起。</p>
+        <p>入口 = nav「配置文件（JSON）」行 active。董事长：「<b>找一个 json 编辑器就行</b>」——<b>接一个现成 JSON 编辑器组件（Monaco / CodeMirror 类）</b>占满整宽：行号 + 语法高亮 + JSON 校验（非法标红）+ 查找，全是组件自带标准能力；顶部 <b>保存 / 格式化 / 恢复</b> 三个标准动作。映射这台主机<b>真实 <code>config.json</code></b>（daemon / app / providers / worktrees / agents.providers / features / log）。<b>不自造区段导航、不自定义右键</b>——右键用编辑器自带标准菜单。</p>
       </div>
       <div class="screen-body wide">
         <div class="frame" style="position: relative">
@@ -2589,83 +2825,69 @@ svg.i {
                   <span class="cf-path"><svg class="i xs"><use href="#folder" /></svg> ~/.helm/config.json</span>
                 </div>
 
-                <!-- 左区段树 + 右 JSON 编辑器 -->
-                <div class="cf-main">
-                  <aside class="cf-toc">
-                    <div class="cf-toch">区段</div>
-                    <div class="cf-tocrow active"><svg class="i sm"><use href="#server" /></svg> daemon <span class="ckey">10</span></div>
-                    <div class="cf-tocrow"><svg class="i sm"><use href="#globe" /></svg> app <span class="ckey">1</span></div>
-                    <div class="cf-tocrow"><svg class="i sm"><use href="#key" /></svg> providers <span class="ckey">1</span></div>
-                    <div class="cf-tocrow"><svg class="i sm"><use href="#git-branch" /></svg> worktrees <span class="ckey">1</span></div>
-                    <div class="cf-tocrow"><svg class="i sm"><use href="#bot" /></svg> agents <span class="ckey">2</span></div>
-                    <div class="cf-tocrow"><svg class="i sm"><use href="#sliders" /></svg> features <span class="ckey">2</span></div>
-                    <div class="cf-tocrow"><svg class="i sm"><use href="#file-text" /></svg> log <span class="ckey">2</span></div>
-                    <div class="cf-tocnote">点区段 = 编辑器滚到并高亮该键。灰键 = 当前未设值（取内置默认）。</div>
-                  </aside>
-
-                  <div class="cf-editor">
-                    <div class="cf-editor-h">
-                      <span class="ef-name"><span class="ef-dirty"></span> config.json</span>
-                      <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> JSON 有效</span>
-                      <div class="ef-act">
-                        <span class="ef-pos">Ln 5, Col 24</span>
-                        <span class="cf-search"><svg class="i xs"><use href="#search" /></svg> 查找</span>
-                      </div>
+                <!-- 现成 JSON 编辑器组件（Monaco / CodeMirror 类）· 占满整宽 · 行号 + 语法高亮 + 校验 -->
+                <div class="cf-editor">
+                  <div class="cf-editor-h">
+                    <span class="ef-name"><span class="ef-dirty"></span> config.json</span>
+                    <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> JSON 有效</span>
+                    <div class="ef-act">
+                      <span class="ef-pos">Ln 5, Col 24</span>
+                      <span class="cf-search"><svg class="i xs"><use href="#search" /></svg> 查找</span>
                     </div>
-                    <div class="cf-editor-scroll">
-                      <div class="cf-line"><span class="cf-ln">1</span><span class="cf-ct"><span class="cf-p">{</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">2</span><span class="cf-ct">  <span class="cf-k">"$schema"</span><span class="cf-p">:</span> <span class="cf-s">"https://helm.sh/schema/config.v1.json"</span><span class="cf-p">,</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">3</span><span class="cf-ct">  <span class="cf-k">"version"</span><span class="cf-p">:</span> <span class="cf-n">1</span><span class="cf-p">,</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">4</span><span class="cf-ct">  <span class="cf-k">"daemon"</span><span class="cf-p">: {</span></span></div>
-                      <div class="cf-line hl cur"><span class="cf-ln">5</span><span class="cf-ct">    <span class="cf-k">"listen"</span><span class="cf-p">:</span> <span class="cf-s">"127.0.0.1:7070"</span><span class="cf-p">,</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">6</span><span class="cf-ct">    <span class="cf-k">"hostnames"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">7</span><span class="cf-ct">    <span class="cf-k">"mcp"</span><span class="cf-p">: {</span> <span class="cf-k">"enabled"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span> <span class="cf-k">"injectIntoAgents"</span><span class="cf-p">:</span> <span class="cf-b">true</span> <span class="cf-p">},</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">8</span><span class="cf-ct">    <span class="cf-k">"autoArchiveAfterMerge"</span><span class="cf-p">:</span> <span class="cf-b">false</span><span class="cf-p">,</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">9</span><span class="cf-ct">    <span class="cf-k">"enableTerminalAgentHooks"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">10</span><span class="cf-ct">    <span class="cf-k">"appendSystemPrompt"</span><span class="cf-p">:</span> <span class="cf-s">""</span><span class="cf-p">,</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">11</span><span class="cf-ct">    <span class="cf-k">"cors"</span><span class="cf-p">: {</span> <span class="cf-k">"allowedOrigins"</span><span class="cf-p">: [</span><span class="cf-s">"https://app.paseo.sh"</span><span class="cf-p">] },</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">12</span><span class="cf-ct">    <span class="cf-k">"relay"</span><span class="cf-p">: {</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">13</span><span class="cf-ct">      <span class="cf-k">"enabled"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">14</span><span class="cf-ct">      <span class="cf-k">"endpoint"</span><span class="cf-p">:</span> <span class="cf-s">"wss://relay.paseo.sh"</span><span class="cf-p">,</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">15</span><span class="cf-ct">      <span class="cf-k">"publicEndpoint"</span><span class="cf-p">:</span> <span class="cf-s">"wss://relay.paseo.sh"</span><span class="cf-p">,</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">16</span><span class="cf-ct">      <span class="cf-k">"useTls"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">17</span><span class="cf-ct">      <span class="cf-k">"publicUseTls"</span><span class="cf-p">:</span> <span class="cf-b">true</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">18</span><span class="cf-ct">    <span class="cf-p">},</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">19</span><span class="cf-ct">    <span class="cf-k">"serviceProxy"</span><span class="cf-p">: {</span> <span class="cf-k">"publicBaseUrl"</span><span class="cf-p">:</span> <span class="cf-s">"https://dev.wolffy.example.com"</span> <span class="cf-p">},</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">20</span><span class="cf-ct">    <span class="cf-k">"auth"</span><span class="cf-p">: {}</span></span></div>
-                      <div class="cf-line hl"><span class="cf-ln">21</span><span class="cf-ct">  <span class="cf-p">},</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">22</span><span class="cf-ct">  <span class="cf-k">"app"</span><span class="cf-p">: {</span> <span class="cf-k">"baseUrl"</span><span class="cf-p">:</span> <span class="cf-s">"https://app.paseo.sh"</span> <span class="cf-p">},</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">23</span><span class="cf-ct">  <span class="cf-k">"providers"</span><span class="cf-p">: {</span> <span class="cf-k">"openai"</span><span class="cf-p">: {</span> <span class="cf-k">"apiKey"</span><span class="cf-p">:</span> <span class="cf-s">"sk-••••••••4f2a"</span> <span class="cf-p">} },</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">24</span><span class="cf-ct">  <span class="cf-k">"worktrees"</span><span class="cf-p">: {</span> <span class="cf-k">"root"</span><span class="cf-p">:</span> <span class="cf-s">"~/.helm/worktrees"</span> <span class="cf-p">},</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">25</span><span class="cf-ct">  <span class="cf-k">"agents"</span><span class="cf-p">: {</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">26</span><span class="cf-ct">    <span class="cf-k">"providers"</span><span class="cf-p">: {</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">27</span><span class="cf-ct">      <span class="cf-k">"claude"</span><span class="cf-p">: {</span> <span class="cf-k">"command"</span><span class="cf-p">:</span> <span class="cf-s">"claude"</span> <span class="cf-p">},</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">28</span><span class="cf-ct">      <span class="cf-k">"codex"</span><span class="cf-p">: {</span> <span class="cf-k">"command"</span><span class="cf-p">:</span> <span class="cf-s">"codex"</span> <span class="cf-p">}</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">29</span><span class="cf-ct">    <span class="cf-p">},</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">30</span><span class="cf-ct">    <span class="cf-k">"metadataGeneration"</span><span class="cf-p">: {</span> <span class="cf-k">"providers"</span><span class="cf-p">: [{</span> <span class="cf-k">"provider"</span><span class="cf-p">:</span> <span class="cf-s">"claude"</span><span class="cf-p">,</span> <span class="cf-k">"model"</span><span class="cf-p">:</span> <span class="cf-s">"glm-4.7"</span> <span class="cf-p">}] }</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">31</span><span class="cf-ct">  <span class="cf-p">},</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">32</span><span class="cf-ct">  <span class="cf-k">"features"</span><span class="cf-p">: {</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">33</span><span class="cf-ct">    <span class="cf-k">"dictation"</span><span class="cf-p">: {</span> <span class="cf-k">"enabled"</span><span class="cf-p">:</span> <span class="cf-b">true</span> <span class="cf-p">},</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">34</span><span class="cf-ct">    <span class="cf-k">"voiceMode"</span><span class="cf-p">: {</span> <span class="cf-k">"enabled"</span><span class="cf-p">:</span> <span class="cf-b">false</span> <span class="cf-p">}</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">35</span><span class="cf-ct">  <span class="cf-p">},</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">36</span><span class="cf-ct">  <span class="cf-k">"log"</span><span class="cf-p">: {</span> <span class="cf-k">"level"</span><span class="cf-p">:</span> <span class="cf-s">"info"</span><span class="cf-p">,</span> <span class="cf-k">"format"</span><span class="cf-p">:</span> <span class="cf-s">"pretty"</span> <span class="cf-p">}</span></span></div>
-                      <div class="cf-line"><span class="cf-ln">37</span><span class="cf-ct"><span class="cf-p">}</span></span></div>
-                    </div>
+                  </div>
+                  <div class="cf-editor-scroll">
+                    <div class="cf-line"><span class="cf-ln">1</span><span class="cf-ct"><span class="cf-p">{</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">2</span><span class="cf-ct">  <span class="cf-k">"$schema"</span><span class="cf-p">:</span> <span class="cf-s">"https://helm.sh/schema/config.v1.json"</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">3</span><span class="cf-ct">  <span class="cf-k">"version"</span><span class="cf-p">:</span> <span class="cf-n">1</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">4</span><span class="cf-ct">  <span class="cf-k">"daemon"</span><span class="cf-p">: {</span></span></div>
+                    <div class="cf-line cur"><span class="cf-ln">5</span><span class="cf-ct">    <span class="cf-k">"listen"</span><span class="cf-p">:</span> <span class="cf-s">"127.0.0.1:7070"</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">6</span><span class="cf-ct">    <span class="cf-k">"hostnames"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">7</span><span class="cf-ct">    <span class="cf-k">"mcp"</span><span class="cf-p">: {</span> <span class="cf-k">"enabled"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span> <span class="cf-k">"injectIntoAgents"</span><span class="cf-p">:</span> <span class="cf-b">true</span> <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">8</span><span class="cf-ct">    <span class="cf-k">"autoArchiveAfterMerge"</span><span class="cf-p">:</span> <span class="cf-b">false</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">9</span><span class="cf-ct">    <span class="cf-k">"enableTerminalAgentHooks"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">10</span><span class="cf-ct">    <span class="cf-k">"appendSystemPrompt"</span><span class="cf-p">:</span> <span class="cf-s">""</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">11</span><span class="cf-ct">    <span class="cf-k">"cors"</span><span class="cf-p">: {</span> <span class="cf-k">"allowedOrigins"</span><span class="cf-p">: [</span><span class="cf-s">"https://app.paseo.sh"</span><span class="cf-p">] },</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">12</span><span class="cf-ct">    <span class="cf-k">"relay"</span><span class="cf-p">: {</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">13</span><span class="cf-ct">      <span class="cf-k">"enabled"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">14</span><span class="cf-ct">      <span class="cf-k">"endpoint"</span><span class="cf-p">:</span> <span class="cf-s">"wss://relay.paseo.sh"</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">15</span><span class="cf-ct">      <span class="cf-k">"publicEndpoint"</span><span class="cf-p">:</span> <span class="cf-s">"wss://relay.paseo.sh"</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">16</span><span class="cf-ct">      <span class="cf-k">"useTls"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">17</span><span class="cf-ct">      <span class="cf-k">"publicUseTls"</span><span class="cf-p">:</span> <span class="cf-b">true</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">18</span><span class="cf-ct">    <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">19</span><span class="cf-ct">    <span class="cf-k">"serviceProxy"</span><span class="cf-p">: {</span> <span class="cf-k">"publicBaseUrl"</span><span class="cf-p">:</span> <span class="cf-s">"https://dev.wolffy.example.com"</span> <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">20</span><span class="cf-ct">    <span class="cf-k">"auth"</span><span class="cf-p">: {}</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">21</span><span class="cf-ct">  <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">22</span><span class="cf-ct">  <span class="cf-k">"app"</span><span class="cf-p">: {</span> <span class="cf-k">"baseUrl"</span><span class="cf-p">:</span> <span class="cf-s">"https://app.paseo.sh"</span> <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">23</span><span class="cf-ct">  <span class="cf-k">"providers"</span><span class="cf-p">: {</span> <span class="cf-k">"openai"</span><span class="cf-p">: {</span> <span class="cf-k">"apiKey"</span><span class="cf-p">:</span> <span class="cf-s">"sk-••••••••4f2a"</span> <span class="cf-p">} },</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">24</span><span class="cf-ct">  <span class="cf-k">"worktrees"</span><span class="cf-p">: {</span> <span class="cf-k">"root"</span><span class="cf-p">:</span> <span class="cf-s">"~/.helm/worktrees"</span> <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">25</span><span class="cf-ct">  <span class="cf-k">"agents"</span><span class="cf-p">: {</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">26</span><span class="cf-ct">    <span class="cf-k">"providers"</span><span class="cf-p">: {</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">27</span><span class="cf-ct">      <span class="cf-k">"claude"</span><span class="cf-p">: {</span> <span class="cf-k">"command"</span><span class="cf-p">:</span> <span class="cf-s">"claude"</span> <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">28</span><span class="cf-ct">      <span class="cf-k">"qwen-code"</span><span class="cf-p">: {</span> <span class="cf-k">"extends"</span><span class="cf-p">:</span> <span class="cf-s">"acp"</span><span class="cf-p">,</span> <span class="cf-k">"label"</span><span class="cf-p">:</span> <span class="cf-s">"Qwen Code"</span><span class="cf-p">,</span> <span class="cf-k">"command"</span><span class="cf-p">: [</span><span class="cf-s">"npx"</span><span class="cf-p">,</span> <span class="cf-s">"-y"</span><span class="cf-p">,</span> <span class="cf-s">"@qwen-code/qwen-code"</span><span class="cf-p">,</span> <span class="cf-s">"--acp"</span><span class="cf-p">] }</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">29</span><span class="cf-ct">    <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">30</span><span class="cf-ct">    <span class="cf-k">"metadataGeneration"</span><span class="cf-p">: {</span> <span class="cf-k">"providers"</span><span class="cf-p">: [{</span> <span class="cf-k">"provider"</span><span class="cf-p">:</span> <span class="cf-s">"claude"</span><span class="cf-p">,</span> <span class="cf-k">"model"</span><span class="cf-p">:</span> <span class="cf-s">"glm-4.7"</span> <span class="cf-p">}] }</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">31</span><span class="cf-ct">  <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">32</span><span class="cf-ct">  <span class="cf-k">"features"</span><span class="cf-p">: {</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">33</span><span class="cf-ct">    <span class="cf-k">"dictation"</span><span class="cf-p">: {</span> <span class="cf-k">"enabled"</span><span class="cf-p">:</span> <span class="cf-b">true</span> <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">34</span><span class="cf-ct">    <span class="cf-k">"voiceMode"</span><span class="cf-p">: {</span> <span class="cf-k">"enabled"</span><span class="cf-p">:</span> <span class="cf-b">false</span> <span class="cf-p">}</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">35</span><span class="cf-ct">  <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">36</span><span class="cf-ct">  <span class="cf-k">"log"</span><span class="cf-p">: {</span> <span class="cf-k">"level"</span><span class="cf-p">:</span> <span class="cf-s">"info"</span><span class="cf-p">,</span> <span class="cf-k">"format"</span><span class="cf-p">:</span> <span class="cf-s">"pretty"</span> <span class="cf-p">}</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">37</span><span class="cf-ct"><span class="cf-p">}</span></span></div>
                   </div>
                 </div>
               </div>
             </section>
           </div>
 
-          <!-- 右键 · JSON 编辑器上下文菜单（叠在编辑区下半区示意，避开 daemon 高亮区） -->
-          <div class="ctx-pop" style="top: 690px; left: 712px;">
-            <div class="ctxmenu" style="width:230px">
+          <!-- 右键 · 编辑器组件自带的标准上下文菜单（Monaco / CodeMirror 原生，Helm 不自定义） -->
+          <div class="ctx-pop" style="top: 470px; left: 560px;">
+            <div class="ctxmenu" style="width:212px">
+              <div class="ci"><svg class="i sm"><use href="#x" /></svg> 剪切</div>
               <div class="ci"><svg class="i sm"><use href="#copy" /></svg> 复制</div>
-              <div class="ci"><svg class="i sm"><use href="#sliders" /></svg> 格式化文档</div>
-              <div class="ci"><svg class="i sm"><use href="#search" /></svg> 查找…</div>
+              <div class="ci"><svg class="i sm"><use href="#file-text" /></svg> 粘贴</div>
               <div class="csep"></div>
-              <div class="ci"><svg class="i sm"><use href="#layers" /></svg> 跳到对应设置项</div>
-              <div class="ci danger"><svg class="i sm"><use href="#refresh" /></svg> 恢复此节为默认</div>
+              <div class="ci"><svg class="i sm"><use href="#sliders" /></svg> 格式化文档</div>
+              <div class="ci"><svg class="i sm"><use href="#search" /></svg> 命令面板</div>
             </div>
           </div>
         </div>
@@ -2673,28 +2895,28 @@ svg.i {
         <div class="anno">
           <div class="anno-h">点击效果</div>
           <ol>
-            <li><span class="pin">1</span><div><b>左区段树某项</b>（daemon / app / providers / worktrees / agents / features / log）：编辑器<b>滚动到并高亮</b>该顶层键所在行块（如 daemon = 行 4–21 accentSoft + 左 accent 竖条），TOC 该行 active。灰键计数 = 当前未设值（取内置默认）。</div></li>
-            <li><span class="pin">2</span><div><b>编辑 JSON</b>：直接在右侧改文本；每次改动<b>即时校验</b>：合法 → 顶部 badge「JSON 有效」绿、保存可用；非法 → 出错行红波浪 + badge 转「JSON 无效」红、保存禁用（见错误态）。</div></li>
+            <li><span class="pin">1</span><div><b>现成 JSON 编辑器组件</b>（Monaco / CodeMirror 类）：<b>不自造区段导航</b>——行号、语法高亮、当前行高亮、滚动、查找、折叠都是组件自带标准能力；载入这台主机真实 <code>config.json</code>，daemon / app / providers / agents.providers / features / log 各节顺序原样呈现。</div></li>
+            <li><span class="pin">2</span><div><b>编辑 JSON</b>：直接在编辑器里改文本；每次改动<b>即时校验</b>（组件自带）：合法 → 顶部 badge「JSON 有效」绿、保存可用；非法 → 出错行红波浪 + badge 转「JSON 无效」红、保存禁用（见错误态）。</div></li>
             <li><span class="pin">3</span><div><b>保存</b>（dhead，df）：把当前 JSON 写回这台主机 <code>~/.helm/config.json</code>（守护进程热读 / 必要时提示重启）；写盘后 ef-dirty 黄点消失。仅在「JSON 有效」时可点。</div></li>
-            <li><span class="pin">4</span><div><b>格式化</b>（dhead，out）：缩进 / 键序规范化整篇，不改语义；<b>恢复</b>（ghost）：丢弃未保存改动、回上次落盘值（有未保存改动时二次确认）。</div></li>
-            <li><span class="pin">5</span><div><b>查找</b>（编辑器头）：打开行内查找框（键 / 值高亮跳转）。<b>ef-pos</b> 实时显光标 Ln / Col。</div></li>
-            <li><span class="pin">6</span><div><b>跨界面一致</b>：上面各 tab（主机 / 模型与提供方）改的，等价于改这里对应键；这里改完保存，对应 tab 即时反映（同一 config.json 真相源）。</div></li>
+            <li><span class="pin">4</span><div><b>格式化</b>（dhead，out）：缩进 / 键序规范化整篇，不改语义（组件 format document）；<b>恢复</b>（ghost）：丢弃未保存改动、回上次落盘值（有未保存改动时二次确认）。</div></li>
+            <li><span class="pin">5</span><div><b>查找</b>（编辑器头 / 右键命令面板）：打开组件自带行内查找（键 / 值高亮跳转）。<b>ef-pos</b> 实时显光标 Ln / Col。</div></li>
+            <li><span class="pin">6</span><div><b>跨界面一致</b>：上面各 tab（主机 / 模型与提供方）改的，等价于改这里对应键；这里改完保存，对应 tab 即时反映（同一 config.json 真相源）。<b>界面没暴露的高级项 + 目录新增提供方的移除</b>都在这改。</div></li>
           </ol>
           <div class="states">
             <div class="sh">状态（四维度齐全）</div>
             <dl>
-              <dt>布局</dt><dd>设置外壳右详情面 = 顶 dhead（标题 + 格式化 / 恢复 / 保存）+ 说明条 + <b>两栏：左区段树 218px / 右 JSON 编辑器（行号槽 + 高亮代码，独立滚动）</b>。<b>桌面 only</b>；紧凑 / 手机态意图：区段树收为顶部下拉，编辑器占满。</dd>
-              <dt>默认</dt><dd>载入这台主机真实 config.json；daemon 节选中高亮；JSON 有效（绿 badge）；有未保存改动时 ef-dirty 黄点 + 保存高亮。</dd>
-              <dt>hover</dt><dd>区段行 → surface2；编辑器行 hover 微亮；格式化 / 恢复 / 保存 / 查找各自 hover；行号槽不响应。</dd>
-              <dt>活跃</dt><dd>当前区段 accentSoft + 左 accent 竖条（如 daemon 行 4–21）+ TOC active；光标行 cur 微底；保存按钮 df。</dd>
+              <dt>布局</dt><dd>设置外壳右详情面 = 顶 dhead（标题 + 格式化 / 恢复 / 保存）+ 说明条（信息 callout + 路径 chip）+ <b>单栏现成 JSON 编辑器（行号槽 + 高亮代码，占满整宽，独立滚动）</b>。<b>桌面 only</b>；紧凑 / 手机态意图：编辑器占满、动作收进顶部溢出。</dd>
+              <dt>默认</dt><dd>载入这台主机真实 config.json；JSON 有效（绿 badge）；光标行 cur 微底高亮；有未保存改动时 ef-dirty 黄点 + 保存高亮。</dd>
+              <dt>hover</dt><dd>编辑器行 hover 微亮（surface1）；格式化 / 恢复 / 保存 / 查找各自 hover；行号槽不响应。</dd>
+              <dt>活跃</dt><dd>光标所在行 cur accentSoft 微底（组件当前行高亮）；保存按钮 df。无 Helm 自定义的「区段选中」态。</dd>
               <dt>运行</dt><dd>保存中 = 保存按钮 inline spinner + 防重复；格式化中短暂禁用编辑。</dd>
               <dt>禁用</dt><dd><b>JSON 无效 → 保存禁用</b>（badge 红「JSON 无效」）；离线 → 全编辑器只读。恢复在无未保存改动时置灰。</dd>
               <dt>空</dt><dd>config.json 全为默认（未覆盖任何项）→ 编辑器显<b>默认最小配置</b>（version + 默认 listen/relay），说明「当前全是默认值，按 schema 添加键即可覆盖」。</dd>
               <dt>加载</dt><dd>首次进入 / 切 host → 编辑器区骨架行 + 页级 spinner（拉取该主机 config.json）。</dd>
               <dt>错误</dt><dd><b>语法错</b> → 出错行红底 + 红波浪 + 行号红 + 顶 badge「JSON 无效 · 第 N 行」、保存禁用；<b>schema 校验错</b>（键不合法 / 类型不符）→ 该行黄波浪 + 悬浮提示，保存时拦截并定位；<b>写盘失败</b> → 顶 alertbox err + 保留改动可重试。</dd>
               <dt>离线</dt><dd>所选 host 离线 → host 选择器红点 + 顶 callout；编辑器只读显缓存、保存 / 格式化 / 恢复禁用，可读不可写。</dd>
-              <dt>右键</dt><dd><b>编辑器右键 5 项</b>：① 复制 ② 格式化文档 ③ 查找… ④ 跳到对应设置项（从某键回跳对应友好 tab）⑤ 恢复此节为默认（danger）。见右上菜单示意。</dd>
-              <dt>术语</dt><dd>本屏 = <b>所选主机的</b> config.json（≠ 应用段设备本地设置）；<code>daemon.relay</code> = E2E 远程通道，<b>≠ 中转站</b>（中转站在 <code>agents.providers</code> 下，base_url+key）。映射真实 <code>PersistedConfigSchema</code>，非杜撰字段。</dd>
+              <dt>右键</dt><dd><b>= 编辑器组件自带的标准上下文菜单（Helm 不自定义）</b>，5 项：① 剪切 ② 复制 ③ 粘贴 ④ 格式化文档 ⑤ 命令面板（查找 / 跳转等组件命令）。<b>已删过度设计的自定义项</b>「跳到对应设置项」「恢复此节为默认」。见右侧菜单示意。</dd>
+              <dt>术语</dt><dd>本屏 = <b>所选主机的</b> config.json（≠ 应用段设备本地设置）；<code>daemon.relay</code> = E2E 远程通道，<b>≠ 中转站</b>（中转站在 <code>agents.providers</code> 下，base_url+key）；<code>agents.providers.&lt;id&gt;</code> 含内置（claude…）与<b>目录新增的 ACP 提供方</b>（<code>extends:"acp"</code> + label + command，如 qwen-code）。映射真实 <code>PersistedConfigSchema</code>，非杜撰字段。</dd>
             </dl>
           </div>
         </div>
