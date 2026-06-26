@@ -26,6 +26,22 @@ export const RIGHT_PANEL_PANE_ID = "tools";
  * explicitly opens on the right. Those callers pass an explicit surface instead
  * of relying on this classifier (see `openTabOnSurface`).
  */
+/**
+ * Right-panel tab kinds that are pinned (cannot be closed). R6 (董事长拍板): there are none —
+ * 审查/review is closeable like every other tool tab. Pinning a kind later is a one-line edit
+ * here that trips `canCloseRightPanelTab`'s test, instead of a gate scattered across the UI.
+ */
+const PINNED_RIGHT_PANEL_TAB_KINDS: ReadonlySet<WorkspaceTabTarget["kind"]> = new Set();
+
+/**
+ * Whether a right-panel tab of this kind may be closed. Single source of truth for the right
+ * panel's close policy (the close ✕ + context menu read it). R6: every tab — 审查 included —
+ * is closeable and re-addable from the launcher / 「新选项卡」menu; no "review pinned first".
+ */
+export function canCloseRightPanelTab(kind: WorkspaceTabTarget["kind"]): boolean {
+  return !PINNED_RIGHT_PANEL_TAB_KINDS.has(kind);
+}
+
 export function tabSurfaceForKind(kind: WorkspaceTabTarget["kind"]): TabSurface {
   switch (kind) {
     case "terminal":

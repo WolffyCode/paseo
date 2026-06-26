@@ -73,6 +73,8 @@ import {
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
 import {
   paneShowsTabBar,
+  type RightPanelMode,
+  selectRightPanelMode,
   useWorkspaceLayoutStore,
   type SplitNode,
   type SplitPane,
@@ -91,6 +93,10 @@ export const MountedTabActiveContext = createContext<boolean>(true);
 // true while the right tool panel is sliding out (collapse). Keeps the pane rendered +
 // animated until the layout removes it — web has no reliable Reanimated exit animation.
 const RightPanelCollapsingContext = createContext<boolean>(false);
+
+// "launcher" while the right tool pane holds no tab (反馈②). The right pane's tab strip reads it
+// to hide「新选项卡 +」in the launcher default state; derived once from the layout by SplitContainer.
+const RightPanelModeContext = createContext<RightPanelMode>("launcher");
 
 interface SplitContainerProps {
   layout: WorkspaceLayout;
@@ -443,6 +449,7 @@ export function SplitContainer({
     return { kind: "pane" as const, pane: focusedPane };
   }, [focusModeEnabled, layout.root, layout.focusedPaneId, panesById]);
   const renderRoot = useMemo(() => wrapRootPaneForStableMount(effectiveRoot), [effectiveRoot]);
+  const rightPanelMode = useMemo(() => selectRightPanelMode(layout), [layout]);
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const data = asWorkspaceTabDragData(event.active.data.current);
@@ -597,48 +604,50 @@ export function SplitContainer({
         onDragCancel={handleDragCancel}
         onDragEnd={handleDragEnd}
       >
-        <RightPanelCollapsingContext.Provider value={rightPanelCollapsing ?? false}>
-          <SplitNodeView
-            node={renderRoot}
-            workspaceKey={workspaceKey}
-            uiTabs={uiTabs}
-            focusedPaneId={layout.focusedPaneId}
-            normalizedServerId={normalizedServerId}
-            normalizedWorkspaceId={normalizedWorkspaceId}
-            isWorkspaceFocused={isWorkspaceFocused}
-            hoveredCloseTabKey={hoveredCloseTabKey}
-            setHoveredCloseTabKey={setHoveredCloseTabKey}
-            closingTabIds={closingTabIds}
-            onNavigateTab={onNavigateTab}
-            onCloseTab={onCloseTab}
-            onCopyResumeCommand={onCopyResumeCommand}
-            onCopyAgentId={onCopyAgentId}
-            onCopyFilePath={onCopyFilePath}
-            onReloadAgent={onReloadAgent}
-            onRenameTab={onRenameTab}
-            onCloseTabsToLeft={onCloseTabsToLeft}
-            onCloseTabsToRight={onCloseTabsToRight}
-            onCloseOtherTabs={onCloseOtherTabs}
-            onCreateDraftTab={onCreateDraftTab}
-            onCreateTerminalTab={onCreateTerminalTab}
-            onCreateBrowserTab={onCreateBrowserTab}
-            toolsAddHandlers={toolsAddHandlers}
-            showCreateBrowserTab={showCreateBrowserTab}
-            buildPaneContentModel={buildPaneContentModel}
-            onFocusPane={onFocusPane}
-            onSplitPane={onSplitPane}
-            onSplitPaneEmpty={onSplitPaneEmpty}
-            onResizeSplit={onResizeSplit}
-            onReorderTabsInPane={onReorderTabsInPane}
-            renderPaneEmptyState={renderPaneEmptyState}
-            renderPaneTabBarTrailing={renderPaneTabBarTrailing}
-            renderPaneHeader={renderPaneHeader}
-            activeDragTabId={activeDragTabId}
-            showDropZones={activeDragTabId !== null}
-            dropPreview={dropPreview}
-            tabDropPreview={tabDropPreview}
-          />
-        </RightPanelCollapsingContext.Provider>
+        <RightPanelModeContext.Provider value={rightPanelMode}>
+          <RightPanelCollapsingContext.Provider value={rightPanelCollapsing ?? false}>
+            <SplitNodeView
+              node={renderRoot}
+              workspaceKey={workspaceKey}
+              uiTabs={uiTabs}
+              focusedPaneId={layout.focusedPaneId}
+              normalizedServerId={normalizedServerId}
+              normalizedWorkspaceId={normalizedWorkspaceId}
+              isWorkspaceFocused={isWorkspaceFocused}
+              hoveredCloseTabKey={hoveredCloseTabKey}
+              setHoveredCloseTabKey={setHoveredCloseTabKey}
+              closingTabIds={closingTabIds}
+              onNavigateTab={onNavigateTab}
+              onCloseTab={onCloseTab}
+              onCopyResumeCommand={onCopyResumeCommand}
+              onCopyAgentId={onCopyAgentId}
+              onCopyFilePath={onCopyFilePath}
+              onReloadAgent={onReloadAgent}
+              onRenameTab={onRenameTab}
+              onCloseTabsToLeft={onCloseTabsToLeft}
+              onCloseTabsToRight={onCloseTabsToRight}
+              onCloseOtherTabs={onCloseOtherTabs}
+              onCreateDraftTab={onCreateDraftTab}
+              onCreateTerminalTab={onCreateTerminalTab}
+              onCreateBrowserTab={onCreateBrowserTab}
+              toolsAddHandlers={toolsAddHandlers}
+              showCreateBrowserTab={showCreateBrowserTab}
+              buildPaneContentModel={buildPaneContentModel}
+              onFocusPane={onFocusPane}
+              onSplitPane={onSplitPane}
+              onSplitPaneEmpty={onSplitPaneEmpty}
+              onResizeSplit={onResizeSplit}
+              onReorderTabsInPane={onReorderTabsInPane}
+              renderPaneEmptyState={renderPaneEmptyState}
+              renderPaneTabBarTrailing={renderPaneTabBarTrailing}
+              renderPaneHeader={renderPaneHeader}
+              activeDragTabId={activeDragTabId}
+              showDropZones={activeDragTabId !== null}
+              dropPreview={dropPreview}
+              tabDropPreview={tabDropPreview}
+            />
+          </RightPanelCollapsingContext.Provider>
+        </RightPanelModeContext.Provider>
         <DragOverlay dropAnimation={null}>
           {activeDragTabId ? (
             <DragOverlayTabChip
@@ -1021,6 +1030,9 @@ function SplitPaneView({
   // the layout for the slide-out window, then removes it.
   const isRightPanel = paneId === RIGHT_PANEL_PANE_ID;
   const rightPanelCollapsing = useContext(RightPanelCollapsingContext);
+  // The right panel hides its「新选项卡 +」while in launcher mode (no tabs yet, 反馈②).
+  const rightPanelMode = useContext(RightPanelModeContext);
+  const showToolsAddMenu = !isRightPanel || rightPanelMode === "tabs";
   const rightPaneWidthSv = useSharedValue(0);
   const rightPaneExitProgress = useSharedValue(0);
   useEffect(() => {
@@ -1110,6 +1122,7 @@ function SplitPaneView({
             onSplitRight={handleSplitRight}
             onSplitDown={handleSplitDown}
             showPaneSplitActions={false}
+            showToolsAddMenu={showToolsAddMenu}
             externalDndContext
             activeDragTabId={activeDragTabId}
             tabDropPreviewIndex={

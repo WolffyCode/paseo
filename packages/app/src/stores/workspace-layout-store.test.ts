@@ -34,6 +34,7 @@ import {
   paneShowsTabBar,
   removePaneFromTree,
   removeTabFromTree,
+  selectRightPanelMode,
   type SplitNode,
   type SplitPane,
   type WorkspaceLayout,
@@ -316,6 +317,8 @@ describe("workspace-layout-store actions", () => {
     workspaceLayoutStore.setState({
       layoutByWorkspace: {},
       splitSizesByWorkspace: {},
+      rightToolPanelCollapsedByWorkspace: {},
+      rightToolPanelMaximizedByWorkspace: {},
       pinnedAgentIdsByWorkspace: {},
       hiddenAgentIdsByWorkspace: {},
       focusRestorationByWorkspace: {},
@@ -874,6 +877,7 @@ describe("workspace-layout-store actions", () => {
     expect(partialize?.(state)).toEqual({
       layoutByWorkspace: {},
       splitSizesByWorkspace: {},
+      rightToolPanelCollapsedByWorkspace: {},
     });
   });
 
@@ -910,6 +914,7 @@ describe("workspace-layout-store actions", () => {
     expect(partialize?.(state)).toEqual({
       layoutByWorkspace: {},
       splitSizesByWorkspace: {},
+      rightToolPanelCollapsedByWorkspace: {},
     });
   });
 
@@ -1266,6 +1271,8 @@ describe("workspace-canvas surface routing", () => {
     workspaceLayoutStore.setState({
       layoutByWorkspace: {},
       splitSizesByWorkspace: {},
+      rightToolPanelCollapsedByWorkspace: {},
+      rightToolPanelMaximizedByWorkspace: {},
       pinnedAgentIdsByWorkspace: {},
       hiddenAgentIdsByWorkspace: {},
       focusRestorationByWorkspace: {},
@@ -1369,23 +1376,36 @@ describe("workspace-canvas surface routing", () => {
     expect(layout.focusedPaneId).toBe(RIGHT_PANEL_PANE_ID);
   });
 
-  it("closeRightToolPanel removes the tools pane and focuses main", () => {
+  it("closeRightToolPanel collapses the panel but keeps its pane and tabs for restore", () => {
+    // Collapse-but-keep (docs/specs/2026-06-23-unified-topbar-redesign.md): 收起 hides the panel via
+    // the collapsed flag without dropping the tools pane, so re-expanding restores the same tabs.
     useWorkspaceLayoutIds("group-tools");
     const workspaceKey = createWorkspaceKey();
     const store = workspaceLayoutStore.getState();
 
     const agentTabId = store.openTabFocused(workspaceKey, { kind: "agent", agentId: "agent-1" });
-    store.openTabFocused(workspaceKey, { kind: "terminal", terminalId: "term-1" });
+    const terminalTabId = store.openTabFocused(workspaceKey, {
+      kind: "terminal",
+      terminalId: "term-1",
+    });
     store.closeRightToolPanel(workspaceKey);
-    const layout = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
+    const state = workspaceLayoutStore.getState();
+    const layout = state.layoutByWorkspace[workspaceKey];
 
-    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual([MAIN_PANE_ID]);
-    expect(layout.focusedPaneId).toBe(MAIN_PANE_ID);
+    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual([
+      MAIN_PANE_ID,
+      RIGHT_PANEL_PANE_ID,
+    ]);
     expect(findPaneById(layout.root, MAIN_PANE_ID)?.tabIds).toEqual([agentTabId!]);
-    expect(isRightToolPanelOpen(layout)).toBe(false);
+    expect(getRightToolPane(layout)?.tabIds).toEqual([terminalTabId!]);
+    expect(isRightToolPanelOpen(layout)).toBe(true);
+    expect(state.rightToolPanelCollapsedByWorkspace[workspaceKey]).toBe(true);
   });
 
-  it("closing the last tools tab auto-collapses back to a single main pane", () => {
+  it("closing the last tools tab returns to the launcher, keeping an empty tools pane", () => {
+    // 反馈②: closing every tool tab lands on the launcher default state instead of tearing the
+    // panel down. The tools pane is kept (empty), focus falls back to the main conversation, and
+    // re-collapsing is a separate action (the 收起 toggle / closeRightToolPanel).
     useWorkspaceLayoutIds("group-tools");
     const workspaceKey = createWorkspaceKey();
     const store = workspaceLayoutStore.getState();
@@ -1398,9 +1418,14 @@ describe("workspace-canvas surface routing", () => {
     store.closeTab(workspaceKey, terminalTabId!);
     const layout = workspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
 
-    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual([MAIN_PANE_ID]);
+    expect(collectAllPanes(layout.root).map((pane) => pane.id)).toEqual([
+      MAIN_PANE_ID,
+      RIGHT_PANEL_PANE_ID,
+    ]);
+    expect(getRightToolPane(layout)?.tabIds).toEqual([]);
     expect(layout.focusedPaneId).toBe(MAIN_PANE_ID);
-    expect(isRightToolPanelOpen(layout)).toBe(false);
+    expect(isRightToolPanelOpen(layout)).toBe(true);
+    expect(selectRightPanelMode(layout)).toBe("launcher");
   });
 
   it("reconcileTabs opens an agent into main while the tools pane is focused", () => {

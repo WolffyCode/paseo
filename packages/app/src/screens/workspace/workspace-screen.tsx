@@ -134,9 +134,9 @@ import {
   useWorkspaceTabRename,
   WorkspaceTabRenameModal,
 } from "@/screens/workspace/use-workspace-tab-rename";
+import { RightPanelLauncher } from "@/screens/workspace/right-panel-launcher";
 import {
   WorkspaceDesktopTabsRow,
-  WorkspaceToolPicker,
   type WorkspaceDesktopTabRowItem,
   type WorkspaceToolsAddHandlers,
 } from "@/screens/workspace/workspace-desktop-tabs-row";
@@ -3541,7 +3541,7 @@ function WorkspaceScreenContent({
     function renderSplitPaneEmptyState(paneId: string) {
       if (paneId === RIGHT_PANEL_PANE_ID) {
         return (
-          <WorkspaceToolPicker
+          <RightPanelLauncher
             handlers={toolsAddHandlers}
             showCreateBrowserTab={showCreateBrowserTab}
           />
