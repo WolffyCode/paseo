@@ -7,6 +7,7 @@ import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { HeaderToggleButton } from "@/components/headers/header-toggle-button";
 import { SidebarMenuToggle } from "@/components/headers/menu-header";
+import { HEADER_INNER_HEIGHT } from "@/constants/layout";
 import {
   selectConversationCanGoBack,
   selectConversationCanGoForward,
@@ -62,12 +63,16 @@ export function SidebarWindowChrome({ collapsed, onNewConversation }: SidebarWin
     if (route) router.navigate(route as Href);
   }, [goForward]);
 
+  // Expanded chrome height locks to the canvas top bar's HEADER_INNER_HEIGHT (not the raw traffic-light
+  // height, which is 45 on macOS) so the toggle/back-forward icons sit on the exact same horizontal line
+  // as the canvas top bar controls to its right (反馈: 顶栏要在一条水平线). padding.left still inset past
+  // the traffic lights.
   const rowStyle = useMemo(
     () =>
       collapsed
         ? styles.rowCollapsed
-        : [styles.rowExpanded, { paddingLeft: padding.left, minHeight: padding.top }],
-    [collapsed, padding.left, padding.top],
+        : [styles.rowExpanded, { paddingLeft: padding.left, minHeight: HEADER_INNER_HEIGHT }],
+    [collapsed, padding.left],
   );
 
   return (

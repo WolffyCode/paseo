@@ -5,11 +5,13 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet as RNStyleSheet, useWindowDimensions, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
+  Easing,
   Extrapolation,
   interpolate,
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
@@ -617,6 +619,19 @@ function DesktopSidebar({
     resizeWidth.value = sidebarWidth;
   }, [sidebarWidth, resizeWidth]);
 
+  // Open/close progress: 0 = collapsed, 1 = expanded. The outer panel width animates to
+  // resizeWidth * openProgress so the sidebar slides in/out instead of snapping (反馈: 展开收起要丝滑,
+  // 现在很卡). The inner wrapper keeps the full resizeWidth, so during the slide the content is clipped at
+  // the edge rather than reflowing/squishing. Initialised to the current state so the first frame matches
+  // (no open-on-mount flash).
+  const openProgress = useSharedValue(isOpen ? 1 : 0);
+  useEffect(() => {
+    openProgress.value = withTiming(isOpen ? 1 : 0, {
+      duration: 200,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [isOpen, openProgress]);
+
   const resizeGesture = useMemo(
     () =>
       Gesture.Pan()
@@ -641,13 +656,22 @@ function DesktopSidebar({
     [sidebarWidth, resizeWidth, setSidebarWidth, viewportWidth],
   );
 
-  const resizeAnimatedStyle = useAnimatedStyle(() => ({
+  // Outer width collapses to 0 as openProgress → 0 (overflow: hidden clips the inner content as it slides
+  // out). Inner width stays at the full resizeWidth so content holds its layout and clips at the edge.
+  const outerWidthStyle = useAnimatedStyle(() => ({
+    width: resizeWidth.value * openProgress.value,
+  }));
+  const innerWidthStyle = useAnimatedStyle(() => ({
     width: resizeWidth.value,
   }));
 
   const desktopSidebarStyle = useMemo(
-    () => [staticStyles.desktopSidebar, resizeAnimatedStyle],
-    [resizeAnimatedStyle],
+    () => [staticStyles.desktopSidebar, outerWidthStyle],
+    [outerWidthStyle],
+  );
+  const innerSidebarStyle = useMemo(
+    () => [staticStyles.desktopSidebarInner, innerWidthStyle],
+    [innerWidthStyle],
   );
   const desktopSidebarBorderStyle = useMemo(
     () => [styles.desktopSidebarBorder, { flex: 1, paddingTop: insetsTop }],
@@ -677,58 +701,59 @@ function DesktopSidebar({
     [activeServerId],
   );
 
-  if (!isOpen) {
-    return null;
-  }
-
+  // No early `return null` when collapsed — the panel stays mounted and animates its width to 0 so the
+  // expand/collapse is a smooth slide. pointerEvents drops to "none" while collapsed so the zero-width
+  // (clipped) content can't capture clicks.
   return (
-    <Animated.View style={desktopSidebarStyle}>
-      <View style={desktopSidebarBorderStyle}>
-        <View style={styles.sidebarDragArea}>
-          <SidebarWindowChrome collapsed={false} onNewConversation={handleNewWorkspaceNavigate} />
+    <Animated.View style={desktopSidebarStyle} pointerEvents={isOpen ? "auto" : "none"}>
+      <Animated.View style={innerSidebarStyle}>
+        <View style={desktopSidebarBorderStyle}>
+          <View style={styles.sidebarDragArea}>
+            <SidebarWindowChrome collapsed={false} onNewConversation={handleNewWorkspaceNavigate} />
+          </View>
+          <View style={styles.hostSwitcherSlot}>
+            <HostSwitcherPill activeServerId={activeServerId} />
+          </View>
+          <View style={styles.sidebarHeaderGroup}>
+            <SidebarHeaderRow
+              icon={SquarePen}
+              label={labels.newConversation}
+              onPress={handleNewWorkspaceNavigate}
+              testID="sidebar-global-new-workspace"
+              variant="compact"
+              shortcutKeys={newWorkspaceKeys}
+            />
+            <SidebarHeaderRow
+              icon={Search}
+              label={labels.search}
+              onPress={handleOpenCommandCenter}
+              testID="sidebar-search"
+              variant="compact"
+              shortcutKeys={commandCenterKeys}
+            />
+          </View>
+
+          {isInitialLoad ? (
+            <SidebarAgentListSkeleton />
+          ) : (
+            <ConversationTree
+              serverId={activeServerId}
+              projects={treeProjects}
+              onAddProject={handleOpenProject}
+              onNewConversation={handleNewConversationInProject}
+            />
+          )}
+
+          <SidebarCalloutSlot />
+
+          <SidebarFooter settingsLabel={labels.settings} onSettings={handleSettings} />
+
+          {/* Resize handle - absolutely positioned over right border */}
+          <GestureDetector gesture={resizeGesture}>
+            <View style={resizeHandleStyle} />
+          </GestureDetector>
         </View>
-        <View style={styles.hostSwitcherSlot}>
-          <HostSwitcherPill activeServerId={activeServerId} />
-        </View>
-        <View style={styles.sidebarHeaderGroup}>
-          <SidebarHeaderRow
-            icon={SquarePen}
-            label={labels.newConversation}
-            onPress={handleNewWorkspaceNavigate}
-            testID="sidebar-global-new-workspace"
-            variant="compact"
-            shortcutKeys={newWorkspaceKeys}
-          />
-          <SidebarHeaderRow
-            icon={Search}
-            label={labels.search}
-            onPress={handleOpenCommandCenter}
-            testID="sidebar-search"
-            variant="compact"
-            shortcutKeys={commandCenterKeys}
-          />
-        </View>
-
-        {isInitialLoad ? (
-          <SidebarAgentListSkeleton />
-        ) : (
-          <ConversationTree
-            serverId={activeServerId}
-            projects={treeProjects}
-            onAddProject={handleOpenProject}
-            onNewConversation={handleNewConversationInProject}
-          />
-        )}
-
-        <SidebarCalloutSlot />
-
-        <SidebarFooter settingsLabel={labels.settings} onSettings={handleSettings} />
-
-        {/* Resize handle - absolutely positioned over right border */}
-        <GestureDetector gesture={resizeGesture}>
-          <View style={resizeHandleStyle} />
-        </GestureDetector>
-      </View>
+      </Animated.View>
     </Animated.View>
   );
 }
@@ -750,6 +775,12 @@ const staticStyles = RNStyleSheet.create({
   },
   desktopSidebar: {
     position: "relative" as const,
+    // Clips the fixed-width inner wrapper as the outer width animates to 0 (the slide-out collapse).
+    overflow: "hidden" as const,
+  },
+  // Holds the full sidebar width while the outer collapses, so content slides/clips instead of squishing.
+  desktopSidebarInner: {
+    flex: 1,
   },
 });
 
@@ -782,7 +813,9 @@ const styles = StyleSheet.create((theme) => ({
   },
   resizeHandle: {
     position: "absolute",
-    right: -5,
+    // Sits fully inside the sidebar's right edge so overflow: hidden (slide-collapse) doesn't clip the
+    // col-resize cursor zone. The pan gesture's ±8 hitSlop keeps the grab target generous.
+    right: 0,
     top: 0,
     bottom: 0,
     width: 10,
