@@ -17,6 +17,7 @@ export const ru: TranslationResources = {
     loading: "Загрузка...",
     actions: {
       back: "Назад",
+      forward: "Вперед",
       cancel: "Отмена",
       close: "Закрывать",
       copy: "Копировать",

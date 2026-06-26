@@ -13,8 +13,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
+import { SidebarWindowChrome } from "@/components/sidebar/sidebar-window-chrome";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isWeb } from "@/constants/platform";
 import { useSidebarAnimation } from "@/contexts/sidebar-animation-context";
@@ -25,6 +25,7 @@ import {
   type SidebarProjectEntry,
   useSidebarWorkspacesList,
 } from "@/hooks/use-sidebar-workspaces-list";
+import { useConversationHistoryStore } from "@/stores/conversation-history-store";
 import { useSidebarViewStore, type SidebarGroupMode } from "@/stores/sidebar-view-store";
 import { useSidebarPinsStore } from "@/stores/sidebar-pins-store";
 import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
@@ -36,7 +37,6 @@ import {
   usePanelStore,
 } from "@/stores/panel-store";
 import { resolveActiveHost } from "@/utils/active-host";
-import { useWindowControlsPadding } from "@/utils/desktop-window";
 import { canCloseLeftSidebarGesture } from "@/utils/sidebar-animation-state";
 import { buildHostNewWorkspaceRoute, buildSettingsRoute } from "@/utils/host-routes";
 import type { ShortcutKey } from "@/utils/format-shortcut";
@@ -122,6 +122,15 @@ export const LeftSidebar = memo(function LeftSidebar({
     [daemons, pathname],
   );
   const activeServerId = activeDaemon?.serverId ?? null;
+
+  // Record visited conversation routes so the window-chrome ‹ › arrows have a history to replay
+  // (desktop only, workspace routes only — R2, intentionally minimal).
+  const visitConversationRoute = useConversationHistoryStore((state) => state.visit);
+  useEffect(() => {
+    if (!isCompactLayout && pathname.includes("/workspace/")) {
+      visitConversationRoute(pathname);
+    }
+  }, [pathname, isCompactLayout, visitConversationRoute]);
 
   const { projects, isInitialLoad, isRevalidating, refreshAll } = useSidebarWorkspacesList({
     serverId: activeServerId,
@@ -604,7 +613,6 @@ function DesktopSidebar({
   insetsTop,
   isOpen,
 }: DesktopSidebarProps) {
-  const padding = useWindowControlsPadding("sidebar");
   const sidebarWidth = usePanelStore((state) => state.sidebarWidth);
   const setSidebarWidth = usePanelStore((state) => state.setSidebarWidth);
   const { width: viewportWidth } = useWindowDimensions();
@@ -644,7 +652,6 @@ function DesktopSidebar({
     width: resizeWidth.value,
   }));
 
-  const paddingTopSpacerStyle = useMemo(() => ({ height: padding.top }), [padding.top]);
   const desktopSidebarStyle = useMemo(
     () => [staticStyles.desktopSidebar, resizeAnimatedStyle],
     [resizeAnimatedStyle],
@@ -675,8 +682,7 @@ function DesktopSidebar({
     <Animated.View style={desktopSidebarStyle}>
       <View style={desktopSidebarBorderStyle}>
         <View style={styles.sidebarDragArea}>
-          <TitlebarDragRegion />
-          {padding.top > 0 ? <View style={paddingTopSpacerStyle} /> : null}
+          <SidebarWindowChrome collapsed={false} onNewConversation={handleNewWorkspaceNavigate} />
           <View style={styles.sidebarHeaderGroup}>
             <SidebarHeaderRow
               icon={SquarePen}

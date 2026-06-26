@@ -17,6 +17,7 @@ export const fr: TranslationResources = {
     loading: "Chargement...",
     actions: {
       back: "Dos",
+      forward: "Avant",
       cancel: "Annuler",
       close: "Fermer",
       copy: "Copie",
