@@ -457,14 +457,19 @@
         flex-direction: column;
         position: relative;
       }
-      /* the traffic-light strip: full-width drag region at the very top of the left column */
+      /* the window chrome strip over the left column: traffic lights + sidebar toggle + back/forward
+         (这组窗口控件在窗口左上 / 左栏正上方，紧挨交通灯，NOT in the canvas top bar — 反馈 1) */
       .sb-lights {
-        height: 36px;
+        height: 46px;
         flex: none;
         display: flex;
         align-items: center;
-        gap: 8px;
-        padding: 0 13px;
+        gap: 6px;
+        padding: 0 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      .sb-lights .lights {
+        margin-right: 4px;
       }
       .sb-lights .drag-hint {
         margin-left: auto;
@@ -2058,7 +2063,7 @@
       <p class="sub">
         本地需求设计稿（gate-1 迭代 · 待回写 canonical）。覆盖 <b>2026-06-25-home-shell</b>：连上主机后落地的<b>主页面主体</b>。
         本轮按董事长反馈 A–K 重画，<b>逐像素贴 Codex</b>：删掉横跨整窗的标题栏，改为
-        <b>三个独立整体</b>——① 左侧栏（全高列，交通灯细条在左上 + 主机切换器胶囊 + 对话树 + 设置）、② 中区画布（自带 canvas 顶栏：侧栏开关 / 前进后退 / 标题 / 打开位置 / 大纲 / 右面板开关）、③
+        <b>三个独立整体</b>——① 左侧栏（全高列，<b>窗口 chrome 细条在左上 = 交通灯 + 侧栏开关 + ‹ › 前进/后退</b> + 主机切换器胶囊 + 对话树 + 设置）、② 中区画布（自带 canvas 顶栏：标题 / ··· / 打开位置 / 大纲 / 右面板开关；<b>侧栏开关与前进/后退不在此，在左栏顶的窗口细条</b>）、③
         右侧栏（自带 tab 头：审查固定 + 已开页签 + 新选项卡 + ⤢放大 / 收起 + 左缘拖宽）。<b>本轮桌面 only；紧凑 / 手机态暂缓，后续由桌面统一适配。</b>
       </p>
     </div>
@@ -2129,7 +2134,7 @@
         <h2>主页 · 默认空态（桌面 · 三区结构）</h2>
         <p>
           刚连上主机的落地态，逐像素对齐 Codex。<b>无横跨整窗标题栏</b>：① 左栏全高独立列——交通灯在<b>左上细条</b>（窗口拖拽区），灯下方是<b>主机切换器胶囊</b>，再下是新对话 / 搜索 / 对话树 / 设置；②
-          中区<b>自带 canvas 顶栏</b>（侧栏开关 / ‹ › 前进后退 / 标题 / ··· / 打开位置 / 大纲 / 右面板开关），下面才是居中标题 + 居中 Composer；③ 右栏收起（开关此时在 canvas 顶栏右侧）。模型选择器内联在 Composer 底栏右侧。
+          中区<b>自带 canvas 顶栏</b>（标题 / ··· / 打开位置 / 大纲 / 右面板开关；<b>侧栏开关 / ‹ › 前进后退在左栏顶的窗口 chrome 细条 · 紧挨交通灯，不在 canvas 顶栏</b>），下面才是居中标题 + 居中 Composer；③ 右栏收起（开关此时在 canvas 顶栏右侧）。模型选择器内联在 Composer 底栏右侧。
         </p>
       </div>
       <div class="screen-body">
@@ -2138,6 +2143,11 @@
             <div class="sidebar">
               <div class="sb-lights">
                 <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                <div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg><span class="pinb">4</span></div>
+                <div class="ct-nav">
+                  <div class="ct-btn dis"><svg class="i sm"><use href="#chev-l" /></svg></div>
+                  <div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg><span class="pinb">5</span></div>
+                </div>
                 <span class="drag-hint">⠿ 拖拽区</span>
               </div>
               <div class="sb-main">
@@ -2170,11 +2180,6 @@
             </div>
             <div class="main">
               <div class="canvas-top">
-                <div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg><span class="pinb">4</span></div>
-                <div class="ct-nav">
-                  <div class="ct-btn dis"><svg class="i sm"><use href="#chev-l" /></svg></div>
-                  <div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg><span class="pinb">5</span></div>
-                </div>
                 <div class="ct-title">新对话</div>
                 <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg><span class="pinb">6</span></div>
                 <div class="ct-spacer"></div>
@@ -2221,7 +2226,7 @@
                 <li><span class="pin">1</span><div><b>主机切换器（左栏 · 净新）</b>：点开主机下拉（见 S7）切主机 / 添加主机。位于交通灯细条之下、新对话之上，<b>全栏宽</b>。Codex 无此控件（不支持多主机），是 Helm 净新。</div></li>
                 <li><span class="pin">2</span><div><b>新对话</b>：清空中区为草稿空态、聚焦 Composer（本屏即此态）。</div></li>
                 <li><span class="pin">3</span><div><b>搜索</b>：打开 ⌘K 命令面板（搜索模式，见 S8 / S11）；⌘K 同等触发。</div></li>
-                <li><span class="pin">4</span><div><b>侧栏开关（canvas 顶栏最左）</b>：收起 / 展开左栏。激活 = 当前展开（绿 + 浅底）。<b>左栏收起后交通灯细条仍留窗口左上</b>（窗口控制 + 拖拽区不消失），侧栏内容随之收起。</div></li>
+                <li><span class="pin">4</span><div><b>侧栏开关（左栏顶 · 窗口 chrome 细条 · 紧挨交通灯）</b>：收起 / 展开左栏。激活 = 当前展开（绿 + 浅底）。<b>左栏收起后这条细条仍留窗口左上</b>（交通灯 + 窗口控制不消失），细条变为 <b>[▣ 开关][‹ › 前进后退][✎ 新对话]</b>——收起后多出「新建对话」图标。<b>这组控件在窗口细条、不在 canvas 顶栏（反馈 1）。</b></div></li>
                 <li><span class="pin">5</span><div><b>前进 / 后退（‹ ›）</b>：在浏览过的对话间前进 / 后退。首屏无历史时<b>两键变暗禁用</b>。</div></li>
                 <li><span class="pin">6</span><div><b>对话标题 · ···</b>：标题显当前对话名（空态显「新对话」）；··· 打开对话级菜单（重命名 / 复制 / 归档 / 在 Finder 中显示）；空态草稿仅「重命名 / 丢弃草稿」可用。</div></li>
                 <li><span class="pin">7</span><div><b>打开位置 ▾（蓝色）</b>：选择 / 显示该对话工作在哪——工作区目录 + 分支 / worktree。对齐 Codex「打开位置」。颜色取 Codex 蓝示意，<b>开放项</b>（见右键菜单注）。</div></li>
@@ -2288,6 +2293,11 @@
             <div class="sidebar">
               <div class="sb-lights">
                 <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                <div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div>
+                <div class="ct-nav">
+                  <div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div>
+                  <div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div>
+                </div>
               </div>
               <div class="sb-main">
                 <div class="host-switch">
@@ -2342,11 +2352,6 @@
             </div>
             <div class="main">
               <div class="canvas-top">
-                <div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div>
-                <div class="ct-nav">
-                  <div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div>
-                  <div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div>
-                </div>
                 <div class="ct-title">重构选择器</div>
                 <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg><span class="pinb">3</span></div>
                 <div class="ct-spacer"></div>
@@ -2478,6 +2483,11 @@
             <div class="sidebar" style="width: 232px">
               <div class="sb-lights">
                 <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                <div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg><span class="pinb">1</span></div>
+                <div class="ct-nav">
+                  <div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div>
+                  <div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg><span class="pinb">2</span></div>
+                </div>
                 <span class="drag-hint">⠿ 拖拽区</span>
               </div>
               <div class="sb-main">
@@ -2500,11 +2510,6 @@
             <!-- ZONE 2 自带顶栏 -->
             <div class="main">
               <div class="canvas-top">
-                <div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg><span class="pinb">1</span></div>
-                <div class="ct-nav">
-                  <div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div>
-                  <div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg><span class="pinb">2</span></div>
-                </div>
                 <div class="ct-title">重构选择器</div>
                 <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg><span class="pinb">3</span></div>
                 <div class="ct-spacer"></div>
@@ -2539,14 +2544,15 @@
           <div class="anno-h">逐区拆解 · 各控件状态（默认 / 悬浮 / 激活 / 禁用）</div>
           <div class="anno-grid">
             <div class="anno-card span2">
-              <div class="ac-h">中区 canvas 顶栏 · 控件态（Codex actionButton 28×28 圆角8 · icon 次级→主级）</div>
+              <div class="ac-h">窗口 chrome 细条（侧栏开关 + 前进/后退，在左栏顶·交通灯右）+ 中区 canvas 顶栏（打开位置 / 大纲 / 右面板开关）· 控件态（Codex actionButton 28×28 圆角8 · icon 次级→主级）</div>
               <div style="padding: 14px">
                 <div class="statestrip c4">
-                  <div class="statebox"><div class="statehd">侧栏开关 · 默认</div><div class="ct-btn" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#panel-l" /></svg></div></div>
+                  <div class="statebox"><div class="statehd">侧栏开关（细条）· 默认</div><div class="ct-btn" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#panel-l" /></svg></div></div>
                   <div class="statebox"><div class="statehd">· 悬浮</div><div class="ct-btn" style="background: var(--surface2); color: var(--fg)"><svg class="i sm"><use href="#panel-l" /></svg></div></div>
                   <div class="statebox"><div class="statehd">· 激活（左栏展开）</div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div></div>
-                  <div class="statebox"><div class="statehd">前进/后退 · 禁用</div><div style="display: flex; gap: 1px"><div class="ct-btn dis"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
-                  <div class="statebox"><div class="statehd">打开位置 · 默认</div><div class="ct-pos" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#plane" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                  <div class="statebox"><div class="statehd">前进/后退（细条）· 禁用</div><div style="display: flex; gap: 1px"><div class="ct-btn dis"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
+                  <div class="statebox"><div class="statehd">左栏收起态 · 细条多出「新对话」</div><div style="display: flex; gap: 3px; align-items: center"><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn"><svg class="i sm"><use href="#chev-r" /></svg></div><div class="ct-btn"><svg class="i sm"><use href="#pen" /></svg></div></div></div>
+                  <div class="statebox"><div class="statehd">打开位置（顶栏）· 默认</div><div class="ct-pos" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#plane" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div></div>
                   <div class="statebox"><div class="statehd">打开位置 · 悬浮</div><div class="ct-pos" style="background: var(--surface2)"><svg class="i sm"><use href="#plane" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div></div>
                   <div class="statebox"><div class="statehd">大纲 · 默认</div><div class="ct-btn" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#list" /></svg></div></div>
                   <div class="statebox"><div class="statehd">右面板开关 · 收起态（在此）</div><div class="ct-btn" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#panel-r" /></svg></div></div>
@@ -2573,7 +2579,7 @@
             <div class="anno-card span2">
               <div class="ac-h">点击效果</div>
               <ol>
-                <li><span class="pin">1</span><div><b>侧栏开关</b>：切换左栏显隐。激活 = 当前展开。左栏收起后交通灯细条仍留窗口左上（拖拽区不消失），且 canvas 顶栏左侧补出迷你控件区。</div></li>
+                <li><span class="pin">1</span><div><b>侧栏开关（窗口 chrome 细条 · 紧挨交通灯，不在 canvas 顶栏）</b>：切换左栏显隐。激活 = 当前展开。左栏收起后这条细条仍留窗口左上（交通灯不消失），细条变为 <b>[▣ 开关][‹ › 前进后退][✎ 新对话]</b>——收起后多出「新建对话」图标。</div></li>
                 <li><span class="pin">2</span><div><b>前进 / 后退（‹ ›）</b>：对话浏览历史导航；无历史时变暗禁用。</div></li>
                 <li><span class="pin">3</span><div><b>标题 ···</b>：当前对话级菜单（重命名 / 复制 / 归档 / 在 Finder 中显示）。</div></li>
                 <li><span class="pin">4</span><div><b>打开位置 ▾</b>：选 / 显示对话工作的目录 + 分支 / worktree（对齐 Codex「打开位置」；颜色开放项，见 S1）。</div></li>
@@ -2628,7 +2634,7 @@
         <div class="frame">
           <div class="shell">
             <div class="sidebar" style="width: 200px">
-              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
               <div class="sb-main">
                 <div class="host-switch"><div class="host-pill"><span class="dot run"></span><span class="nm">本机</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
                 <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div></div>
@@ -2643,8 +2649,6 @@
             </div>
             <div class="main">
               <div class="canvas-top">
-                <div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div>
-                <div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div>
                 <div class="ct-title">重构选择器</div>
                 <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg></div>
                 <div class="ct-spacer"></div>
@@ -2772,7 +2776,7 @@
         <div class="frame">
           <div class="shell">
             <div class="sidebar" style="width: 188px">
-              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
               <div class="sb-main">
                 <div class="host-switch"><div class="host-pill"><span class="dot run"></span><span class="nm">本机</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
                 <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div></div>
@@ -2784,8 +2788,6 @@
             </div>
             <div class="main">
               <div class="canvas-top">
-                <div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div>
-                <div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div>
                 <div class="ct-title">重构选择器</div>
                 <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg></div>
                 <div class="ct-spacer"></div>
@@ -2938,7 +2940,7 @@
         <div class="frame">
           <div class="shell short" style="position: relative">
             <div class="sidebar" style="width: 296px">
-              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
               <div class="sb-main">
                 <div class="host-switch"><div class="host-pill"><span class="dot run"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
                 <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div></div>
@@ -3089,7 +3091,7 @@
         <div class="frame">
           <div class="shell short">
             <div class="sidebar" style="width: 280px">
-              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
               <div class="sb-main">
                 <!-- host switcher OPEN: dropdown anchored UNDER pill, SAME width (反馈 I) -->
                 <div class="host-switch">
@@ -3621,7 +3623,7 @@
         <div class="frame">
           <div class="shell short">
             <div class="sidebar" style="width: 248px">
-              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
               <div class="sb-main">
                 <div class="host-switch"><div class="host-pill"><span class="dot run"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
                 <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div></div>
@@ -3635,8 +3637,6 @@
             <div class="resize l drag"><span class="ln"></span><span class="width-bubble left">248px<span class="pinb">2</span></span><span class="pinb" style="position: absolute; top: 8px; left: 8px">1</span></div>
             <div class="main">
               <div class="canvas-top">
-                <div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div>
-                <div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div>
                 <div class="ct-title">重构选择器</div>
                 <div class="ct-spacer"></div>
                 <div class="ct-pos"><svg class="i sm"><use href="#plane" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div>
@@ -3735,7 +3735,7 @@
         <div class="frame">
           <div class="shell">
             <div class="sidebar" style="width: 220px">
-              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
               <div class="sb-main">
                 <div class="host-switch"><div class="host-pill"><span class="dot run"></span><span class="nm">本机</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
                 <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div></div>
@@ -3879,7 +3879,7 @@
         <div class="frame">
           <div class="shell short">
             <div class="sidebar" style="width: 280px">
-              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
               <div class="sb-main">
                 <div class="host-switch"><div class="host-pill"><span class="dot run"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
                 <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div></div>
@@ -3890,7 +3890,7 @@
               </div>
             </div>
             <div class="main">
-              <div class="canvas-top"><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-title" style="margin-left: 4px">设置</div><div class="ct-spacer"></div></div>
+              <div class="canvas-top"><div class="ct-title" style="margin-left: 4px">设置</div><div class="ct-spacer"></div></div>
               <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: var(--fgFaint); font-size: var(--sm); text-align: center; padding: 24px; line-height: 1.7">
                 点「设置」→ 进入设置（应用级 + 主机级两层）<br />
                 <span style="font-size: var(--xs)">设置详情属另一个项目，本主壳不画内部</span>
