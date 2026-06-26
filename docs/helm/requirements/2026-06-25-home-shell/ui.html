@@ -1334,6 +1334,108 @@
       .rp-empty .rpe-row .kbdkey {
         margin-left: auto;
       }
+      /* 打开位置 = 真实本机 app 图标（反馈 ③）：小圆角色块代表 VSCode / Ghostty / iTerm2… */
+      .app-ico {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+      }
+      .app-ico.sm {
+        width: 15px;
+        height: 15px;
+        border-radius: 4px;
+        font-size: 9px;
+      }
+      /* 环境信息 / 置顶摘要 popover（反馈 ①）：浮层 popover，锚在「置顶摘要」图标下方，NOT a docked panel */
+      .env-pop {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        width: 250px;
+        background: var(--surface1);
+        border: 1px solid var(--borderAccent);
+        border-radius: var(--r-lg);
+        box-shadow: var(--sh-lg);
+        padding: 6px;
+        z-index: 30;
+      }
+      .env-h {
+        display: flex;
+        align-items: center;
+        padding: 6px 8px 8px;
+        font-size: 13px;
+        color: var(--fg);
+        font-weight: 500;
+      }
+      .env-h .env-add {
+        margin-left: auto;
+        color: var(--fgMuted);
+        display: flex;
+      }
+      .env-row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 7px 8px;
+        border-radius: var(--r-md);
+        font-size: 13px;
+        color: var(--fg);
+      }
+      .env-row:hover {
+        background: var(--surface2);
+      }
+      .env-row .i {
+        color: var(--fgMuted);
+      }
+      .env-row .env-r {
+        margin-left: auto;
+        color: var(--fgMuted);
+        display: flex;
+        align-items: center;
+      }
+      .env-row.muted {
+        color: var(--fgMuted);
+      }
+      .env-row.dis {
+        opacity: 0.55;
+      }
+      .env-row.err {
+        color: var(--danger);
+      }
+      .env-row.err .i {
+        color: var(--danger);
+      }
+      .env-sep {
+        height: 1px;
+        background: var(--border);
+        margin: 6px 4px;
+      }
+      .env-sec {
+        font-size: 11px;
+        color: var(--fgMuted);
+        padding: 4px 8px 2px;
+      }
+      .env-empty {
+        font-size: 13px;
+        color: var(--fgFaint);
+        padding: 3px 8px 6px;
+      }
+      .env-spin {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        border: 2px solid var(--surface3);
+        border-top-color: var(--accentBright);
+        display: inline-block;
+        animation: spin 1s linear infinite;
+      }
       .rp-blank {
         flex: 1;
         display: flex;
@@ -2053,6 +2155,7 @@
       <symbol id="plane" viewBox="0 0 24 24"><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4z" /></symbol>
       <symbol id="robot" viewBox="0 0 24 24"><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M12 4v4" /><circle cx="12" cy="4" r="1" /><path d="M9 13v2M15 13v2M2 14h2M20 14h2" /></symbol>
       <symbol id="side" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M15 3v18" /><path d="M18 9h.01" /></symbol>
+      <symbol id="apps" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></symbol>
     </svg>
 
     <div class="board-h">
@@ -2063,7 +2166,7 @@
       <p class="sub">
         本地需求设计稿（gate-1 迭代 · 待回写 canonical）。覆盖 <b>2026-06-25-home-shell</b>：连上主机后落地的<b>主页面主体</b>。
         本轮按董事长反馈 A–K 重画，<b>逐像素贴 Codex</b>：删掉横跨整窗的标题栏，改为
-        <b>三个独立整体</b>——① 左侧栏（全高列，<b>窗口 chrome 细条在左上 = 交通灯 + 侧栏开关 + ‹ › 前进/后退</b> + 主机切换器胶囊 + 对话树 + 设置）、② 中区画布（自带 canvas 顶栏：标题 / ··· / 打开位置 / 大纲 / 右面板开关；<b>侧栏开关与前进/后退不在此，在左栏顶的窗口细条</b>）、③
+        <b>三个独立整体</b>——① 左侧栏（全高列，<b>窗口 chrome 细条在左上 = 交通灯 + 侧栏开关 + ‹ › 前进/后退</b> + 主机切换器胶囊 + 对话树 + 设置）、② 中区画布（自带 canvas 顶栏：标题 / ··· / 打开位置 / <b>环境信息（置顶摘要）</b> / 右面板开关；<b>侧栏开关与前进/后退不在此，在左栏顶的窗口细条</b>；<b>空态精简——这些上下文控件对话开始后才出现</b>）、③
         右侧栏（自带 tab 头：审查固定 + 已开页签 + 新选项卡 + ⤢放大 / 收起 + 左缘拖宽）。<b>本轮桌面 only；紧凑 / 手机态暂缓，后续由桌面统一适配。</b>
       </p>
     </div>
@@ -2134,7 +2237,7 @@
         <h2>主页 · 默认空态（桌面 · 三区结构）</h2>
         <p>
           刚连上主机的落地态，逐像素对齐 Codex。<b>无横跨整窗标题栏</b>：① 左栏全高独立列——交通灯在<b>左上细条</b>（窗口拖拽区），灯下方是<b>主机切换器胶囊</b>，再下是新对话 / 搜索 / 对话树 / 设置；②
-          中区<b>自带 canvas 顶栏</b>（标题 / ··· / 打开位置 / 大纲 / 右面板开关；<b>侧栏开关 / ‹ › 前进后退在左栏顶的窗口 chrome 细条 · 紧挨交通灯，不在 canvas 顶栏</b>），下面才是居中标题 + 居中 Composer；③ 右栏收起（开关此时在 canvas 顶栏右侧）。模型选择器内联在 Composer 底栏右侧。
+          中区<b>自带 canvas 顶栏</b>（标题 / ··· / 打开位置 / <b>环境信息（置顶摘要）</b> / 右面板开关；<b>侧栏开关 / ‹ › 前进后退在左栏顶的窗口 chrome 细条 · 紧挨交通灯，不在 canvas 顶栏</b>；<b>空态精简——对话开始后才出现这些上下文控件，反馈 ③</b>），下面才是居中标题 + 居中 Composer；③ 右栏收起（开关此时在 canvas 顶栏右侧）。模型选择器内联在 Composer 底栏右侧。
         </p>
       </div>
       <div class="screen-body">
@@ -2180,12 +2283,9 @@
             </div>
             <div class="main">
               <div class="canvas-top">
-                <div class="ct-title">新对话</div>
-                <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg><span class="pinb">6</span></div>
+                <span style="font-size: 11px; color: var(--fgFaint)">空态顶栏精简 —— 打开位置 / 环境信息 / 对话标题等上下文控件对话开始后才出现<span class="pinb">6</span></span>
                 <div class="ct-spacer"></div>
-                <div class="ct-pos"><svg class="i sm"><use href="#plane" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">7</span></div>
                 <div class="ct-r">
-                  <div class="ct-btn"><svg class="i sm"><use href="#list" /></svg><span class="pinb">8</span></div>
                   <div class="ct-btn"><svg class="i sm"><use href="#panel-r" /></svg><span class="pinb">9</span></div>
                 </div>
               </div>
@@ -2228,9 +2328,7 @@
                 <li><span class="pin">3</span><div><b>搜索</b>：打开 ⌘K 命令面板（搜索模式，见 S8 / S11）；⌘K 同等触发。</div></li>
                 <li><span class="pin">4</span><div><b>侧栏开关（左栏顶 · 窗口 chrome 细条 · 紧挨交通灯）</b>：收起 / 展开左栏。激活 = 当前展开（绿 + 浅底）。<b>左栏收起后这条细条仍留窗口左上</b>（交通灯 + 窗口控制不消失），细条变为 <b>[▣ 开关][‹ › 前进后退][✎ 新对话]</b>——收起后多出「新建对话」图标。<b>这组控件在窗口细条、不在 canvas 顶栏（反馈 1）。</b></div></li>
                 <li><span class="pin">5</span><div><b>前进 / 后退（‹ ›）</b>：在浏览过的对话间前进 / 后退。首屏无历史时<b>两键变暗禁用</b>。</div></li>
-                <li><span class="pin">6</span><div><b>对话标题 · ···</b>：标题显当前对话名（空态显「新对话」）；··· 打开对话级菜单（重命名 / 复制 / 归档 / 在 Finder 中显示）；空态草稿仅「重命名 / 丢弃草稿」可用。</div></li>
-                <li><span class="pin">7</span><div><b>打开位置 ▾（蓝色）</b>：选择 / 显示该对话工作在哪——工作区目录 + 分支 / worktree。对齐 Codex「打开位置」。颜色取 Codex 蓝示意，<b>开放项</b>（见右键菜单注）。</div></li>
-                <li><span class="pin">8</span><div><b>大纲 / 列表</b>：切换消息流大纲（按用户消息 / 工具调用导航）。空态为空大纲。</div></li>
+                <li><span class="pin">6</span><div><b>空态顶栏精简（反馈 ③）</b>：新对话空态时 canvas 顶栏<b>不显示</b>对话标题 / ··· / 打开位置 / 环境信息（置顶摘要）等对话上下文控件——<b>对话开始后才出现</b>（见 S2）。空态顶栏只保留右上的右面板开关。</div></li>
                 <li><span class="pin">9</span><div><b>右面板开关</b>：唤出右侧停靠面板（见 S4），默认开「审查」tab。<b>收起时在此（canvas 顶栏右）；展开后移到右面板 tab 头行尾</b>（见 S3 / S4），屏幕最右上位置不变。</div></li>
                 <li><span class="pin">10</span><div><b>Composer 输入</b>：聚焦即出现聚焦环；输入后发送键由暗转绿可发（全态见 S10）。</div></li>
                 <li><span class="pin">11</span><div><b>模型选择器（内联底栏右）</b>：提供方🔒 · 中转站 · 模型，点开两级菜单选中转站 / 模型（见 S9）。</div></li>
@@ -2355,10 +2453,22 @@
                 <div class="ct-title">重构选择器</div>
                 <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg><span class="pinb">3</span></div>
                 <div class="ct-spacer"></div>
-                <div class="ct-pos"><svg class="i sm"><use href="#plane" /></svg> paseo-main · develop <svg class="i sm"><use href="#chev-d" /></svg></div>
-                <div class="ct-r">
-                  <div class="ct-btn"><svg class="i sm"><use href="#list" /></svg></div>
+                <div class="ct-pos"><svg class="i sm"><use href="#apps" /></svg> paseo-main · develop <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">6</span></div>
+                <div class="ct-r" style="position: relative">
+                  <div class="ct-btn active"><svg class="i sm"><use href="#list" /></svg><span class="pinb">7</span></div>
                   <div class="ct-btn"><svg class="i sm"><use href="#panel-r" /></svg></div>
+                  <!-- 环境信息 / 置顶摘要 popover（开态，锚在置顶摘要按钮下方 · 反馈 ①） -->
+                  <div class="env-pop">
+                    <div class="env-h">环境信息 <span class="env-add"><svg class="i sm"><use href="#plus" /></svg></span></div>
+                    <div class="env-row"><svg class="i sm"><use href="#cols" /></svg> 变更 <span class="env-r"><span class="badge mut">3 改动</span></span><span class="pinb">8</span></div>
+                    <div class="env-row"><svg class="i sm"><use href="#server" /></svg> 本地 <svg class="i sm env-r"><use href="#chev-d" /></svg></div>
+                    <div class="env-row"><svg class="i sm"><use href="#branch" /></svg> develop-v4 <svg class="i sm env-r"><use href="#chev-d" /></svg></div>
+                    <div class="env-row"><svg class="i sm"><use href="#up" /></svg> 提交或推送<span class="pinb">9</span></div>
+                    <div class="env-row muted dis"><svg class="i sm"><use href="#terminal" /></svg> GitHub CLI 不可用</div>
+                    <div class="env-sep"></div>
+                    <div class="env-sec">来源</div>
+                    <div class="env-empty">暂无来源<span class="pinb">10</span></div>
+                  </div>
                 </div>
               </div>
               <div class="msgs" style="align-items: center">
@@ -2415,6 +2525,33 @@
             </div>
           </div>
         </div>
+        <!-- 反馈 ①③ 详解：打开位置 app 下拉 + 环境信息「变更」行状态 -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px">
+          <div class="card" style="padding: 16px; background: var(--surface0)">
+            <div class="sec-label"><svg class="i sm"><use href="#apps" /></svg> 打开位置 ▾ —— 在外部 app 打开当前工作区（反馈 ③）</div>
+            <div style="position: relative; display: inline-block">
+              <div class="ct-pos" style="background: var(--surface2)"><svg class="i sm"><use href="#apps" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">A</span></div>
+              <div class="env-pop" style="position: static; width: 220px; margin-top: 8px; box-shadow: none">
+                <div class="env-sec" style="padding-top: 4px">在外部 app 打开当前工作区（真实本机 app）</div>
+                <div class="env-row"><span class="app-ico" style="background: #0a64d2">VS</span> VS Code <span class="env-r kbdkey">⌘E</span></div>
+                <div class="env-row"><span class="app-ico" style="background: #1b1b1f">Gh</span> Ghostty</div>
+                <div class="env-row"><span class="app-ico" style="background: #2f7d57">iT</span> iTerm2</div>
+                <div class="env-row"><span class="app-ico" style="background: #2b7fff">F</span> 访达 Finder</div>
+                <div class="env-sep"></div>
+                <div class="env-row muted"><svg class="i sm"><use href="#plus" /></svg> 添加应用…<span class="pinb">B</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="padding: 16px; background: var(--surface0)">
+            <div class="sec-label"><svg class="i sm"><use href="#cols" /></svg> 环境信息「变更」行 · 加载 / 错误 / 离线（反馈 ①）</div>
+            <div style="display: flex; flex-direction: column; gap: 9px; max-width: 252px">
+              <div><div class="statehd" style="justify-content: flex-start; margin-bottom: 4px">默认（git 改动计数）</div><div class="env-row" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#cols" /></svg> 变更 <span class="env-r"><span class="badge mut">3 改动</span></span></div></div>
+              <div><div class="statehd" style="justify-content: flex-start; margin-bottom: 4px">加载（计算 git 状态 · 转圈）</div><div class="env-row" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#cols" /></svg> 变更 <span class="env-r"><span class="env-spin"></span></span></div></div>
+              <div><div class="statehd" style="justify-content: flex-start; margin-bottom: 4px">错误（git 读取失败）</div><div class="env-row err" style="border: 1px solid rgba(185, 28, 28, 0.4)"><svg class="i sm"><use href="#alert" /></svg> 变更读取失败 · 重试</div></div>
+              <div><div class="statehd" style="justify-content: flex-start; margin-bottom: 4px">离线（主机断连 · 冻结）</div><div class="env-row dis" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#wifioff" /></svg> 主机离线 · 内容冻结</div></div>
+            </div>
+          </div>
+        </div>
         <div class="anno">
           <div class="anno-h">交互注解</div>
           <div class="anno-grid">
@@ -2426,6 +2563,13 @@
                 <li><span class="pin">3</span><div><b>对话标题 ···</b>：canvas 顶栏对话级更多菜单（重命名 / 复制 / 归档 / 在 Finder 中显示）。</div></li>
                 <li><span class="pin">4</span><div><b>工具卡（可折叠）</b>：点开看参数 / diff，完成打 ✓；权限请求在消息流内出权限卡。<b>内容保持现状（J），本轮不重做。</b></div></li>
                 <li><span class="pin">5</span><div><b>切中转站 / 模型</b>：对话中点级联胶囊切换，<b>下条消息生效</b>；提供方保持锁定（见 S9）。</div></li>
+                <li><span class="pin">6</span><div><b>打开位置 ▾（反馈 ③）</b>：用<b>真实本机 app 图标</b>（非发送图标）；点开 = 在外部 app 打开当前工作区的列表（VS Code / Ghostty / iTerm2 / 访达…）+ <b>支持手动新增 app</b>（详见下方详解 A / B）。</div></li>
+                <li><span class="pin">7</span><div><b>环境信息 / 置顶摘要（反馈 ①）</b>：顶栏右的 ☰ 是「<b>切换置顶摘要</b>」（<b>不是「大纲」</b>）；点开 = 浮层 <b>「环境信息」popover</b>（不是右侧停靠面板），与右面板「审查」tab（完整 diff）区分——这是顶栏<b>紧凑摘要</b>。再点关闭。</div></li>
+                <li><span class="pin">8</span><div><b>变更</b>：工作区 git 改动 + 计数；点 = 跳右面板「审查」看完整 diff；旁带刷新（加载转圈 / 失败红字 / 离线冻结见右侧状态卡）。</div></li>
+                <li><span class="pin">9</span><div><b>提交或推送 / 本地 ▾ / 分支 ▾</b>：对当前分支提交或推送；<b>本地 ▾</b>切主机·本地上下文、<b>develop-v4 ▾</b>切分支；<b>GitHub CLI 不可用</b>时该行禁用灰显。</div></li>
+                <li><span class="pin">10</span><div><b>来源 · 暂无来源（空态）</b>：来源分区列关联来源（PR / Issue / 链接）；无关联显「暂无来源」。popover 头部 [+] 可添加来源。</div></li>
+                <li><span class="pin">A</span><div><b>打开位置下拉</b>：列出可打开当前工作区的本机 app（各带真实 app 图标），点某项即在该 app 打开。</div></li>
+                <li><span class="pin">B</span><div><b>添加应用…</b>：手动新增一个外部 app 到「打开位置」列表。</div></li>
               </ol>
             </div>
             <div class="anno-card">
@@ -2513,7 +2657,7 @@
                 <div class="ct-title">重构选择器</div>
                 <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg><span class="pinb">3</span></div>
                 <div class="ct-spacer"></div>
-                <div class="ct-pos"><svg class="i sm"><use href="#plane" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">4</span></div>
+                <div class="ct-pos"><svg class="i sm"><use href="#apps" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">4</span></div>
                 <div class="ct-r">
                   <div class="ct-btn"><svg class="i sm"><use href="#list" /></svg><span class="pinb">5</span></div>
                 </div>
@@ -2544,7 +2688,7 @@
           <div class="anno-h">逐区拆解 · 各控件状态（默认 / 悬浮 / 激活 / 禁用）</div>
           <div class="anno-grid">
             <div class="anno-card span2">
-              <div class="ac-h">窗口 chrome 细条（侧栏开关 + 前进/后退，在左栏顶·交通灯右）+ 中区 canvas 顶栏（打开位置 / 大纲 / 右面板开关）· 控件态（Codex actionButton 28×28 圆角8 · icon 次级→主级）</div>
+              <div class="ac-h">窗口 chrome 细条（侧栏开关 + 前进/后退，在左栏顶·交通灯右）+ 中区 canvas 顶栏（打开位置 / 环境信息·置顶摘要 / 右面板开关）· 控件态（Codex actionButton 28×28 圆角8 · icon 次级→主级）</div>
               <div style="padding: 14px">
                 <div class="statestrip c4">
                   <div class="statebox"><div class="statehd">侧栏开关（细条）· 默认</div><div class="ct-btn" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#panel-l" /></svg></div></div>
@@ -2552,9 +2696,9 @@
                   <div class="statebox"><div class="statehd">· 激活（左栏展开）</div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div></div>
                   <div class="statebox"><div class="statehd">前进/后退（细条）· 禁用</div><div style="display: flex; gap: 1px"><div class="ct-btn dis"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
                   <div class="statebox"><div class="statehd">左栏收起态 · 细条多出「新对话」</div><div style="display: flex; gap: 3px; align-items: center"><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn"><svg class="i sm"><use href="#chev-r" /></svg></div><div class="ct-btn"><svg class="i sm"><use href="#pen" /></svg></div></div></div>
-                  <div class="statebox"><div class="statehd">打开位置（顶栏）· 默认</div><div class="ct-pos" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#plane" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div></div>
-                  <div class="statebox"><div class="statehd">打开位置 · 悬浮</div><div class="ct-pos" style="background: var(--surface2)"><svg class="i sm"><use href="#plane" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div></div>
-                  <div class="statebox"><div class="statehd">大纲 · 默认</div><div class="ct-btn" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#list" /></svg></div></div>
+                  <div class="statebox"><div class="statehd">打开位置（顶栏）· 默认</div><div class="ct-pos" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#apps" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                  <div class="statebox"><div class="statehd">打开位置 · 悬浮</div><div class="ct-pos" style="background: var(--surface2)"><svg class="i sm"><use href="#apps" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                  <div class="statebox"><div class="statehd">环境信息·置顶摘要 · 默认</div><div class="ct-btn" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#list" /></svg></div></div>
                   <div class="statebox"><div class="statehd">右面板开关 · 收起态（在此）</div><div class="ct-btn" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#panel-r" /></svg></div></div>
                 </div>
               </div>
@@ -2583,7 +2727,7 @@
                 <li><span class="pin">2</span><div><b>前进 / 后退（‹ ›）</b>：对话浏览历史导航；无历史时变暗禁用。</div></li>
                 <li><span class="pin">3</span><div><b>标题 ···</b>：当前对话级菜单（重命名 / 复制 / 归档 / 在 Finder 中显示）。</div></li>
                 <li><span class="pin">4</span><div><b>打开位置 ▾</b>：选 / 显示对话工作的目录 + 分支 / worktree（对齐 Codex「打开位置」；颜色开放项，见 S1）。</div></li>
-                <li><span class="pin">5</span><div><b>大纲 / 列表</b>：切换消息流大纲导航。</div></li>
+                <li><span class="pin">5</span><div><b>环境信息 / 置顶摘要（反馈 ①）</b>：☰ =「切换置顶摘要」（<b>不是大纲</b>），点开浮层「环境信息」popover（变更 / 本地 / 分支 / 提交推送 / GitHub CLI / 来源），与右面板「审查」tab 区分（详解见 S2）。</div></li>
                 <li><span class="pin">6</span><div><b>新选项卡 +</b>：点开小菜单【终端 / 浏览器 ⌘T / 文件 ⌘P】，新增对应类型页签（见 S4 / S5）。</div></li>
                 <li><span class="pin">7</span><div><b>⤢ 放大</b>：右面板放大占满中区 / 还原（见 S13）。只在右面板内提供。</div></li>
                 <li><span class="pin">8</span><div><b>收起（右面板开关）</b>：把整列收起；<b>开关回到 canvas 顶栏右侧</b>（屏幕最右上位置不变）。这就是「收起在顶栏 / 展开在 tab 头」的位移。</div></li>
@@ -2652,7 +2796,7 @@
                 <div class="ct-title">重构选择器</div>
                 <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg></div>
                 <div class="ct-spacer"></div>
-                <div class="ct-pos"><svg class="i sm"><use href="#plane" /></svg> paseo-main · develop <svg class="i sm"><use href="#chev-d" /></svg></div>
+                <div class="ct-pos"><svg class="i sm"><use href="#apps" /></svg> paseo-main · develop <svg class="i sm"><use href="#chev-d" /></svg></div>
                 <div class="ct-r"><div class="ct-btn"><svg class="i sm"><use href="#list" /></svg></div></div>
               </div>
               <div class="msgs" style="padding: 18px 20px">
@@ -2704,6 +2848,39 @@
             </div>
           </div>
         </div>
+        <!-- 反馈 ②：右面板「打开后默认态」= 启动器列表（还没选内容） -->
+        <div style="display: grid; grid-template-columns: 1.05fr 1fr; gap: 16px; margin-top: 16px; align-items: start">
+          <div class="card" style="padding: 0; overflow: hidden; background: var(--surface0)">
+            <div class="sec-label" style="padding: 12px 14px 4px">右面板 · 打开后默认态 = <b>启动器列表</b>（刚打开、还没选内容 · 反馈 ②）</div>
+            <div style="height: 286px; display: flex; flex-direction: column; margin: 6px 12px 12px; border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; background: var(--surface0)">
+              <div class="rp-tabs">
+                <div class="rp-ctl">
+                  <div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div>
+                  <div class="rp-btn active"><svg class="i sm"><use href="#panel-r" /></svg></div>
+                </div>
+              </div>
+              <div class="rp-empty">
+                <div class="rpe-list">
+                  <div class="rpe-row"><svg class="i sm"><use href="#spark" /></svg> 审查 <span class="kbdkey">⌃⇧G</span><span class="pinb">7</span></div>
+                  <div class="rpe-row"><svg class="i sm"><use href="#terminal" /></svg> 终端</div>
+                  <div class="rpe-row"><svg class="i sm"><use href="#globe" /></svg> 浏览器 <span class="kbdkey">⌘T</span></div>
+                  <div class="rpe-row"><svg class="i sm"><use href="#file" /></svg> 文件 <span class="kbdkey">⌘P</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="padding: 14px 16px; background: var(--surface0)">
+            <div class="sec-label">启动器 · 流转（反馈 ②）</div>
+            <div class="states">
+              <dl>
+                <dt>默认</dt><dd>右面板<b>刚打开、还没选内容</b> → 显竖排启动器（审查 / 终端 / 浏览器 / 文件，各带快捷键）；顶部只有 ⤢ 放大 + 收起，<b>还没有 tab 页签条</b>。</dd>
+                <dt>点击</dt><dd>点某行 → 打开对应 tab 内容（审查→本屏 diff / 终端·浏览器·文件→S5）；此后顶部出现 tab 页签条 + 「新选项卡 +」。</dd>
+                <dt>悬浮</dt><dd>行底色变浅。</dd>
+                <dt>回到</dt><dd>关掉全部 tab → 回此启动器默认态；「新选项卡 +」也回到这张列表（选类型加 tab）。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
         <div class="anno">
           <div class="anno-h">交互注解</div>
           <div class="anno-grid">
@@ -2717,6 +2894,7 @@
                 <li><span class="pin">5</span><div><b>页签关闭 ✕（C②）</b>：页签<b>悬浮时</b>行尾浮出 ✕，点它关该页签。关浏览器 / 文件 / 终端 = 仅布局（可重开）。审查不可关。</div></li>
                 <li><span class="pin">6</span><div><b>左缘拖拽改宽（C④）</b>：拖右栏左缘手柄改面板宽度，<b>每工作区记忆</b>（手柄态见 S12）。</div></li>
                 <li><span class="pin">+</span><div><b>页签拖拽调序（C③）</b>：页签可左右拖拽调序，拖动时显<b>蓝绿放置指示线</b>（本屏「浏览器」后那条竖线即指示线）。</div></li>
+                <li><span class="pin">7</span><div><b>启动器（打开默认态 · 反馈 ②）</b>：右面板<b>刚打开、还没选内容</b>时显<b>启动器列表</b>（审查 ⌃⇧G / 终端 / 浏览器 ⌘T / 文件 ⌘P）；点某行打开对应 tab；详见下方「启动器 · 流转」。</div></li>
               </ol>
             </div>
             <div class="anno-card">
@@ -2726,7 +2904,7 @@
                   <dt>布局</dt>
                   <dd><b>本轮桌面 only</b>：右侧停靠列（默认约 360px，可拖宽），与中区以左缘手柄隔开。<b>紧凑暂缓</b>（见 S15）。</dd>
                   <dt>默认</dt>
-                  <dd>审查页签高亮（绿图标）；diff 文件 + 行；底部 Stage / Revert / 行评论。</dd>
+                  <dd><b>打开默认 = 启动器列表</b>（反馈 ②，见下方）；选「审查」后审查页签高亮（绿图标）+ diff 文件 / 行 + 底部 Stage / Revert / 行评论。</dd>
                   <dt>悬浮</dt>
                   <dd>未选页签底色变浅；页签悬浮浮出 ✕；diff 行悬浮出行评论入口；⤢ / 收起悬浮变浅。</dd>
                   <dt>活跃</dt>
@@ -2791,7 +2969,7 @@
                 <div class="ct-title">重构选择器</div>
                 <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg></div>
                 <div class="ct-spacer"></div>
-                <div class="ct-pos"><svg class="i sm"><use href="#plane" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div>
+                <div class="ct-pos"><svg class="i sm"><use href="#apps" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div>
                 <div class="ct-r"><div class="ct-btn"><svg class="i sm"><use href="#list" /></svg></div></div>
               </div>
               <div class="msgs" style="align-items: center">
@@ -3639,7 +3817,7 @@
               <div class="canvas-top">
                 <div class="ct-title">重构选择器</div>
                 <div class="ct-spacer"></div>
-                <div class="ct-pos"><svg class="i sm"><use href="#plane" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div>
+                <div class="ct-pos"><svg class="i sm"><use href="#apps" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div>
               </div>
               <div class="msgs" style="align-items: center"><div class="msgs-inner"><div class="msg"><div class="av ai"><svg class="i sm"><use href="#spark" /></svg></div><div class="body">拖左栏右缘 / 右栏左缘改宽，每工作区记忆宽度。</div></div></div></div>
             </div>
