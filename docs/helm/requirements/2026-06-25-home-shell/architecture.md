@@ -29,13 +29,13 @@
 | 1 | **三区 host 容器** | `app/_layout.tsx`（`AppWithSidebar` → `LeftSidebar` + children）、`app/h/[serverId]/_layout.tsx`、`workspace/[workspaceId]/index.tsx`（`WorkspaceDeck` 多工作区保活） | 中（布局散在组件） | **复用**容器 + **重构**左栏/中区 chrome 注入点 |
 | 2 | **左栏外壳** | `components/left-sidebar.tsx`（792 行，桌面/紧凑双形态）、`components/sidebar/sidebar-header-row.tsx` | 中 | **重构**：加窗口 chrome 细条 + host 胶囊 + 对话树替换工作区列表 |
 | 3 | **左栏：项目/工作区列表** | `components/sidebar-workspace-list.tsx`、`hooks/use-sidebar-workspaces-list.ts`、`hooks/use-sidebar-shortcut-model.ts` | 中（list selector 已抽 hook） | **重构为对话树**：复用「项目分组 + 折叠 + 内联重命名 + 右键 + 拖拽」机制，节点模型换成 agent 树 |
-| 4 | **左栏宽 / 开合** | `stores/panel-store/`（`sidebarWidth` 默认 320 / `MIN_SIDEBAR_WIDTH 200` / `MAX 600`、`desktop.agentListOpen`、`focusModeEnabled`、`clampSidebarWidth`） | **好**（store + selector） | **复用**开合；左栏宽**评估是否改 per-workspace**（见 §10 风险 R1） |
+| 4 | **左栏宽 / 开合** | `stores/panel-store/`（`sidebarWidth` 默认 320 / `MIN_SIDEBAR_WIDTH 200` / `MAX 600`、`desktop.agentListOpen`、`focusModeEnabled`、`clampSidebarWidth`） | **好**（store + selector） | **复用**开合；左栏宽**改 per-workspace 每工作区记忆**（R1 已决，从全局 `sidebarWidth` 迁移；见 §10 R1） |
 | 5 | **左栏排序/置顶/折叠** | `stores/sidebar-order-store.ts`、`stores/sidebar-pins-store/`、`stores/sidebar-collapsed-sections-store/`、`stores/sidebar-view-store.ts` | **好** | **复用**（树节点展开/收起/排序/置顶直接接这些 store） |
 | 6 | **中区屏 + 统一顶栏** | `screens/workspace/workspace-screen.tsx`（4471 行：`WorkspaceScreenContent`、`WorkspaceHeaderTitleBar`、`WorkspaceHeaderMenu`、`headerLeft`/`headerRight`、`renderSplitPaneHeader`） | 中（巨型组件，逻辑与渲染耦合多） | **重构**：拆出 canvas 顶栏；`SidebarMenuToggle`/前进后退**移出**到左栏窗口细条；空态精简（同批删旧 headerLeft 的侧栏开关） |
 | 7 | **分屏/pane 系统** | `components/split-container.tsx`、`workspace-tabs/tab-surface.ts`（`MAIN_PANE_ID`/`RIGHT_PANEL_PANE_ID`） | **好**（SplitNode/SplitPane/SplitGroup 纯数据） | **复用** |
 | 8 | **布局 store（宽/折叠/放大/tab/split）** | `stores/workspace-layout-store.ts`（`layoutByWorkspace`、`splitSizesByWorkspace`、`rightToolPanelCollapsedByWorkspace`、`rightToolPanelMaximizedByWorkspace`、`openRightToolPanel`/`closeRightToolPanel`/`setRightToolPanelMaximized`/`clearRightToolPanel`/`reorderTabsInPane`/`resizeSplit`）、`stores/workspace-layout-actions.ts`（`keepOnlyRightToolPanelInLayout`、`removeRightToolPanelFromLayout`、`ensureRightToolPaneInLayout`、`isRightToolPanelOpen`、`getRightToolPane`、`MAX_TREE_DEPTH=4`） | **优**（纯函数 + 单测齐全） | **复用**（右面板折叠/放大/宽度/调序**已全在此**，禁止重造） |
 | 9 | **右面板 tab 内容（panel 注册表）** | `panels/panel-registry.ts`（`PanelRegistration{kind,component,useDescriptor,confirmClose}`）、`panels/register-panels.ts`（draft/agent/setup/terminal/browser/file/review/files）、`stores/workspace-tabs-store/`、`workspace-tabs/identity.ts` | **优** | **复用**；新选项卡 +、启动器默认态、固定审查 tab 为**新增表现层** |
-| 10 | **右面板 tab 头 UI** | `screens/workspace/workspace-desktop-tabs-row.tsx`（`WorkspaceDesktopTabsRow`、`WorkspaceToolPicker`，含悬浮✕/拖拽调序/新选项卡菜单） | 中 | **复用 + 重构**：tab 头形态贴 Codex；接入「审查固定第一 + 启动器回退」 |
+| 10 | **右面板 tab 头 UI** | `screens/workspace/workspace-desktop-tabs-row.tsx`（`WorkspaceDesktopTabsRow`、`WorkspaceToolPicker`，含悬浮✕/拖拽调序/新选项卡菜单） | 中 | **复用 + 重构**：tab 头形态贴 Codex；接入「**全部页签可关（含审查，R6 已决）** + 启动器回退」 |
 | 11 | **审查 / 终端 / 浏览器 / 文件** | `review/`、`terminal/`、`browser/`、`file-explorer/`、`panels/{review,terminal,browser,file,files}-panel.tsx`、`components/{diff-viewer,diff-stat,diff-scroll,file-pane,browser-pane.*}` | **优** | **复用**（内容形态本轮不重做，反馈 J） |
 | 12 | **Composer** | `composer/index.tsx`（`Composer`、`runClientSlashCommand`、`useAgentAutocomplete`、`resolveClientSlashCommand`）、`composer/input/input.tsx`、`composer/agent-controls/`、`composer/attachments/`、`composer/draft/`、`composer/submit.ts` | **优**（draft/submit/attachments 都有 store + 纯函数 + 单测） | **复用** + **重构 input 渲染层**：/ 与 @ 渲染为**彩色 token**（反馈 K，唯一实质改动） |
 | 13 | **斜杠/提及自动补全** | `components/ui/autocomplete-popover.tsx`、`hooks/use-agent-autocomplete.ts`、`client-slash-commands/` | **优** | **复用**（菜单已有；token 着色是 input 渲染层的事） |
@@ -96,7 +96,7 @@ LeftSidebar (root-layout pinned)
 
 **refactor-don't-patch 明确点**（同一批删旧）：
 - 现 `headerLeft` 里的 `<SidebarMenuToggle />` 与前进后退**移到左栏窗口细条**后，`workspace-screen.tsx` 内 `headerLeft` 的对应渲染/handler 一并删除，不留「两处都能切侧栏」的半迁移。
-- 「统一顶栏 = MAIN pane header」改为 canvas 顶栏后，`renderSplitPaneHeader` 注入 MAIN pane header 的逻辑**改写**为「canvas 顶栏独立于 split」，旧注入路径删除。
+- 「统一顶栏 = MAIN pane header」**保留** `renderSplitPaneHeader` 注入路径作为「中区 canvas 顶栏」的实现（顶栏只占 MAIN pane 宽度、不横跨右栏 = 三区独立的物理保证），内容改由纯 selector `selectCanvasTopBarChrome` 驱动。**这是有意决策（总监已采纳）**：物理把顶栏提到 `SplitContainer` 外会横跨右面板、破坏「右栏自带 tab 头」的三区独立，因此重构 chrome 内容但**不做物理剥离**；`SidebarMenuToggle` 仍从 `headerLeft` 删除（移到左栏窗口细条），左栏收起态时细条在 `headerLeft` 渲染（复用现有 header-role 交通灯留白）。
 - 空态精简 = 由「当前 tab 是空草稿」派生控件可见性（纯函数 `selectCanvasTopBarControls(tab)`），**不是**加一个 `shown && ...` 门。
 
 **store 归属**：
@@ -108,7 +108,7 @@ LeftSidebar (root-layout pinned)
 ```
 右面板 (SplitContainer 内 RIGHT_PANEL_PANE_ID)
 ├─ <RightPanelTabStrip>             ← 重构 WorkspaceDesktopTabsRow
-│   ├─ 审查(固定第一·默认不可关) + 已开页签 + 新选项卡+ + ⤢放大 + ▯收起
+│   ├─ 已开页签(审查/终端/浏览器/文件,**全部可关** R6) + 新选项卡+ + ⤢放大 + ▯收起
 │   └─ 悬浮✕ / 拖拽调序(复用 reorderTabsInPane) / 左缘拖宽(复用 resizeSplit)
 ├─ [pane 无 tab] <RightPanelLauncher>  ← 新建（审查/终端/浏览器/文件 竖排启动器）
 └─ [选中 tab] panel-registry 渲染(复用 review/terminal/browser/file panel)
@@ -119,7 +119,7 @@ LeftSidebar (root-layout pinned)
 - 放大 = `rightToolPanelMaximizedByWorkspace` + `setRightToolPanelMaximized`（s13 占满中区已是此语义）。
 - 宽度 = `splitSizesByWorkspace`（已 per-workspace）。
 - tab 调序 = `reorderTabsInPane`；启动器默认态 = **派生**（`getRightToolPane(layout)?.tabIds.length === 0`），新纯函数 `selectRightPanelMode(layout)` 返回 `"launcher" | "tabs"`。
-- 审查固定第一 = 新纯函数 `orderRightPanelTabs(tabs)`（review 置 index 0），关闭策略 `canCloseRightPanelTab(tab)`（review→false，开放项②默认）。
+- 页签关闭策略 `canCloseRightPanelTab(tab)` = **全部可关（含审查，R6 已决）**；关掉的从启动器/新选项卡重新加回（启动器本就列审查/终端/浏览器/文件）。**无「审查固定第一」特殊处理**（不写 `orderRightPanelTabs` 置顶）。
 
 ---
 
@@ -127,7 +127,7 @@ LeftSidebar (root-layout pinned)
 
 | 状态域 | 归属 | 派生 selector / action（契约名） | 备注 |
 | --- | --- | --- | --- |
-| **三区宽度 · 左栏** | `panel-store`（`sidebarWidth`，现 global） | `clampSidebarWidth` | R1：是否改 per-workspace 待定 |
+| **三区宽度 · 左栏** | **per-workspace store**（R1 已决：每工作区记忆；从 panel-store 全局 `sidebarWidth` 迁移） | `clampSidebarWidth`（复用约束） | 迁移作 P3 前置，见 §10 R1 |
 | **三区宽度 · 右栏** | `workspace-layout-store.splitSizesByWorkspace` | `resizeSplit(wsKey,groupId,sizes)` | 已 per-workspace |
 | **左栏开合** | `panel-store.desktop.agentListOpen` | `selectIsAgentListOpen`、`toggleDesktopSidebars` | 复用 |
 | **右面板 折叠/放大** | `workspace-layout-store` per-workspace | `openRightToolPanel`/`setRightToolPanelMaximized`/`clearRightToolPanel`、`isRightToolPanelOpen` | 复用 |
@@ -250,7 +250,7 @@ interface CascadeSelection {
 | P1-c 对话树**单层**（项目→对话根，subagent 一层；状态点/选中/展开收起） | session-store + sidebar-* store(有) | ⚠️ 依赖 selector | `conversation-tree/{types,select,render}.ts(x)` |
 | P1-d 中区 canvas 顶栏重构（移出侧栏开关/前进后退；空态精简） | 无 | ⚠️ 与 P1-a 协调侧栏开关归属 | `workspace-screen.tsx` headerLeft 重构 |
 | P1-e 中区空态（居中标题 + 居中 Composer 复用） | composer(有) | ✅ | `<EmptyCanvas>` |
-| P1-f 右面板：启动器默认态 + 四 tab 壳 + 审查固定第一 | workspace-layout-store(有) | ✅ 独立 | `<RightPanelLauncher>` + `selectRightPanelMode` + tab 头 |
+| P1-f 右面板：启动器默认态 + 四 tab 壳（**全部可关·无审查固定** R6 已决） | workspace-layout-store(有) | ✅ 独立 | `<RightPanelLauncher>` + `selectRightPanelMode` + tab 头 + `canCloseRightPanelTab`(全 true) |
 
 **P1 并行建议**：a/b/e/f 四路可同时派 developer（彼此独立）；c/d 需先定 selector 契约（`ConversationTreeNode` shape + 侧栏开关归属），由架构/PM 先钉死接口，再并行。
 
@@ -261,7 +261,7 @@ interface CascadeSelection {
 | 批 | 内容 | 依赖 | 并行 | 风险 |
 | --- | --- | --- | --- | --- |
 | **P2 使用中态 + 右面板内容** | canvas 顶栏全控件接数据（标题/···/打开位置/环境信息）；右面板四 tab 内容接既有 panel | P1 | 顶栏/右面板两路并行 | 低（数据全复用） |
-| **P3 拖拽改宽 + 效果态（s12）** | 左栏右缘 + 右栏左缘手柄（高亮/宽度气泡/min-max）；右栏复用 resizeSplit | P1 | ✅ | R1（左栏宽 per-workspace?） |
+| **P3 拖拽改宽 + 效果态（s12）** | 左栏右缘 + 右栏左缘手柄（高亮/宽度气泡/min-max）；右栏复用 resizeSplit；**左栏宽迁 per-workspace（R1 已决）作前置** | P1 | ✅ | 左栏宽 global→per-workspace 迁移 |
 | **P4 放大/缩小（s13）** | 右面板⤢占满中区（复用 maximize）+ 单页签放大 | P1 | ✅ | 单页签放大为新增 |
 | **P5 主机切换全流程（s7）** | 切换过场 + 整工作区重载 + 离线重连 | host-runtime | 与 P3/P4 并行 | 中（过场态接 bootstrap gate） |
 | **P6 锚定浮层** | 环境信息 popover / 打开位置下拉 / 主机下拉细节态 | P2 | ✅ | floating-panels Gotcha |
@@ -302,13 +302,13 @@ npm run dev:desktop
 
 | # | 风险/未决 | 倾向 | 需谁定 |
 | --- | --- | --- | --- |
-| **R1** | 左栏宽 **global（现状）vs per-workspace（设计 s12）**。左栏在 root 渲染（跨工作区共享），改 per-workspace 需引入 active-workspace 上下文进 panel-store。 | 倾向**保留 global**（左栏是 host 级 chrome，per-workspace 反而割裂）；或仅右栏 per-workspace。 | **PM/董事长** |
+| **R1 ✅已决** | 左栏宽 = **per-workspace 每工作区记忆**（董事长拍板，守设计 s12，否决 global 倾向）。需把宽度从 panel-store 全局 `sidebarWidth` 迁到 per-workspace store + 引入 active-workspace 上下文。 | **per-workspace**；迁移作 P3 拖拽前置（P1 不新增 global 宽度逻辑、沿用既有读，迁移在 P3-prep）。 | 董事长已决 |
 | **R2** | 前进/后退 ‹ ›（对话浏览历史）现有代码**无**对话级 navigation history。需新建一个轻量历史栈（route 历史）。 | 倾向新建小 `conversation-history` store（route 栈），桌面 only。 | 架构内决，**PM 知会** |
 | **R3** | `workspace-screen.tsx` 4471 行巨型组件，canvas 顶栏重构牵动多。 | 按 §2.2 拆 selector + 同批删旧，**不在巨组件里加分支**。 | 实现纪律 |
 | **R4** | 「对话」节点点击 = 加载到中区，但现路由是 workspace 级。需确认「对话(根 agent) → workspace 路由 + 聚焦其 tab」映射（`navigateToAgent` 已支持）。 | 复用 `navigateToAgent`；对话树节点选中态由路由派生。 | 架构内决 |
-| **R5** | requirement 开放项①：**/命令 token 颜色** = accent 绿 `#20744A` 还是 Codex 蓝 `#2563eb`。 | 倾向绿（守设计系统）。 | **董事长（闸 1 已挂起）** |
-| **R6** | 开放项②：**审查页签是否可关**。 | 默认「审查不可关、其余可关」（`canCloseRightPanelTab`）。 | **董事长** |
-| **R7** | 开放项③：**环境信息 popover 动作深度**（提交/推送、来源添加只到入口级）。 | 入口级；底层 commit/push 流程属后续。 | **董事长** |
+| **R5 ✅已决** | **/命令 token 颜色 = accent 绿 `#20744A`**（董事长拍板）。 | 绿 `#20744A`（P7 实现） | 董事长已决 |
+| **R6 ✅已决** | **右面板页签全部可关（含审查）+ 可从启动器/新选项卡重新加回**（董事长拍板，去掉审查固定第一）。 | 全部可关；`canCloseRightPanelTab` 恒 true | 董事长已决 |
+| **R7 ✅已决** | **环境信息 popover 动作 = 入口级**（董事长拍板）。 | 入口级；底层 commit/push 属后续 | 董事长已决 |
 | **R8** | 对话树「项目」分组 = agents 按 workspace→目录聚合；同 cwd 多 workspace 的归并需对齐 `docs/architecture.md` 的 directory-backed vs workspace-owned 边界。 | 项目节点按目录聚合、对话节点按 workspaceId/agentId，不混淆。 | 架构内决 |
 | **R9** | Composer 彩色 token 需改 input 渲染层（现为纯文本 TextInput）。富文本 token 在 RN TextInput 内渲染有平台坑（桌面 web 可控）。 | 桌面 only，先 web 富渲染；保持 `useAgentAutocomplete`/`resolveClientSlashCommand` 逻辑不动。 | 实现期验证 |
 
@@ -342,7 +342,7 @@ npm run dev:desktop
 
 **必单测的纯函数 / store 逻辑**（不渲染即可测）：
 - `conversation-tree/select.ts::buildConversationTree`（项目分组、根/子分类、subagentCount 聚合、递归 children 填充、单层渲染裁剪 `MAX_RENDER_DEPTH`）。
-- `selectRightPanelMode(layout)`（launcher vs tabs 派生）、`orderRightPanelTabs`（审查固定第一）、`canCloseRightPanelTab`。
+- `selectRightPanelMode(layout)`（launcher vs tabs 派生）、`canCloseRightPanelTab`（**全部可关含审查**，R6 已决）。
 - `selectCanvasTopBarChrome`（空态精简 vs 使用中控件可见性）。
 - 三区宽度 clamp / min-max 触限（P3，复用 `clampSidebarWidth` + 新右栏 clamp）。
 - 对话树右键 action 映射（detach/archive/close-tab）**断言调用既有纯函数**（subagents/* 已有单测，新测只验「树菜单→正确语义函数」的接线）。
