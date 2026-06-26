@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { Pressable, type PressableStateCallbackType, ScrollView, Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { AgentStatusDot } from "@/components/agent-status-dot";
+import { useIsCompactFormFactor } from "@/constants/layout";
+import { isNative } from "@/constants/platform";
 import type { SidebarProjectEntry } from "@/hooks/sidebar-workspaces-view-model";
 import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { useSessionStore } from "@/stores/session-store";
@@ -22,7 +24,7 @@ import type { ConversationTreeNode, ConversationTreeRow } from "./types";
 // full recursion — un-capping deeper nesting later is a one-line change here, no data/selector
 // edits (architecture §6 ①).
 export const MAX_RENDER_DEPTH = 2;
-const INDENT_PER_DEPTH = 20;
+const INDENT_PER_DEPTH = 14;
 const ROW_BASE_PADDING = 8;
 const TREE_ICON_SIZE = 16;
 const SUBAGENT_ICON_SIZE = 14;
@@ -75,6 +77,17 @@ export function ConversationTree({
   );
   const [collapsedConversationIds, setCollapsedConversationIds] = useState<ReadonlySet<string>>(
     () => new Set(),
+  );
+  // The projects "add" action is hover-revealed on the section header (web), always shown on
+  // touch/compact where hover is unreachable (docs/hover.md plain-View pointer tracking).
+  const isCompact = useIsCompactFormFactor();
+  const [projectsHeaderHovered, setProjectsHeaderHovered] = useState(false);
+  const showAddProject = projectsHeaderHovered || isNative || isCompact;
+  const handleProjectsHeaderEnter = useCallback(() => setProjectsHeaderHovered(true), []);
+  const handleProjectsHeaderLeave = useCallback(() => setProjectsHeaderHovered(false), []);
+  const addProjectActionStyle = useMemo(
+    () => [styles.sectionAction, { opacity: showAddProject ? 1 : 0 }],
+    [showAddProject],
   );
 
   const treeProjects = useMemo<ConversationTreeProject[]>(
@@ -147,11 +160,16 @@ export function ConversationTree({
       contentContainerStyle={styles.scrollContent}
       testID="conversation-tree"
     >
-      <View style={styles.sectionHeader}>
+      <View
+        style={styles.sectionHeader}
+        onPointerEnter={handleProjectsHeaderEnter}
+        onPointerLeave={handleProjectsHeaderLeave}
+      >
         <Text style={styles.sectionTitle}>{t("sidebar.sections.projects")}</Text>
         {onAddProject ? (
           <Pressable
-            style={styles.sectionAction}
+            style={addProjectActionStyle}
+            pointerEvents={showAddProject ? "auto" : "none"}
             onPress={onAddProject}
             testID="conversation-tree-add-project"
             accessibilityRole="button"
@@ -244,23 +262,6 @@ function ConversationTreeRowView({
       accessibilityRole="button"
       accessibilityState={isProject ? undefined : SELECTED_STATE_FALSE}
     >
-      {canExpand ? (
-        <Pressable
-          onPress={handleChevron}
-          style={styles.chevronButton}
-          testID={`conversation-tree-chevron-${node.id}`}
-          accessibilityRole="button"
-        >
-          <ThemedChevron
-            size={CHEVRON_SIZE}
-            uniProps={mutedIconColor}
-            style={isExpanded ? styles.chevronExpanded : styles.chevronCollapsed}
-          />
-        </Pressable>
-      ) : (
-        <View style={styles.chevronButton} />
-      )}
-
       {isProject ? (
         <ThemedFolder size={TREE_ICON_SIZE} uniProps={mutedIconColor} />
       ) : (
@@ -285,6 +286,23 @@ function ConversationTreeRowView({
           <Text style={styles.badgeText}>{node.subagentCount}</Text>
         </View>
       ) : null}
+
+      {/* Expand/collapse chevron now sits after the name (反馈: 放目录名后边); the flex
+          name pushes it to the row's trailing edge. */}
+      {canExpand ? (
+        <Pressable
+          onPress={handleChevron}
+          style={styles.chevronButton}
+          testID={`conversation-tree-chevron-${node.id}`}
+          accessibilityRole="button"
+        >
+          <ThemedChevron
+            size={CHEVRON_SIZE}
+            uniProps={mutedIconColor}
+            style={isExpanded ? styles.chevronExpanded : styles.chevronCollapsed}
+          />
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
@@ -304,13 +322,16 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[1.5],
-    paddingHorizontal: theme.spacing[1],
+    // Align the section label's left edge with the row content below (rows sit at
+    // ROW_BASE_PADDING = spacing[2]); spacing[1] read as偏左 against the rows.
+    paddingLeft: theme.spacing[2],
+    paddingRight: theme.spacing[1],
     paddingTop: 9,
     paddingBottom: 5,
   },
   sectionTitle: {
     flex: 1,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "500",
     color: theme.colors.foregroundMuted,
   },

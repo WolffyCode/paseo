@@ -58,9 +58,6 @@ export function SidebarMenuToggle({
     [],
   );
 
-  const menuIconColor =
-    !isMobile && isOpen ? theme.colors.foreground : theme.colors.foregroundMuted;
-
   const handlePress = useCallback(() => {
     toggleAgentListForLayout({ isCompact: isMobile });
   }, [toggleAgentListForLayout, isMobile]);
@@ -81,11 +78,19 @@ export function SidebarMenuToggle({
       accessibilityLabel={isOpen ? t("shell.menu.close") : t("shell.menu.open")}
       accessibilityState={accessibilityState}
     >
-      {isMobile ? (
-        <MobileMenuIcon color={menuIconColor} />
-      ) : (
-        <PanelLeft size={theme.iconSize.md} color={menuIconColor} />
-      )}
+      {({ hovered }) =>
+        isMobile ? (
+          // Mobile hamburger keeps its open-state highlight.
+          <MobileMenuIcon color={isOpen ? theme.colors.foreground : theme.colors.foregroundMuted} />
+        ) : (
+          // Desktop: match the other top-bar icons — muted by default, foreground on hover.
+          // 反馈 1/3: □ 颜色统一、不随 sidebar 展开/收起态变深变浅。
+          <PanelLeft
+            size={theme.iconSize.md}
+            color={hovered ? theme.colors.foreground : theme.colors.foregroundMuted}
+          />
+        )
+      }
     </HeaderToggleButton>
   );
 }
