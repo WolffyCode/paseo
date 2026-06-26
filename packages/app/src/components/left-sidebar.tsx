@@ -13,6 +13,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { HostSwitcherPill } from "@/components/sidebar/host-switcher-pill";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
 import { SidebarWindowChrome } from "@/components/sidebar/sidebar-window-chrome";
 import { useIsCompactFormFactor } from "@/constants/layout";
@@ -683,24 +684,27 @@ function DesktopSidebar({
       <View style={desktopSidebarBorderStyle}>
         <View style={styles.sidebarDragArea}>
           <SidebarWindowChrome collapsed={false} onNewConversation={handleNewWorkspaceNavigate} />
-          <View style={styles.sidebarHeaderGroup}>
-            <SidebarHeaderRow
-              icon={SquarePen}
-              label={labels.newConversation}
-              onPress={handleNewWorkspaceNavigate}
-              testID="sidebar-global-new-workspace"
-              variant="compact"
-              shortcutKeys={newWorkspaceKeys}
-            />
-            <SidebarHeaderRow
-              icon={Search}
-              label={labels.search}
-              onPress={handleOpenCommandCenter}
-              testID="sidebar-search"
-              variant="compact"
-              shortcutKeys={commandCenterKeys}
-            />
-          </View>
+        </View>
+        <View style={styles.hostSwitcherSlot}>
+          <HostSwitcherPill activeServerId={activeServerId} />
+        </View>
+        <View style={styles.sidebarHeaderGroup}>
+          <SidebarHeaderRow
+            icon={SquarePen}
+            label={labels.newConversation}
+            onPress={handleNewWorkspaceNavigate}
+            testID="sidebar-global-new-workspace"
+            variant="compact"
+            shortcutKeys={newWorkspaceKeys}
+          />
+          <SidebarHeaderRow
+            icon={Search}
+            label={labels.search}
+            onPress={handleOpenCommandCenter}
+            testID="sidebar-search"
+            variant="compact"
+            shortcutKeys={commandCenterKeys}
+          />
         </View>
 
         {isInitialLoad ? (
@@ -791,6 +795,12 @@ const styles = StyleSheet.create((theme) => ({
   },
   sidebarDragArea: {
     position: "relative",
+  },
+  hostSwitcherSlot: {
+    paddingHorizontal: theme.spacing[2],
+    paddingTop: theme.spacing[2],
+    // Keep the pill + its anchored dropdown stacked above the list rows below it.
+    zIndex: 20,
   },
   sidebarFooter: {
     paddingVertical: theme.spacing[1.5],

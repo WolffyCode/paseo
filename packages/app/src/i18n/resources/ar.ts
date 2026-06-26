@@ -716,6 +716,8 @@ export const ar: TranslationResources = {
   sidebar: {
     host: {
       noHost: "لا مضيف",
+      dropdownTitle: "المضيفون",
+      addHost: "إضافة مضيف…",
       switchTitle: "تبديل المضيف",
       searchPlaceholder: "بحث عن المضيفين...",
     },

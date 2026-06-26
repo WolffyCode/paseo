@@ -722,6 +722,8 @@ export const en = {
   sidebar: {
     host: {
       noHost: "No host",
+      dropdownTitle: "Hosts",
+      addHost: "Add host…",
       switchTitle: "Switch host",
       searchPlaceholder: "Search hosts...",
     },

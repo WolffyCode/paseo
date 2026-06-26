@@ -729,6 +729,8 @@ export const ru: TranslationResources = {
   sidebar: {
     host: {
       noHost: "Нет хоста",
+      dropdownTitle: "Хосты",
+      addHost: "Добавить хост…",
       switchTitle: "Сменить хост",
       searchPlaceholder: "Поиск хостов...",
     },

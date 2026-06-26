@@ -711,6 +711,8 @@ export const zhCN: TranslationResources = {
   sidebar: {
     host: {
       noHost: "没有 Host",
+      dropdownTitle: "Host",
+      addHost: "添加 Host…",
       switchTitle: "切换 Host",
       searchPlaceholder: "搜索 Hosts...",
     },

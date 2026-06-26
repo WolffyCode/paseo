@@ -733,6 +733,8 @@ export const fr: TranslationResources = {
   sidebar: {
     host: {
       noHost: "Aucun hôte",
+      dropdownTitle: "Hôtes",
+      addHost: "Ajouter un hôte…",
       switchTitle: "Changer d'hôte",
       searchPlaceholder: "Rechercher des hôtes...",
     },
