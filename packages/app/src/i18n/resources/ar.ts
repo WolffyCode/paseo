@@ -17,6 +17,7 @@ export const ar: TranslationResources = {
     loading: "تحميل...",
     actions: {
       back: "خلف",
+      forward: "إلى الأمام",
       cancel: "يلغي",
       close: "يغلق",
       copy: "ينسخ",
@@ -548,6 +549,8 @@ export const ar: TranslationResources = {
         newFile: "فتح ملف",
         newSideChat: "محادثة جانبية جديدة",
         review: "مراجعة التغييرات",
+        openLocation: "فتح الموقع",
+        environmentInfo: "البيئة",
         importSession: "جلسة الاستيراد",
         copyPath: "نسخ مسار مساحة العمل",
         copyBranchName: "انسخ اسم الفرع",
@@ -713,6 +716,8 @@ export const ar: TranslationResources = {
   sidebar: {
     host: {
       noHost: "لا مضيف",
+      dropdownTitle: "المضيفون",
+      addHost: "إضافة مضيف…",
       switchTitle: "تبديل المضيف",
       searchPlaceholder: "بحث عن المضيفين...",
     },
@@ -727,6 +732,8 @@ export const ar: TranslationResources = {
     sections: {
       pinned: "المثبتة",
       projects: "المشاريع",
+      conversations: "المحادثات",
+      noConversations: "لا محادثات بعد",
     },
     worktreeSetup: {
       title: "إعداد البرامج النصية لشجرة العمل",
@@ -1079,30 +1086,10 @@ export const ar: TranslationResources = {
     },
   },
   onboarding: {
-    title: "مرحبًا بك في Helm",
-    subtitle:
-      "وصّل وكلاء ترميز الذكاء الاصطناعي المحليين أو البعيدين من مكان واحد. يظل رمزك على جهازك.",
+    title: "مرحبا بكم في Helm",
+    subtitle: "قم بتوصيل جهاز الكمبيوتر الخاص بك للبدء",
     actions: {
-      start: "ابدأ",
-      connectRemote: "وصّل host بعيد",
-      cancel: "إلغاء",
-      retryLocal: "إعادة محاولة المحلي",
-      retry: "إعادة المحاولة",
-      useOtherMethods: "استخدم طريقة أخرى",
-      diagnostics: "عرض التشخيصات",
-    },
-    connecting: {
-      title: "جارٍ الاتصال بالـ daemon المحلي...",
-    },
-    picker: {
-      title: "اختر طريقة الاتصال",
-      description: "اتصل مباشرة، أو الصق رابط الاقتران، أو امسح رمز QR.",
-    },
-    error: {
-      title: "تعذر الاتصال بالـ daemon المحلي",
-      description:
-        "الأسباب المحتملة: الـ daemon لا يعمل، أو المنفذ المحلي مستخدم، أو انتهت مهلة الاتصال.",
-      reasonLabel: "التفاصيل: {{reason}}",
+      settings: "إعدادات",
     },
   },
   modelSelector: {
@@ -1310,6 +1297,7 @@ export const ar: TranslationResources = {
     draft: {
       newAgent: "وكيل جديد",
       creatingAgent: "وكيل الخلق",
+      emptyTitle: "ماذا تريد أن تبني اليوم؟",
     },
     file: {
       directoryMissing: "لم يتم العثور على دليل Workspace.",

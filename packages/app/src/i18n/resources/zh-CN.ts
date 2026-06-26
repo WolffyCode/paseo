@@ -17,6 +17,7 @@ export const zhCN: TranslationResources = {
     loading: "加载中...",
     actions: {
       back: "返回",
+      forward: "前进",
       cancel: "取消",
       close: "关闭",
       copy: "复制",
@@ -546,6 +547,8 @@ export const zhCN: TranslationResources = {
         newFile: "打开文件",
         newSideChat: "新建侧边聊天",
         review: "审查变更",
+        openLocation: "打开位置",
+        environmentInfo: "环境信息",
         importSession: "导入会话",
         copyPath: "复制 workspace 路径",
         copyBranchName: "复制分支名称",
@@ -708,6 +711,8 @@ export const zhCN: TranslationResources = {
   sidebar: {
     host: {
       noHost: "没有 Host",
+      dropdownTitle: "Host",
+      addHost: "添加 Host…",
       switchTitle: "切换 Host",
       searchPlaceholder: "搜索 Hosts...",
     },
@@ -722,6 +727,8 @@ export const zhCN: TranslationResources = {
     sections: {
       pinned: "置顶",
       projects: "项目",
+      conversations: "对话",
+      noConversations: "还没有对话",
     },
     worktreeSetup: {
       title: "设置 worktree scripts",
@@ -1066,27 +1073,9 @@ export const zhCN: TranslationResources = {
   },
   onboarding: {
     title: "欢迎使用 Helm",
-    subtitle: "连接你本机/远程的 AI 编码代理，一处统管。你的代码留在你机器上。",
+    subtitle: "连接你的电脑即可开始",
     actions: {
-      start: "开始使用",
-      connectRemote: "连接远程主机",
-      cancel: "取消",
-      retryLocal: "重试本地",
-      retry: "重试",
-      useOtherMethods: "改用其它连接方式",
-      diagnostics: "查看诊断",
-    },
-    connecting: {
-      title: "正在连接本地 daemon...",
-    },
-    picker: {
-      title: "选择连接方式",
-      description: "直连主机、粘贴配对链接，或扫码连接。",
-    },
-    error: {
-      title: "无法连接本地 daemon",
-      description: "可能原因：daemon 未运行、本地端口被占用，或连接超时。",
-      reasonLabel: "详情：{{reason}}",
+      settings: "设置",
     },
   },
   modelSelector: {
@@ -1292,6 +1281,7 @@ export const zhCN: TranslationResources = {
     draft: {
       newAgent: "新建 Agent",
       creatingAgent: "正在创建 Agent",
+      emptyTitle: "今天想构建点什么？",
     },
     file: {
       directoryMissing: "未找到 workspace 目录。",

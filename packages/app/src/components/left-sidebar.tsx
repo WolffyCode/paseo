@@ -13,8 +13,10 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
+import { HostSwitcherPill } from "@/components/sidebar/host-switcher-pill";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
+import { SidebarWindowChrome } from "@/components/sidebar/sidebar-window-chrome";
+import { ConversationTree } from "@/conversation-tree/render";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isWeb } from "@/constants/platform";
 import { useSidebarAnimation } from "@/contexts/sidebar-animation-context";
@@ -25,6 +27,7 @@ import {
   type SidebarProjectEntry,
   useSidebarWorkspacesList,
 } from "@/hooks/use-sidebar-workspaces-list";
+import { useConversationHistoryStore } from "@/stores/conversation-history-store";
 import { useSidebarViewStore, type SidebarGroupMode } from "@/stores/sidebar-view-store";
 import { useSidebarPinsStore } from "@/stores/sidebar-pins-store";
 import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
@@ -36,7 +39,6 @@ import {
   usePanelStore,
 } from "@/stores/panel-store";
 import { resolveActiveHost } from "@/utils/active-host";
-import { useWindowControlsPadding } from "@/utils/desktop-window";
 import { canCloseLeftSidebarGesture } from "@/utils/sidebar-animation-state";
 import { buildHostNewWorkspaceRoute, buildSettingsRoute } from "@/utils/host-routes";
 import type { ShortcutKey } from "@/utils/format-shortcut";
@@ -122,6 +124,15 @@ export const LeftSidebar = memo(function LeftSidebar({
     [daemons, pathname],
   );
   const activeServerId = activeDaemon?.serverId ?? null;
+
+  // Record visited conversation routes so the window-chrome ‹ › arrows have a history to replay
+  // (desktop only, workspace routes only — R2, intentionally minimal).
+  const visitConversationRoute = useConversationHistoryStore((state) => state.visit);
+  useEffect(() => {
+    if (!isCompactLayout && pathname.includes("/workspace/")) {
+      visitConversationRoute(pathname);
+    }
+  }, [pathname, isCompactLayout, visitConversationRoute]);
 
   const { projects, isInitialLoad, isRevalidating, refreshAll } = useSidebarWorkspacesList({
     serverId: activeServerId,
@@ -585,15 +596,6 @@ function DesktopSidebar({
   pinnedProjects,
   unpinnedProjects,
   isInitialLoad,
-  isRevalidating,
-  isManualRefresh,
-  groupMode,
-  collapsedProjectKeys,
-  shortcutIndexByWorkspaceKey,
-  toggleProjectCollapsed,
-  allProjectsCollapsed,
-  handleToggleCollapseAll,
-  handleRefresh,
   newWorkspaceKeys,
   commandCenterKeys,
   handleNewWorkspaceNavigate,
@@ -604,7 +606,6 @@ function DesktopSidebar({
   insetsTop,
   isOpen,
 }: DesktopSidebarProps) {
-  const padding = useWindowControlsPadding("sidebar");
   const sidebarWidth = usePanelStore((state) => state.sidebarWidth);
   const setSidebarWidth = usePanelStore((state) => state.setSidebarWidth);
   const { width: viewportWidth } = useWindowDimensions();
@@ -644,7 +645,6 @@ function DesktopSidebar({
     width: resizeWidth.value,
   }));
 
-  const paddingTopSpacerStyle = useMemo(() => ({ height: padding.top }), [padding.top]);
   const desktopSidebarStyle = useMemo(
     () => [staticStyles.desktopSidebar, resizeAnimatedStyle],
     [resizeAnimatedStyle],
@@ -658,13 +658,10 @@ function DesktopSidebar({
     [],
   );
 
-  const projectsHeader = useMemo(
-    (): ProjectsHeaderModel => ({
-      allCollapsed: allProjectsCollapsed,
-      onToggleCollapseAll: handleToggleCollapseAll,
-      onSelectFolder: handleOpenProject,
-    }),
-    [allProjectsCollapsed, handleToggleCollapseAll, handleOpenProject],
+  // 置顶项目在前 + 其余,喂给对话树(项目分组复用 use-sidebar-workspaces-list)。
+  const treeProjects = useMemo(
+    () => [...pinnedProjects, ...unpinnedProjects],
+    [pinnedProjects, unpinnedProjects],
   );
 
   if (!isOpen) {
@@ -675,42 +672,36 @@ function DesktopSidebar({
     <Animated.View style={desktopSidebarStyle}>
       <View style={desktopSidebarBorderStyle}>
         <View style={styles.sidebarDragArea}>
-          <TitlebarDragRegion />
-          {padding.top > 0 ? <View style={paddingTopSpacerStyle} /> : null}
-          <View style={styles.sidebarHeaderGroup}>
-            <SidebarHeaderRow
-              icon={SquarePen}
-              label={labels.newConversation}
-              onPress={handleNewWorkspaceNavigate}
-              testID="sidebar-global-new-workspace"
-              variant="compact"
-              shortcutKeys={newWorkspaceKeys}
-            />
-            <SidebarHeaderRow
-              icon={Search}
-              label={labels.search}
-              onPress={handleOpenCommandCenter}
-              testID="sidebar-search"
-              variant="compact"
-              shortcutKeys={commandCenterKeys}
-            />
-          </View>
+          <SidebarWindowChrome collapsed={false} onNewConversation={handleNewWorkspaceNavigate} />
+        </View>
+        <View style={styles.hostSwitcherSlot}>
+          <HostSwitcherPill activeServerId={activeServerId} />
+        </View>
+        <View style={styles.sidebarHeaderGroup}>
+          <SidebarHeaderRow
+            icon={SquarePen}
+            label={labels.newConversation}
+            onPress={handleNewWorkspaceNavigate}
+            testID="sidebar-global-new-workspace"
+            variant="compact"
+            shortcutKeys={newWorkspaceKeys}
+          />
+          <SidebarHeaderRow
+            icon={Search}
+            label={labels.search}
+            onPress={handleOpenCommandCenter}
+            testID="sidebar-search"
+            variant="compact"
+            shortcutKeys={commandCenterKeys}
+          />
         </View>
 
         {isInitialLoad ? (
           <SidebarAgentListSkeleton />
         ) : (
-          <SidebarWorkspaceList
+          <ConversationTree
             serverId={activeServerId}
-            collapsedProjectKeys={collapsedProjectKeys}
-            onToggleProjectCollapsed={toggleProjectCollapsed}
-            shortcutIndexByWorkspaceKey={shortcutIndexByWorkspaceKey}
-            groupMode={groupMode}
-            pinnedProjects={pinnedProjects}
-            unpinnedProjects={unpinnedProjects}
-            projectsHeader={projectsHeader}
-            isRefreshing={isManualRefresh && isRevalidating}
-            onRefresh={handleRefresh}
+            projects={treeProjects}
             onAddProject={handleOpenProject}
           />
         )}
@@ -785,6 +776,12 @@ const styles = StyleSheet.create((theme) => ({
   },
   sidebarDragArea: {
     position: "relative",
+  },
+  hostSwitcherSlot: {
+    paddingHorizontal: theme.spacing[2],
+    paddingTop: theme.spacing[2],
+    // Keep the pill + its anchored dropdown stacked above the list rows below it.
+    zIndex: 20,
   },
   sidebarFooter: {
     paddingVertical: theme.spacing[1.5],

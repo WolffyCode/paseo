@@ -1,0 +1,4217 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · UI 设计稿 · 主页面（Codex 式主壳 · 三区结构）</title>
+    <style>
+      :root {
+        --surface0: #ffffff;
+        --surface1: #fafafa;
+        --surface2: #f4f4f5;
+        --surface3: #e4e4e7;
+        --surface4: #d4d4d8;
+        --surfaceSidebar: #f4f4f5;
+        --surfaceSidebarHover: #e9e9ec;
+        --surfaceWorkspace: #ffffff;
+        --fg: #1a1a1e;
+        --fgMuted: #71717a;
+        --border: #e4e4e7;
+        --borderAccent: #ececf1;
+        --accent: #20744a;
+        --accentBright: #239956;
+        --accentFg: #ffffff;
+        --destructive: #b04138;
+        --success: #15803d;
+        --warning: #d97706;
+        --danger: #b91c1c;
+        --merged: #7c3aed;
+        --diffAdd: #15803d;
+        --diffDel: #b91c1c;
+        --codexBlue: #2563eb;
+        --fgFaint: #a1a1aa;
+        --borderHeavy: #c7c7cc;
+        --sh-sm: 0 2px 8px -2px rgba(0, 0, 0, 0.12);
+        --sh-lg: 0 30px 70px -20px rgba(0, 0, 0, 0.17);
+        --xs: 12px;
+        --s12: 12px;
+        --sm: 14px;
+        --base: 16px;
+        --lg: 18px;
+        --xl: 20px;
+        --xxl: 22px;
+        --xxxl: 26px;
+        --r-sm: 2px;
+        --r-base: 4px;
+        --r-md: 6px;
+        --r-lg: 8px;
+        --r-xl: 12px;
+        --r-2xl: 16px;
+        --ui:
+          system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+          sans-serif;
+        --mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        background: #e8e8eb;
+        color: var(--fg);
+        font-family: var(--ui);
+        -webkit-font-smoothing: antialiased;
+        font-size: var(--base);
+        line-height: 1.45;
+      }
+      body {
+        padding: 40px 32px 120px;
+      }
+      svg.i {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        stroke-width: 2;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex: none;
+        display: block;
+      }
+      .i.xs {
+        width: 12px;
+        height: 12px;
+      }
+      .i.sm {
+        width: 14px;
+        height: 14px;
+      }
+      .i.md {
+        width: 16px;
+        height: 16px;
+      }
+      .i.lg {
+        width: 20px;
+        height: 20px;
+      }
+      /* ===== board header ===== */
+      .board-h {
+        max-width: 1320px;
+        margin: 0 auto 24px;
+      }
+      .board-h h1 {
+        font-size: 30px;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .board-h h1 .logo {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        background: linear-gradient(135deg, var(--accent), #15583a);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+      }
+      .board-h .sub {
+        color: var(--fgMuted);
+        font-size: var(--sm);
+        margin-top: 8px;
+        max-width: 1000px;
+      }
+      .req-log {
+        max-width: 1320px;
+        margin: 0 auto 18px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface1);
+        overflow: hidden;
+      }
+      .req-log .rl-h {
+        padding: 10px 16px;
+        background: var(--surface2);
+        font-size: var(--xs);
+        font-weight: 600;
+        color: var(--fgMuted);
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid var(--border);
+      }
+      .req-log table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: var(--sm);
+      }
+      .req-log td,
+      .req-log th {
+        padding: 8px 16px;
+        text-align: left;
+        border-top: 1px solid var(--border);
+        vertical-align: top;
+      }
+      .req-log th {
+        color: var(--fgMuted);
+        font-weight: 500;
+        font-size: var(--xs);
+      }
+      .req-log td:first-child {
+        color: var(--fgMuted);
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 1px 8px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      .pill.done {
+        color: #15803d;
+        background: rgba(34, 197, 94, 0.12);
+      }
+      .pill.p0 {
+        color: var(--accentBright);
+        background: rgba(32, 116, 74, 0.16);
+      }
+      .pill.new {
+        color: var(--codexBlue);
+        background: rgba(37, 99, 235, 0.12);
+      }
+      .nav-idx {
+        max-width: 1320px;
+        margin: 0 auto 30px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .nav-idx a {
+        font-size: var(--xs);
+        color: var(--fgMuted);
+        text-decoration: none;
+        padding: 5px 11px;
+        border: 1px solid var(--border);
+        border-radius: 9999px;
+        background: var(--surface1);
+      }
+      .nav-idx a:hover {
+        color: var(--fg);
+        background: var(--surface2);
+      }
+      .nav-idx a.new {
+        color: var(--codexBlue);
+        border-color: rgba(37, 99, 235, 0.3);
+      }
+      /* ===== screen scaffold ===== */
+      .screen {
+        max-width: 1320px;
+        margin: 0 auto 56px;
+        scroll-margin-top: 20px;
+      }
+      .screen-head {
+        margin-bottom: 14px;
+      }
+      .screen-head .tag {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        color: var(--accentBright);
+        background: rgba(32, 116, 74, 0.16);
+        padding: 2px 9px;
+        border-radius: 9999px;
+        margin-bottom: 8px;
+      }
+      .screen-head .tag.new {
+        color: var(--codexBlue);
+        background: rgba(37, 99, 235, 0.12);
+      }
+      .screen-head h2 {
+        font-size: var(--xl);
+        font-weight: 600;
+        letter-spacing: -0.2px;
+      }
+      .screen-head p {
+        color: var(--fgMuted);
+        font-size: var(--sm);
+        margin-top: 5px;
+        max-width: 1000px;
+      }
+      .screen-body {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 16px;
+        align-items: start;
+      }
+      /* ===== annotation block ===== */
+      .anno {
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface1);
+        overflow: hidden;
+        margin-top: 16px;
+      }
+      .anno > .anno-h {
+        font-size: var(--xs);
+        font-weight: 600;
+        color: var(--fgMuted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 11px 14px 4px;
+      }
+      .anno-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 12px;
+        padding: 12px 14px 14px;
+        align-items: start;
+      }
+      .anno-card {
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        background: var(--surface0);
+        overflow: hidden;
+      }
+      .anno-card > .ac-h {
+        font-size: var(--xs);
+        font-weight: 600;
+        color: var(--fgMuted);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 10px 13px 7px;
+      }
+      .anno-card.span2 {
+        grid-column: 1 / -1;
+      }
+      .anno ol {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+      }
+      .anno-card ol li {
+        display: flex;
+        gap: 10px;
+        padding: 9px 13px;
+        border-top: 1px solid var(--border);
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--fgMuted);
+      }
+      .anno-card ol li b {
+        color: var(--fg);
+        font-weight: 500;
+      }
+      .pin {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 11px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-variant-numeric: tabular-nums;
+      }
+      .anno li .pin {
+        margin-top: 1px;
+      }
+      .pinb {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 16px;
+        height: 16px;
+        border-radius: 9999px;
+        background: var(--accent);
+        color: #fff;
+        font-size: 10px;
+        font-weight: 700;
+        vertical-align: super;
+        margin-left: 3px;
+        font-variant-numeric: tabular-nums;
+        flex: none;
+      }
+      .menulist {
+        background: var(--surface0);
+        padding: 4px 13px 12px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--fgMuted);
+      }
+      .menulist .ml-grp {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--accentBright);
+        margin: 10px 0 4px;
+      }
+      .menulist .ml-i {
+        display: flex;
+        gap: 8px;
+        padding: 3px 0;
+      }
+      .menulist .ml-i b {
+        color: var(--fg);
+        font-weight: 500;
+      }
+      .menulist .ml-i.dz b {
+        color: #b91c1c;
+      }
+      .menulist .ml-note {
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+        color: var(--fgMuted);
+      }
+      .menulist .ml-open {
+        margin-top: 8px;
+        padding: 7px 9px;
+        border: 1px dashed rgba(37, 99, 235, 0.4);
+        border-radius: var(--r-md);
+        background: rgba(37, 99, 235, 0.05);
+        color: var(--fgMuted);
+      }
+      .menulist .ml-open b {
+        color: var(--codexBlue);
+      }
+      .states {
+        padding: 4px 13px 12px;
+      }
+      .states dl {
+        display: grid;
+        grid-template-columns: 88px 1fr;
+        gap: 8px 14px;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .states dt {
+        color: var(--accentBright);
+        font-weight: 600;
+      }
+      .states dd {
+        margin: 0;
+        color: var(--fgMuted);
+      }
+      .states dd b {
+        color: var(--fg);
+        font-weight: 500;
+      }
+      /* ===== frame ===== */
+      .frame {
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        overflow: hidden;
+        background: var(--surface0);
+        box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.13);
+      }
+      /* ===== three-zone shell (NO window-wide titlebar) ===== */
+      .shell {
+        display: flex;
+        height: 680px;
+      }
+      .shell.short {
+        height: 460px;
+      }
+      .shell.tall {
+        height: 760px;
+      }
+      /* macOS traffic lights, now living at the TOP of the left column (drag region) */
+      .lights {
+        display: flex;
+        gap: 8px;
+      }
+      .lights span {
+        width: 11px;
+        height: 11px;
+        border-radius: 9999px;
+      }
+      .lights .r {
+        background: #ff5f57;
+      }
+      .lights .y {
+        background: #febc2e;
+      }
+      .lights .g {
+        background: #28c840;
+      }
+      /* ===== left column ===== */
+      .sidebar {
+        width: 256px;
+        flex: none;
+        background: var(--surfaceSidebar);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+      /* the window chrome strip over the left column: traffic lights + sidebar toggle + back/forward
+         (这组窗口控件在窗口左上 / 左栏正上方，紧挨交通灯，NOT in the canvas top bar — 反馈 1) */
+      .sb-lights {
+        height: 46px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      .sb-lights .lights {
+        margin-right: 4px;
+      }
+      .sb-lights .drag-hint {
+        margin-left: auto;
+        font-size: 10px;
+        color: var(--surface4);
+      }
+      /* everything below the lights sits in a padded body */
+      .sb-main {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        padding: 2px 8px 10px;
+      }
+      /* host switcher: pill + dropdown anchored exactly under it, SAME width as the pill */
+      .host-switch {
+        position: relative;
+        margin-bottom: 10px;
+      }
+      .host-pill {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: var(--r-lg);
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        font-size: 13px;
+      }
+      .host-pill:hover {
+        background: var(--surface3);
+      }
+      .host-pill .nm {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .host-pill .i {
+        color: var(--fgMuted);
+      }
+      .host-pill.open {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(32, 116, 74, 0.16);
+      }
+      /* the dropdown: anchored to host-switch, left:0 right:0 => EXACTLY pill width (反馈 I) */
+      .host-dd {
+        position: absolute;
+        top: calc(100% + 5px);
+        left: 0;
+        right: 0;
+        background: var(--surface1);
+        border: 1px solid var(--borderAccent);
+        border-radius: var(--r-lg);
+        box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.16);
+        padding: 4px;
+        z-index: 20;
+      }
+      .host-dd .hd-h {
+        font-size: 11px;
+        color: var(--fgMuted);
+        padding: 6px 9px 3px;
+      }
+      .host-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 9px;
+        border-radius: var(--r-md);
+        font-size: 13px;
+        color: var(--fg);
+      }
+      .host-row:hover {
+        background: var(--surface2);
+      }
+      .host-row.sel {
+        background: var(--surface2);
+      }
+      .host-row .hr-nm {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      /* the status label MUST fit inside the constrained width: tiny dot + short text */
+      .host-row .hr-st {
+        flex: none;
+        font-size: 11px;
+        color: var(--fgMuted);
+      }
+      .host-row .hr-st.on {
+        color: var(--success);
+      }
+      .host-row .hr-st.ing {
+        color: var(--warning);
+      }
+      .host-row .hr-st.off {
+        color: var(--danger);
+      }
+      .host-row.off {
+        opacity: 0.65;
+      }
+      .host-row .relay {
+        flex: none;
+        color: var(--fgMuted);
+      }
+      /* ===== left column lists ===== */
+      .sb-top {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin-bottom: 6px;
+      }
+      .sb-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 7px 10px;
+        border-radius: var(--r-lg);
+        color: var(--fg);
+        font-size: var(--sm);
+        position: relative;
+      }
+      .sb-item .i {
+        color: var(--fgMuted);
+      }
+      .sb-item:hover {
+        background: var(--surfaceSidebarHover);
+      }
+      .sb-item.active {
+        background: var(--surface2);
+      }
+      .sb-item.muted {
+        color: var(--fgMuted);
+      }
+      .sb-sec {
+        font-size: var(--xs);
+        font-weight: 500;
+        color: var(--fgMuted);
+        padding: 9px 10px 5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .sb-sec .sb-act {
+        margin-left: auto;
+      }
+      /* ===== conversation TREE (项目 → 对话 → subagent → … 无限嵌套) ===== */
+      .tree {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+      .tnode {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 8px;
+        border-radius: var(--r-md);
+        font-size: 13px;
+        color: var(--fgMuted);
+        position: relative;
+        min-height: 30px;
+      }
+      .tnode:hover {
+        background: var(--surfaceSidebarHover);
+        color: var(--fg);
+      }
+      .tnode.on {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      .tnode.proj {
+        color: var(--fg);
+      }
+      /* depth indent: each level adds a guide + spacing */
+      .tindent {
+        flex: none;
+        align-self: stretch;
+        border-left: 1px solid var(--border);
+        margin-left: 7px;
+      }
+      .twedge {
+        flex: none;
+        width: 14px;
+        height: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--fgMuted);
+        border-radius: 3px;
+      }
+      .twedge.empty {
+        visibility: hidden;
+      }
+      .twedge:hover {
+        background: var(--surface3);
+      }
+      .tnode .ti {
+        flex: none;
+        color: var(--fgMuted);
+      }
+      .tname {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .tnode .tact {
+        margin-left: auto;
+        display: none;
+        align-items: center;
+        gap: 2px;
+        color: var(--fgMuted);
+      }
+      .tnode:hover .tact {
+        display: flex;
+      }
+      .tnode .tact .tbtn {
+        padding: 2px;
+        border-radius: 4px;
+        display: flex;
+      }
+      .tnode .tact .tbtn:hover {
+        background: var(--surface3);
+        color: var(--fg);
+      }
+      .tnode .ttime {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--fgMuted);
+      }
+      .tnode:hover .ttime {
+        display: none;
+      }
+      .badge-sub {
+        flex: none;
+        font-size: 10px;
+        color: var(--fgMuted);
+        background: var(--surface3);
+        border-radius: 9999px;
+        padding: 0 6px;
+        line-height: 16px;
+      }
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 9999px;
+        flex: none;
+      }
+      .dot.run {
+        background: var(--success);
+      }
+      .dot.idle {
+        background: var(--fgMuted);
+      }
+      .dot.warn {
+        background: var(--warning);
+      }
+      .dot.dan {
+        background: var(--danger);
+      }
+      .dot.init {
+        background: var(--accentBright);
+        box-shadow: 0 0 0 3px rgba(35, 153, 86, 0.18);
+      }
+      .sb-spacer {
+        flex: 1;
+      }
+      .sb-foot {
+        border-top: 1px solid var(--border);
+        padding-top: 8px;
+        margin-top: 6px;
+      }
+      .grip {
+        color: var(--surface4);
+      }
+      .renaming {
+        flex: 1;
+        background: var(--surface0);
+        border: 1px solid var(--accent);
+        border-radius: var(--r-base);
+        padding: 3px 7px;
+        font-size: 13px;
+        color: var(--fg);
+        box-shadow: 0 0 0 3px rgba(32, 116, 74, 0.16);
+      }
+      .sb-callout {
+        margin: 8px 4px;
+        padding: 10px 11px;
+        border: 1px solid var(--borderAccent);
+        border-radius: var(--r-lg);
+        font-size: 12px;
+        color: var(--fgMuted);
+        background: var(--surface1);
+      }
+      .sb-callout .ct {
+        color: var(--fg);
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        margin-bottom: 4px;
+      }
+      /* tree drop indicator while dragging */
+      .tdrop {
+        height: 2px;
+        background: var(--accent);
+        border-radius: 2px;
+        margin: 1px 8px 1px 24px;
+      }
+      /* ===== resize handles (left col right-edge & right panel left-edge) ===== */
+      .resize {
+        width: 6px;
+        flex: none;
+        position: relative;
+        cursor: col-resize;
+        background: transparent;
+      }
+      .resize.l {
+        border-right: 1px solid var(--border);
+      }
+      .resize.r {
+        border-left: 1px solid var(--border);
+      }
+      .resize .grab {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 3px;
+        height: 30px;
+        border-radius: 2px;
+        background: var(--surface4);
+      }
+      .resize:hover .grab {
+        background: var(--fgMuted);
+        height: 44px;
+      }
+      .resize.drag .grab {
+        background: var(--accent);
+        height: 72px;
+        width: 4px;
+      }
+      .resize.limit .grab {
+        background: var(--warning);
+        height: 72px;
+        width: 4px;
+      }
+      .width-bubble {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        background: var(--fg);
+        color: #fff;
+        font-size: 11px;
+        padding: 2px 7px;
+        border-radius: 6px;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+        z-index: 6;
+      }
+      .width-bubble.warn {
+        background: var(--warning);
+      }
+      .width-bubble.r {
+        right: 10px;
+      }
+      .width-bubble.l {
+        left: 10px;
+      }
+      /* ===== center column: canvas with its OWN top bar ===== */
+      .main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--surfaceWorkspace);
+        min-width: 0;
+      }
+      .canvas-top {
+        height: 46px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0 10px;
+        border-bottom: 1px solid var(--border);
+      }
+      .ct-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: var(--r-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--fgMuted);
+        position: relative;
+        flex: none;
+      }
+      .ct-btn:hover {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      .ct-btn.active {
+        color: var(--accentBright);
+        background: var(--surface2);
+      }
+      .ct-btn.dis {
+        opacity: 0.4;
+      }
+      .ct-nav {
+        display: flex;
+        align-items: center;
+        gap: 1px;
+        margin-left: 2px;
+      }
+      .ct-title {
+        margin-left: 8px;
+        font-size: 13px;
+        color: var(--fg);
+        font-weight: 500;
+        max-width: 280px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .ct-more {
+        width: 24px;
+        height: 24px;
+        border-radius: var(--r-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--fgMuted);
+        position: relative;
+      }
+      .ct-more:hover {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      .ct-spacer {
+        flex: 1;
+      }
+      .ct-pos {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 5px 10px;
+        border-radius: var(--r-md);
+        color: var(--codexBlue);
+        font-size: 13px;
+        position: relative;
+      }
+      .ct-pos:hover {
+        background: var(--surface2);
+      }
+      .ct-pos .i {
+        color: var(--codexBlue);
+      }
+      .ct-r {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        margin-left: 4px;
+      }
+      /* ===== composer ===== */
+      .empty-wrap {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 22px;
+        padding: 24px;
+      }
+      .empty-title {
+        font-size: var(--xxl);
+        font-weight: 300;
+        color: var(--fg);
+        letter-spacing: -0.3px;
+      }
+      .composer {
+        width: 100%;
+        max-width: 720px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .cbox {
+        border: 1px solid var(--borderAccent);
+        background: var(--surface1);
+        border-radius: var(--r-xl);
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 11px;
+      }
+      .cbox.focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(32, 116, 74, 0.16);
+      }
+      .cph {
+        color: var(--fgMuted);
+        font-size: var(--base);
+        min-height: 24px;
+      }
+      .ctext {
+        color: var(--fg);
+        font-size: var(--base);
+        min-height: 24px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 5px;
+      }
+      .ctools {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .ctool {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 9px;
+        border-radius: var(--r-md);
+        color: var(--fgMuted);
+        font-size: 13px;
+        border: 1px solid transparent;
+      }
+      .ctool:hover {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      .ctool.on {
+        color: var(--accentBright);
+        background: rgba(32, 116, 74, 0.14);
+      }
+      .ctool.dis {
+        opacity: 0.5;
+      }
+      .cspacer {
+        flex: 1;
+      }
+      .send {
+        width: 32px;
+        height: 32px;
+        border-radius: var(--r-lg);
+        background: var(--accent);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: none;
+      }
+      .send.dim {
+        background: var(--surface3);
+        color: var(--fgMuted);
+      }
+      .send.stop {
+        background: var(--destructive);
+      }
+      .chips {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        flex-wrap: wrap;
+        padding: 0 2px;
+      }
+      .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 9px;
+        border-radius: 9999px;
+        border: 1px solid var(--border);
+        background: var(--surface1);
+        color: var(--fgMuted);
+        font-size: var(--xs);
+      }
+      .chip .i {
+        color: var(--fgMuted);
+      }
+      .chip.on {
+        border-color: var(--accent);
+        color: var(--accentBright);
+        background: rgba(32, 116, 74, 0.12);
+      }
+      /* colored slash / @ token inside the composer (反馈 K) */
+      .tok {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 1px 8px;
+        border-radius: var(--r-md);
+        font-size: 15px;
+        font-weight: 500;
+        background: rgba(32, 116, 74, 0.13);
+        color: var(--accent);
+      }
+      .tok.at {
+        background: rgba(32, 116, 74, 0.1);
+        color: var(--accentBright);
+      }
+      .tok.blue {
+        background: rgba(37, 99, 235, 0.12);
+        color: var(--codexBlue);
+      }
+      .cascade {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        border-radius: 9999px;
+        border: 1px solid var(--borderAccent);
+        background: var(--surface2);
+        font-size: 13px;
+        color: var(--fg);
+      }
+      .cascade .lock {
+        color: var(--accentBright);
+      }
+      .cascade .sep {
+        color: var(--fgMuted);
+      }
+      .cascade.focus {
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px rgba(32, 116, 74, 0.16);
+      }
+      .cascade.inline {
+        padding: 4px 8px;
+        gap: 6px;
+        border-color: transparent;
+        background: transparent;
+        color: var(--fgMuted);
+        font-size: 13px;
+      }
+      .cascade.inline:hover {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      .cascade.inline .lock {
+        color: var(--accentBright);
+      }
+      .cascade-row {
+        display: flex;
+        justify-content: center;
+        padding: 0 2px;
+      }
+      /* ===== messages (内容保持现状 · 反馈 J) ===== */
+      .msgs {
+        flex: 1;
+        overflow: hidden;
+        padding: 22px 28px;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .msgs-inner {
+        width: 100%;
+        max-width: 720px;
+        margin: 0 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+      .msg {
+        display: flex;
+        gap: 13px;
+        max-width: 100%;
+      }
+      .msg .av {
+        width: 26px;
+        height: 26px;
+        border-radius: var(--r-md);
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .av.user {
+        background: var(--surface3);
+        color: var(--fg);
+      }
+      .av.ai {
+        background: linear-gradient(135deg, var(--accent), #15583a);
+        color: #fff;
+      }
+      .msg .body {
+        font-size: var(--sm);
+        line-height: 1.6;
+        color: var(--fg);
+        padding-top: 3px;
+      }
+      .msg .body .muted {
+        color: var(--fgMuted);
+      }
+      .tool-call {
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        background: var(--surface1);
+        overflow: hidden;
+        margin-top: 9px;
+        font-size: 13px;
+        max-width: 560px;
+      }
+      .tool-call .tc-h {
+        padding: 7px 11px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--fgMuted);
+      }
+      .tool-call .tc-h .ok {
+        color: var(--success);
+        margin-left: auto;
+      }
+      /* ===== right panel (docked column with its OWN tab strip) ===== */
+      .rpanel {
+        flex: none;
+        background: var(--surface0);
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .rp-tabs {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        height: 42px;
+        flex: none;
+        padding: 0 6px;
+        border-bottom: 1px solid var(--border);
+      }
+      .rp-tab {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 9px;
+        border-radius: var(--r-md);
+        font-size: 13px;
+        color: var(--fgMuted);
+        white-space: nowrap;
+        position: relative;
+      }
+      .rp-tab:hover {
+        background: var(--surface1);
+        color: var(--fg);
+      }
+      .rp-tab.on {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      .rp-tab.on .i {
+        color: var(--accentBright);
+      }
+      /* close ✕ revealed on hover at the tab's trailing edge */
+      .rp-tab .rp-x {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+        display: none;
+        align-items: center;
+        justify-content: center;
+        color: var(--fgMuted);
+        margin-left: 2px;
+      }
+      .rp-tab:hover .rp-x {
+        display: flex;
+      }
+      .rp-tab .rp-x:hover {
+        background: var(--surface3);
+        color: var(--fg);
+      }
+      /* fixed 审查 tab keeps its ✕ slot but disabled (开放项) */
+      .rp-tab.fixed .rp-x {
+        opacity: 0.32;
+      }
+      .rp-newtab {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 5px 8px;
+        border-radius: var(--r-md);
+        font-size: 13px;
+        color: var(--fgMuted);
+      }
+      .rp-newtab:hover {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      /* drop indicator between tabs while reordering */
+      .rp-tabdrop {
+        width: 2px;
+        align-self: stretch;
+        margin: 6px 0;
+        background: var(--accent);
+        border-radius: 2px;
+        flex: none;
+      }
+      .rp-ctl {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 1px;
+        color: var(--fgMuted);
+      }
+      .rp-ctl .rp-btn {
+        width: 28px;
+        height: 28px;
+        border-radius: var(--r-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+      }
+      .rp-ctl .rp-btn:hover {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      .rp-ctl .rp-btn.active {
+        color: var(--accentBright);
+        background: var(--surface2);
+      }
+      .rp-empty {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+      }
+      .rp-empty .rpe-list {
+        width: 100%;
+        max-width: 360px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .rp-empty .rpe-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 11px 13px;
+        border-radius: var(--r-lg);
+        font-size: var(--sm);
+        color: var(--fg);
+        background: var(--surface1);
+        border: 1px solid var(--border);
+      }
+      .rp-empty .rpe-row:hover {
+        background: var(--surface2);
+      }
+      .rp-empty .rpe-row .i {
+        color: var(--fgMuted);
+      }
+      .rp-empty .rpe-row .kbdkey {
+        margin-left: auto;
+      }
+      /* 打开位置 = 真实本机 app 图标（反馈 ③）：小圆角色块代表 VSCode / Ghostty / iTerm2… */
+      .app-ico {
+        width: 18px;
+        height: 18px;
+        border-radius: 5px;
+        flex: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        font-weight: 700;
+        color: #fff;
+      }
+      .app-ico.sm {
+        width: 15px;
+        height: 15px;
+        border-radius: 4px;
+        font-size: 9px;
+      }
+      /* 环境信息 / 置顶摘要 popover（反馈 ①）：浮层 popover，锚在「置顶摘要」图标下方，NOT a docked panel */
+      .env-pop {
+        position: absolute;
+        top: calc(100% + 6px);
+        right: 0;
+        width: 250px;
+        background: var(--surface1);
+        border: 1px solid var(--borderAccent);
+        border-radius: var(--r-lg);
+        box-shadow: var(--sh-lg);
+        padding: 6px;
+        z-index: 30;
+      }
+      .env-h {
+        display: flex;
+        align-items: center;
+        padding: 6px 8px 8px;
+        font-size: 13px;
+        color: var(--fg);
+        font-weight: 500;
+      }
+      .env-h .env-add {
+        margin-left: auto;
+        color: var(--fgMuted);
+        display: flex;
+      }
+      .env-row {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 7px 8px;
+        border-radius: var(--r-md);
+        font-size: 13px;
+        color: var(--fg);
+      }
+      .env-row:hover {
+        background: var(--surface2);
+      }
+      .env-row .i {
+        color: var(--fgMuted);
+      }
+      .env-row .env-r {
+        margin-left: auto;
+        color: var(--fgMuted);
+        display: flex;
+        align-items: center;
+      }
+      .env-row.muted {
+        color: var(--fgMuted);
+      }
+      .env-row.dis {
+        opacity: 0.55;
+      }
+      .env-row.err {
+        color: var(--danger);
+      }
+      .env-row.err .i {
+        color: var(--danger);
+      }
+      .env-sep {
+        height: 1px;
+        background: var(--border);
+        margin: 6px 4px;
+      }
+      .env-sec {
+        font-size: 11px;
+        color: var(--fgMuted);
+        padding: 4px 8px 2px;
+      }
+      .env-empty {
+        font-size: 13px;
+        color: var(--fgFaint);
+        padding: 3px 8px 6px;
+      }
+      .env-spin {
+        width: 13px;
+        height: 13px;
+        border-radius: 50%;
+        border: 2px solid var(--surface3);
+        border-top-color: var(--accentBright);
+        display: inline-block;
+        animation: spin 1s linear infinite;
+      }
+      .rp-blank {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        color: var(--fgMuted);
+        background: var(--surface0);
+        text-align: center;
+        padding: 24px;
+      }
+      .rp-blank .rpb-ic {
+        color: var(--surface4);
+      }
+      .rp-blank .rpb-ic .i {
+        width: 40px;
+        height: 40px;
+      }
+      .rp-blank .rpb-t {
+        font-size: var(--sm);
+        color: var(--fg);
+      }
+      .rp-blank .rpb-d {
+        font-size: var(--xs);
+        color: var(--fgMuted);
+      }
+      .rp-addr {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 11px;
+        border-bottom: 1px solid var(--border);
+        flex: none;
+      }
+      .rp-addr .nav {
+        color: var(--fgMuted);
+        padding: 3px;
+        border-radius: 4px;
+      }
+      .rp-addr .url {
+        flex: 1;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        padding: 5px 10px;
+        font-size: var(--xs);
+        color: var(--fgMuted);
+        min-width: 0;
+      }
+      /* a per-tab maximize affordance, top-right of a tab's content (反馈 H · 其它可放大区) */
+      .tab-max {
+        position: absolute;
+        top: 8px;
+        right: 10px;
+        width: 24px;
+        height: 24px;
+        border-radius: var(--r-md);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--fgMuted);
+        background: var(--surface1);
+        border: 1px solid var(--border);
+        z-index: 4;
+      }
+      .rp-filebody {
+        flex: 1;
+        display: flex;
+        min-height: 0;
+      }
+      .rp-filebody .fb-main {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .rp-filebody .fb-crumb {
+        padding: 7px 12px;
+        border-bottom: 1px solid var(--border);
+        font-size: var(--xs);
+        color: var(--fgMuted);
+        font-family: var(--mono);
+      }
+      .rp-filebody .fb-tree {
+        width: 188px;
+        flex: none;
+        border-left: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+      }
+      .fb-filter {
+        margin: 8px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        padding: 5px 9px;
+        font-size: var(--xs);
+        color: var(--fgMuted);
+      }
+      .term {
+        flex: 1;
+        padding: 10px 13px;
+        font-family: var(--mono);
+        font-size: 12px;
+        color: #15803d;
+        line-height: 1.7;
+        background: var(--surface0);
+        overflow: hidden;
+      }
+      .term .prompt {
+        color: var(--fgMuted);
+      }
+      .term .cursor {
+        display: inline-block;
+        width: 7px;
+        height: 14px;
+        background: var(--accent);
+        vertical-align: text-bottom;
+      }
+      .diff-file {
+        font-size: var(--xs);
+        color: var(--fgMuted);
+        padding: 8px 13px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-family: var(--mono);
+        flex: none;
+      }
+      .diff-file .add {
+        color: var(--diffAdd);
+      }
+      .diff-file .del {
+        color: var(--diffDel);
+      }
+      .diff-body {
+        font-family: var(--mono);
+        font-size: var(--xs);
+        line-height: 1.7;
+        overflow: hidden;
+      }
+      .dl {
+        display: flex;
+      }
+      .dl .ln {
+        width: 34px;
+        text-align: right;
+        padding-right: 8px;
+        color: #5b5f5e;
+        flex: none;
+      }
+      .dl .ct {
+        padding-left: 8px;
+        white-space: pre;
+      }
+      .dl.add {
+        background: rgba(74, 222, 128, 0.08);
+      }
+      .dl.add .ct {
+        color: #15803d;
+      }
+      .dl.del {
+        background: rgba(239, 68, 68, 0.08);
+      }
+      .dl.del .ct {
+        color: #b91c1c;
+      }
+      .file-tree {
+        font-size: 13px;
+        padding: 8px 6px;
+      }
+      .ft-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        padding: 4px 8px;
+        border-radius: var(--r-md);
+        color: var(--fgMuted);
+      }
+      .ft-row.on {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      .ft-row.sub {
+        margin-left: 16px;
+      }
+      .ft-row .i {
+        color: var(--fgMuted);
+      }
+      .input {
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: var(--r-md);
+        padding: 8px 11px;
+        font-size: var(--sm);
+        color: var(--fg);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .input .ph {
+        color: var(--fgMuted);
+      }
+      .input .i {
+        color: var(--fgMuted);
+      }
+      /* ===== buttons ===== */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-size: 13px;
+        font-weight: 400;
+        padding: 6px 12px;
+        border-radius: var(--r-md);
+        border: 1px solid transparent;
+        white-space: nowrap;
+      }
+      .btn.df {
+        background: var(--accent);
+        color: #fff;
+      }
+      .btn.sec {
+        background: var(--surface3);
+        color: var(--fg);
+      }
+      .btn.out {
+        background: transparent;
+        border-color: var(--borderAccent);
+        color: var(--fg);
+      }
+      .btn.ghost {
+        background: transparent;
+        color: var(--fgMuted);
+      }
+      .btn.ghost:hover {
+        background: var(--surface2);
+        color: var(--fg);
+      }
+      .btn.sm {
+        padding: 4px 10px;
+        font-size: var(--xs);
+      }
+      .btn .i {
+        width: 14px;
+        height: 14px;
+      }
+      /* ===== menus ===== */
+      .menu {
+        position: absolute;
+        background: var(--surface1);
+        border: 1px solid var(--borderAccent);
+        border-radius: var(--r-lg);
+        box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.15);
+        padding: 5px;
+        min-width: 208px;
+        z-index: 25;
+      }
+      .ctxmenu {
+        position: absolute;
+        background: var(--surface1);
+        border: 1px solid var(--borderAccent);
+        border-radius: var(--r-lg);
+        box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.15);
+        padding: 5px;
+        min-width: 210px;
+        z-index: 30;
+      }
+      .ctxmenu .cm-h {
+        font-size: 11px;
+        color: var(--fgMuted);
+        padding: 4px 9px 5px;
+      }
+      .mi {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        padding: 7px 9px;
+        border-radius: var(--r-md);
+        font-size: 13px;
+        color: var(--fg);
+      }
+      .mi:hover {
+        background: var(--surface2);
+      }
+      .mi .i {
+        color: var(--fgMuted);
+      }
+      .mi .r {
+        margin-left: auto;
+        color: var(--fgMuted);
+      }
+      .mi.sel .r {
+        color: var(--accentBright);
+      }
+      .mi.head {
+        color: var(--fgMuted);
+        font-size: var(--xs);
+      }
+      .mi.lockrow .lk {
+        color: var(--accentBright);
+      }
+      .ctxmenu .mi.dz {
+        color: #b91c1c;
+      }
+      .ctxmenu .mi.dz .i {
+        color: #b91c1c;
+      }
+      .menu-sep {
+        height: 1px;
+        background: var(--border);
+        margin: 5px 2px;
+      }
+      .kbd {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--fgMuted);
+        font-family: var(--mono);
+        background: var(--surface2);
+        padding: 1px 6px;
+        border-radius: 4px;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 1px 8px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      .badge.suc {
+        color: #15803d;
+        background: rgba(34, 197, 94, 0.12);
+      }
+      .badge.warn {
+        color: #b45309;
+        background: rgba(245, 158, 11, 0.13);
+      }
+      .badge.dan {
+        color: #b91c1c;
+        background: rgba(220, 38, 38, 0.13);
+      }
+      .badge.mut {
+        color: var(--fgMuted);
+        background: var(--surface2);
+      }
+      .badge.acc {
+        color: var(--accentBright);
+        background: rgba(32, 116, 74, 0.16);
+      }
+      /* ===== command palette ===== */
+      .backdrop {
+        background: rgba(0, 0, 0, 0.42);
+        padding: 30px;
+        display: flex;
+        align-items: flex-start;
+        justify-content: center;
+      }
+      .cmdk {
+        width: 560px;
+        background: var(--surface1);
+        border: 1px solid var(--borderAccent);
+        border-radius: var(--r-xl);
+        box-shadow: 0 30px 70px -20px rgba(0, 0, 0, 0.17);
+        overflow: hidden;
+      }
+      .cmdk-in {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--border);
+        font-size: 15px;
+        color: var(--fgMuted);
+      }
+      .cmdk-sec {
+        font-size: 11px;
+        color: var(--fgMuted);
+        padding: 9px 14px 4px;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      .ci {
+        display: flex;
+        align-items: center;
+        gap: 11px;
+        padding: 9px 14px;
+        font-size: 14px;
+        color: var(--fg);
+      }
+      .ci.on {
+        background: var(--surface2);
+      }
+      .ci .i {
+        color: var(--fgMuted);
+      }
+      .ci .kbd {
+        background: var(--surface2);
+      }
+      /* ===== alert / toast ===== */
+      .alertbox {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px 14px;
+        border: 1px solid;
+        border-radius: var(--r-lg);
+        font-size: 13px;
+        background: var(--surface0);
+      }
+      .alertbox.err {
+        border-color: rgba(220, 38, 38, 0.4);
+      }
+      .alertbox.err .i,
+      .alertbox.err .at {
+        color: #b91c1c;
+      }
+      .alertbox.info {
+        border-color: var(--borderAccent);
+      }
+      .alertbox.info .i {
+        color: var(--accentBright);
+      }
+      .alertbox .at {
+        font-weight: 500;
+      }
+      .alertbox .ad {
+        color: var(--fgMuted);
+        margin-top: 2px;
+        line-height: 1.5;
+      }
+      .toast {
+        display: inline-flex;
+        align-items: center;
+        gap: 9px;
+        padding: 10px 14px;
+        border-radius: var(--r-lg);
+        background: var(--surface2);
+        border: 1px solid var(--borderAccent);
+        font-size: 13px;
+        box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.13);
+      }
+      .card {
+        border: 1px solid var(--border);
+        border-radius: var(--r-xl);
+        background: var(--surface1);
+        overflow: hidden;
+      }
+      .sec-label {
+        font-size: var(--sm);
+        font-weight: 500;
+        color: var(--fg);
+        margin: 0 2px 9px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .spinner {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        border: 3px solid var(--surface3);
+        border-top-color: var(--accent);
+        animation: spin 1s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .spin-sm {
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--surface3);
+        border-top-color: var(--accentBright);
+        border-radius: 50%;
+        display: inline-block;
+        animation: spin 1s linear infinite;
+      }
+      /* ===== state strip ===== */
+      .statestrip {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 14px;
+      }
+      .statestrip.c2 {
+        grid-template-columns: repeat(2, 1fr);
+      }
+      .statebox {
+        border: 1px dashed var(--border);
+        border-radius: var(--r-lg);
+        padding: 16px;
+        background: var(--surface0);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+      }
+      .statehd {
+        font-size: var(--xs);
+        color: var(--fgMuted);
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        justify-content: center;
+        text-align: center;
+      }
+      /* mini app-window used in flow/decomposition strips */
+      .miniwin {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        overflow: hidden;
+        background: var(--surface0);
+      }
+      .miniwin .mw-lights {
+        height: 22px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 0 9px;
+        background: var(--surfaceSidebar);
+        border-bottom: 1px solid var(--border);
+      }
+      .miniwin .mw-lights span {
+        width: 7px;
+        height: 7px;
+        border-radius: 9999px;
+      }
+      /* ===== phone (s15 only, 暂缓) ===== */
+      .deferred-banner {
+        max-width: 1320px;
+        margin: 0 auto 14px;
+        border: 1px solid var(--warning);
+        background: rgba(217, 119, 6, 0.08);
+        border-radius: var(--r-lg);
+        padding: 12px 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        color: #92580a;
+      }
+      .deferred-banner b {
+        color: #7a4908;
+      }
+      .deferred-banner .i {
+        color: var(--warning);
+      }
+      .phones {
+        display: flex;
+        gap: 22px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        opacity: 0.85;
+      }
+      .phone {
+        width: 286px;
+        border: 1px solid var(--border);
+        border-radius: 30px;
+        overflow: hidden;
+        background: var(--surface0);
+        box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.13);
+        flex: none;
+      }
+      .pstatus {
+        height: 30px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        color: var(--fgMuted);
+      }
+      .phone-shell {
+        height: 540px;
+        display: flex;
+        flex-direction: column;
+        border-top: 1px solid var(--border);
+      }
+      .phone-hd {
+        height: 48px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 14px;
+        border-bottom: 1px solid var(--border);
+        font-size: 14px;
+      }
+      .phone-hd .i {
+        color: var(--fgMuted);
+      }
+      .phone-tabbar {
+        height: 52px;
+        border-top: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-around;
+        color: var(--fgMuted);
+      }
+      .phone-tabbar .pt {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        font-size: 10px;
+      }
+      .phone-tabbar .pt.on {
+        color: var(--accentBright);
+      }
+      .plabel {
+        font-size: 13px;
+        font-weight: 500;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+      .plabel .i {
+        color: var(--fgMuted);
+      }
+      .kbdkey {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: var(--fgMuted);
+        background: var(--surface2);
+        border: 1px solid var(--border);
+        border-radius: 4px;
+        padding: 1px 6px;
+      }
+      *::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+      }
+      *::-webkit-scrollbar-thumb {
+        background: #c7c7cc;
+        border-radius: 9999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+      }
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: #c7c7cc transparent;
+      }
+      .note {
+        max-width: 1320px;
+        margin: 0 auto 10px;
+        color: var(--fgMuted);
+        font-size: var(--xs);
+        display: flex;
+        gap: 8px;
+        align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol>
+      <symbol id="pen" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.4 2.6a1 1 0 0 1 3 3l-9 9-4 1 1-4z" /></symbol>
+      <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></symbol>
+      <symbol id="settings" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></symbol>
+      <symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
+      <symbol id="chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="updown" viewBox="0 0 24 24"><path d="m7 15 5 5 5-5" /><path d="m7 9 5-5 5 5" /></symbol>
+      <symbol id="kebab" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></symbol>
+      <symbol id="plus" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5v14" /></symbol>
+      <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></symbol>
+      <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+      <symbol id="terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6" /><path d="M12 19h8" /></symbol>
+      <symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></symbol>
+      <symbol id="file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M16 13H8" /><path d="M16 17H8" /></symbol>
+      <symbol id="panel-l" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 3v18" /></symbol>
+      <symbol id="panel-r" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M15 3v18" /></symbol>
+      <symbol id="panel-b" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 15h18" /></symbol>
+      <symbol id="cols" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 3v18" /></symbol>
+      <symbol id="maximize" viewBox="0 0 24 24"><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="m21 3-7 7" /><path d="m3 21 7-7" /></symbol>
+      <symbol id="minimize" viewBox="0 0 24 24"><path d="M8 3v3a2 2 0 0 1-2 2H3" /><path d="M21 8h-3a2 2 0 0 1-2-2V3" /><path d="M3 16h3a2 2 0 0 1 2 2v3" /><path d="M16 21v-3a2 2 0 0 1 2-2h3" /></symbol>
+      <symbol id="lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
+      <symbol id="brain" viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.9.7A3 3 0 0 0 4 9a3 3 0 0 0 1 5.6V16a3 3 0 0 0 5 2 3 3 0 0 0 5-2v-1.4A3 3 0 0 0 20 9a3 3 0 0 0-2.1-3.3A3 3 0 0 0 12 5z" /></symbol>
+      <symbol id="spark" viewBox="0 0 24 24"><path d="M9.9 15.5A2 2 0 0 0 8.5 14L2.4 12.5a.5.5 0 0 1 0-1L8.5 10a2 2 0 0 0 1.4-1.4L11.5 2.4a.5.5 0 0 1 1 0L14 8.5a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z" /><path d="M20 3v4" /><path d="M22 5h-4" /></symbol>
+      <symbol id="clip" viewBox="0 0 24 24"><path d="m21.4 11-9.2 9.2a6 6 0 0 1-8.5-8.5l8.6-8.6A4 4 0 1 1 18 8.8l-8.6 8.6a2 2 0 0 1-2.8-2.9l8.5-8.5" /></symbol>
+      <symbol id="up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7" /><path d="M12 19V5" /></symbol>
+      <symbol id="square" viewBox="0 0 24 24"><rect width="14" height="14" x="5" y="5" rx="2" /></symbol>
+      <symbol id="sliders" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4" /><line x1="10" x2="3" y1="4" y2="4" /><line x1="21" x2="12" y1="12" y2="12" /><line x1="8" x2="3" y1="12" y2="12" /><line x1="21" x2="16" y1="20" y2="20" /><line x1="12" x2="3" y1="20" y2="20" /><line x1="14" x2="14" y1="2" y2="6" /><line x1="8" x2="8" y1="10" y2="14" /><line x1="16" x2="16" y1="18" y2="22" /></symbol>
+      <symbol id="list" viewBox="0 0 24 24"><line x1="8" x2="21" y1="6" y2="6" /><line x1="8" x2="21" y1="12" y2="12" /><line x1="8" x2="21" y1="18" y2="18" /><line x1="3" x2="3.01" y1="6" y2="6" /><line x1="3" x2="3.01" y1="12" y2="12" /><line x1="3" x2="3.01" y1="18" y2="18" /></symbol>
+      <symbol id="branch" viewBox="0 0 24 24"><line x1="6" x2="6" y1="3" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></symbol>
+      <symbol id="link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></symbol>
+      <symbol id="unlink" viewBox="0 0 24 24"><path d="m18.84 12.25 1.72-1.71a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="m5.17 11.75-1.71 1.71a5 5 0 0 0 7.07 7.07l1.71-1.71" /><line x1="8" x2="8" y1="2" y2="5" /><line x1="2" x2="5" y1="8" y2="8" /><line x1="16" x2="16" y1="19" y2="22" /><line x1="19" x2="22" y1="16" y2="16" /></symbol>
+      <symbol id="corner-up-left" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5" /><path d="M20 20v-7a4 4 0 0 0-4-4H4" /></symbol>
+      <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></symbol>
+      <symbol id="history" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-7.7L3 8" /><path d="M3 3v5h5" /><path d="M12 7v5l4 2" /></symbol>
+      <symbol id="network" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="6" rx="1" /><rect x="2" y="16" width="6" height="6" rx="1" /><rect x="16" y="16" width="6" height="6" rx="1" /><path d="M12 8v4M5 16v-2h14v2" /></symbol>
+      <symbol id="smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" /><path d="M12 18h.01" /></symbol>
+      <symbol id="wifioff" viewBox="0 0 24 24"><path d="M12 20h.01" /><path d="M8.5 16.4a5 5 0 0 1 7 0" /><path d="M5 12.9a10 10 0 0 1 5.2-2.8" /><path d="M22 8.8a16 16 0 0 0-9-3.5" /><path d="m2 2 20 20" /></symbol>
+      <symbol id="trash" viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
+      <symbol id="archive" viewBox="0 0 24 24"><rect width="20" height="5" x="2" y="3" rx="1" /><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 12h4" /></symbol>
+      <symbol id="copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+      <symbol id="at" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8" /></symbol>
+      <symbol id="mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="12" rx="3" /><path d="M5 10a7 7 0 0 0 14 0" /><path d="M12 17v4" /></symbol>
+      <symbol id="alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4" /><path d="M12 17h.01" /></symbol>
+      <symbol id="alert-c" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></symbol>
+      <symbol id="more-h" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
+      <symbol id="grip" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1" /><circle cx="9" cy="12" r="1" /><circle cx="9" cy="18" r="1" /><circle cx="15" cy="6" r="1" /><circle cx="15" cy="12" r="1" /><circle cx="15" cy="18" r="1" /></symbol>
+      <symbol id="folder-plus" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /><path d="M12 10v6M9 13h6" /></symbol>
+      <symbol id="refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.7 9.7 0 0 1 6.7 2.7L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.7 9.7 0 0 1-6.7-2.7L3 16" /><path d="M8 16H3v5" /></symbol>
+      <symbol id="msg" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></symbol>
+      <symbol id="quote" viewBox="0 0 24 24"><path d="M16 3a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2h-2v3l-3-3H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z" /></symbol>
+      <symbol id="server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2" /><rect width="20" height="8" x="2" y="14" rx="2" /><line x1="6" x2="6" y1="6" y2="6" /><line x1="6" x2="6" y1="18" y2="18" /></symbol>
+      <symbol id="gauge" viewBox="0 0 24 24"><path d="m12 14 4-4" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></symbol>
+      <symbol id="plane" viewBox="0 0 24 24"><path d="M22 2 11 13" /><path d="M22 2 15 22l-4-9-9-4z" /></symbol>
+      <symbol id="robot" viewBox="0 0 24 24"><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M12 4v4" /><circle cx="12" cy="4" r="1" /><path d="M9 13v2M15 13v2M2 14h2M20 14h2" /></symbol>
+      <symbol id="side" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M15 3v18" /><path d="M18 9h.01" /></symbol>
+      <symbol id="apps" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></symbol>
+    </svg>
+
+    <div class="board-h">
+      <h1>
+        <span class="logo"><svg class="i lg"><use href="#gauge" /></svg></span>
+        Helm · UI 设计稿 · 主页面（Codex 式主壳 · 三区结构）
+      </h1>
+      <p class="sub">
+        本地需求设计稿（gate-1 迭代 · 待回写 canonical）。覆盖 <b>2026-06-25-home-shell</b>：连上主机后落地的<b>主页面主体</b>。
+        本轮按董事长反馈 A–K 重画，<b>逐像素贴 Codex</b>：删掉横跨整窗的标题栏，改为
+        <b>三个独立整体</b>——① 左侧栏（全高列，<b>窗口 chrome 细条在左上 = 交通灯 + 侧栏开关 + ‹ › 前进/后退</b> + 主机切换器胶囊 + 对话树 + 设置）、② 中区画布（自带 canvas 顶栏：标题 / ··· / 打开位置 / <b>环境信息（置顶摘要）</b> / 右面板开关；<b>侧栏开关与前进/后退不在此，在左栏顶的窗口细条</b>；<b>空态精简——这些上下文控件对话开始后才出现</b>）、③
+        右侧栏（自带 tab 头：审查固定 + 已开页签 + 新选项卡 + ⤢放大 / 收起 + 左缘拖宽）。<b>本轮桌面 only；紧凑 / 手机态暂缓，后续由桌面统一适配。</b>
+      </p>
+    </div>
+
+    <div class="req-log">
+      <div class="rl-h"><svg class="i sm"><use href="#clock" /></svg> 需求日志</div>
+      <table>
+        <tr>
+          <th style="width: 110px">日期</th>
+          <th>需求</th>
+          <th style="width: 380px">关键决策</th>
+        </tr>
+        <tr>
+          <td>2026-06-25</td>
+          <td>主页面（Codex 式主壳）—— 空态 + 使用中态 + 全交互态（onboarding 推迟的「主页本身」）</td>
+          <td>
+            <span class="pill p0">右面板停靠 · 无侧条</span>
+            <span class="pill p0">左栏顶主机切换器</span>
+            <span class="pill p0">单胶囊三层级联</span>
+            <span class="pill p0">设置只露入口</span>
+          </td>
+        </tr>
+        <tr>
+          <td>2026-06-26</td>
+          <td>gate-1 迭代（董事长反馈 A–K）—— 逐像素贴 Codex、补齐缺失态</td>
+          <td>
+            <span class="pill new">B 三区独立结构</span>
+            <span class="pill new">C 右栏 tab 整体</span>
+            <span class="pill new">F 对话树·无限嵌套</span>
+            <span class="pill new">I 下拉=胶囊同宽</span>
+            <span class="pill new">D/E 拖拽效果态</span>
+            <span class="pill new">H 放大/缩小</span>
+            <span class="pill new">K /命令彩色 token</span>
+            <span class="pill new">A 桌面 only · 手机暂缓</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="nav-idx">
+      <a href="#s1">S1 空态·三区</a>
+      <a href="#s2">S2 使用中·三区</a>
+      <a href="#s3" class="new">S3 三区拆解·核心</a>
+      <a href="#s4">S4 右面板·审查 tab</a>
+      <a href="#s5">S5 终端/浏览器/文件</a>
+      <a href="#s6" class="new">S6 对话树·无限嵌套</a>
+      <a href="#s7">S7 主机切换全流程</a>
+      <a href="#s8">S8 ⌘K 命令面板</a>
+      <a href="#s9">S9 三层级联</a>
+      <a href="#s10">S10 Composer·彩色 token</a>
+      <a href="#s11">S11 状态合屏</a>
+      <a href="#s12" class="new">S12 侧栏拖拽·效果态</a>
+      <a href="#s13" class="new">S13 右面板放大/缩小</a>
+      <a href="#s14">S14 设置入口</a>
+      <a href="#s15">S15 手机·暂缓</a>
+    </div>
+
+    <div class="note">
+      <svg class="i sm"><use href="#spark" /></svg> 交互标注：青绿圆点
+      <span class="pin" style="width: 16px; height: 16px">1</span> 标在控件旁，对应注解块「点击效果」编号；画面内只画真实
+      UI，流程 / 跳转 / 平台逻辑写进注解。<b style="color: var(--fg)">三区独立：左栏全高列 · 中区自带顶栏 · 右栏自带 tab 头；无悬浮侧条。</b>
+    </div>
+
+    <!-- ============ S1 · HOME EMPTY (three zones) ============ -->
+    <section class="screen" id="s1">
+      <div class="screen-head">
+        <span class="tag">主壳 · 1</span>
+        <h2>主页 · 默认空态（桌面 · 三区结构）</h2>
+        <p>
+          刚连上主机的落地态，逐像素对齐 Codex。<b>无横跨整窗标题栏</b>：① 左栏全高独立列——交通灯在<b>左上细条</b>（窗口拖拽区），灯下方是<b>主机切换器胶囊</b>，再下是新对话 / 搜索 / 对话树 / 设置；②
+          中区<b>自带 canvas 顶栏</b>（标题 / ··· / 打开位置 / <b>环境信息（置顶摘要）</b> / 右面板开关；<b>侧栏开关 / ‹ › 前进后退在左栏顶的窗口 chrome 细条 · 紧挨交通灯，不在 canvas 顶栏</b>；<b>空态精简——对话开始后才出现这些上下文控件，反馈 ③</b>），下面才是居中标题 + 居中 Composer；③ 右栏收起（开关此时在 canvas 顶栏右侧）。模型选择器内联在 Composer 底栏右侧。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell">
+            <div class="sidebar">
+              <div class="sb-lights">
+                <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                <div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg><span class="pinb">4</span></div>
+                <div class="ct-nav">
+                  <div class="ct-btn dis"><svg class="i sm"><use href="#chev-l" /></svg></div>
+                  <div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg><span class="pinb">5</span></div>
+                </div>
+                <span class="drag-hint">⠿ 拖拽区</span>
+              </div>
+              <div class="sb-main">
+                <div class="host-switch">
+                  <div class="host-pill">
+                    <span class="dot run"></span><span class="nm">本机 · 我的 Mac</span>
+                    <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">1</span>
+                  </div>
+                </div>
+                <div class="sb-top">
+                  <div class="sb-item active"><svg class="i sm"><use href="#pen" /></svg> 新对话<span class="pinb">2</span></div>
+                  <div class="sb-item muted">
+                    <svg class="i sm"><use href="#search" /></svg> 搜索 <span class="kbdkey" style="margin-left: auto">⌘K</span><span class="pinb">3</span>
+                  </div>
+                </div>
+                <div class="sb-sec">项目 <span class="sb-act" style="opacity: 0.32"><svg class="i xs"><use href="#folder-plus" /></svg></span></div>
+                <div class="tree">
+                  <div class="tnode proj">
+                    <span class="twedge"><svg class="i xs chev"><use href="#chev-r" /></svg></span>
+                    <svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span>
+                  </div>
+                </div>
+                <div class="sb-sec">对话</div>
+                <div style="padding: 10px 10px; color: var(--fgFaint); font-size: var(--s12)">还没有对话</div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot">
+                  <div class="sb-item muted"><svg class="i sm"><use href="#settings" /></svg> 设置<span class="pinb">12</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="main">
+              <div class="canvas-top">
+                <span style="font-size: 11px; color: var(--fgFaint)">空态顶栏精简 —— 打开位置 / 环境信息 / 对话标题等上下文控件对话开始后才出现<span class="pinb">6</span></span>
+                <div class="ct-spacer"></div>
+                <div class="ct-r">
+                  <div class="ct-btn"><svg class="i sm"><use href="#panel-r" /></svg><span class="pinb">9</span></div>
+                </div>
+              </div>
+              <div class="empty-wrap">
+                <div class="empty-title">今天想构建点什么？</div>
+                <div class="composer">
+                  <div class="cbox focus">
+                    <div class="cph">问点什么，或让代理开始干活…<span class="pinb">10</span></div>
+                    <div class="ctools">
+                      <div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div>
+                      <div class="ctool on"><svg class="i sm"><use href="#brain" /></svg> 思考</div>
+                      <div class="ctool"><svg class="i sm"><use href="#globe" /></svg> 联网</div>
+                      <div class="cspacer"></div>
+                      <div class="cascade inline">
+                        <svg class="i sm lock"><use href="#lock" /></svg> Claude Code <span class="sep">·</span> 智谱 GLM
+                        <span class="sep">·</span> glm-4.6
+                        <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">11</span>
+                      </div>
+                      <div class="send dim"><svg class="i sm"><use href="#up" /></svg></div>
+                    </div>
+                  </div>
+                  <div class="chips">
+                    <span class="chip"><svg class="i xs"><use href="#folder" /></svg> paseo-main</span>
+                    <span class="chip"><svg class="i xs"><use href="#sliders" /></svg> 默认模式</span>
+                    <span class="chip"><svg class="i xs"><use href="#branch" /></svg> develop</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card span2">
+              <div class="ac-h">点击效果（三区逐控件）</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>主机切换器（左栏 · 净新）</b>：点开主机下拉（见 S7）切主机 / 添加主机。位于交通灯细条之下、新对话之上，<b>全栏宽</b>。Codex 无此控件（不支持多主机），是 Helm 净新。</div></li>
+                <li><span class="pin">2</span><div><b>新对话</b>：清空中区为草稿空态、聚焦 Composer（本屏即此态）。</div></li>
+                <li><span class="pin">3</span><div><b>搜索</b>：打开 ⌘K 命令面板（搜索模式，见 S8 / S11）；⌘K 同等触发。</div></li>
+                <li><span class="pin">4</span><div><b>侧栏开关（左栏顶 · 窗口 chrome 细条 · 紧挨交通灯）</b>：收起 / 展开左栏。激活 = 当前展开（绿 + 浅底）。<b>左栏收起后这条细条仍留窗口左上</b>（交通灯 + 窗口控制不消失），细条变为 <b>[▣ 开关][‹ › 前进后退][✎ 新对话]</b>——收起后多出「新建对话」图标。<b>这组控件在窗口细条、不在 canvas 顶栏（反馈 1）。</b></div></li>
+                <li><span class="pin">5</span><div><b>前进 / 后退（‹ ›）</b>：在浏览过的对话间前进 / 后退。首屏无历史时<b>两键变暗禁用</b>。</div></li>
+                <li><span class="pin">6</span><div><b>空态顶栏精简（反馈 ③）</b>：新对话空态时 canvas 顶栏<b>不显示</b>对话标题 / ··· / 打开位置 / 环境信息（置顶摘要）等对话上下文控件——<b>对话开始后才出现</b>（见 S2）。空态顶栏只保留右上的右面板开关。</div></li>
+                <li><span class="pin">9</span><div><b>右面板开关</b>：唤出右侧停靠面板（见 S4），默认开「审查」tab。<b>收起时在此（canvas 顶栏右）；展开后移到右面板 tab 头行尾</b>（见 S3 / S4），屏幕最右上位置不变。</div></li>
+                <li><span class="pin">10</span><div><b>Composer 输入</b>：聚焦即出现聚焦环；输入后发送键由暗转绿可发（全态见 S10）。</div></li>
+                <li><span class="pin">11</span><div><b>模型选择器（内联底栏右）</b>：提供方🔒 · 中转站 · 模型，点开两级菜单选中转站 / 模型（见 S9）。</div></li>
+                <li><span class="pin">12</span><div><b>设置</b>：进入设置（应用级 + 主机级两层）。详情属另一项目，本主壳只露入口（见 S14）。</div></li>
+                <li><span class="pin">+</span><div><b>项目段「新建项目」（folder+）</b>：悬浮「项目」标题行才显示，点击新建 / 添加项目；本屏画半透明示意。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card span2">
+              <div class="ac-h">状态</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：三区横排——左栏固定列（256px，可拖宽见 S12）+ 中区画布 + 右栏收起。<b>紧凑 / 手机态暂缓</b>，后续由桌面统一适配（见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd>主机在线（绿点）+ 居中标题 + 居中 Composer（聚焦环）；模型选择器在底栏右；左栏对话段空（「还没有对话」）。</dd>
+                  <dt>悬浮</dt>
+                  <dd>侧栏行底色变浅；canvas 顶栏按钮底色变浅；项目标题行悬浮浮出 folder+ 新建。</dd>
+                  <dt>活跃</dt>
+                  <dd>「新对话」选中（浅底）；侧栏开关高亮（绿 + 浅底）表示左栏展开中。</dd>
+                  <dt>运行</dt>
+                  <dd>空态无运行中的对话；若后台有运行对话，其树节点显绿运行点（见 S2）。</dd>
+                  <dt>禁用</dt>
+                  <dd>空输入时发送键变暗；首屏无历史时 ‹ › 两键变暗。</dd>
+                  <dt>空</dt>
+                  <dd><b>本屏即主壳空态</b>：刚连上、无对话——居中 Composer 直接可打字；对话段显「还没有对话」。</dd>
+                  <dt>加载</dt>
+                  <dd>切主机 / 拉目录时左栏列表区显行级加载指示（见 S7 / S11）。</dd>
+                  <dt>错误</dt>
+                  <dd>发送失败弹轻提示 / 主机断连出提示条（见 S11）。</dd>
+                  <dt>离线</dt>
+                  <dd>主机离线时切换器红点 + 左栏提示条提示重连（见 S11 / S7）。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card span2">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-i">本屏可右键的元素均在 <b>S6</b> 详列：项目节点 / 对话（根）节点 / subagent 节点各一套右键菜单。主机切换器、Composer、canvas 顶栏按钮本屏无右键菜单。</div>
+                <div class="ml-open"><b>开放项 · 打开位置颜色</b>：Codex「打开位置」用蓝色 token（图 05）。本稿暂用 Codex 蓝示意，待董事长定是否统一改成设计系统绿（accent #20744A）。Composer 内 / @ token 已取绿（见 S10）。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S2 · HOME IN-USE (three zones) ============ -->
+    <section class="screen" id="s2">
+      <div class="screen-head">
+        <span class="tag">主壳 · 2</span>
+        <h2>主页 · 使用中（进行中对话 · 三区结构）</h2>
+        <p>
+          左栏是<b>对话树</b>（项目 → 对话 → subagent 缩进嵌套，当前对话选中 + 绿色运行点）；中区
+          canvas 顶栏显当前对话标题 + 打开位置，下面是消息流（<b>内容保持现状 · 反馈 J</b>：用户气泡右对齐 + AI 回复 + 可折叠工具卡）+ 贴底 Composer；右栏仍收起。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell">
+            <div class="sidebar">
+              <div class="sb-lights">
+                <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                <div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div>
+                <div class="ct-nav">
+                  <div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div>
+                  <div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div>
+                </div>
+              </div>
+              <div class="sb-main">
+                <div class="host-switch">
+                  <div class="host-pill">
+                    <span class="dot run"></span><span class="nm">本机 · 我的 Mac</span>
+                    <svg class="i sm"><use href="#chev-d" /></svg>
+                  </div>
+                </div>
+                <div class="sb-top">
+                  <div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                  <div class="sb-item muted"><svg class="i sm"><use href="#search" /></svg> 搜索</div>
+                </div>
+                <div class="sb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode proj">
+                    <span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span>
+                    <svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span>
+                  </div>
+                  <div class="tnode on" style="padding-left: 26px">
+                    <span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span>
+                    <span class="dot run"></span><span class="tname">重构选择器</span><span class="badge-sub">2</span><span class="pinb">1</span>
+                  </div>
+                  <div class="tnode" style="padding-left: 46px">
+                    <span class="twedge leaf"></span>
+                    <svg class="i xs ti"><use href="#robot" /></svg><span class="dot run"></span><span class="tname">写单测</span><span class="pinb">2</span>
+                  </div>
+                  <div class="tnode" style="padding-left: 46px">
+                    <span class="twedge leaf"></span>
+                    <svg class="i xs ti"><use href="#robot" /></svg><span class="dot idle"></span><span class="tname">改类型签名</span>
+                  </div>
+                  <div class="tnode" style="padding-left: 26px">
+                    <span class="twedge leaf"></span>
+                    <span class="dot idle"></span><span class="tname">修复 diff 对齐</span>
+                  </div>
+                  <div class="tnode proj">
+                    <span class="twedge"><svg class="i xs chev"><use href="#chev-r" /></svg></span>
+                    <svg class="i sm ti"><use href="#folder" /></svg><span class="tname">helm-relay</span>
+                  </div>
+                </div>
+                <div class="sb-sec">对话</div>
+                <div class="tree">
+                  <div class="tnode">
+                    <span class="twedge leaf"></span>
+                    <span class="dot idle"></span><span class="tname">解释 Zod schema</span>
+                  </div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot">
+                  <div class="sb-item muted"><svg class="i sm"><use href="#settings" /></svg> 设置</div>
+                </div>
+              </div>
+            </div>
+            <div class="main">
+              <div class="canvas-top">
+                <div class="ct-title">重构选择器</div>
+                <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg><span class="pinb">3</span></div>
+                <div class="ct-spacer"></div>
+                <div class="ct-pos"><svg class="i sm"><use href="#apps" /></svg> paseo-main · develop <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">6</span></div>
+                <div class="ct-r" style="position: relative">
+                  <div class="ct-btn active"><svg class="i sm"><use href="#list" /></svg><span class="pinb">7</span></div>
+                  <div class="ct-btn"><svg class="i sm"><use href="#panel-r" /></svg></div>
+                  <!-- 环境信息 / 置顶摘要 popover（开态，锚在置顶摘要按钮下方 · 反馈 ①） -->
+                  <div class="env-pop">
+                    <div class="env-h">环境信息 <span class="env-add"><svg class="i sm"><use href="#plus" /></svg></span></div>
+                    <div class="env-row"><svg class="i sm"><use href="#cols" /></svg> 变更 <span class="env-r"><span class="badge mut">3 改动</span></span><span class="pinb">8</span></div>
+                    <div class="env-row"><svg class="i sm"><use href="#server" /></svg> 本地 <svg class="i sm env-r"><use href="#chev-d" /></svg></div>
+                    <div class="env-row"><svg class="i sm"><use href="#branch" /></svg> develop-v4 <svg class="i sm env-r"><use href="#chev-d" /></svg></div>
+                    <div class="env-row"><svg class="i sm"><use href="#up" /></svg> 提交或推送<span class="pinb">9</span></div>
+                    <div class="env-row muted dis"><svg class="i sm"><use href="#terminal" /></svg> GitHub CLI 不可用</div>
+                    <div class="env-sep"></div>
+                    <div class="env-sec">来源</div>
+                    <div class="env-empty">暂无来源<span class="pinb">10</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="msgs" style="align-items: center">
+                <div class="msgs-inner">
+                  <div class="msg" style="align-self: flex-end; flex-direction: row-reverse">
+                    <div class="av user">我</div>
+                    <div class="body" style="background: var(--surface2); padding: 9px 13px; border-radius: 12px">
+                      把三层选择器改成级联下拉，放到 Composer 下方
+                    </div>
+                  </div>
+                  <div class="msg">
+                    <div class="av ai"><svg class="i sm"><use href="#spark" /></svg></div>
+                    <div class="body">
+                      好，我先定位组件再改成级联结构。<span class="muted">读取 + 编辑 2 个文件…</span><span class="pinb">4</span>
+                      <div class="tool-call">
+                        <div class="tc-h">
+                          <svg class="i xs"><use href="#file" /></svg> Read · agent-controls/index.tsx
+                          <span class="ok"><svg class="i xs"><use href="#check" /></svg></span>
+                        </div>
+                      </div>
+                      <div class="tool-call">
+                        <div class="tc-h">
+                          <svg class="i xs"><use href="#pen" /></svg> Edit · combined-model-selector.tsx
+                          <span class="ok"><svg class="i xs"><use href="#check" /></svg></span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div style="padding: 14px 28px 18px">
+                <div class="composer" style="margin: 0 auto">
+                  <div class="cbox">
+                    <div class="ctext">再加个"设为默认中转站"的选项</div>
+                    <div class="ctools">
+                      <div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div>
+                      <div class="ctool on"><svg class="i sm"><use href="#brain" /></svg> 思考·高</div>
+                      <div class="ctool"><svg class="i sm"><use href="#globe" /></svg> 联网</div>
+                      <div class="cspacer"></div>
+                      <div class="cascade inline">
+                        <svg class="i sm lock"><use href="#lock" /></svg> Claude Code <span class="sep">·</span> 智谱 GLM
+                        <span class="sep">·</span> glm-4.6
+                        <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">5</span>
+                      </div>
+                      <div class="send"><svg class="i sm"><use href="#up" /></svg></div>
+                    </div>
+                  </div>
+                  <div class="chips">
+                    <span class="chip"><svg class="i xs"><use href="#folder" /></svg> paseo-main</span>
+                    <span class="chip"><svg class="i xs"><use href="#sliders" /></svg> Plan 模式</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 反馈 ①③ 详解：打开位置 app 下拉 + 环境信息「变更」行状态 -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px">
+          <div class="card" style="padding: 16px; background: var(--surface0)">
+            <div class="sec-label"><svg class="i sm"><use href="#apps" /></svg> 打开位置 ▾ —— 在外部 app 打开当前工作区（反馈 ③）</div>
+            <div style="position: relative; display: inline-block">
+              <div class="ct-pos" style="background: var(--surface2)"><svg class="i sm"><use href="#apps" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">A</span></div>
+              <div class="env-pop" style="position: static; width: 220px; margin-top: 8px; box-shadow: none">
+                <div class="env-sec" style="padding-top: 4px">在外部 app 打开当前工作区（真实本机 app）</div>
+                <div class="env-row"><span class="app-ico" style="background: #0a64d2">VS</span> VS Code <span class="env-r kbdkey">⌘E</span></div>
+                <div class="env-row"><span class="app-ico" style="background: #1b1b1f">Gh</span> Ghostty</div>
+                <div class="env-row"><span class="app-ico" style="background: #2f7d57">iT</span> iTerm2</div>
+                <div class="env-row"><span class="app-ico" style="background: #2b7fff">F</span> 访达 Finder</div>
+                <div class="env-sep"></div>
+                <div class="env-row muted"><svg class="i sm"><use href="#plus" /></svg> 添加应用…<span class="pinb">B</span></div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="padding: 16px; background: var(--surface0)">
+            <div class="sec-label"><svg class="i sm"><use href="#cols" /></svg> 环境信息「变更」行 · 加载 / 错误 / 离线（反馈 ①）</div>
+            <div style="display: flex; flex-direction: column; gap: 9px; max-width: 252px">
+              <div><div class="statehd" style="justify-content: flex-start; margin-bottom: 4px">默认（git 改动计数）</div><div class="env-row" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#cols" /></svg> 变更 <span class="env-r"><span class="badge mut">3 改动</span></span></div></div>
+              <div><div class="statehd" style="justify-content: flex-start; margin-bottom: 4px">加载（计算 git 状态 · 转圈）</div><div class="env-row" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#cols" /></svg> 变更 <span class="env-r"><span class="env-spin"></span></span></div></div>
+              <div><div class="statehd" style="justify-content: flex-start; margin-bottom: 4px">错误（git 读取失败）</div><div class="env-row err" style="border: 1px solid rgba(185, 28, 28, 0.4)"><svg class="i sm"><use href="#alert" /></svg> 变更读取失败 · 重试</div></div>
+              <div><div class="statehd" style="justify-content: flex-start; margin-bottom: 4px">离线（主机断连 · 冻结）</div><div class="env-row dis" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#wifioff" /></svg> 主机离线 · 内容冻结</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>对话（根）节点</b>：点选 = 加载该对话到中区（选中浅底）；<b>绿运行点</b> = 该对话代理正在运行；尾部 <b>2</b> = 有 2 个 subagent；展开箭头收起 / 展开子节点。悬浮 / 右键见 S6。</div></li>
+                <li><span class="pin">2</span><div><b>subagent 子节点</b>：缩进一级、带机器人图标。点选 = 打开该 subagent 对话。<b>运行中 subagent 把「运行」贡献给父对话所属工作区聚合状态</b>（按父 workspaceId，非子 cwd）。右键见 S6。</div></li>
+                <li><span class="pin">3</span><div><b>对话标题 ···</b>：canvas 顶栏对话级更多菜单（重命名 / 复制 / 归档 / 在 Finder 中显示）。</div></li>
+                <li><span class="pin">4</span><div><b>工具卡（可折叠）</b>：点开看参数 / diff，完成打 ✓；权限请求在消息流内出权限卡。<b>内容保持现状（J），本轮不重做。</b></div></li>
+                <li><span class="pin">5</span><div><b>切中转站 / 模型</b>：对话中点级联胶囊切换，<b>下条消息生效</b>；提供方保持锁定（见 S9）。</div></li>
+                <li><span class="pin">6</span><div><b>打开位置 ▾（反馈 ③）</b>：用<b>真实本机 app 图标</b>（非发送图标）；点开 = 在外部 app 打开当前工作区的列表（VS Code / Ghostty / iTerm2 / 访达…）+ <b>支持手动新增 app</b>（详见下方详解 A / B）。</div></li>
+                <li><span class="pin">7</span><div><b>环境信息 / 置顶摘要（反馈 ①）</b>：顶栏右的 ☰ 是「<b>切换置顶摘要</b>」（<b>不是「大纲」</b>）；点开 = 浮层 <b>「环境信息」popover</b>（不是右侧停靠面板），与右面板「审查」tab（完整 diff）区分——这是顶栏<b>紧凑摘要</b>。再点关闭。</div></li>
+                <li><span class="pin">8</span><div><b>变更</b>：工作区 git 改动 + 计数；点 = 跳右面板「审查」看完整 diff；旁带刷新（加载转圈 / 失败红字 / 离线冻结见右侧状态卡）。</div></li>
+                <li><span class="pin">9</span><div><b>提交或推送 / 本地 ▾ / 分支 ▾</b>：对当前分支提交或推送；<b>本地 ▾</b>切主机·本地上下文、<b>develop-v4 ▾</b>切分支；<b>GitHub CLI 不可用</b>时该行禁用灰显。</div></li>
+                <li><span class="pin">10</span><div><b>来源 · 暂无来源（空态）</b>：来源分区列关联来源（PR / Issue / 链接）；无关联显「暂无来源」。popover 头部 [+] 可添加来源。</div></li>
+                <li><span class="pin">A</span><div><b>打开位置下拉</b>：列出可打开当前工作区的本机 app（各带真实 app 图标），点某项即在该 app 打开。</div></li>
+                <li><span class="pin">B</span><div><b>添加应用…</b>：手动新增一个外部 app 到「打开位置」列表。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">状态</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：左栏对话树 + 中区（canvas 顶栏 + 消息流 + 贴底 Composer）；消息流<b>限宽居中</b>（约 720 可配）。<b>紧凑暂缓</b>（见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd>消息流 + 当前对话选中；Composer 有内容时发送键变绿可发。</dd>
+                  <dt>悬浮</dt>
+                  <dd>树节点悬浮出 kebab（见 S6）；工具卡悬浮可展开。</dd>
+                  <dt>活跃</dt>
+                  <dd>「重构选择器」选中（浅底）；canvas 顶栏侧栏开关高亮。</dd>
+                  <dt>运行</dt>
+                  <dd><b>绿运行点</b>在选中对话与其运行中 subagent；运行中发送键切为取消（红）；排队消息走队列轨（见 S10）。</dd>
+                  <dt>禁用</dt>
+                  <dd>不支持联网的模型联网键直接消失（按能力，非置灰）；空输入发送键变暗；无后续历史 › 变暗。</dd>
+                  <dt>空</dt>
+                  <dd>新对话尚无消息时回 S1 空态。</dd>
+                  <dt>加载</dt>
+                  <dd>切换对话时中区显页级加载；流式回复 AI 气泡逐字 + 工具卡进行态。</dd>
+                  <dt>错误</dt>
+                  <dd>发送失败弹轻提示「发送失败 · 已重新入队 · 重试」（见 S11）；代理报错在消息流显错误卡；出错的对话 / subagent 节点显红点。</dd>
+                  <dt>离线</dt>
+                  <dd>主机断连时切换器红点 + 左栏提示条；运行中对话冻结待重连（见 S11）。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-i">对话（根）/ subagent / 目录节点的右键菜单见 <b>S6</b>（每项列全，按节点类型不同）。本屏消息气泡、工具卡、Composer 无右键菜单（消息内复制走选区或卡片按钮）。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S3 · THREE-ZONE DECOMPOSITION (core) ============ -->
+    <section class="screen" id="s3">
+      <div class="screen-head">
+        <span class="tag new">主壳 · 3 · 核心</span>
+        <h2>三区顶层布局拆解（左栏整体 / 中区顶栏 / 右栏整体）</h2>
+        <p>
+          本轮核心：<b>三个独立整体</b>，逐像素对齐 Codex（图 02/03/05）。下方主图是三区全开态（左栏全高列 + 中区 canvas 顶栏 + 右栏 tab 头同时可见）；再下是逐区拆解，把每区顶部区域与各控件的
+          默认 / 悬浮 / 激活 / 禁用 画清。关键规则：<b>右面板开关——收起时在 canvas 顶栏右；展开后移到右栏 tab 头行尾</b>，屏幕最右上位置不变。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell short">
+            <!-- ZONE 1 全高列 -->
+            <div class="sidebar" style="width: 232px">
+              <div class="sb-lights">
+                <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                <div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg><span class="pinb">1</span></div>
+                <div class="ct-nav">
+                  <div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div>
+                  <div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg><span class="pinb">2</span></div>
+                </div>
+                <span class="drag-hint">⠿ 拖拽区</span>
+              </div>
+              <div class="sb-main">
+                <div class="host-switch">
+                  <div class="host-pill"><span class="dot run"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div>
+                </div>
+                <div class="sb-top">
+                  <div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                  <div class="sb-item muted"><svg class="i sm"><use href="#search" /></svg> 搜索 <span class="kbdkey" style="margin-left: auto">⌘K</span></div>
+                </div>
+                <div class="sb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on" style="padding-left: 26px"><span class="twedge"><svg class="i xs chev"><use href="#chev-r" /></svg></span><span class="dot run"></span><span class="tname">重构选择器</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item muted"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <!-- ZONE 2 自带顶栏 -->
+            <div class="main">
+              <div class="canvas-top">
+                <div class="ct-title">重构选择器</div>
+                <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg><span class="pinb">3</span></div>
+                <div class="ct-spacer"></div>
+                <div class="ct-pos"><svg class="i sm"><use href="#apps" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">4</span></div>
+                <div class="ct-r">
+                  <div class="ct-btn"><svg class="i sm"><use href="#list" /></svg><span class="pinb">5</span></div>
+                </div>
+              </div>
+              <div class="msgs" style="padding: 16px 20px">
+                <div class="msg"><div class="av ai"><svg class="i sm"><use href="#spark" /></svg></div><div class="body">三区都有自己的顶部区域，互相独立。<span class="muted">右栏已展开 →</span></div></div>
+              </div>
+            </div>
+            <!-- ZONE 3 自带 tab 头 -->
+            <div class="resize r"><span class="ln"></span></div>
+            <div class="rpanel" style="width: 300px">
+              <div class="rp-tabs">
+                <div class="rp-tab on fixed"><svg class="i sm"><use href="#spark" /></svg> 审查<span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
+                <div class="rp-tab"><svg class="i sm"><use href="#globe" /></svg> 浏览器<span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
+                <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg><span class="pinb">6</span></div>
+                <div class="rp-ctl">
+                  <div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg><span class="pinb">7</span></div>
+                  <div class="rp-btn active"><svg class="i sm"><use href="#panel-r" /></svg><span class="pinb">8</span></div>
+                </div>
+              </div>
+              <div class="rp-blank"><div class="rpb-ic"><svg class="i"><use href="#spark" /></svg></div><div class="rpb-t">右栏内容区</div><div class="rpb-d">审查 / 终端 / 浏览器 / 文件（见 S4 / S5）</div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 逐区拆解 -->
+        <div class="anno" style="margin-top: 16px">
+          <div class="anno-h">逐区拆解 · 各控件状态（默认 / 悬浮 / 激活 / 禁用）</div>
+          <div class="anno-grid">
+            <div class="anno-card span2">
+              <div class="ac-h">窗口 chrome 细条（侧栏开关 + 前进/后退，在左栏顶·交通灯右）+ 中区 canvas 顶栏（打开位置 / 环境信息·置顶摘要 / 右面板开关）· 控件态（Codex actionButton 28×28 圆角8 · icon 次级→主级）</div>
+              <div style="padding: 14px">
+                <div class="statestrip c4">
+                  <div class="statebox"><div class="statehd">侧栏开关（细条）· 默认</div><div class="ct-btn" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#panel-l" /></svg></div></div>
+                  <div class="statebox"><div class="statehd">· 悬浮</div><div class="ct-btn" style="background: var(--surface2); color: var(--fg)"><svg class="i sm"><use href="#panel-l" /></svg></div></div>
+                  <div class="statebox"><div class="statehd">· 激活（左栏展开）</div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div></div>
+                  <div class="statebox"><div class="statehd">前进/后退（细条）· 禁用</div><div style="display: flex; gap: 1px"><div class="ct-btn dis"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
+                  <div class="statebox"><div class="statehd">左栏收起态 · 细条多出「新对话」</div><div style="display: flex; gap: 3px; align-items: center"><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn"><svg class="i sm"><use href="#chev-r" /></svg></div><div class="ct-btn"><svg class="i sm"><use href="#pen" /></svg></div></div></div>
+                  <div class="statebox"><div class="statehd">打开位置（顶栏）· 默认</div><div class="ct-pos" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#apps" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                  <div class="statebox"><div class="statehd">打开位置 · 悬浮</div><div class="ct-pos" style="background: var(--surface2)"><svg class="i sm"><use href="#apps" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                  <div class="statebox"><div class="statehd">环境信息·置顶摘要 · 默认</div><div class="ct-btn" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#list" /></svg></div></div>
+                  <div class="statebox"><div class="statehd">右面板开关 · 收起态（在此）</div><div class="ct-btn" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#panel-r" /></svg></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="anno-card span2">
+              <div class="ac-h">右栏 tab 头 · 控件态（审查固定第一 + 已开页签 + 新选项卡 + ⤢/收起；右面板开关位移到此）</div>
+              <div style="padding: 14px">
+                <div class="statestrip c4">
+                  <div class="statebox"><div class="statehd">审查（固定）· 选中</div><div class="rp-tab on fixed" style="background: var(--surface2)"><svg class="i sm"><use href="#spark" /></svg> 审查</div></div>
+                  <div class="statebox"><div class="statehd">页签 · 悬浮浮出✕</div><div class="rp-tab showx" style="background: var(--surface1)"><svg class="i sm"><use href="#globe" /></svg> 浏览器<span class="rp-x" style="display: flex"><svg class="i xs"><use href="#x" /></svg></span></div></div>
+                  <div class="statebox"><div class="statehd">新选项卡 +</div><div class="rp-newtab" style="border: 1px solid var(--border)"><svg class="i sm"><use href="#plus" /></svg></div></div>
+                  <div class="statebox"><div class="statehd">⤢ 放大 · 收起</div><div style="display: flex; gap: 1px"><div class="rp-btn" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; color: var(--fgMuted)"><svg class="i sm"><use href="#maximize" /></svg></div><div class="rp-btn active" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center"><svg class="i sm"><use href="#panel-r" /></svg></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card span2">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>侧栏开关（窗口 chrome 细条 · 紧挨交通灯，不在 canvas 顶栏）</b>：切换左栏显隐。激活 = 当前展开。左栏收起后这条细条仍留窗口左上（交通灯不消失），细条变为 <b>[▣ 开关][‹ › 前进后退][✎ 新对话]</b>——收起后多出「新建对话」图标。</div></li>
+                <li><span class="pin">2</span><div><b>前进 / 后退（‹ ›）</b>：对话浏览历史导航；无历史时变暗禁用。</div></li>
+                <li><span class="pin">3</span><div><b>标题 ···</b>：当前对话级菜单（重命名 / 复制 / 归档 / 在 Finder 中显示）。</div></li>
+                <li><span class="pin">4</span><div><b>打开位置 ▾</b>：选 / 显示对话工作的目录 + 分支 / worktree（对齐 Codex「打开位置」；颜色开放项，见 S1）。</div></li>
+                <li><span class="pin">5</span><div><b>环境信息 / 置顶摘要（反馈 ①）</b>：☰ =「切换置顶摘要」（<b>不是大纲</b>），点开浮层「环境信息」popover（变更 / 本地 / 分支 / 提交推送 / GitHub CLI / 来源），与右面板「审查」tab 区分（详解见 S2）。</div></li>
+                <li><span class="pin">6</span><div><b>新选项卡 +</b>：点开小菜单【终端 / 浏览器 ⌘T / 文件 ⌘P】，新增对应类型页签（见 S4 / S5）。</div></li>
+                <li><span class="pin">7</span><div><b>⤢ 放大</b>：右面板放大占满中区 / 还原（见 S13）。只在右面板内提供。</div></li>
+                <li><span class="pin">8</span><div><b>收起（右面板开关）</b>：把整列收起；<b>开关回到 canvas 顶栏右侧</b>（屏幕最右上位置不变）。这就是「收起在顶栏 / 展开在 tab 头」的位移。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">状态</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：三区横排，各自独立顶部区域。<b>紧凑暂缓</b>（见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd>三区都在；canvas 顶栏灰图标透明底；tab 头审查固定第一。</dd>
+                  <dt>悬浮</dt>
+                  <dd>各按钮 / 页签 / 打开位置底色变浅。</dd>
+                  <dt>活跃</dt>
+                  <dd>侧栏开关 / 当前页签 / 右面板开关 高亮（绿 + 浅底）。</dd>
+                  <dt>禁用</dt>
+                  <dd>无历史时 ‹ › 变暗。</dd>
+                  <dt>运行 / 空 / 加载</dt>
+                  <dd>顶部 chrome 无运行 / 空 / 加载态（连接态在主机切换器，内容态在各区内）。</dd>
+                  <dt>错误 / 离线</dt>
+                  <dd>chrome 不反映连接态；离线在主机切换器红点 + 左栏提示条（见 S7 / S11）。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-i">本屏 chrome 控件均为单击切换，<b>无右键菜单</b>。页签的关闭走悬浮✕、新增走「新选项卡 +」（见 S4）。对话树节点的右键见 S6。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S4 · RIGHT PANEL REVIEW (tab strip) ============ -->
+    <section class="screen" id="s4">
+      <div class="screen-head">
+        <span class="tag">主壳 · 4 · 核心</span>
+        <h2>右面板 · 审查（Codex 停靠列 + 自带 tab 头）</h2>
+        <p>
+          右栏是一个整体，顶部是<b>自己的 tab 头</b>：<b>「审查」固定第一个</b> + 已开页签 + <b>「新选项卡 +」</b>点开【终端 / 浏览器 ⌘T / 文件 ⌘P】新增；最右 <b>⤢ 放大 + 收起</b>；左缘可拖拽改宽。页签<b>悬浮浮出关闭 ✕</b>、可<b>左右拖拽调序</b>（放置指示线）。审查 = 当前工作区 Git diff（行号 + 增删 + Stage / Revert / 行评论）。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell">
+            <div class="sidebar" style="width: 200px">
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
+              <div class="sb-main">
+                <div class="host-switch"><div class="host-pill"><span class="dot run"></span><span class="nm">本机</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div></div>
+                <div class="sb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on" style="padding-left: 26px"><span class="twedge leaf"></span><span class="dot run"></span><span class="tname">重构选择器</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item muted"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <div class="main">
+              <div class="canvas-top">
+                <div class="ct-title">重构选择器</div>
+                <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg></div>
+                <div class="ct-spacer"></div>
+                <div class="ct-pos"><svg class="i sm"><use href="#apps" /></svg> paseo-main · develop <svg class="i sm"><use href="#chev-d" /></svg></div>
+                <div class="ct-r"><div class="ct-btn"><svg class="i sm"><use href="#list" /></svg></div></div>
+              </div>
+              <div class="msgs" style="padding: 18px 20px">
+                <div class="msg"><div class="av ai"><svg class="i sm"><use href="#spark" /></svg></div><div class="body">改好级联选择器，右侧审查 diff。<span class="muted">3 文件 · +28 −6</span></div></div>
+              </div>
+              <div style="padding: 12px 20px 16px; border-top: 1px solid var(--border)">
+                <div class="cbox" style="max-width: none">
+                  <div class="cph">继续…</div>
+                  <div class="ctools"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="cspacer"></div><div class="send dim"><svg class="i sm"><use href="#up" /></svg></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="resize r"><span class="ln"></span><span class="pinb" style="position: absolute; top: 10px; left: -7px">6</span></div>
+            <div class="rpanel" style="width: 360px; position: relative">
+              <div class="rp-tabs">
+                <div class="rp-tab on fixed"><svg class="i sm"><use href="#spark" /></svg> 审查<span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span><span class="pinb">1</span></div>
+                <div class="rp-tab showx"><svg class="i sm"><use href="#globe" /></svg> 浏览器<span class="rp-x" style="display: flex"><svg class="i xs"><use href="#x" /></svg></span><span class="pinb">5</span></div>
+                <div class="rp-tabdrop"></div>
+                <div class="rp-tab"><svg class="i sm"><use href="#terminal" /></svg> 终端<span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
+                <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg><span class="pinb">2</span></div>
+                <div class="rp-ctl">
+                  <div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg><span class="pinb">4</span></div>
+                  <div class="rp-btn active"><svg class="i sm"><use href="#panel-r" /></svg></div>
+                </div>
+              </div>
+              <!-- 新选项卡下拉 -->
+              <div class="menu" style="top: 40px; right: 64px; min-width: 184px">
+                <div class="mi"><svg class="i sm"><use href="#terminal" /></svg> 终端 <span class="r kbd">⌃⇧G</span></div>
+                <div class="mi"><svg class="i sm"><use href="#globe" /></svg> 浏览器 <span class="r kbd">⌘T</span></div>
+                <div class="mi"><svg class="i sm"><use href="#file" /></svg> 文件 <span class="r kbd">⌘P</span></div>
+              </div>
+              <div class="diff-file">
+                <svg class="i xs"><use href="#file" /></svg> combined-model-selector.tsx
+                <span class="add" style="margin-left: auto">+28</span> <span class="del">−6</span>
+              </div>
+              <div class="diff-body">
+                <div class="dl"><span class="ln">41</span><span class="ct">  const vendor = useVendor(id)</span></div>
+                <div class="dl del"><span class="ln">42</span><span class="ct">- return &lt;ModelMenu flat /&gt;</span></div>
+                <div class="dl add"><span class="ln">42</span><span class="ct">+ return (</span></div>
+                <div class="dl add"><span class="ln">43</span><span class="ct">+   &lt;Cascade lockedProvider={p}</span></div>
+                <div class="dl add"><span class="ln">44</span><span class="ct">+     vendors={vendors} model={m}/&gt;</span></div>
+                <div class="dl add"><span class="ln">45</span><span class="ct">+ )</span></div>
+              </div>
+              <div style="margin-top: auto; padding: 9px 13px; border-top: 1px solid var(--border); display: flex; gap: 7px">
+                <span class="btn out sm"><svg class="i xs"><use href="#check" /></svg> Stage</span>
+                <span class="btn ghost sm">Revert</span>
+                <span class="btn ghost sm" style="margin-left: auto"><svg class="i xs"><use href="#plus" /></svg> 行评论<span class="pinb">3</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 反馈 ②：右面板「打开后默认态」= 启动器列表（还没选内容） -->
+        <div style="display: grid; grid-template-columns: 1.05fr 1fr; gap: 16px; margin-top: 16px; align-items: start">
+          <div class="card" style="padding: 0; overflow: hidden; background: var(--surface0)">
+            <div class="sec-label" style="padding: 12px 14px 4px">右面板 · 打开后默认态 = <b>启动器列表</b>（刚打开、还没选内容 · 反馈 ②）</div>
+            <div style="height: 286px; display: flex; flex-direction: column; margin: 6px 12px 12px; border: 1px solid var(--border); border-radius: var(--r-md); overflow: hidden; background: var(--surface0)">
+              <div class="rp-tabs">
+                <div class="rp-ctl">
+                  <div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div>
+                  <div class="rp-btn active"><svg class="i sm"><use href="#panel-r" /></svg></div>
+                </div>
+              </div>
+              <div class="rp-empty">
+                <div class="rpe-list">
+                  <div class="rpe-row"><svg class="i sm"><use href="#spark" /></svg> 审查 <span class="kbdkey">⌃⇧G</span><span class="pinb">7</span></div>
+                  <div class="rpe-row"><svg class="i sm"><use href="#terminal" /></svg> 终端</div>
+                  <div class="rpe-row"><svg class="i sm"><use href="#globe" /></svg> 浏览器 <span class="kbdkey">⌘T</span></div>
+                  <div class="rpe-row"><svg class="i sm"><use href="#file" /></svg> 文件 <span class="kbdkey">⌘P</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="card" style="padding: 14px 16px; background: var(--surface0)">
+            <div class="sec-label">启动器 · 流转（反馈 ②）</div>
+            <div class="states">
+              <dl>
+                <dt>默认</dt><dd>右面板<b>刚打开、还没选内容</b> → 显竖排启动器（审查 / 终端 / 浏览器 / 文件，各带快捷键）；顶部只有 ⤢ 放大 + 收起，<b>还没有 tab 页签条</b>。</dd>
+                <dt>点击</dt><dd>点某行 → 打开对应 tab 内容（审查→本屏 diff / 终端·浏览器·文件→S5）；此后顶部出现 tab 页签条 + 「新选项卡 +」。</dd>
+                <dt>悬浮</dt><dd>行底色变浅。</dd>
+                <dt>回到</dt><dd>关掉全部 tab → 回此启动器默认态；「新选项卡 +」也回到这张列表（选类型加 tab）。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card span2">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>审查页签（固定第一）</b>：点它回改动 diff。<b>审查默认不可关</b>（悬浮的 ✕ 置灰，开放项见右键菜单注）。</div></li>
+                <li><span class="pin">2</span><div><b>新选项卡 +</b>：点开下拉【终端 ⌃⇧G / 浏览器 ⌘T / 文件 ⌘P】，选一个就在 tab 头新增对应类型页签（见 S5）；快捷键同等触发。</div></li>
+                <li><span class="pin">3</span><div><b>diff 行操作</b>：悬浮行尾出「+ 行评论」；可按块 / 文件 Stage 或 Revert；标题汇总增删行数。</div></li>
+                <li><span class="pin">4</span><div><b>⤢ 放大 / 收起</b>：⤢ = 面板放大占满中区 / 还原（见 S13）；其右的收起把整列收起、<b>开关回到 canvas 顶栏右</b>（位置不变，见 S3）。放大 / 缩小只在右面板内提供。</div></li>
+                <li><span class="pin">5</span><div><b>页签关闭 ✕（C②）</b>：页签<b>悬浮时</b>行尾浮出 ✕，点它关该页签。关浏览器 / 文件 / 终端 = 仅布局（可重开）。审查不可关。</div></li>
+                <li><span class="pin">6</span><div><b>左缘拖拽改宽（C④）</b>：拖右栏左缘手柄改面板宽度，<b>每工作区记忆</b>（手柄态见 S12）。</div></li>
+                <li><span class="pin">+</span><div><b>页签拖拽调序（C③）</b>：页签可左右拖拽调序，拖动时显<b>蓝绿放置指示线</b>（本屏「浏览器」后那条竖线即指示线）。</div></li>
+                <li><span class="pin">7</span><div><b>启动器（打开默认态 · 反馈 ②）</b>：右面板<b>刚打开、还没选内容</b>时显<b>启动器列表</b>（审查 ⌃⇧G / 终端 / 浏览器 ⌘T / 文件 ⌘P）；点某行打开对应 tab；详见下方「启动器 · 流转」。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">状态</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：右侧停靠列（默认约 360px，可拖宽），与中区以左缘手柄隔开。<b>紧凑暂缓</b>（见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd><b>打开默认 = 启动器列表</b>（反馈 ②，见下方）；选「审查」后审查页签高亮（绿图标）+ diff 文件 / 行 + 底部 Stage / Revert / 行评论。</dd>
+                  <dt>悬浮</dt>
+                  <dd>未选页签底色变浅；页签悬浮浮出 ✕；diff 行悬浮出行评论入口；⤢ / 收起悬浮变浅。</dd>
+                  <dt>活跃</dt>
+                  <dd>当前页签高亮（浅底 + 绿图标）；右面板开关高亮。</dd>
+                  <dt>运行</dt>
+                  <dd>代理改动中 diff 增量刷新（文件 / 行实时累加）。</dd>
+                  <dt>禁用</dt>
+                  <dd>非 Git 工作区时 Stage / Revert 置灰；审查页签 ✕ 置灰（不可关）。</dd>
+                  <dt>空</dt>
+                  <dd>无改动时居中显短句「没有改动」。</dd>
+                  <dt>加载</dt>
+                  <dd>拉取 diff 时面板内显行级加载指示。</dd>
+                  <dt>错误</dt>
+                  <dd>Git 读取失败时面板内显提示框（红边）+ 重试。</dd>
+                  <dt>离线</dt>
+                  <dd>主机断连时面板内容冻结 + 顶部提示重连（随主机状态）。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-grp">页签右键（3 项）</div>
+                <div class="ml-i"><b>关闭页签</b> · <b>关闭其它</b> · <b>关闭全部（保留审查）</b></div>
+                <div class="ml-grp">diff 行右键（2 项）</div>
+                <div class="ml-i"><b>复制行</b> · <b>添加行评论</b></div>
+                <div class="ml-grp">文件标题右键（3 项）</div>
+                <div class="ml-i"><b>Stage 文件</b> · <b>Revert 文件</b> · <b>在 Finder 中显示</b></div>
+                <div class="ml-open"><b>开放项 · 审查可关否</b>：取默认<b>「审查不可关、其余可关」</b>（✕ 在审查页签上置灰）。是否允许关审查待董事长定。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S5 · TERMINAL / BROWSER / FILE (tab content) ============ -->
+    <section class="screen" id="s5">
+      <div class="screen-head">
+        <span class="tag">主壳 · 5</span>
+        <h2>右面板 · 终端 / 浏览器 / 文件（页签内容）</h2>
+        <p>
+          右面板的内容都在页签里。主图是<b>浏览器页签</b>（地址栏 ← → ⟳ + URL + 空态「开始浏览」）；下方拆解三种页签内容：<b>终端</b>（等宽绿字输出 + 光标）、<b>文件</b>（文件树 + 筛选 + 预览）、<b>空态可选列表</b>。<b>终端只在右面板里作为页签，不在中区底部停靠</b>（解决旧版底部停靠的不一致）。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell">
+            <div class="sidebar" style="width: 188px">
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
+              <div class="sb-main">
+                <div class="host-switch"><div class="host-pill"><span class="dot run"></span><span class="nm">本机</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div></div>
+                <div class="sb-sec">对话</div>
+                <div class="tree"><div class="tnode on"><span class="twedge leaf"></span><span class="dot run"></span><span class="tname">重构选择器</span></div></div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item muted"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <div class="main">
+              <div class="canvas-top">
+                <div class="ct-title">重构选择器</div>
+                <div class="ct-more"><svg class="i sm"><use href="#more-h" /></svg></div>
+                <div class="ct-spacer"></div>
+                <div class="ct-pos"><svg class="i sm"><use href="#apps" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div>
+                <div class="ct-r"><div class="ct-btn"><svg class="i sm"><use href="#list" /></svg></div></div>
+              </div>
+              <div class="msgs" style="align-items: center">
+                <div class="msgs-inner"><div class="msg"><div class="av ai"><svg class="i sm"><use href="#spark" /></svg></div><div class="body">已在右侧终端跑完测试，全部通过。要不要打开预览页看效果？</div></div></div>
+              </div>
+              <div style="padding: 10px 18px 14px">
+                <div class="composer" style="margin: 0 auto">
+                  <div class="cbox"><div class="cph">继续…</div><div class="ctools"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="cspacer"></div><div class="send dim"><svg class="i sm"><use href="#up" /></svg></div></div></div>
+                </div>
+              </div>
+            </div>
+            <div class="resize r"><span class="ln"></span></div>
+            <div class="rpanel" style="width: 344px">
+              <div class="rp-tabs">
+                <div class="rp-tab fixed"><svg class="i sm"><use href="#spark" /></svg> 审查<span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
+                <div class="rp-tab on"><svg class="i sm"><use href="#globe" /></svg> 浏览器<span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span><span class="pinb">1</span></div>
+                <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div>
+                <div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div><div class="rp-btn active"><svg class="i sm"><use href="#panel-r" /></svg></div></div>
+              </div>
+              <div class="rp-addr">
+                <svg class="i sm nav"><use href="#chev-l" /></svg>
+                <svg class="i sm nav"><use href="#chev-r" /></svg>
+                <svg class="i sm nav"><use href="#refresh" /></svg>
+                <div class="url">输入 URL…</div>
+                <span class="btn out sm">前往</span>
+              </div>
+              <div class="rp-blank">
+                <div class="rpb-ic"><svg class="i"><use href="#globe" /></svg></div>
+                <div class="rpb-t">开始浏览</div>
+                <div class="rpb-d">输入 URL 以打开页面（桌面端内嵌浏览器）</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="anno" style="margin-top: 16px">
+          <div class="anno-h">三种页签内容 · 拆解</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">终端页签（=面板内页签，不底部停靠）</div>
+              <div style="padding: 12px">
+                <div class="rpanel" style="border: 1px solid var(--border); border-radius: var(--r-md); height: 188px; overflow: hidden">
+                  <div class="rp-tabs" style="height: 36px"><div class="rp-tab on"><svg class="i sm"><use href="#terminal" /></svg> 终端</div><div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div></div></div>
+                  <div class="term"><span class="prompt">~/paseo-main ❯</span> npm test<br />✓ selector.spec.ts (12)<br />✓ cascade.spec.ts (8)<br /><span style="color: var(--fgMuted)">Test Files 2 passed (2)</span><br /><span class="prompt">~/paseo-main ❯</span> <span class="cursor"></span><span class="pinb">3</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">文件页签（文件树 + 筛选 + 预览）</div>
+              <div style="padding: 12px">
+                <div class="rpanel" style="border: 1px solid var(--border); border-radius: var(--r-md); height: 188px; overflow: hidden">
+                  <div class="rp-tabs" style="height: 36px"><div class="rp-tab on"><svg class="i sm"><use href="#file" /></svg> 文件</div><div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div></div></div>
+                  <div class="rp-filebody">
+                    <div class="fb-main"><div class="fb-crumb">src / combined-model-selector.tsx</div><div style="flex: 1; display: flex; align-items: center; justify-content: center; color: var(--fgFaint); font-size: var(--xs)">点开文件预览 / 编辑<span class="pinb">2</span></div></div>
+                    <div class="fb-tree">
+                      <div class="fb-filter"><svg class="i xs"><use href="#search" /></svg> 筛选文件…</div>
+                      <div class="file-tree"><div class="ft-row"><svg class="i sm"><use href="#folder" /></svg> src</div><div class="ft-row on sub"><svg class="i sm"><use href="#file" /></svg> selector.tsx</div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">空态 · 可选内容列表（新面板首开）</div>
+              <div style="padding: 12px">
+                <div class="rpanel" style="border: 1px solid var(--border); border-radius: var(--r-md); height: 188px; overflow: hidden">
+                  <div class="rp-empty" style="padding: 14px">
+                    <div class="rpe-list">
+                      <div class="rpe-row"><svg class="i sm"><use href="#spark" /></svg> 审查</div>
+                      <div class="rpe-row"><svg class="i sm"><use href="#terminal" /></svg> 终端 <span class="kbdkey">⌃⇧G</span></div>
+                      <div class="rpe-row"><svg class="i sm"><use href="#globe" /></svg> 浏览器 <span class="kbdkey">⌘T</span></div>
+                      <div class="rpe-row"><svg class="i sm"><use href="#file" /></svg> 文件 <span class="kbdkey">⌘P</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>浏览器页签</b>：内置页面预览（桌面端内嵌浏览器、网页内嵌框、移动端占位），带地址栏 ← → ⟳ + URL + 前往。</div></li>
+                <li><span class="pin">2</span><div><b>文件页签</b>：文件树 + 筛选；点开预览 / 编辑，按主机与工作区绑定。</div></li>
+                <li><span class="pin">3</span><div><b>终端页签</b>：等宽输出 + 光标；命令执行中流式追加。<b>终端是右面板内的页签</b>，由「新选项卡 +」新增，<b>不再有中区底部停靠</b>（旧不一致已解决）。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">状态</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：三种内容都在右面板页签内；可多开页签并存。<b>紧凑暂缓</b>（见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd>终端绿字输出；浏览器地址栏 + 页面；文件 = 树 + 预览。</dd>
+                  <dt>悬浮</dt>
+                  <dd>页签 / 刷新 / 文件行底色变浅。</dd>
+                  <dt>活跃</dt>
+                  <dd>当前页签高亮；终端聚焦时光标闪。</dd>
+                  <dt>运行</dt>
+                  <dd>终端命令执行中流式追加；浏览器加载时地址栏显加载指示。</dd>
+                  <dt>禁用</dt>
+                  <dd>移动端浏览器为占位（无内嵌）；无工作区目录时文件树空。</dd>
+                  <dt>空</dt>
+                  <dd>终端无历史停提示符；文件树空显「选择一个文件」；新面板首开显可选内容列表。</dd>
+                  <dt>加载</dt>
+                  <dd>终端连接中 / 文件树读取中显行级加载指示。</dd>
+                  <dt>错误</dt>
+                  <dd>终端非 0 退出码显红字；页面加载失败显占位 + 重试。</dd>
+                  <dt>离线</dt>
+                  <dd>主机断连时终端冻结、浏览器 / 文件不可用，随主机状态恢复。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-grp">终端右键（3 项）</div>
+                <div class="ml-i"><b>复制</b> · <b>粘贴</b> · <b>清屏</b></div>
+                <div class="ml-grp">文件树行右键（4 项）</div>
+                <div class="ml-i"><b>打开</b> · <b>重命名</b> · <b>在 Finder 中显示</b> · <b>复制路径</b></div>
+                <div class="ml-grp">浏览器右键（3 项）</div>
+                <div class="ml-i"><b>后退</b> · <b>刷新</b> · <b>复制链接</b></div>
+                <div class="ml-i ml-note">页签的关闭 / 新增走 tab 头（悬浮 ✕ / 新选项卡 +，见 S4）。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S6 · CONVERSATION TREE (infinite nesting) ============ -->
+    <section class="screen" id="s6">
+      <div class="screen-head">
+        <span class="tag new">主壳 · 6 · 核心</span>
+        <h2>左栏 · 对话树（项目 → 对话 → subagent 无限嵌套）</h2>
+        <p>
+          对话<b>不是一层平铺</b>。Claude / Codex 对话都支持 subagent、<b>无限嵌套</b>：项目(目录) → 对话(根 agent) → subagent 子对话 → sub-subagent → … 递归。每个节点：展开箭头（仅有子节点，<b>chevron 旋转</b>）、按深度缩进、状态点（initializing / idle / running / error）、标题、悬浮 kebab（项目行另有「新建对话」）、内联重命名、拖拽排序。右键菜单<b>按节点类型不同</b>。扎根 Paseo 真实 agent 父子关系（见注解）。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell short" style="position: relative">
+            <div class="sidebar" style="width: 296px">
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
+              <div class="sb-main">
+                <div class="host-switch"><div class="host-pill"><span class="dot run"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div></div>
+                <div class="sb-sec">项目 <span class="sb-act"><svg class="i xs"><use href="#folder-plus" /></svg></span></div>
+                <div class="tree">
+                  <!-- 项目（目录）展开，悬浮出 新建对话 + kebab -->
+                  <div class="tnode proj showact">
+                    <span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span>
+                    <svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span>
+                    <span class="tact"><span class="tbtn"><svg class="i xs"><use href="#pen" /></svg></span><span class="tbtn"><svg class="i xs"><use href="#kebab" /></svg></span></span>
+                    <span class="pinb">7</span>
+                  </div>
+                  <!-- 对话(根) 选中 + 运行 + 有 subagent，右键中 -->
+                  <div class="tnode on" style="padding-left: 26px">
+                    <span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span>
+                    <span class="dot run"></span><span class="tname">重构选择器</span><span class="badge-sub">2</span><span class="pinb">1</span>
+                  </div>
+                  <!-- subagent 运行 + 有 sub-subagent -->
+                  <div class="tnode" style="padding-left: 46px">
+                    <span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span>
+                    <svg class="i xs ti"><use href="#robot" /></svg><span class="dot run"></span><span class="tname">写单测</span><span class="pinb">2</span>
+                  </div>
+                  <!-- sub-subagent idle (depth 3) -->
+                  <div class="tnode" style="padding-left: 66px">
+                    <span class="twedge leaf"></span>
+                    <svg class="i xs ti"><use href="#robot" /></svg><span class="dot idle"></span><span class="tname">跑覆盖率</span>
+                  </div>
+                  <!-- subagent 内联重命名中 -->
+                  <div class="tnode" style="padding-left: 46px; background: var(--surfaceSidebarHover)">
+                    <span class="twedge leaf"></span>
+                    <svg class="i xs ti"><use href="#robot" /></svg><span class="dot init"></span><input class="renaming" value="改类型签名" readonly /><span class="pinb">5</span>
+                  </div>
+                  <!-- 对话 错误 + 悬浮 kebab -->
+                  <div class="tnode showact" style="padding-left: 26px">
+                    <span class="twedge leaf"></span>
+                    <span class="dot dan"></span><span class="tname">修复 diff 对齐</span>
+                    <span class="tact"><span class="tbtn"><svg class="i xs"><use href="#kebab" /></svg></span></span>
+                    <span class="pinb">3</span>
+                  </div>
+                  <!-- 拖拽 ghost + 放置指示线 -->
+                  <div class="tdrop"></div>
+                  <div class="tnode ghost" style="padding-left: 26px">
+                    <span class="twedge leaf"></span>
+                    <svg class="i xs grip ti"><use href="#grip" /></svg><span class="tname">跑端到端测试</span><span class="ttime" style="display: flex">拖拽中…</span><span class="pinb">6</span>
+                  </div>
+                  <!-- 项目 收起 -->
+                  <div class="tnode proj"><span class="twedge"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">helm-relay</span></div>
+                </div>
+                <div class="sb-sec">对话</div>
+                <div class="tree"><div class="tnode"><span class="twedge leaf"></span><span class="dot idle"></span><span class="tname">解释 Zod schema</span><span class="ttime">3 分钟前</span></div></div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item muted"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <!-- 对话(根) 右键菜单 -->
+            <div class="ctxmenu" style="top: 96px; left: 268px">
+              <div class="cm-h">对话（根）· 右键</div>
+              <div class="mi"><svg class="i sm"><use href="#pen" /></svg> 重命名 <span class="r kbd">F2</span></div>
+              <div class="mi"><svg class="i sm"><use href="#copy" /></svg> 复制对话</div>
+              <div class="mi"><svg class="i sm"><use href="#folder" /></svg> 移动到目录…</div>
+              <div class="mi"><svg class="i sm"><use href="#archive" /></svg> 归档</div>
+              <div class="mi"><svg class="i sm"><use href="#file" /></svg> 在 Finder 中显示</div>
+              <div class="menu-sep"></div>
+              <div class="mi dz"><svg class="i sm"><use href="#trash" /></svg> 删除</div>
+            </div>
+            <!-- subagent 右键菜单 -->
+            <div class="ctxmenu" style="top: 168px; left: 330px; min-width: 224px">
+              <div class="cm-h">subagent 子节点 · 右键</div>
+              <div class="mi"><svg class="i sm"><use href="#pen" /></svg> 重命名</div>
+              <div class="mi"><svg class="i sm"><use href="#corner-up-left" /></svg> 跳到父对话</div>
+              <div class="mi"><svg class="i sm"><use href="#unlink" /></svg> 剥离为独立对话</div>
+              <div class="mi"><svg class="i sm"><use href="#archive" /></svg> 归档（从父 track 移除）</div>
+              <div class="menu-sep"></div>
+              <div class="mi dz"><svg class="i sm"><use href="#trash" /></svg> 删除</div>
+            </div>
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>对话（根）节点</b>：点选 = 加载到中区；运行点 = 代理执行中；角标数 = subagent 个数；<b>展开箭头（chevron 旋转）</b>收起 / 展开子树。</div></li>
+                <li><span class="pin">2</span><div><b>subagent 节点</b>：机器人图标 + 缩进。点选打开子对话；自身也可有 sub-subagent（递归无限嵌套）。</div></li>
+                <li><span class="pin">3</span><div><b>悬浮 kebab</b>：对话行悬浮，行尾「最近活动时间」换成 kebab，点开 = 对话右键菜单。</div></li>
+                <li><span class="pin">5</span><div><b>内联重命名</b>：双击行 / 菜单「重命名」(F2) 触发，行内变绿框输入（聚焦环），回车提交、Esc 取消。</div></li>
+                <li><span class="pin">6</span><div><b>拖拽排序</b>：长按拖动改顺序 / 拖到另一目录下；拖动时显<b>放置指示线</b>（绿）+ 拖拽 ghost 变淡。</div></li>
+                <li><span class="pin">7</span><div><b>项目行悬浮</b>：行尾浮出「新建对话」+ kebab（目录菜单）。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">状态（节点 · 扎根真实 agent 语义）</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：按深度缩进（每级 20px）；有子节点才有展开箭头。<b>紧凑暂缓</b>（见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd>行尾显最近活动时间；项目行无动作。</dd>
+                  <dt>悬浮</dt>
+                  <dd>行底色变浅；时间换成 kebab（项目行另出「新建对话」）。</dd>
+                  <dt>活跃</dt>
+                  <dd>选中对话高亮；右键时该行也高亮选中。</dd>
+                  <dt>运行</dt>
+                  <dd>绿运行点；<b>运行中 subagent 把「运行」贡献给父对话所属工作区聚合状态</b>（按父 agent 的 workspaceId，非子 cwd）。</dd>
+                  <dt>禁用</dt>
+                  <dd>拖动时其它行变淡；重命名时该行锁为输入态。</dd>
+                  <dt>空</dt>
+                  <dd>无对话段显「还没有对话」；无项目时只剩「对话」段。</dd>
+                  <dt>加载</dt>
+                  <dd>切主机 / 拉列表时段内显行级加载；<b>initializing</b> 节点显蓝绿初始化点（带光晕）。</dd>
+                  <dt>错误</dt>
+                  <dd>出错的对话 / subagent 节点显<b>红点</b>（error）。</dd>
+                  <dt>离线</dt>
+                  <dd>主机离线时列表只读、动作变灰，顶部出重连提示。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card span2">
+              <div class="ac-h">右键菜单（按节点类型 · 三套）</div>
+              <div class="menulist">
+                <div class="ml-grp">对话（根）节点（6 项 + 分隔）</div>
+                <div class="ml-i"><b>重命名 (F2)</b> → 行内重命名 · <b>复制对话</b> → 含恢复命令 · <b>移动到目录…</b> · <b>归档</b> → 移出活跃列表（有未提交改动先确认）· <b>在 Finder 中显示</b> · —— · <b style="color: #b91c1c">删除</b>（确认后删，红）</div>
+                <div class="ml-grp">subagent 子节点（5 项 + 分隔）</div>
+                <div class="ml-i"><b>重命名</b> · <b>跳到父对话</b> · <b>剥离为独立对话 (detach)</b> → 仅清父标签变根 · <b>归档（从父 track 移除）</b> · —— · <b style="color: #b91c1c">删除</b></div>
+                <div class="ml-grp">目录（项目）节点（4 项 + 分隔）</div>
+                <div class="ml-i"><b>在此新建对话</b> · <b>重命名目录</b> · <b>在 Finder 中显示</b> · —— · <b style="color: #b91c1c">移出侧栏</b>（不删磁盘文件，红）</div>
+                <div class="ml-note">
+                  <b>扎根真实语义（docs/agent-lifecycle.md）</b>：subagent 由 agent 用 create_agent(relationship: subagent) 生成、盖 <span style="font-family: var(--mono)">paseo.parent-agent-id</span>，出现在父的 subagents track；<b>父归档则级联归档子（递归）</b>。<b>detach（剥离）</b>= 仅清父标签 → 子变根 / 同级，不停止 / 不归档 / 不移动。关根对话 tab = 归档（运行中先确认）；关 subagent tab = 仅布局（仍留父 track，可重开）。状态枚举：initializing / idle / running / error / closed。
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S7 · HOST SWITCHER + FULL FLOW ============ -->
+    <section class="screen" id="s7">
+      <div class="screen-head">
+        <span class="tag">主壳 · 7 · 净新</span>
+        <h2>主机切换器 + 切换全流程（多主机 / 远程）</h2>
+        <p>
+          <b>反馈 I 修死</b>：下拉框宽度<b>必须跟主机胶囊一样宽</b>、锚在<b>胶囊正下方</b>（同左右缘），<b>绝不铺满栏宽 / 全屏</b>。状态标签（在线 / 连接中 / 离线）用小色点 + 短文案放进受限宽度，主机名过长省略号截断。下方画<b>切换全流程</b>（反馈 G）：切换中过场 → 整工作区重载 → 离线主机点击重连，每态有入口出口、无死胡同。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell short">
+            <div class="sidebar" style="width: 280px">
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
+              <div class="sb-main">
+                <!-- host switcher OPEN: dropdown anchored UNDER pill, SAME width (反馈 I) -->
+                <div class="host-switch">
+                  <div class="host-pill open"><span class="dot run"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">1</span></div>
+                  <div class="host-dd">
+                    <div class="hd-h">主机 · Hosts</div>
+                    <div class="host-row sel"><span class="dot run"></span><span class="hr-nm">本机 · 我的 Mac</span><span class="r"><svg class="i xs"><use href="#check" /></svg></span></div>
+                    <div class="host-row"><span class="dot run"></span><span class="hr-nm">公司 MacBook</span><svg class="i xs relay"><use href="#network" /></svg><span class="hr-st on">在线</span></div>
+                    <div class="host-row"><span class="dot warn"></span><span class="hr-nm">云服务器</span><span class="hr-st ing">连接中</span></div>
+                    <div class="host-row off"><span class="dot dan"></span><span class="hr-nm">旧 Mini</span><span class="hr-st off">离线</span><span class="pinb">3</span></div>
+                    <div class="menu-sep"></div>
+                    <div class="host-row"><svg class="i sm" style="color: var(--fgMuted)"><use href="#plus" /></svg><span class="hr-nm">添加主机…</span><span class="pinb">2</span></div>
+                  </div>
+                </div>
+                <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div><div class="sb-item muted"><svg class="i sm"><use href="#search" /></svg> 搜索</div></div>
+                <div class="sb-sec">项目</div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item muted"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <div class="main" style="align-items: center; justify-content: center">
+              <div style="text-align: center; color: var(--fgFaint); font-size: var(--sm); max-width: 320px; padding: 24px">
+                <svg class="i lg" style="margin: 0 auto 10px; color: var(--surface4)"><use href="#network" /></svg>
+                下拉<b style="color: var(--fg)">= 胶囊同宽、锚其正下</b>（同左右缘）。<br />切主机后，左栏树 + 中区 + 右面板都重载为该主机内容。
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 切换全流程 (反馈 G) -->
+        <div class="anno" style="margin-top: 16px">
+          <div class="anno-h">切换全流程（每态有入口出口 · 无死胡同 · 反馈 G）</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">① 切换中（选另一台在线主机）</div>
+              <div style="padding: 12px">
+                <div class="miniwin">
+                  <div class="mw-top"><span class="l" style="background: #ff5f57"></span><span class="l" style="background: #febc2e"></span><span class="l" style="background: #28c840"></span></div>
+                  <div class="mw-body">
+                    <div class="mw-side"><div class="host-pill" style="height: 22px; padding: 0 6px; font-size: 10px"><span class="dot warn" style="width: 5px; height: 5px"></span><span class="nm">公司 MacBook</span></div><div class="mw-line"></div><div class="mw-line" style="width: 70%"></div></div>
+                    <div class="mw-main"><span class="spin-sm"></span>连接 公司 MacBook…<span class="pinb">4</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">② 整工作区重载（先页级加载，后呈现）</div>
+              <div style="padding: 12px">
+                <div class="miniwin">
+                  <div class="mw-top"><span class="l" style="background: #ff5f57"></span><span class="l" style="background: #febc2e"></span><span class="l" style="background: #28c840"></span></div>
+                  <div class="mw-body">
+                    <div class="mw-side"><div class="mw-line" style="background: var(--surface4)"></div><div class="mw-line"></div><div class="mw-line" style="width: 60%"></div><div class="mw-line" style="width: 80%"></div></div>
+                    <div class="mw-main"><span class="spinner" style="width: 22px; height: 22px; border-width: 2px"></span>重载工作区…<span class="pinb">5</span></div>
+                  </div>
+                </div>
+                <div style="font-size: var(--xs); color: var(--fgFaint); margin-top: 8px; line-height: 1.5">左栏树 + 中区 + 右面板<b style="color: var(--fg)">全部重载</b>为该主机数据。</div>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">③ 离线主机点击重连（不直接切走）</div>
+              <div style="padding: 12px">
+                <div class="miniwin">
+                  <div class="mw-top"><span class="l" style="background: #ff5f57"></span><span class="l" style="background: #febc2e"></span><span class="l" style="background: #28c840"></span></div>
+                  <div class="mw-body">
+                    <div class="mw-side"><div class="host-row off" style="height: 22px; padding: 0 5px; font-size: 10px"><span class="dot dan" style="width: 5px; height: 5px"></span><span class="hr-nm">旧 Mini</span></div><div class="mw-line"></div></div>
+                    <div class="mw-main"><span class="spin-sm"></span>重连 旧 Mini…<div style="font-size: 10px; color: var(--fgFaint)">退避重试 · 失败出提示条</div><span class="pinb">6</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>主机切换器</b>：显当前主机 + 状态点；点开下拉。<b>下拉 = 胶囊同宽、锚其正下</b>（受限宽度内放小色点 + 短状态文案，主机名过长省略号）。</div></li>
+                <li><span class="pin">2</span><div><b>添加主机…</b>：打开添加方式（直连 / 配对链接 / 扫码）。详情属另一项目，本主壳只露入口。</div></li>
+                <li><span class="pin">3</span><div><b>离线主机行</b>：灰显；<b>点击触发重连（不直接切走）</b>，退避重试；失败时左栏出提示条（见 S11）；成功后恢复。</div></li>
+                <li><span class="pin">4</span><div><b>切换中</b>：选另一台在线主机 → 显连接 / 加载过场态。</div></li>
+                <li><span class="pin">5</span><div><b>整工作区重载</b>：切换成功 → 左栏树 + 中区 + 右面板<b>全部重载</b>为该主机数据（先页级加载，后呈现新内容）。</div></li>
+                <li><span class="pin">6</span><div><b>离线重连</b>：点离线主机 → 重连中（退避重试）→ 成功恢复 / 失败提示条重试。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">状态</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：下拉锚切换器、<b>左右对齐其宽度</b>（绝不超出左栏 / 全屏）。<b>紧凑暂缓</b>（见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd>当前主机切换器（在线绿点 + 名 + ▾）。</dd>
+                  <dt>悬浮</dt>
+                  <dd>切换器底色加深；菜单项底色变浅。</dd>
+                  <dt>活跃</dt>
+                  <dd>打开下拉时切换器显绿边 + 聚焦环；当前主机行打 ✓ + 选中底。</dd>
+                  <dt>运行</dt>
+                  <dd>「连接中」主机显橙点 + 橙字；切换中显过场加载。</dd>
+                  <dt>禁用</dt>
+                  <dd>离线主机半透明（可点触发重连，非纯禁用）。</dd>
+                  <dt>空</dt>
+                  <dd>仅本机一台时，下拉只列本机 + 添加主机…。</dd>
+                  <dt>加载</dt>
+                  <dd>切主机时整工作区重载（页级加载）；探测时行内显「检测中」。</dd>
+                  <dt>错误</dt>
+                  <dd>切换 / 保存主机失败弹轻提示 / 弹窗内提示。</dd>
+                  <dt>离线</dt>
+                  <dd>当前主机离线时切换器显红点；下拉里红字「离线」；左栏出重连提示条（见 S11）。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-i">本屏无右键菜单（菜单本身就是下拉项）。主机的管理动作（重命名 / 移除 / 连接设置）在设置的主机级页（S14 露入口，详情属另一项目）。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S8 · COMMAND PALETTE ============ -->
+    <section class="screen" id="s8">
+      <div class="screen-head">
+        <span class="tag">主壳 · 8</span>
+        <h2>⌘K 命令面板</h2>
+        <p>
+          蒙层 + 命令面板（搜索框 + 跳转 / 操作 / 快速切中转站 三组 + 快捷键提示）。↑↓ 选、回车执行、Esc 关；上下文感知（在对话中多出对话级操作）；跨主机聚合搜索。尺寸对齐 Codex（约 600 宽 · 圆角 16 · 命令项圆角 12）。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell short">
+            <div class="backdrop" style="flex: 1; padding-top: 54px">
+              <div class="cmdk">
+                <div class="cmdk-in">
+                  <svg class="i md"><use href="#search" /></svg><span style="color: var(--fg)">切换</span>
+                  <span style="width: 1px; height: 18px; background: var(--accentBright)"></span>
+                  <span class="kbdkey" style="margin-left: auto">Esc</span><span class="pinb">3</span>
+                </div>
+                <div style="max-height: 360px; padding-bottom: 8px">
+                  <div class="cmdk-sec">跳转</div>
+                  <div class="ci on"><svg class="i sm"><use href="#pen" /></svg> 新对话<span class="kbd">⌘N</span><span class="pinb">1</span></div>
+                  <div class="ci"><svg class="i sm"><use href="#history" /></svg> 搜索会话历史</div>
+                  <div class="ci"><svg class="i sm"><use href="#settings" /></svg> 打开设置<span class="kbd">⌘,</span></div>
+                  <div class="cmdk-sec">操作</div>
+                  <div class="ci"><svg class="i sm"><use href="#network" /></svg> 切换主机…</div>
+                  <div class="ci"><svg class="i sm"><use href="#lock" /></svg> 切换中转站 / 模型…</div>
+                  <div class="ci"><svg class="i sm"><use href="#terminal" /></svg> 打开终端<span class="kbd">⌃⇧G</span></div>
+                  <div class="cmdk-sec">快速切中转站（当前对话）<span class="pinb" style="margin-left: 4px">2</span></div>
+                  <div class="ci"><span class="dot run"></span> 智谱 GLM · glm-4.6 <span class="r" style="margin-left: auto; color: var(--accentBright)"><svg class="i xs"><use href="#check" /></svg></span></div>
+                  <div class="ci"><span class="dot run"></span> DeepSeek · deepseek-v4-pro</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>命令项</b>：点击或回车执行（新对话 ⌘N、打开设置 ⌘,、打开终端 ⌃⇧G 等带快捷键）。</div></li>
+                <li><span class="pin">2</span><div><b>快速切中转站</b>：仅在对话上下文显示；选中即切当前对话的中转站 / 模型（下条生效），当前项打 ✓。</div></li>
+                <li><span class="pin">3</span><div><b>Esc</b>：关闭面板。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">状态</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：居中弹窗（约 600 宽 + 蒙层）。<b>紧凑暂缓</b>（见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd>搜索框聚焦 + 分组列表；首项高亮。</dd>
+                  <dt>悬浮</dt>
+                  <dd>命令项底色变浅（与键盘高亮一致）。</dd>
+                  <dt>活跃</dt>
+                  <dd>↑↓ 移动高亮；回车执行当前高亮项。</dd>
+                  <dt>运行</dt>
+                  <dd>跨主机搜索时聚合结果异步填充。</dd>
+                  <dt>禁用</dt>
+                  <dd>无可用上下文时「快速切中转站」组不显示（非置灰）。</dd>
+                  <dt>空</dt>
+                  <dd>无匹配时显短句「无结果」。</dd>
+                  <dt>加载</dt>
+                  <dd>跨主机聚合中，列表底部显行级加载指示。</dd>
+                  <dt>错误</dt>
+                  <dd>某台主机源失败时该组顶部红字注明（部分失败，其余照列）。</dd>
+                  <dt>离线</dt>
+                  <dd>离线主机的结果灰显标「离线」，选中触发重连。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-i">本屏无右键菜单（命令面板为纯键盘 + 单击）。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S9 · CASCADE SELECTOR ============ -->
+    <section class="screen" id="s9">
+      <div class="screen-head">
+        <span class="tag">主壳 · 9</span>
+        <h2>三层级联选择器（展开）</h2>
+        <p>
+          级联胶囊点开两级菜单：① 锁定的提供方 + 中转站列表（健康点 / 延迟 / 当前 / 管理中转站…）；②
+          模型子菜单（放出的子集 + 设为默认）。提供方🔒只在新对话时选一次；中转站和模型在对话中可切，下条消息生效。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell short" style="background: var(--surfaceWorkspace); position: relative; display: flex; align-items: flex-end; justify-content: center; padding: 0 0 22px">
+            <div style="width: 660px; position: relative">
+              <div style="position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; align-items: flex-end">
+                <div class="menu" style="position: static; min-width: 248px">
+                  <div class="mi head">提供方（已锁定）</div>
+                  <div class="mi lockrow"><svg class="i sm lk"><use href="#lock" /></svg> Claude Code <span class="r"><svg class="i xs"><use href="#check" /></svg></span><span class="pinb">1</span></div>
+                  <div class="menu-sep"></div>
+                  <div class="mi head">中转站</div>
+                  <div class="mi"><svg class="i sm"><use href="#link" /></svg> 直连 · 官方 <span class="r"><svg class="i xs"><use href="#chev-r" /></svg></span></div>
+                  <div class="mi sel" style="background: var(--surface2)"><span class="dot run"></span> 智谱 GLM <span class="badge mut" style="margin-left: 6px">320ms</span><span class="r"><svg class="i xs"><use href="#chev-r" /></svg></span><span class="pinb">2</span></div>
+                  <div class="mi"><span class="dot run"></span> DeepSeek <span class="badge mut" style="margin-left: 6px">180ms</span><span class="r"><svg class="i xs"><use href="#chev-r" /></svg></span></div>
+                  <div class="mi"><span class="dot warn"></span> Moonshot <span class="r"><svg class="i xs"><use href="#chev-r" /></svg></span></div>
+                  <div class="menu-sep"></div>
+                  <div class="mi" style="color: var(--fgMuted)"><svg class="i sm"><use href="#sliders" /></svg> 管理中转站…<span class="pinb">4</span></div>
+                </div>
+                <div class="menu" style="position: static; min-width: 210px">
+                  <div class="mi head">智谱 GLM · 模型（放出 4）</div>
+                  <div class="mi sel"><svg class="i sm"><use href="#spark" /></svg> glm-4.6 <span class="r"><svg class="i xs"><use href="#check" /></svg></span><span class="pinb">3</span></div>
+                  <div class="mi">glm-4.5-air</div>
+                  <div class="mi">glm-4.5</div>
+                  <div class="mi">glm-4.6[1M] <span class="badge acc" style="margin-left: 6px">长上下文</span></div>
+                  <div class="menu-sep"></div>
+                  <div class="mi" style="color: var(--fgMuted)"><svg class="i sm"><use href="#check" /></svg> 设为该中转站默认</div>
+                </div>
+              </div>
+              <div class="composer" style="max-width: none">
+                <div class="cbox"><div class="cph">问点什么…</div><div class="ctools"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="cspacer"></div><div class="send dim"><svg class="i sm"><use href="#up" /></svg></div></div></div>
+                <div class="cascade-row">
+                  <div class="cascade focus">
+                    <svg class="i sm lock"><use href="#lock" /></svg> Claude Code <span class="sep">·</span> 智谱 GLM <span class="sep">·</span> glm-4.6
+                    <svg class="i sm" style="color: var(--accentBright)"><use href="#updown" /></svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>提供方（锁定）</b>：顶段灰显带锁，打 ✓，<b>仅新对话时选一次</b>；对话进行中不可改。</div></li>
+                <li><span class="pin">2</span><div><b>中转站</b>：悬浮 / 点击展开右侧模型子菜单；健康点 + 延迟来自测速；当前项高亮。</div></li>
+                <li><span class="pin">3</span><div><b>模型</b>：只列放出的子集；选完关菜单，<b>下条消息生效</b>；可「设为该中转站默认」。</div></li>
+                <li><span class="pin">4</span><div><b>管理中转站…</b>：跳设置 › 主机 › 提供方与中转站（深度管理属另一项目，只露入口）。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">状态</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：Composer 下方单胶囊，点开为两级横排菜单。<b>紧凑暂缓</b>（见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd>单胶囊：提供方🔒 · 中转站 · 模型。</dd>
+                  <dt>悬浮</dt>
+                  <dd>胶囊边色加深；菜单项底色变浅；中转站行悬浮展开模型子菜单。</dd>
+                  <dt>活跃</dt>
+                  <dd>打开时胶囊显绿边 + 聚焦环；当前中转站 / 模型高亮并打 ✓。</dd>
+                  <dt>运行</dt>
+                  <dd>测速进行时延迟标签显「…ms 检测中」。</dd>
+                  <dt>禁用</dt>
+                  <dd>提供方段恒锁（灰显）；无可用模型的中转站行置灰。</dd>
+                  <dt>空</dt>
+                  <dd>未配置中转站时列表仅剩「直连 · 官方」+「管理中转站…」。</dd>
+                  <dt>加载</dt>
+                  <dd>拉模型列表时子菜单显行级加载指示。</dd>
+                  <dt>错误</dt>
+                  <dd>中转站不健康时显黄 / 红点 + 行内红字原因；切换失败弹轻提示。</dd>
+                  <dt>离线</dt>
+                  <dd>主机离线时胶囊禁用（不可切，随主机状态）。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-i">本屏无右键菜单（「设为默认 / 管理」是菜单内项，非右键）。</div>
+                <div class="ml-i ml-note">设计采用<b>单胶囊三层级联</b>（提供方 · 中转站 · 模型），把分开的提供方 / 模型选择合并成一个胶囊。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S10 · COMPOSER FULL STATES (colored token) ============ -->
+    <section class="screen" id="s10">
+      <div class="screen-head">
+        <span class="tag">主壳 · 10</span>
+        <h2>Composer 全态：彩色 / 命令 token + @ 提及 + 队列 / 附件 / 工具行</h2>
+        <p>
+          <b>反馈 K</b>：输入 <b>/</b> 后命令高亮成<b>带颜色的 token</b>（不是灰字）；颜色取 <b>accent 绿（#20744A 系）</b>——开放项见注解（Codex 用蓝，图 05「Skill Creator」）。Composer 整体更贴 Codex：工具行干净（左工具组 + 右模型选择器内联），斜杠 / @ token 带色。上方有队列轨 + 附件盘；功能按钮按所选模型能力显隐。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell short" style="background: var(--surfaceWorkspace); display: flex; flex-direction: column; justify-content: flex-end; padding: 0 0 18px">
+            <div style="width: 680px; margin: 0 auto; position: relative">
+              <!-- slash menu -->
+              <div class="menu" style="bottom: 148px; left: 0; min-width: 300px">
+                <div class="mi head">斜杠命令 · /</div>
+                <div class="mi sel" style="background: var(--surface2)"><span class="tok">/review</span> <span style="color: var(--fgFaint); font-size: var(--xs); margin-left: 4px">审查当前改动</span></div>
+                <div class="mi"><span class="tok">/plan</span> <span style="color: var(--fgFaint); font-size: var(--xs); margin-left: 4px">先规划再执行</span></div>
+                <div class="mi"><span class="tok">/compact</span> <span style="color: var(--fgFaint); font-size: var(--xs); margin-left: 4px">压缩上下文</span></div>
+                <div class="mi"><span class="tok">/side</span> <span style="color: var(--fgFaint); font-size: var(--xs); margin-left: 4px">开侧边对话</span></div>
+              </div>
+              <div class="composer" style="max-width: none">
+                <!-- queue track -->
+                <div style="display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 11px; background: var(--surface1); border: 1px solid var(--border); border-radius: var(--r-md); font-size: var(--s12); color: var(--fgMuted)">
+                  <svg class="i sm"><use href="#clock" /></svg> 队列 · 2 条待发<span class="pinb">4</span>
+                  <span style="margin-left: auto"><svg class="i sm"><use href="#chev-d" /></svg></span>
+                </div>
+                <!-- attachment tray -->
+                <div class="chips" style="padding: 2px 0">
+                  <span class="chip"><svg class="i xs"><use href="#file" /></svg> selector.tsx <svg class="i xs"><use href="#x" /></svg></span>
+                  <span class="chip"><svg class="i xs"><use href="#globe" /></svg> 截图.png <svg class="i xs"><use href="#x" /></svg></span>
+                  <span class="chip"><svg class="i xs"><use href="#branch" /></svg> PR #1645 <svg class="i xs"><use href="#x" /></svg></span>
+                  <span class="pinb">2</span>
+                </div>
+                <div class="cbox focus">
+                  <div class="ctext"><span class="tok">/review</span> <span class="tok at">@selector.tsx</span> 顺手看下这个文件的改动<span class="pinb">1</span></div>
+                  <div class="ctools">
+                    <div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div>
+                    <div class="ctool icon"><svg class="i sm"><use href="#at" /></svg></div>
+                    <div class="ctool on"><svg class="i sm"><use href="#brain" /></svg> 思考·高</div>
+                    <div class="ctool"><svg class="i sm"><use href="#sliders" /></svg> Plan</div>
+                    <div class="ctool icon"><svg class="i sm"><use href="#globe" /></svg></div>
+                    <div class="cspacer"></div>
+                    <div class="ctool icon"><svg class="i sm"><use href="#mic" /></svg><span class="pinb">3</span></div>
+                    <div class="cascade inline"><svg class="i sm lock"><use href="#lock" /></svg> 智谱 GLM · glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg></div>
+                    <div class="send"><svg class="i sm"><use href="#up" /></svg></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>斜杠 / @ 彩色 token（K）</b>：输入 <b>/</b> 弹命令菜单（review / plan / compact / side…），选中 / 命令变成<b>带色 chip</b>；输入 <b>@</b> 弹文件 / Agent 提及，选中变成<b>带色标签</b>注入上下文。颜色取 accent 绿。</div></li>
+                <li><span class="pin">2</span><div><b>附件盘</b>：文件 / 图片（拖入或粘贴）、GitHub PR 与 Issue 都成标签、可删（×）；超长可滚动。</div></li>
+                <li><span class="pin">3</span><div><b>语音</b>：麦克风录音转写（移动端设备麦、网页浏览器录音），转写文字可编辑后再发。</div></li>
+                <li><span class="pin">4</span><div><b>队列轨</b>：运行中可排队消息，点 ▾ 展开重排 / 删除。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">状态</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：工具行平铺在输入框里（左工具组 + 右模型选择器 + 发送，贴 Codex footer）。<b>紧凑暂缓</b>（见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd>输入框 + 占位；发送键变暗；工具行按模型能力显隐。</dd>
+                  <dt>悬浮</dt>
+                  <dd>工具按钮底色变浅；标签的 × 悬浮高亮；斜杠菜单项底色变浅。</dd>
+                  <dt>活跃</dt>
+                  <dd>输入框聚焦环；开启的开关（思考·高）显绿底；斜杠菜单首项选中；/ @ token 高亮成色块。</dd>
+                  <dt>运行</dt>
+                  <dd>代理运行中发送键变取消（红）；可排队消息进队列轨；队列轨显待发条数。</dd>
+                  <dt>禁用</dt>
+                  <dd>按模型能力：不支持联网 / 思考的模型，对应键<b>直接消失（非置灰）</b>；空输入发送键变暗。</dd>
+                  <dt>空</dt>
+                  <dd>无输入无附件时只剩输入框 + 占位；无排队时队列轨不显示。</dd>
+                  <dt>加载</dt>
+                  <dd>附件上传中标签内显行级加载；语音转写中麦克风旋转。</dd>
+                  <dt>错误</dt>
+                  <dd>发送失败弹轻提示「发送失败 · 已重新入队 · 重试」；附件超限字段下显红字。</dd>
+                  <dt>离线</dt>
+                  <dd>主机断连时发送键禁用，队列保留待重连。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-grp">输入区右键（系统级 3 项）</div>
+                <div class="ml-i"><b>剪切 · 复制 · 粘贴</b>（粘贴图片自动进附件盘）</div>
+                <div class="ml-grp">队列项右键（2 项）</div>
+                <div class="ml-i"><b>立即发送</b> · <b>从队列移除</b></div>
+                <div class="ml-open"><b>开放项 · token 颜色</b>：本稿 / @ token 取 <b>accent 绿（#20744A 系）</b>守设计系统；Codex 原版用蓝（图 05「Skill Creator」蓝 token）。是否改蓝待董事长定。附件标签删除走 × 按钮（非右键）。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S11 · STATES ON ONE SCREEN ============ -->
+    <section class="screen" id="s11">
+      <div class="screen-head">
+        <span class="tag">主壳 · 11</span>
+        <h2>状态合屏：搜索浮层 + 空 / 加载 / 错误 / 离线</h2>
+        <p>
+          一屏汇总各状态：搜索浮层（对话 / 消息匹配高亮 / 目录）、空态（短名词 + 单虚线占位按钮）、加载（行级 + 页级）、错误（提示框 + 轻提示）、离线（侧栏提示条 + 主机红点）。错误用提示框，瞬时反馈用轻提示，跨界面断连用侧栏提示条。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px">
+          <div>
+            <div class="sec-label">① 搜索浮层（= ⌘K 命令面板搜索模式）</div>
+            <div class="cmdk" style="width: auto; box-shadow: var(--sh-lg)">
+              <div class="cmdk-in" style="font-size: var(--base)"><svg class="i sm"><use href="#search" /></svg><span style="color: var(--fg)">selector</span><span class="pinb">1</span></div>
+              <div style="padding-bottom: 8px">
+                <div class="cmdk-sec">对话</div>
+                <div class="ci on"><svg class="i sm"><use href="#msg" /></svg> 重构<b style="color: var(--accentBright)">selector</b></div>
+                <div class="cmdk-sec">消息匹配</div>
+                <div class="ci"><svg class="i sm"><use href="#quote" /></svg> "…级联<b style="color: var(--accentBright)">selector</b>放下方"</div>
+                <div class="cmdk-sec">目录</div>
+                <div class="ci"><svg class="i sm"><use href="#folder" /></svg> paseo-main</div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="sec-label">② 空态 / 加载</div>
+            <div class="card" style="padding: 28px 16px; text-align: center; margin-bottom: 12px">
+              <div style="color: var(--fgMuted); font-size: var(--base)">还没有对话</div>
+              <div style="margin-top: 12px"><span class="btn ghost" style="border: 1px solid var(--borderAccent)"><svg class="i xs"><use href="#pen" /></svg> 开始新对话<span class="pinb">2</span></span></div>
+            </div>
+            <div class="card" style="padding: 16px; margin-bottom: 12px">
+              <div style="display: flex; align-items: center; gap: 9px; color: var(--fgMuted); font-size: var(--sm)"><span class="spin-sm"></span> 加载会话…（行级 inline）</div>
+            </div>
+            <div class="card" style="padding: 24px; display: flex; align-items: center; justify-content: center"><div class="spinner"></div></div>
+            <div style="font-size: var(--xs); color: var(--fgFaint); margin-top: 6px; text-align: center">页级居中加载</div>
+          </div>
+          <div>
+            <div class="sec-label">③ 错误 / 离线</div>
+            <div class="alertbox err" style="margin-bottom: 12px">
+              <svg class="i sm"><use href="#alert" /></svg>
+              <div>
+                <div class="at">无法连接主机</div>
+                <div class="ad">连接超时。等其上线后重试。</div>
+                <div style="margin-top: 8px"><span class="btn out sm">重试<span class="pinb">3</span></span></div>
+              </div>
+            </div>
+            <div style="margin-bottom: 12px">
+              <span class="toast"><svg class="i sm" style="color: #b91c1c"><use href="#alert" /></svg> 发送失败 · 已重新入队 <span class="btn ghost sm" style="margin-left: 4px">重试</span></span>
+            </div>
+            <div class="sb-callout" style="background: var(--surface1)">
+              <div class="ct"><svg class="i sm" style="color: #b91c1c"><use href="#wifioff" /></svg> 主机离线</div>
+              与「云服务器」断开。<span style="color: var(--accentBright)">重新连接</span><span class="pinb">4</span>
+            </div>
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>搜索</b>：⌘K 或侧栏搜索唤出；跨 对话标题 / 消息内容 / 目录 命中，高亮关键词，↑↓ 选、回车跳转。<b>就是命令面板的搜索模式</b>（无独立搜索界面）。</div></li>
+                <li><span class="pin">2</span><div><b>空态按钮</b>：「开始新对话」是唯一虚线占位主操作（短名词 + 单按钮，最大化克制）。</div></li>
+                <li><span class="pin">3</span><div><b>错误重试</b>：提示框内描边「重试」重连主机；轻提示内「重试」重发消息。</div></li>
+                <li><span class="pin">4</span><div><b>提示条重连</b>：左栏提示条「重新连接」触发主机重连（失败按退避策略重试，见 S7）。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card span2">
+              <div class="ac-h">状态（本屏即各状态汇总）</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：搜索居中浮层；空 / 加载 / 错误分散在各自最小作用域。<b>紧凑暂缓</b>（见 S15）。</dd>
+                  <dt>空</dt>
+                  <dd>短名词「还没有对话」+ 单个虚线占位按钮「开始新对话」。</dd>
+                  <dt>加载</dt>
+                  <dd>行级加载（列表 / 字段旁小转圈）或页级居中加载（大转圈）。</dd>
+                  <dt>错误</dt>
+                  <dd>流程内提示框（红边 + 恢复按钮）；瞬时轻提示（可重试）；字段错误在字段下显红色小字。</dd>
+                  <dt>离线</dt>
+                  <dd>主机状态点转红 + 左栏提示条（断网图标 + 重连）；自动按退避策略重连。</dd>
+                  <dt>悬浮</dt>
+                  <dd>搜索项底色变浅；重试 / 重连按钮悬浮加深。</dd>
+                  <dt>活跃</dt>
+                  <dd>搜索高亮项选中；提示条重连点击中显「连接中…」。</dd>
+                  <dt>运行 / 禁用</dt>
+                  <dd>重连进行时按钮转「连接中…」；重试进行中禁用按钮，避免重复触发。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-i">搜索结果行的右键菜单与 S6 的对话 / 目录右键一致。提示框、轻提示、提示条本身无右键菜单。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S12 · SIDEBAR DRAG-RESIZE EFFECT STATES (new) ============ -->
+    <section class="screen" id="s12">
+      <div class="screen-head">
+        <span class="tag new">主壳 · 12 · 新</span>
+        <h2>侧栏拖拽改大小 · 效果态（左栏右缘 + 右栏左缘）</h2>
+        <p>
+          补齐反馈 <b>D / E</b> 的缺失态：左栏<b>右缘</b>、右栏<b>左缘</b>各一套拖拽手柄。手柄形态贴 Codex（6px 命中区 + 1px 竖线）；<b>拖拽时手柄高亮（accent 绿）</b> + <b>宽度气泡</b>（如「288px」）；<b>到达最小 / 最大宽约束</b>时手柄变橙、气泡标 min / max 值。<span style="color: var(--fgFaint)">（Codex 原版仅 hover 变深灰、无气泡 / 无 min-max；本设计为 Helm 净新增强。）</span>
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell short">
+            <div class="sidebar" style="width: 248px">
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
+              <div class="sb-main">
+                <div class="host-switch"><div class="host-pill"><span class="dot run"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div></div>
+                <div class="sb-sec">项目</div>
+                <div class="tree"><div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div><div class="tnode on" style="padding-left: 26px"><span class="twedge leaf"></span><span class="dot run"></span><span class="tname">重构选择器</span></div></div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item muted"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <!-- 左栏右缘手柄 · 拖拽中（绿 + 气泡） -->
+            <div class="resize l drag"><span class="ln"></span><span class="width-bubble left">248px<span class="pinb">2</span></span><span class="pinb" style="position: absolute; top: 8px; left: 8px">1</span></div>
+            <div class="main">
+              <div class="canvas-top">
+                <div class="ct-title">重构选择器</div>
+                <div class="ct-spacer"></div>
+                <div class="ct-pos"><svg class="i sm"><use href="#apps" /></svg> 打开位置 <svg class="i sm"><use href="#chev-d" /></svg></div>
+              </div>
+              <div class="msgs" style="align-items: center"><div class="msgs-inner"><div class="msg"><div class="av ai"><svg class="i sm"><use href="#spark" /></svg></div><div class="body">拖左栏右缘 / 右栏左缘改宽，每工作区记忆宽度。</div></div></div></div>
+            </div>
+            <!-- 右栏左缘手柄 · 拖拽中（绿 + 气泡） -->
+            <div class="resize r drag"><span class="ln"></span><span class="width-bubble right">360px<span class="pinb">4</span></span></div>
+            <div class="rpanel" style="width: 300px">
+              <div class="rp-tabs"><div class="rp-tab on fixed"><svg class="i sm"><use href="#spark" /></svg> 审查</div><div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div><div class="rp-btn active"><svg class="i sm"><use href="#panel-r" /></svg></div></div></div>
+              <div class="rp-blank"><div class="rpb-ic"><svg class="i"><use href="#spark" /></svg></div><div class="rpb-t">审查</div></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="anno" style="margin-top: 16px">
+          <div class="anno-h">手柄四态 · 拆解（默认 / 悬浮 / 拖拽 / 触限）</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">默认 / 悬浮</div>
+              <div style="padding: 18px; display: flex; gap: 30px; justify-content: center; align-items: center; height: 120px">
+                <div style="text-align: center"><div style="height: 60px; width: 6px; position: relative; margin: 0 auto"><span style="position: absolute; top: 0; bottom: 0; left: 2px; width: 1px; background: var(--border)"></span></div><div style="font-size: var(--xs); color: var(--fgFaint); margin-top: 6px">默认<br />1px 细线</div></div>
+                <div style="text-align: center"><div style="height: 60px; width: 6px; position: relative; margin: 0 auto"><span style="position: absolute; top: 8px; bottom: 8px; left: 2px; width: 2px; background: var(--borderHeavy)"></span></div><div style="font-size: var(--xs); color: var(--fgFaint); margin-top: 6px">悬浮<br />变深灰加粗</div></div>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">拖拽中（绿 + 气泡）</div>
+              <div style="padding: 18px; display: flex; justify-content: center; align-items: center; height: 120px; position: relative">
+                <div style="height: 72px; width: 6px; position: relative"><span style="position: absolute; top: 0; bottom: 0; left: 2px; width: 2px; background: var(--accent)"></span><span class="width-bubble" style="left: 12px; box-shadow: var(--sh-sm)">288px</span></div>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">触达 min / max（橙 + 标值）<span class="pinb">3</span></div>
+              <div style="padding: 18px; display: flex; gap: 28px; justify-content: center; align-items: center; height: 120px">
+                <div style="height: 72px; width: 6px; position: relative"><span style="position: absolute; top: 0; bottom: 0; left: 2px; width: 2px; background: var(--warning)"></span><span class="width-bubble warn" style="left: 12px">min 220px</span></div>
+                <div style="height: 72px; width: 6px; position: relative"><span style="position: absolute; top: 0; bottom: 0; left: 2px; width: 2px; background: var(--warning)"></span><span class="width-bubble warn" style="left: 12px">max 560px</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>左栏右缘手柄（D）</b>：拖动改左栏宽度，<b>每工作区记忆</b>。命中区 6px、静止显 1px 细线（Codex 形态）。</div></li>
+                <li><span class="pin">2</span><div><b>宽度气泡（E）</b>：拖拽时手柄旁浮出当前宽度（如「288px」），实时更新。</div></li>
+                <li><span class="pin">3</span><div><b>最小 / 最大约束（E）</b>：到达上下限时手柄<b>变橙</b>、气泡标「min 220px」/「max 560px」，再拖有阻力。</div></li>
+                <li><span class="pin">4</span><div><b>右栏左缘手柄（C④ / D）</b>：拖动改右面板宽度，同样有绿手柄 + 气泡 + min / max。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">状态</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：左栏右缘 + 右栏左缘各一手柄。<b>紧凑暂缓</b>（紧凑态侧栏改覆盖 / 无拖宽，见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd>手柄静止 = 1px 细线（几乎隐形），与栏边对齐。</dd>
+                  <dt>悬浮</dt>
+                  <dd>线变深灰（border-heavy）+ 加粗到 2px，鼠标 col-resize。</dd>
+                  <dt>活跃（拖拽中）</dt>
+                  <dd>手柄高亮 <b>accent 绿</b> + 宽度气泡跟随；松手落到最近合法宽度并记忆。</dd>
+                  <dt>禁用</dt>
+                  <dd>到达 min / max 时手柄变橙、超出方向不再变宽（阻力）。</dd>
+                  <dt>运行 / 空 / 加载 / 错误 / 离线</dt>
+                  <dd>无（拖拽是纯布局手势，不受连接 / 运行态影响；离线时仍可拖，只是内容冻结）。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-grp">手柄右键（2 项）</div>
+                <div class="ml-i"><b>重置为默认宽度</b> · <b>折叠该栏</b></div>
+                <div class="ml-i ml-note">双击手柄 = 重置为默认宽度（快捷）。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S13 · RIGHT PANEL MAXIMIZE / RESTORE (new) ============ -->
+    <section class="screen" id="s13">
+      <div class="screen-head">
+        <span class="tag new">主壳 · 13 · 新</span>
+        <h2>右面板放大 / 缩小（⤢ 占满中区 / 还原）+ 其它可放大区</h2>
+        <p>
+          补齐反馈 <b>H</b>：右面板 <b>⤢ 放大</b> = 扩张<b>占满中区</b>（左栏保留），带<b>还原 ⤡</b> 回到停靠态。识别<b>其它可放大区域</b>：右面板内<b>单个页签</b>（审查 diff / 终端 / 浏览器 / 文件）也可各自放大（页签内容右上角 ⤢）。放大态 + 还原入口都画出。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell">
+            <div class="sidebar" style="width: 220px">
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
+              <div class="sb-main">
+                <div class="host-switch"><div class="host-pill"><span class="dot run"></span><span class="nm">本机</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div></div>
+                <div class="sb-sec">项目</div>
+                <div class="tree"><div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div><div class="tnode on" style="padding-left: 26px"><span class="twedge leaf"></span><span class="dot run"></span><span class="tname">重构选择器</span></div></div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item muted"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <!-- 右面板放大: 占满中区（覆盖原中区），带还原 ⤡ -->
+            <div class="rpanel" style="flex: 1; border-left: 1px solid var(--border)">
+              <div class="rp-tabs">
+                <div class="rp-tab on fixed"><svg class="i sm"><use href="#spark" /></svg> 审查<span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
+                <div class="rp-tab"><svg class="i sm"><use href="#globe" /></svg> 浏览器<span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
+                <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div>
+                <div class="rp-ctl">
+                  <div class="rp-btn active"><svg class="i sm"><use href="#minimize" /></svg><span class="pinb">2</span></div>
+                  <div class="rp-btn"><svg class="i sm"><use href="#panel-r" /></svg></div>
+                </div>
+              </div>
+              <div class="diff-file">放大态 · 占满中区 · 审查 combined-model-selector.tsx <span class="add" style="margin-left: auto">+28</span> <span class="del">−6</span></div>
+              <div class="diff-body" style="padding: 6px 0">
+                <div class="dl"><span class="ln">40</span><span class="ct">  export function ModelPicker({ id }: Props) {</span></div>
+                <div class="dl"><span class="ln">41</span><span class="ct">    const vendor = useVendor(id)</span></div>
+                <div class="dl del"><span class="ln">42</span><span class="ct">-   return &lt;ModelMenu flat /&gt;</span></div>
+                <div class="dl add"><span class="ln">42</span><span class="ct">+   return (</span></div>
+                <div class="dl add"><span class="ln">43</span><span class="ct">+     &lt;Cascade lockedProvider={p} vendors={vendors}</span></div>
+                <div class="dl add"><span class="ln">44</span><span class="ct">+       model={m} onPick={onPick} /&gt;</span></div>
+                <div class="dl add"><span class="ln">45</span><span class="ct">+   )</span></div>
+                <div class="dl"><span class="ln">46</span><span class="ct">  }</span></div>
+              </div>
+              <div style="margin-top: auto; padding: 9px 13px; border-top: 1px solid var(--border); display: flex; gap: 7px">
+                <span class="btn out sm"><svg class="i xs"><use href="#check" /></svg> Stage</span>
+                <span class="btn ghost sm">Revert</span>
+                <span style="margin-left: auto; font-size: var(--xs); color: var(--fgFaint)">⤡ 还原回停靠列 · 或收起回 canvas 顶栏</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="anno" style="margin-top: 16px">
+          <div class="anno-h">放大入口 / 还原 / 其它可放大区</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">停靠态 → ⤢ 放大（入口）</div>
+              <div style="padding: 14px">
+                <div class="miniwin">
+                  <div class="mw-top"><span class="l" style="background: #ff5f57"></span><span class="l" style="background: #febc2e"></span><span class="l" style="background: #28c840"></span></div>
+                  <div class="mw-body">
+                    <div class="mw-side" style="width: 50px"><div class="mw-line"></div><div class="mw-line" style="width: 70%"></div></div>
+                    <div class="mw-main" style="border-right: 1px solid var(--border)">中区</div>
+                    <div style="width: 96px; flex: none; background: var(--surface1); display: flex; flex-direction: column">
+                      <div style="height: 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; padding: 0 6px"><svg class="i xs" style="color: var(--accentBright)"><use href="#maximize" /></svg><span class="pinb">1</span></div>
+                      <div class="mw-main" style="font-size: 10px">停靠列</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">放大态 → ⤡ 还原（出口）</div>
+              <div style="padding: 14px">
+                <div class="miniwin">
+                  <div class="mw-top"><span class="l" style="background: #ff5f57"></span><span class="l" style="background: #febc2e"></span><span class="l" style="background: #28c840"></span></div>
+                  <div class="mw-body">
+                    <div class="mw-side" style="width: 50px"><div class="mw-line"></div><div class="mw-line" style="width: 70%"></div></div>
+                    <div style="flex: 1; display: flex; flex-direction: column; background: var(--surface1)">
+                      <div style="height: 22px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: flex-end; padding: 0 6px"><svg class="i xs" style="color: var(--accentBright)"><use href="#minimize" /></svg><span class="pinb">2</span></div>
+                      <div class="mw-main">右面板占满中区</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">其它可放大区 · 单页签各自 ⤢</div>
+              <div style="padding: 14px">
+                <div class="statestrip c2" style="gap: 8px">
+                  <div class="statebox" style="padding: 10px"><div class="statehd">审查 diff</div><svg class="i sm" style="color: var(--fgMuted)"><use href="#maximize" /></svg></div>
+                  <div class="statebox" style="padding: 10px"><div class="statehd">终端</div><svg class="i sm" style="color: var(--fgMuted)"><use href="#maximize" /></svg></div>
+                  <div class="statebox" style="padding: 10px"><div class="statehd">浏览器</div><svg class="i sm" style="color: var(--fgMuted)"><use href="#maximize" /></svg></div>
+                  <div class="statebox" style="padding: 10px"><div class="statehd">文件</div><svg class="i sm" style="color: var(--fgMuted)"><use href="#maximize" /></svg></div>
+                </div>
+                <div style="font-size: var(--xs); color: var(--fgFaint); margin-top: 8px"><span class="pinb">3</span> 每个页签内容右上角的 ⤢ 单独放大该页签。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>⤢ 放大（tab 头）</b>：右面板从停靠列<b>扩张占满中区</b>（覆盖原中区，左栏保留）；图标变 ⤡。只在右面板内提供。</div></li>
+                <li><span class="pin">2</span><div><b>⤡ 还原</b>：从放大态回到停靠列宽度（恢复中区）。旁边的「收起」仍可把整列收起、开关回 canvas 顶栏（见 S3 / S4）。</div></li>
+                <li><span class="pin">3</span><div><b>单页签放大（其它可放大区）</b>：审查 diff / 终端 / 浏览器 / 文件，每个页签内容右上角有 ⤢，可单独放大该页签内容（再 ⤡ 还原）。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">状态</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：放大 = 右面板占满中区（左栏保留）；停靠 = 右侧列。<b>紧凑暂缓</b>（紧凑态右面板本就全屏覆盖，见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd>停靠态，tab 头显 ⤢ 放大。</dd>
+                  <dt>悬浮</dt>
+                  <dd>⤢ / ⤡ 悬浮底色变浅。</dd>
+                  <dt>活跃</dt>
+                  <dd>放大态 ⤡ 高亮（绿）；单页签放大时该页签 ⤢ 高亮。</dd>
+                  <dt>运行</dt>
+                  <dd>放大态下内容照常实时刷新（diff 增量 / 终端流式）。</dd>
+                  <dt>禁用 / 空 / 加载 / 错误 / 离线</dt>
+                  <dd>随所放大页签的内容态（与 S4 / S5 一致）；离线时放大态内容冻结 + 顶部提示重连。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-i">本屏无独立右键菜单（放大 / 还原 / 收起为单击）。放大态内的页签内容右键与 S4 / S5 一致。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S14 · SETTINGS ENTRY ============ -->
+    <section class="screen" id="s14">
+      <div class="screen-head">
+        <span class="tag">主壳 · 14 · 只露入口</span>
+        <h2>设置入口（只露出，不画内部）</h2>
+        <p>
+          左栏左下的「设置」行进入设置（分应用级与主机级两层）。设置详情属另一个项目，本主壳只露入口、不画详情页，本屏只示意入口的位置与各态。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="shell short">
+            <div class="sidebar" style="width: 280px">
+              <div class="sb-lights"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><div class="ct-btn active"><svg class="i sm"><use href="#panel-l" /></svg></div><div class="ct-nav"><div class="ct-btn"><svg class="i sm"><use href="#chev-l" /></svg></div><div class="ct-btn dis"><svg class="i sm"><use href="#chev-r" /></svg></div></div></div>
+              <div class="sb-main">
+                <div class="host-switch"><div class="host-pill"><span class="dot run"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-top"><div class="sb-item"><svg class="i sm"><use href="#pen" /></svg> 新对话</div></div>
+                <div class="sb-sec">项目</div>
+                <div class="tree"><div class="tnode proj"><span class="twedge"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div></div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item muted active"><svg class="i sm"><use href="#settings" /></svg> 设置<span class="pinb">1</span></div></div>
+              </div>
+            </div>
+            <div class="main">
+              <div class="canvas-top"><div class="ct-title" style="margin-left: 4px">设置</div><div class="ct-spacer"></div></div>
+              <div style="flex: 1; display: flex; align-items: center; justify-content: center; color: var(--fgFaint); font-size: var(--sm); text-align: center; padding: 24px; line-height: 1.7">
+                点「设置」→ 进入设置（应用级 + 主机级两层）<br />
+                <span style="font-size: var(--xs)">设置详情属另一个项目，本主壳不画内部</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="anno">
+          <div class="anno-h">交互注解</div>
+          <div class="anno-grid">
+            <div class="anno-card span2">
+              <div class="ac-h">点击效果</div>
+              <ol>
+                <li><span class="pin">1</span><div><b>设置</b>：进入设置，左侧列表 + 右侧详情两级结构。<b>应用级</b>分通用、守护进程、外观、快捷键、集成、权限、诊断、关于；<b>主机级</b>分连接、代理、工作区、提供方与中转站、用量、终端、主机。详情属另一项目，本主壳只露此入口、不画详情页。</div></li>
+              </ol>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">状态</div>
+              <div class="states">
+                <dl>
+                  <dt>布局</dt>
+                  <dd><b>本轮桌面 only</b>：左栏左下固定的设置行。<b>紧凑暂缓</b>（紧凑态在底部标签栏，见 S15）。</dd>
+                  <dt>默认</dt>
+                  <dd>灰字 + 齿轮图标。</dd>
+                  <dt>悬浮</dt>
+                  <dd>行底色变浅。</dd>
+                  <dt>活跃</dt>
+                  <dd>点击进入设置（设置屏属另一项目）；本主壳没有「设置已选中」常驻态。</dd>
+                  <dt>其它</dt>
+                  <dd>运行 / 禁用 / 空 / 加载 / 错误 / 离线均无——这只是个导航入口，设置自身的状态属另一项目。</dd>
+                </dl>
+              </div>
+            </div>
+            <div class="anno-card">
+              <div class="ac-h">右键菜单</div>
+              <div class="menulist">
+                <div class="ml-i">本屏无右键菜单（设置入口为单击进入）。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ S15 · MOBILE RESPONSIVE (DEFERRED) ============ -->
+    <section class="screen" id="s15">
+      <div class="screen-head">
+        <span class="tag" style="color: #92580a; background: rgba(217, 119, 6, 0.12)">主壳 · 15 · 暂缓</span>
+        <h2>手机响应式（紧凑态 · 暂缓）</h2>
+        <p>
+          反馈 <b>A</b>：本轮<b>只做桌面端</b>。手机 / 紧凑态<b>移出本轮范围</b>，保留旧设计存档于此、<b>不再投入精力改进</b>，后续由桌面端统一适配。下面三个手机框仅作存档示意。
+        </p>
+      </div>
+      <div class="screen-body">
+        <div class="deferred-banner">
+          <svg class="i md"><use href="#alert" /></svg>
+          <div><b>暂缓 · 后续由桌面统一适配</b> —— 本轮桌面 only（反馈 A）。手机三屏（首页列表 / 对话全屏 / 右面板全屏）为旧版存档，不在本轮迭代范围，待桌面定稿后统一下沉适配，本屏不再改进。</div>
+        </div>
+        <div class="phones">
+          <div>
+            <div class="plabel"><svg class="i sm"><use href="#smartphone" /></svg> A · 首页列表（存档）</div>
+            <div class="phone">
+              <div class="pstatus">●●● Helm 100%</div>
+              <div class="phone-shell">
+                <div class="phone-hd">
+                  <div class="host-pill" style="flex: 1; height: 30px; padding: 0 9px"><span class="dot run"></span><span class="nm">本机</span><svg class="i sm"><use href="#chev-d" /></svg></div>
+                  <svg class="i md"><use href="#search" /></svg><svg class="i md"><use href="#pen" /></svg>
+                </div>
+                <div style="flex: 1; padding: 8px 10px; overflow: hidden">
+                  <div class="sb-sec">项目</div>
+                  <div class="tree">
+                    <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                    <div class="tnode on" style="padding-left: 26px"><span class="twedge leaf"></span><span class="dot run"></span><span class="tname">重构选择器</span></div>
+                    <div class="tnode" style="padding-left: 26px"><span class="twedge leaf"></span><span class="dot idle"></span><span class="tname">修复 diff 对齐</span></div>
+                  </div>
+                </div>
+                <div class="phone-tabbar">
+                  <div class="pt on"><svg class="i md"><use href="#msg" /></svg>对话</div>
+                  <div class="pt"><svg class="i md"><use href="#folder" /></svg>项目</div>
+                  <div class="pt"><svg class="i md"><use href="#history" /></svg>会话</div>
+                  <div class="pt"><svg class="i md"><use href="#settings" /></svg>设置</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="plabel"><svg class="i sm"><use href="#msg" /></svg> B · 对话全屏（存档）</div>
+            <div class="phone">
+              <div class="pstatus">●●● 重构选择器 100%</div>
+              <div class="phone-shell">
+                <div class="phone-hd"><svg class="i md"><use href="#chev-l" /></svg><div style="flex: 1; font-size: var(--base)">重构选择器</div><svg class="i md"><use href="#panel-r" /></svg></div>
+                <div style="flex: 1; padding: 14px 12px; display: flex; flex-direction: column; gap: 14px; overflow: hidden">
+                  <div class="msg" style="align-self: flex-end; flex-direction: row-reverse; max-width: 90%"><div class="body" style="background: var(--surface2); padding: 8px 11px; border-radius: 11px; font-size: var(--sm)">改成级联下拉放下方</div></div>
+                  <div class="msg" style="max-width: 90%"><div class="av ai" style="width: 22px; height: 22px"><svg class="i xs"><use href="#spark" /></svg></div><div class="body" style="font-size: var(--sm)">好，定位组件中…<div class="tool-call" style="margin-top: 6px"><div class="tc-h" style="height: 28px; font-size: var(--s12)"><svg class="i xs"><use href="#check" /></svg> Edit · selector.tsx</div></div></div></div>
+                </div>
+                <div style="padding: 10px 12px; border-top: 1px solid var(--border)">
+                  <div class="cbox" style="padding: 9px 11px"><div class="cph" style="font-size: var(--base)">回复…</div><div class="ctools"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="ctool icon"><svg class="i sm"><use href="#mic" /></svg></div><div class="cspacer"></div><div class="send"><svg class="i sm"><use href="#up" /></svg></div></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <div class="plabel"><svg class="i sm"><use href="#cols" /></svg> C · 右面板全屏（存档）</div>
+            <div class="phone">
+              <div class="pstatus">●●● 审查 100%</div>
+              <div class="phone-shell">
+                <div class="phone-hd"><svg class="i md"><use href="#chev-l" /></svg><div style="flex: 1; font-size: var(--base)">面板</div><svg class="i md"><use href="#x" /></svg></div>
+                <div class="rp-tabs" style="overflow-x: auto; height: 38px">
+                  <div class="rp-tab on"><svg class="i sm"><use href="#spark" /></svg> 审查</div>
+                  <div class="rp-tab"><svg class="i sm"><use href="#terminal" /></svg> 终端</div>
+                  <div class="rp-tab"><svg class="i sm"><use href="#globe" /></svg> 浏览器</div>
+                  <div class="rp-tab"><svg class="i sm"><use href="#file" /></svg> 文件</div>
+                </div>
+                <div class="diff-file"><svg class="i xs"><use href="#file" /></svg> selector.tsx <span class="add" style="margin-left: auto">+28</span> <span class="del">−6</span></div>
+                <div class="diff-body" style="flex: 1">
+                  <div class="dl del"><span class="ln">42</span><span class="ct">- ModelMenu flat</span></div>
+                  <div class="dl add"><span class="ln">42</span><span class="ct">+ Cascade locked</span></div>
+                  <div class="dl add"><span class="ln">43</span><span class="ct">+   vendors model</span></div>
+                </div>
+                <div style="padding: 9px 12px; border-top: 1px solid var(--border); display: flex; gap: 7px"><span class="btn out sm"><svg class="i xs"><use href="#check" /></svg> Stage</span><span class="btn ghost sm">Revert</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="anno" style="margin-top: 16px">
+          <div class="anno-h">交互注解（精简 · 暂缓）</div>
+          <div class="anno-grid">
+            <div class="anno-card span2">
+              <div class="ac-h">说明</div>
+              <div class="menulist">
+                <div class="ml-i"><b>本轮不投入</b>：手机 / 紧凑态暂缓（反馈 A）。三屏（A 首页列表 + 底部标签栏 / B 对话全屏 + 贴底 Composer / C 右面板全屏 + 横滑页签）为旧版存档，交互沿用旧设计。</div>
+                <div class="ml-i"><b>后续方向</b>：待桌面端三区定稿后，由桌面统一下沉适配紧凑态（侧栏→覆盖、三区→单栏 + 底部标签、右面板→全屏覆盖、对话树→可折叠列表、长按 = 右键）。届时另开需求。</div>
+                <div class="ml-note">布局：窄屏（约 500px 以下）按表单尺寸断点切换，不按平台判断。状态 / 右键（长按）届时随桌面统一定义，本屏不展开。</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="note">
+      Helm · 本地需求设计稿 · 2026-06-25-home-shell（gate-1 迭代）· 浅色主题 · accent #20744A · 三区独立结构（无悬浮侧条）。回写
+      canonical（docs/helm/ui.html）后此份归档。
+    </div>
+  </body>
+</html>

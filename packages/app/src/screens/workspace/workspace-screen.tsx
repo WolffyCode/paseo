@@ -15,7 +15,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter, type Href } from "expo-router";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
-import { DiffStat } from "@/components/diff-stat";
 import {
   CopyX,
   ArrowLeftToLine,
@@ -44,11 +43,16 @@ import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import type { Theme } from "@/styles/theme";
 import invariant from "tiny-invariant";
 import { SidebarMenuToggle } from "@/components/headers/menu-header";
+import { SidebarWindowChrome } from "@/components/sidebar/sidebar-window-chrome";
+import { selectCanvasTopBarChrome } from "@/screens/workspace/canvas-top-bar-chrome";
+import {
+  CanvasEnvInfoButton,
+  CanvasOpenLocationButton,
+} from "@/screens/workspace/canvas-top-bar-controls";
 import { HeaderToggleButton } from "@/components/headers/header-toggle-button";
 import { ScreenHeader } from "@/components/headers/screen-header";
 import { ScreenTitle } from "@/components/headers/screen-title";
 import { Combobox, type ComboboxOption } from "@/components/ui/combobox";
-import { Shortcut } from "@/components/ui/shortcut";
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import {
   DropdownMenu,
@@ -58,19 +62,16 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   FloatingPanelPortalHost,
   FloatingPanelPortalHostNameProvider,
 } from "@/components/ui/floating-panel-portal";
 import { MountedTabActiveContext, SplitContainer } from "@/components/split-container";
 import { SourceControlPanelIcon } from "@/components/icons/source-control-panel-icon";
-import { WorkspaceGitActions } from "@/git/workspace-actions";
-import { WorkspaceOpenInEditorButton } from "@/screens/workspace/workspace-open-in-editor-button";
 import { WorkspaceScriptsButton } from "@/screens/workspace/workspace-scripts-button";
 import { ImportSessionSheet } from "@/components/import-session-sheet";
 import { useToast } from "@/contexts/toast-context";
-import { usePanelStore } from "@/stores/panel-store";
+import { selectIsAgentListOpen, usePanelStore } from "@/stores/panel-store";
 import {
   useSessionStore,
   useWorkspaceRestoreStatus,
@@ -133,9 +134,9 @@ import {
   useWorkspaceTabRename,
   WorkspaceTabRenameModal,
 } from "@/screens/workspace/use-workspace-tab-rename";
+import { RightPanelLauncher } from "@/screens/workspace/right-panel-launcher";
 import {
   WorkspaceDesktopTabsRow,
-  WorkspaceToolPicker,
   type WorkspaceDesktopTabRowItem,
   type WorkspaceToolsAddHandlers,
 } from "@/screens/workspace/workspace-desktop-tabs-row";
@@ -224,31 +225,6 @@ function getWorkspaceScripts(
   workspaceDescriptor: WorkspaceDescriptor | null | undefined,
 ): WorkspaceDescriptor["scripts"] {
   return workspaceDescriptor?.scripts ?? EMPTY_WORKSPACE_SCRIPTS;
-}
-
-interface WorkspaceFileLocationFields {
-  path: string | null;
-  lineStart?: number;
-  lineEnd?: number;
-}
-
-function getWorkspaceFileLocationFields(
-  tab: WorkspaceTabDescriptor | null,
-): WorkspaceFileLocationFields {
-  const target = tab?.target;
-  if (target?.kind !== "file") {
-    return { path: null };
-  }
-  return { path: target.path, lineStart: target.lineStart, lineEnd: target.lineEnd };
-}
-
-function buildWorkspaceFileLocation(
-  fields: WorkspaceFileLocationFields,
-): WorkspaceFileLocation | null {
-  if (fields.path === null) {
-    return null;
-  }
-  return { path: fields.path, lineStart: fields.lineStart, lineEnd: fields.lineEnd };
 }
 
 const ThemedActivityIndicator = withUnistyles(ActivityIndicator);
@@ -2038,16 +2014,6 @@ function WorkspaceScreenContent({
 
   const showMobileAgent = usePanelStore((state) => state.showMobileAgent);
 
-  const hasDiffStat = useMemo(() => Boolean(workspaceDescriptor?.diffStat), [workspaceDescriptor]);
-  const reviewToggleStyle = useCallback(
-    ({ hovered, pressed }: { hovered?: boolean; pressed?: boolean }) => [
-      styles.sourceControlButton,
-      hasDiffStat && styles.sourceControlButtonWithStats,
-      (Boolean(hovered) || Boolean(pressed)) && styles.sourceControlButtonHovered,
-    ],
-    [hasDiffStat],
-  );
-
   const workspaceLayout = useWorkspaceLayoutStore((state) =>
     persistenceKey ? (state.layoutByWorkspace[persistenceKey] ?? null) : null,
   );
@@ -2127,8 +2093,7 @@ function WorkspaceScreenContent({
   );
   const pendingByDraftId = useCreateFlowStore((state) => state.pendingByDraftId);
   const { closingTabIds, closeTab } = useCloseTabs();
-  const { onLayout: onHeaderLayout, isBelow: showCompactButtonLabels } =
-    useContainerWidthBelow(700);
+  const { onLayout: onHeaderLayout } = useContainerWidthBelow(700);
   const closeWorkspaceTabWithCleanup = useCallback(
     function closeWorkspaceTabWithCleanup(input: {
       tabId: string;
@@ -2735,19 +2700,6 @@ function WorkspaceScreenContent({
       openWorkspaceTabInBackground,
       persistenceKey,
     ],
-  );
-
-  // Diff badge in the header: click toggles the right panel via review — open review (+ files) when
-  // closed, collapse when already open (collapse keeps the tabs; see D).
-  const handleToggleReviewFromChanges = useCallback(
-    function handleToggleReviewFromChanges() {
-      if (isRightToolPanelOpenForWorkspace) {
-        handleCloseRightToolPanel();
-        return;
-      }
-      handleOpenReviewFromChanges();
-    },
-    [handleCloseRightToolPanel, handleOpenReviewFromChanges, isRightToolPanelOpenForWorkspace],
   );
 
   const toolsAddHandlers = useMemo<WorkspaceToolsAddHandlers>(
@@ -3359,19 +3311,6 @@ function WorkspaceScreenContent({
   });
 
   const activeTabDescriptor = useMemo(() => activeTab?.descriptor ?? null, [activeTab]);
-  const activeFileFields = getWorkspaceFileLocationFields(activeTabDescriptor);
-  const activeFilePath = activeFileFields.path;
-  const activeFileLineStart = activeFileFields.lineStart;
-  const activeFileLineEnd = activeFileFields.lineEnd;
-  const activeFileLocation = useMemo<WorkspaceFileLocation | null>(
-    () =>
-      buildWorkspaceFileLocation({
-        path: activeFilePath,
-        lineStart: activeFileLineStart,
-        lineEnd: activeFileLineEnd,
-      }),
-    [activeFileLineEnd, activeFileLineStart, activeFilePath],
-  );
   const canRenderDesktopPaneSplits = supportsDesktopPaneSplits();
   const shouldRenderDesktopPaneFallback = useMemo(
     () => !isMobile && !canRenderDesktopPaneSplits,
@@ -3602,7 +3541,7 @@ function WorkspaceScreenContent({
     function renderSplitPaneEmptyState(paneId: string) {
       if (paneId === RIGHT_PANEL_PANE_ID) {
         return (
-          <WorkspaceToolPicker
+          <RightPanelLauncher
             handlers={toolsAddHandlers}
             showCreateBrowserTab={showCreateBrowserTab}
           />
@@ -3654,85 +3593,33 @@ function WorkspaceScreenContent({
     workspaceKey: persistenceKey,
   });
 
+  // Canvas top-bar control visibility (model-driven, 反馈 ③): an empty draft strips the
+  // conversation-context controls (title / ··· / open-location / env-info) down to just the
+  // right-panel toggle; the toggle itself only shows while the right panel is collapsed.
+  const isAgentListOpen = usePanelStore((state) =>
+    selectIsAgentListOpen(state, { isCompact: isMobile }),
+  );
+  const isEmptyDraftTab = activeTabDescriptor?.target.kind === "draft";
+  const canvasTopBarChrome = useMemo(
+    () =>
+      selectCanvasTopBarChrome({
+        isEmptyDraft: isEmptyDraftTab,
+        rightPanelCollapsed: !isRightToolPanelOpenForWorkspace,
+      }),
+    [isEmptyDraftTab, isRightToolPanelOpenForWorkspace],
+  );
+
   const headerRight = useMemo(
     () => (
       <View style={styles.headerRight}>
-        {SHOW_WORKSPACE_SCRIPTS_BUTTON &&
-        !isMobile &&
-        workspaceDescriptor &&
-        workspaceDescriptor.scripts.length > 0 ? (
-          <WorkspaceScriptsButton
-            serverId={normalizedServerId}
-            workspaceId={normalizedWorkspaceId}
-            scripts={workspaceDescriptor.scripts}
-            liveTerminalIds={liveTerminalIds}
-            onScriptTerminalStarted={handleScriptTerminalStarted}
-            onViewTerminal={handleViewScriptTerminal}
-            onOpenUrlInBrowserTab={handleOpenUrlInBrowserTab}
-            hideLabels
-          />
-        ) : null}
-        {!isMobile && workspaceDirectory ? (
-          <WorkspaceOpenInEditorButton
-            serverId={normalizedServerId}
-            cwd={workspaceDirectory}
-            activeFile={activeFileLocation}
-            hideLabels
-          />
-        ) : null}
-        {!isMobile && isGitCheckout ? (
+        {!isMobile ? (
           <>
-            {workspaceDirectory ? (
-              <WorkspaceGitActions
-                serverId={normalizedServerId}
-                cwd={workspaceDirectory}
-                hideLabels={showCompactButtonLabels}
-              />
+            {canvasTopBarChrome.showOpenLocation ? <CanvasOpenLocationButton /> : null}
+            {canvasTopBarChrome.showEnvInfo ? <CanvasEnvInfoButton /> : null}
+            {canvasTopBarChrome.showRightPanelToggle && supportsDesktopPaneSplits() ? (
+              <WorkspaceToolPanelToggle isOpen={false} onToggle={handleToggleRightToolPanel} />
             ) : null}
-            <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile={false}>
-              <TooltipTrigger asChild>
-                <Pressable
-                  testID="workspace-explorer-toggle"
-                  onPress={handleToggleReviewFromChanges}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("workspace.header.actions.review")}
-                  style={reviewToggleStyle}
-                >
-                  {({ hovered, pressed }) => {
-                    const active = hovered || pressed;
-                    const colorMapping = active ? foregroundColorMapping : mutedColorMapping;
-                    return (
-                      <>
-                        <ThemedSourceControlPanelIcon size={16} uniProps={colorMapping} />
-                        {workspaceDescriptor?.diffStat ? (
-                          <DiffStat
-                            additions={workspaceDescriptor.diffStat.additions}
-                            deletions={workspaceDescriptor.diffStat.deletions}
-                          />
-                        ) : null}
-                      </>
-                    );
-                  }}
-                </Pressable>
-              </TooltipTrigger>
-              <TooltipContent
-                testID="workspace-explorer-toggle-tooltip"
-                side="left"
-                align="center"
-                offset={8}
-              >
-                <View style={styles.explorerTooltipRow}>
-                  <Text style={styles.explorerTooltipText}>
-                    {t("workspace.header.actions.review")}
-                  </Text>
-                  <Shortcut keys={REVIEW_TOGGLE_KEYS} style={styles.explorerTooltipShortcut} />
-                </View>
-              </TooltipContent>
-            </Tooltip>
           </>
-        ) : null}
-        {!isMobile && supportsDesktopPaneSplits() && !isRightToolPanelOpenForWorkspace ? (
-          <WorkspaceToolPanelToggle isOpen={false} onToggle={handleToggleRightToolPanel} />
         ) : null}
         {isMobile ? (
           <HeaderToggleButton
@@ -3772,23 +3659,11 @@ function WorkspaceScreenContent({
     ),
     [
       isMobile,
-      workspaceDescriptor,
-      normalizedServerId,
-      normalizedWorkspaceId,
-      workspaceDirectory,
-      activeFileLocation,
-      liveTerminalIds,
-      handleScriptTerminalStarted,
-      handleViewScriptTerminal,
-      handleOpenUrlInBrowserTab,
-      showCompactButtonLabels,
-      isGitCheckout,
-      reviewToggleStyle,
-      handleOpenFileTool,
-      handleOpenReviewFromChanges,
-      isRightToolPanelOpenForWorkspace,
+      canvasTopBarChrome,
       handleToggleRightToolPanel,
-      handleToggleReviewFromChanges,
+      isGitCheckout,
+      handleOpenReviewFromChanges,
+      handleOpenFileTool,
       t,
     ],
   );
@@ -3816,51 +3691,57 @@ function WorkspaceScreenContent({
   const headerLeft = useMemo(
     () => (
       <>
-        <SidebarMenuToggle />
-        <WorkspaceHeaderTitleBar
-          isLoading={isWorkspaceHeaderLoading}
-          title={workspaceHeaderTitle}
-          subtitle={workspaceHeaderSubtitle}
-          showSubtitle={shouldShowWorkspaceHeaderSubtitle}
-          currentBranchName={currentBranchName}
-          normalizedServerId={normalizedServerId}
-          normalizedWorkspaceId={normalizedWorkspaceId}
-          workspaceScripts={workspaceScripts}
-          liveTerminalIds={liveTerminalIds}
-          showWorkspaceSetup={showWorkspaceSetup}
-          showCreateBrowserTab={showCreateBrowserTab}
-          showReviewAction={isGitCheckout}
-          isMobile={isMobile}
-          createTerminalDisabled={createTerminalDisabled}
-          importAgentDisabled={!canOpenImportSheet}
-          copyPathDisabled={!workspaceDirectory}
-          menuNewAgentIcon={menuNewAgentIcon}
-          menuNewTerminalIcon={menuNewTerminalIcon}
-          menuNewBrowserIcon={MENU_NEW_BROWSER_ICON}
-          menuReviewIcon={MENU_REVIEW_ICON}
-          menuFileIcon={MENU_FILE_ICON}
-          menuSideChatIcon={MENU_SIDE_CHAT_ICON}
-          menuImportIcon={MENU_IMPORT_ICON}
-          menuCopyIcon={menuCopyIcon}
-          menuSettingsIcon={menuSettingsIcon}
-          onCreateDraftTab={handleCreateDraftTab}
-          onCreateTerminal={handleCreateTerminal}
-          onCreateTerminalWithProfile={handleCreateTerminalWithProfile}
-          onCreateBrowser={handleCreateBrowserTab}
-          onOpenReview={handleOpenReviewTool}
-          onOpenFile={handleOpenFileTool}
-          onCreateSideChat={handleOpenSideChatTab}
-          onOpenImportSheet={openImportSheet}
-          onCopyWorkspacePath={handleCopyWorkspacePath}
-          onCopyBranchName={handleCopyBranchName}
-          onOpenSetupTab={handleOpenSetupTab}
-          onScriptTerminalStarted={handleScriptTerminalStarted}
-          onViewScriptTerminal={handleViewScriptTerminal}
-          onOpenUrlInBrowserTab={handleOpenUrlInBrowserTab}
-        />
+        {!isMobile && !isAgentListOpen ? (
+          <SidebarWindowChrome collapsed onNewConversation={handleCreateDraftTab} />
+        ) : null}
+        {canvasTopBarChrome.showTitle ? (
+          <WorkspaceHeaderTitleBar
+            isLoading={isWorkspaceHeaderLoading}
+            title={workspaceHeaderTitle}
+            subtitle={workspaceHeaderSubtitle}
+            showSubtitle={shouldShowWorkspaceHeaderSubtitle}
+            currentBranchName={currentBranchName}
+            normalizedServerId={normalizedServerId}
+            normalizedWorkspaceId={normalizedWorkspaceId}
+            workspaceScripts={workspaceScripts}
+            liveTerminalIds={liveTerminalIds}
+            showWorkspaceSetup={showWorkspaceSetup}
+            showCreateBrowserTab={showCreateBrowserTab}
+            showReviewAction={isGitCheckout}
+            isMobile={isMobile}
+            createTerminalDisabled={createTerminalDisabled}
+            importAgentDisabled={!canOpenImportSheet}
+            copyPathDisabled={!workspaceDirectory}
+            menuNewAgentIcon={menuNewAgentIcon}
+            menuNewTerminalIcon={menuNewTerminalIcon}
+            menuNewBrowserIcon={MENU_NEW_BROWSER_ICON}
+            menuReviewIcon={MENU_REVIEW_ICON}
+            menuFileIcon={MENU_FILE_ICON}
+            menuSideChatIcon={MENU_SIDE_CHAT_ICON}
+            menuImportIcon={MENU_IMPORT_ICON}
+            menuCopyIcon={menuCopyIcon}
+            menuSettingsIcon={menuSettingsIcon}
+            onCreateDraftTab={handleCreateDraftTab}
+            onCreateTerminal={handleCreateTerminal}
+            onCreateTerminalWithProfile={handleCreateTerminalWithProfile}
+            onCreateBrowser={handleCreateBrowserTab}
+            onOpenReview={handleOpenReviewTool}
+            onOpenFile={handleOpenFileTool}
+            onCreateSideChat={handleOpenSideChatTab}
+            onOpenImportSheet={openImportSheet}
+            onCopyWorkspacePath={handleCopyWorkspacePath}
+            onCopyBranchName={handleCopyBranchName}
+            onOpenSetupTab={handleOpenSetupTab}
+            onScriptTerminalStarted={handleScriptTerminalStarted}
+            onViewScriptTerminal={handleViewScriptTerminal}
+            onOpenUrlInBrowserTab={handleOpenUrlInBrowserTab}
+          />
+        ) : null}
       </>
     ),
     [
+      isAgentListOpen,
+      canvasTopBarChrome,
       isWorkspaceHeaderLoading,
       workspaceHeaderTitle,
       workspaceHeaderSubtitle,
@@ -4238,23 +4119,6 @@ const styles = StyleSheet.create((theme) => ({
       md: theme.spacing[2],
     },
   },
-  sourceControlButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: theme.spacing[2],
-    paddingHorizontal: theme.spacing[1],
-    paddingVertical: theme.spacing[1],
-    minHeight: Math.ceil(theme.fontSize.sm * 1.5) + theme.spacing[1] * 2,
-    minWidth: Math.ceil(theme.fontSize.sm * 1.5) + theme.spacing[1] * 2,
-    borderRadius: theme.borderRadius.md,
-  },
-  sourceControlButtonWithStats: {
-    paddingHorizontal: theme.spacing[3],
-  },
-  sourceControlButtonHovered: {
-    backgroundColor: theme.colors.surface2,
-  },
   toolPanelToggleHovered: {
     backgroundColor: theme.colors.surface2,
   },
@@ -4286,16 +4150,6 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing[2],
   },
   newTabTooltipShortcut: {},
-  explorerTooltipRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[2],
-  },
-  explorerTooltipText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.popoverForeground,
-  },
-  explorerTooltipShortcut: {},
   mobileTabsRow: {
     backgroundColor: theme.colors.surface0,
     borderBottomWidth: theme.borderWidth[1],

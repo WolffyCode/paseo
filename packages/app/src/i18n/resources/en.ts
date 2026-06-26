@@ -15,6 +15,7 @@ export const en = {
     loading: "Loading...",
     actions: {
       back: "Back",
+      forward: "Forward",
       cancel: "Cancel",
       close: "Close",
       copy: "Copy",
@@ -547,6 +548,8 @@ export const en = {
         newFile: "Open file",
         newSideChat: "New side chat",
         review: "Review changes",
+        openLocation: "Open location",
+        environmentInfo: "Environment",
         importSession: "Import session",
         copyPath: "Copy workspace path",
         copyBranchName: "Copy branch name",
@@ -719,6 +722,8 @@ export const en = {
   sidebar: {
     host: {
       noHost: "No host",
+      dropdownTitle: "Hosts",
+      addHost: "Add host…",
       switchTitle: "Switch host",
       searchPlaceholder: "Search hosts...",
     },
@@ -733,6 +738,8 @@ export const en = {
     sections: {
       pinned: "Pinned",
       projects: "Projects",
+      conversations: "Conversations",
+      noConversations: "No conversations yet",
     },
     worktreeSetup: {
       title: "Set up worktree scripts",
@@ -1086,29 +1093,9 @@ export const en = {
   },
   onboarding: {
     title: "Welcome to Helm",
-    subtitle:
-      "Connect local or remote AI coding agents from one place. Your code stays on your machine.",
+    subtitle: "Connect your computer to get started",
     actions: {
-      start: "Get started",
-      connectRemote: "Connect remote host",
-      cancel: "Cancel",
-      retryLocal: "Retry local",
-      retry: "Retry",
-      useOtherMethods: "Use another connection method",
-      diagnostics: "View diagnostics",
-    },
-    connecting: {
-      title: "Connecting to local daemon...",
-    },
-    picker: {
-      title: "Choose connection method",
-      description: "Connect directly, paste a pairing link, or scan a QR code.",
-    },
-    error: {
-      title: "Unable to connect to local daemon",
-      description:
-        "Possible causes: daemon not running, the local port is in use, or the connection timed out.",
-      reasonLabel: "Details: {{reason}}",
+      settings: "Settings",
     },
   },
   modelSelector: {
@@ -1316,6 +1303,7 @@ export const en = {
     draft: {
       newAgent: "New Agent",
       creatingAgent: "Creating agent",
+      emptyTitle: "What do you want to build today?",
     },
     file: {
       directoryMissing: "Workspace directory not found.",

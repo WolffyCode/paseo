@@ -17,6 +17,7 @@ export const ru: TranslationResources = {
     loading: "Загрузка...",
     actions: {
       back: "Назад",
+      forward: "Вперед",
       cancel: "Отмена",
       close: "Закрывать",
       copy: "Копировать",
@@ -553,6 +554,8 @@ export const ru: TranslationResources = {
         newFile: "Открыть файл",
         newSideChat: "Новый боковой чат",
         review: "Обзор изменений",
+        openLocation: "Открыть расположение",
+        environmentInfo: "Окружение",
         importSession: "Импортировать сеанс",
         copyPath: "Копировать путь к рабочей области",
         copyBranchName: "Скопировать название ветки",
@@ -726,6 +729,8 @@ export const ru: TranslationResources = {
   sidebar: {
     host: {
       noHost: "Нет хоста",
+      dropdownTitle: "Хосты",
+      addHost: "Добавить хост…",
       switchTitle: "Сменить хост",
       searchPlaceholder: "Поиск хостов...",
     },
@@ -740,6 +745,8 @@ export const ru: TranslationResources = {
     sections: {
       pinned: "Закреплённые",
       projects: "Проекты",
+      conversations: "Беседы",
+      noConversations: "Пока нет бесед",
     },
     worktreeSetup: {
       title: "Настройка сценариев рабочего дерева",
@@ -1100,29 +1107,9 @@ export const ru: TranslationResources = {
   },
   onboarding: {
     title: "Добро пожаловать в Helm",
-    subtitle:
-      "Подключайте локальных или удаленных AI-агентов для кодинга из одного места. Ваш код остается на вашей машине.",
+    subtitle: "Подключите компьютер, чтобы начать",
     actions: {
-      start: "Начать",
-      connectRemote: "Подключить удаленный host",
-      cancel: "Отмена",
-      retryLocal: "Повторить локально",
-      retry: "Повторить",
-      useOtherMethods: "Использовать другой способ",
-      diagnostics: "Открыть диагностику",
-    },
-    connecting: {
-      title: "Подключение к локальному daemon...",
-    },
-    picker: {
-      title: "Выберите способ подключения",
-      description: "Подключитесь напрямую, вставьте ссылку сопряжения или отсканируйте QR-код.",
-    },
-    error: {
-      title: "Не удалось подключиться к локальному daemon",
-      description:
-        "Возможные причины: daemon не запущен, локальный порт занят или истекло время подключения.",
-      reasonLabel: "Подробности: {{reason}}",
+      settings: "Настройки",
     },
   },
   modelSelector: {
@@ -1332,6 +1319,7 @@ export const ru: TranslationResources = {
     draft: {
       newAgent: "Новый агент",
       creatingAgent: "Создание агента",
+      emptyTitle: "Что вы хотите создать сегодня?",
     },
     file: {
       directoryMissing: "Каталог Workspace не найден.",

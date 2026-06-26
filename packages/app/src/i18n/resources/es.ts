@@ -17,6 +17,7 @@ export const es: TranslationResources = {
     loading: "Cargando...",
     actions: {
       back: "Atrás",
+      forward: "Adelante",
       cancel: "Cancelar",
       close: "Cerca",
       copy: "Copiar",
@@ -553,6 +554,8 @@ export const es: TranslationResources = {
         newFile: "Abrir archivo",
         newSideChat: "Nuevo chat lateral",
         review: "Revisar cambios",
+        openLocation: "Abrir ubicación",
+        environmentInfo: "Entorno",
         importSession: "Importar sesión",
         copyPath: "Copiar ruta del espacio de trabajo",
         copyBranchName: "Copiar nombre de sucursal",
@@ -730,6 +733,8 @@ export const es: TranslationResources = {
   sidebar: {
     host: {
       noHost: "Sin anfitrión",
+      dropdownTitle: "Anfitriones",
+      addHost: "Añadir host…",
       switchTitle: "Cambiar de anfitrión",
       searchPlaceholder: "Buscar hosts...",
     },
@@ -744,6 +749,8 @@ export const es: TranslationResources = {
     sections: {
       pinned: "Fijados",
       projects: "Proyectos",
+      conversations: "Conversaciones",
+      noConversations: "Aún no hay conversaciones",
     },
     worktreeSetup: {
       title: "Configurar secuencias de comandos del árbol de trabajo",
@@ -1103,30 +1110,10 @@ export const es: TranslationResources = {
     },
   },
   onboarding: {
-    title: "Te damos la bienvenida a Helm",
-    subtitle:
-      "Conecta agentes de codificación de IA locales o remotos desde un solo lugar. Tu código permanece en tu máquina.",
+    title: "Bienvenido aPaseo",
+    subtitle: "Conecte su computadora para comenzar",
     actions: {
-      start: "Comenzar",
-      connectRemote: "Conectar host remoto",
-      cancel: "Cancelar",
-      retryLocal: "Reintentar local",
-      retry: "Reintentar",
-      useOtherMethods: "Usar otro método",
-      diagnostics: "Ver diagnósticos",
-    },
-    connecting: {
-      title: "Conectando al daemon local...",
-    },
-    picker: {
-      title: "Elegir método de conexión",
-      description: "Conecta directamente, pega un enlace de emparejamiento o escanea un QR.",
-    },
-    error: {
-      title: "No se puede conectar al daemon local",
-      description:
-        "Causas posibles: el daemon no se está ejecutando, el puerto local está en uso o la conexión agotó el tiempo.",
-      reasonLabel: "Detalles: {{reason}}",
+      settings: "Ajustes",
     },
   },
   modelSelector: {
@@ -1336,6 +1323,7 @@ export const es: TranslationResources = {
     draft: {
       newAgent: "Nuevo agente",
       creatingAgent: "Agente creador",
+      emptyTitle: "¿Qué quieres construir hoy?",
     },
     file: {
       directoryMissing: "No se encontró el directorio de Workspace.",
