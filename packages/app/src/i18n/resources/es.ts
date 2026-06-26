@@ -1319,6 +1319,7 @@ export const es: TranslationResources = {
     draft: {
       newAgent: "Nuevo agente",
       creatingAgent: "Agente creador",
+      emptyTitle: "¿Qué quieres construir hoy?",
     },
     file: {
       directoryMissing: "No se encontró el directorio de Workspace.",

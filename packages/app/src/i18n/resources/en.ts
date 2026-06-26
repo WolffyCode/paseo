@@ -1299,6 +1299,7 @@ export const en = {
     draft: {
       newAgent: "New Agent",
       creatingAgent: "Creating agent",
+      emptyTitle: "What do you want to build today?",
     },
     file: {
       directoryMissing: "Workspace directory not found.",

@@ -1323,6 +1323,7 @@ export const fr: TranslationResources = {
     draft: {
       newAgent: "Nouvel agent",
       creatingAgent: "Agent créateur",
+      emptyTitle: "Que voulez-vous construire aujourd'hui ?",
     },
     file: {
       directoryMissing: "Répertoire Workspace introuvable.",

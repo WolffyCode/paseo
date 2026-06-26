@@ -1315,6 +1315,7 @@ export const ru: TranslationResources = {
     draft: {
       newAgent: "Новый агент",
       creatingAgent: "Создание агента",
+      emptyTitle: "Что вы хотите создать сегодня?",
     },
     file: {
       directoryMissing: "Каталог Workspace не найден.",

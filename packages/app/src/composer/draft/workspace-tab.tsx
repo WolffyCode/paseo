@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { Keyboard, ScrollView, Text, View } from "react-native";
+import { Keyboard, Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
 import ReanimatedAnimated from "react-native-reanimated";
 import { StyleSheet } from "react-native-unistyles";
@@ -602,9 +602,28 @@ export function WorkspaceDraftAgentTab({
     mode: "translate",
   });
 
+  // s1 empty state: before the first send, the draft canvas centers a hero title + composer.
+  // Once submitting (optimistic stream), it reverts to the stream-fills-top / composer-docks-bottom layout.
+  const isEmptyDraft = !(isSubmitting && draftAgent);
+  const containerStyle = useMemo(
+    () => (isEmptyDraft ? [styles.container, styles.containerEmpty] : styles.container),
+    [isEmptyDraft],
+  );
+  const contentContainerStyle = useMemo(
+    () =>
+      isEmptyDraft
+        ? [styles.contentContainer, styles.contentContainerEmpty]
+        : styles.contentContainer,
+    [isEmptyDraft],
+  );
   const inputAreaWrapperStyle = useMemo(
-    () => [styles.inputAreaWrapper, { paddingBottom: insets.bottom }, composerKeyboardStyle],
-    [insets.bottom, composerKeyboardStyle],
+    () => [
+      styles.inputAreaWrapper,
+      { paddingBottom: insets.bottom },
+      composerKeyboardStyle,
+      isEmptyDraft && styles.inputAreaEmpty,
+    ],
+    [insets.bottom, composerKeyboardStyle, isEmptyDraft],
   );
 
   const handleDropdownCloseFocus = useCallback(() => {
@@ -649,8 +668,8 @@ export function WorkspaceDraftAgentTab({
 
   return (
     <FileDropZone onFilesDropped={handleFilesDropped}>
-      <View style={styles.container}>
-        <View style={styles.contentContainer}>
+      <View style={containerStyle}>
+        <View style={contentContainerStyle}>
           {isSubmitting && draftAgent ? (
             <View style={styles.streamContainer}>
               <AgentStreamView
@@ -663,18 +682,14 @@ export function WorkspaceDraftAgentTab({
               />
             </View>
           ) : (
-            <ScrollView
-              style={styles.scrollView}
-              contentContainerStyle={styles.configScrollContent}
-            >
-              <View style={styles.configSection}>
-                {formErrorMessage ? (
-                  <View style={styles.errorContainer}>
-                    <Text style={styles.errorText}>{formErrorMessage}</Text>
-                  </View>
-                ) : null}
-              </View>
-            </ScrollView>
+            <View style={styles.emptyHero}>
+              <Text style={styles.emptyTitle}>{t("workspace.draft.emptyTitle")}</Text>
+              {formErrorMessage ? (
+                <View style={styles.errorContainer}>
+                  <Text style={styles.errorText}>{formErrorMessage}</Text>
+                </View>
+              ) : null}
+            </View>
           )}
         </View>
 
@@ -725,19 +740,32 @@ const styles = StyleSheet.create((theme) => ({
   contentContainer: {
     flex: 1,
   },
+  // Empty draft (s1): center the hero title + composer instead of docking the composer at the bottom.
+  containerEmpty: {
+    justifyContent: "center",
+  },
+  contentContainerEmpty: {
+    flex: 0,
+  },
   streamContainer: {
     flex: 1,
   },
-  scrollView: {
-    flex: 1,
-  },
-  configScrollContent: {
+  emptyHero: {
+    alignItems: "center",
+    gap: theme.spacing[6],
     paddingHorizontal: theme.spacing[4],
-    paddingTop: theme.spacing[4],
-    paddingBottom: theme.spacing[6],
+    paddingBottom: theme.spacing[4],
   },
-  configSection: {
-    gap: theme.spacing[3],
+  emptyTitle: {
+    fontSize: theme.fontSize["3xl"],
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.foreground,
+    textAlign: "center",
+  },
+  inputAreaEmpty: {
+    width: "100%",
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: "center",
   },
   inputAreaWrapper: {
     width: "100%",

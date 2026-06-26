@@ -1293,6 +1293,7 @@ export const ar: TranslationResources = {
     draft: {
       newAgent: "وكيل جديد",
       creatingAgent: "وكيل الخلق",
+      emptyTitle: "ماذا تريد أن تبني اليوم؟",
     },
     file: {
       directoryMissing: "لم يتم العثور على دليل Workspace.",
