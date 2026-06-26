@@ -20,6 +20,7 @@ import { ComboboxTrigger } from "@/components/ui/combobox-trigger";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { SidebarMenuToggle } from "@/components/headers/menu-header";
+import { selectIsAgentListOpen, usePanelStore } from "@/stores/panel-store";
 import { ScreenHeader } from "@/components/headers/screen-header";
 import { HEADER_INNER_HEIGHT, MAX_CONTENT_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
 import { useToast } from "@/contexts/toast-context";
@@ -1731,7 +1732,14 @@ export function NewWorkspaceScreen({
       theme.iconSize.sm,
     ],
   );
-  const screenHeaderLeft = useMemo(() => <SidebarMenuToggle />, []);
+  // 反馈2: the sidebar toggle (□) only belongs in the canvas top bar while the sidebar is
+  // collapsed — when it's open the left column already owns the toggle, so the empty draft's
+  // top bar stays clean (matches workspace-screen's headerLeft gating).
+  const isAgentListOpen = usePanelStore((state) => selectIsAgentListOpen(state, { isCompact }));
+  const screenHeaderLeft = useMemo(
+    () => (!isCompact && isAgentListOpen ? null : <SidebarMenuToggle />),
+    [isCompact, isAgentListOpen],
+  );
 
   return (
     <FileDropZone onFilesDropped={handleFilesDropped}>
