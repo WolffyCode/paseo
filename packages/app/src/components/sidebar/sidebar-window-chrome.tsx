@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { type Href, router } from "expo-router";
 import { ChevronLeft, ChevronRight, SquarePen } from "lucide-react-native";
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
@@ -50,14 +50,16 @@ export function SidebarWindowChrome({ collapsed, onNewConversation }: SidebarWin
   const goBack = useConversationHistoryStore((state) => state.goBack);
   const goForward = useConversationHistoryStore((state) => state.goForward);
 
-  // Arrows are pure dispatch: the store returns the route to navigate to, or null when disabled.
+  // Arrows are pure dispatch: the store returns the route (a pathname string) to navigate to, or null
+  // when disabled. The history store stays framework-agnostic, so the string is cast to the router's
+  // typed Href at this navigation boundary (the stored value was a live route when it was recorded).
   const handleBack = useCallback(() => {
     const route = goBack();
-    if (route) router.navigate(route);
+    if (route) router.navigate(route as Href);
   }, [goBack]);
   const handleForward = useCallback(() => {
     const route = goForward();
-    if (route) router.navigate(route);
+    if (route) router.navigate(route as Href);
   }, [goForward]);
 
   const rowStyle = useMemo(
