@@ -749,6 +749,8 @@ export const es: TranslationResources = {
     sections: {
       pinned: "Fijados",
       projects: "Proyectos",
+      conversations: "Conversaciones",
+      noConversations: "Aún no hay conversaciones",
     },
     worktreeSetup: {
       title: "Configurar secuencias de comandos del árbol de trabajo",

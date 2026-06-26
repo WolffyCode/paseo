@@ -732,6 +732,8 @@ export const ar: TranslationResources = {
     sections: {
       pinned: "المثبتة",
       projects: "المشاريع",
+      conversations: "المحادثات",
+      noConversations: "لا محادثات بعد",
     },
     worktreeSetup: {
       title: "إعداد البرامج النصية لشجرة العمل",

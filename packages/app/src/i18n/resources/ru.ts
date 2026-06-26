@@ -745,6 +745,8 @@ export const ru: TranslationResources = {
     sections: {
       pinned: "Закреплённые",
       projects: "Проекты",
+      conversations: "Беседы",
+      noConversations: "Пока нет бесед",
     },
     worktreeSetup: {
       title: "Настройка сценариев рабочего дерева",

@@ -16,6 +16,7 @@ import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { HostSwitcherPill } from "@/components/sidebar/host-switcher-pill";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
 import { SidebarWindowChrome } from "@/components/sidebar/sidebar-window-chrome";
+import { ConversationTree } from "@/conversation-tree/render";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isWeb } from "@/constants/platform";
 import { useSidebarAnimation } from "@/contexts/sidebar-animation-context";
@@ -595,15 +596,6 @@ function DesktopSidebar({
   pinnedProjects,
   unpinnedProjects,
   isInitialLoad,
-  isRevalidating,
-  isManualRefresh,
-  groupMode,
-  collapsedProjectKeys,
-  shortcutIndexByWorkspaceKey,
-  toggleProjectCollapsed,
-  allProjectsCollapsed,
-  handleToggleCollapseAll,
-  handleRefresh,
   newWorkspaceKeys,
   commandCenterKeys,
   handleNewWorkspaceNavigate,
@@ -666,13 +658,10 @@ function DesktopSidebar({
     [],
   );
 
-  const projectsHeader = useMemo(
-    (): ProjectsHeaderModel => ({
-      allCollapsed: allProjectsCollapsed,
-      onToggleCollapseAll: handleToggleCollapseAll,
-      onSelectFolder: handleOpenProject,
-    }),
-    [allProjectsCollapsed, handleToggleCollapseAll, handleOpenProject],
+  // 置顶项目在前 + 其余,喂给对话树(项目分组复用 use-sidebar-workspaces-list)。
+  const treeProjects = useMemo(
+    () => [...pinnedProjects, ...unpinnedProjects],
+    [pinnedProjects, unpinnedProjects],
   );
 
   if (!isOpen) {
@@ -710,17 +699,9 @@ function DesktopSidebar({
         {isInitialLoad ? (
           <SidebarAgentListSkeleton />
         ) : (
-          <SidebarWorkspaceList
+          <ConversationTree
             serverId={activeServerId}
-            collapsedProjectKeys={collapsedProjectKeys}
-            onToggleProjectCollapsed={toggleProjectCollapsed}
-            shortcutIndexByWorkspaceKey={shortcutIndexByWorkspaceKey}
-            groupMode={groupMode}
-            pinnedProjects={pinnedProjects}
-            unpinnedProjects={unpinnedProjects}
-            projectsHeader={projectsHeader}
-            isRefreshing={isManualRefresh && isRevalidating}
-            onRefresh={handleRefresh}
+            projects={treeProjects}
             onAddProject={handleOpenProject}
           />
         )}

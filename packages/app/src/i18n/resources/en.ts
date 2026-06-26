@@ -738,6 +738,8 @@ export const en = {
     sections: {
       pinned: "Pinned",
       projects: "Projects",
+      conversations: "Conversations",
+      noConversations: "No conversations yet",
     },
     worktreeSetup: {
       title: "Set up worktree scripts",
