@@ -1,14 +1,28 @@
 import { usePathname } from "expo-router";
-import { Bot, ChevronRight, Folder, FolderPlus, SquarePen } from "lucide-react-native";
+import {
+  Bot,
+  ChevronRight,
+  Folder,
+  FolderPlus,
+  MoreHorizontal,
+  Pencil,
+  SquarePen,
+} from "lucide-react-native";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Pressable, type PressableStateCallbackType, ScrollView, Text, View } from "react-native";
+import { Pressable, ScrollView, Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { AgentStatusDot } from "@/components/agent-status-dot";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isNative } from "@/constants/platform";
 import { AdaptiveRenameModal } from "@/components/rename-modal";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 import { getHostRuntimeStore } from "@/runtime/host-runtime";
 import { useToast } from "@/contexts/toast-context";
 import type { SidebarProjectEntry } from "@/hooks/sidebar-workspaces-view-model";
@@ -39,10 +53,14 @@ const ThemedFolder = withUnistyles(Folder);
 const ThemedFolderPlus = withUnistyles(FolderPlus);
 const ThemedBot = withUnistyles(Bot);
 const ThemedSquarePen = withUnistyles(SquarePen);
+const ThemedMoreHorizontal = withUnistyles(MoreHorizontal);
+const ThemedPencil = withUnistyles(Pencil);
 
 const mutedIconColor = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
-type HoverState = PressableStateCallbackType & { hovered?: boolean };
+// Menu-item leading icons (module-level so they aren't re-created per row — react-perf).
+const newConversationMenuIcon = <ThemedSquarePen size={16} uniProps={mutedIconColor} />;
+const renameMenuIcon = <ThemedPencil size={16} uniProps={mutedIconColor} />;
 
 const EMPTY_AGENTS: never[] = [];
 
@@ -248,18 +266,27 @@ function ConversationTreeRowView({
   const { node, depth, canExpand, isExpanded } = row;
   const isProject = node.kind === "project";
 
+  // Row hover drives the trailing action (more / new-conversation); right-click & long-press open
+  // the same menu, also openable from the more button (反馈8/12/14).
+  const [rowHovered, setRowHovered] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const handleHoverIn = useCallback(() => setRowHovered(true), []);
+  const handleHoverOut = useCallback(() => setRowHovered(false), []);
+  const openMenu = useCallback(() => setMenuOpen(true), []);
+  const showRowActions = rowHovered || isNative;
+
   const indentStyle = useMemo(
     () => ({ paddingLeft: ROW_BASE_PADDING + depth * INDENT_PER_DEPTH }),
     [depth],
   );
-  const rowStyle = useCallback(
-    ({ hovered }: HoverState) => [
+  const rowStyle = useMemo(
+    () => [
       styles.row,
       indentStyle,
       selected && styles.rowSelected,
-      hovered && !selected && styles.rowHovered,
+      rowHovered && !selected && styles.rowHovered,
     ],
-    [indentStyle, selected],
+    [indentStyle, selected, rowHovered],
   );
 
   const handlePress = useCallback(() => {
@@ -316,88 +343,120 @@ function ConversationTreeRowView({
     [renameMutation, toast],
   );
   const handleCloseRename = useCallback(() => setIsRenameOpen(false), []);
+  const openRename = useCallback(() => setIsRenameOpen(true), []);
 
   return (
-    <Pressable
-      style={rowStyle}
-      onPress={handleRowPress}
-      testID={`conversation-tree-row-${node.id}`}
-      accessibilityRole="button"
-      accessibilityState={isProject ? undefined : SELECTED_STATE_FALSE}
-    >
-      {({ hovered }) => (
-        <>
-          {isProject ? (
-            <ThemedFolder size={TREE_ICON_SIZE} uniProps={mutedIconColor} />
-          ) : (
-            <>
-              {node.kind === "subagent" ? (
-                <ThemedBot size={SUBAGENT_ICON_SIZE} uniProps={mutedIconColor} />
-              ) : null}
-              <AgentStatusDot
-                status={node.status}
-                requiresAttention={node.requiresAttention}
-                showInactive
-              />
-            </>
-          )}
-
-          <Text style={selected ? styles.rowNameSelected : styles.rowName} numberOfLines={1}>
-            {node.title.length > 0 ? node.title : node.id}
-          </Text>
-
-          {/* Project rows reveal a new-conversation action on hover (反馈: 悬浮目录出新对话图标),
-              always shown on touch where hover is unreachable. */}
-          {isProject && (hovered || isNative) ? (
-            <Pressable
-              onPress={handleNewConversation}
-              style={styles.rowAction}
-              testID={`conversation-tree-new-conversation-${node.id}`}
-              accessibilityRole="button"
-              hitSlop={6}
-            >
-              <ThemedSquarePen size={CHEVRON_SIZE} uniProps={mutedIconColor} />
-            </Pressable>
-          ) : null}
-
-          {!isProject && node.subagentCount > 0 ? (
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{node.subagentCount}</Text>
-            </View>
-          ) : null}
-
-          {/* Expand/collapse chevron sits after the name (反馈: 放目录名后边); the flex name
-              pushes it to the row's trailing edge. */}
-          {canExpand ? (
-            <Pressable
-              onPress={handleChevron}
-              style={styles.chevronButton}
-              testID={`conversation-tree-chevron-${node.id}`}
-              accessibilityRole="button"
-            >
-              <ThemedChevron
-                size={CHEVRON_SIZE}
-                uniProps={mutedIconColor}
-                style={isExpanded ? styles.chevronExpanded : styles.chevronCollapsed}
-              />
-            </Pressable>
-          ) : null}
-
-          {!isProject && node.workspaceId ? (
-            <AdaptiveRenameModal
-              visible={isRenameOpen}
-              title={t("sidebar.workspace.rename.title")}
-              initialValue={node.title}
-              placeholder={node.title}
-              submitLabel={t("sidebar.workspace.rename.submit")}
-              onClose={handleCloseRename}
-              onSubmit={handleSubmitRename}
-              testID={`conversation-rename-modal-${node.id}`}
+    <ContextMenu open={menuOpen} onOpenChange={setMenuOpen}>
+      <ContextMenuTrigger
+        onPress={handleRowPress}
+        onHoverIn={handleHoverIn}
+        onHoverOut={handleHoverOut}
+        style={rowStyle}
+        enabledOnMobile
+        testID={`conversation-tree-row-${node.id}`}
+        accessibilityRole="button"
+        accessibilityState={isProject ? undefined : SELECTED_STATE_FALSE}
+      >
+        {isProject ? (
+          <ThemedFolder size={TREE_ICON_SIZE} uniProps={mutedIconColor} />
+        ) : (
+          <>
+            {node.kind === "subagent" ? (
+              <ThemedBot size={SUBAGENT_ICON_SIZE} uniProps={mutedIconColor} />
+            ) : null}
+            <AgentStatusDot
+              status={node.status}
+              requiresAttention={node.requiresAttention}
+              showInactive
             />
-          ) : null}
-        </>
-      )}
-    </Pressable>
+          </>
+        )}
+
+        <Text style={selected ? styles.rowNameSelected : styles.rowName} numberOfLines={1}>
+          {node.title.length > 0 ? node.title : node.id}
+        </Text>
+
+        {/* Trailing hover action: project → new conversation (反馈7); conversation → "more" that
+            opens the same menu as right-click / long-press (反馈14). */}
+        {isProject && showRowActions ? (
+          <Pressable
+            onPress={handleNewConversation}
+            style={styles.rowAction}
+            testID={`conversation-tree-new-conversation-${node.id}`}
+            accessibilityRole="button"
+            hitSlop={6}
+          >
+            <ThemedSquarePen size={CHEVRON_SIZE} uniProps={mutedIconColor} />
+          </Pressable>
+        ) : null}
+        {!isProject && showRowActions ? (
+          <Pressable
+            onPress={openMenu}
+            style={styles.rowAction}
+            testID={`conversation-tree-more-${node.id}`}
+            accessibilityRole="button"
+            hitSlop={6}
+          >
+            <ThemedMoreHorizontal size={CHEVRON_SIZE} uniProps={mutedIconColor} />
+          </Pressable>
+        ) : null}
+
+        {!isProject && node.subagentCount > 0 ? (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{node.subagentCount}</Text>
+          </View>
+        ) : null}
+
+        {canExpand ? (
+          <Pressable
+            onPress={handleChevron}
+            style={styles.chevronButton}
+            testID={`conversation-tree-chevron-${node.id}`}
+            accessibilityRole="button"
+          >
+            <ThemedChevron
+              size={CHEVRON_SIZE}
+              uniProps={mutedIconColor}
+              style={isExpanded ? styles.chevronExpanded : styles.chevronCollapsed}
+            />
+          </Pressable>
+        ) : null}
+      </ContextMenuTrigger>
+
+      <ContextMenuContent side="bottom" align="end" minWidth={168}>
+        {isProject ? (
+          <ContextMenuItem
+            onSelect={handleNewConversation}
+            leading={newConversationMenuIcon}
+            testID={`conversation-tree-menu-new-${node.id}`}
+          >
+            {t("sidebar.actions.newConversation")}
+          </ContextMenuItem>
+        ) : null}
+        {!isProject && node.workspaceId ? (
+          <ContextMenuItem
+            onSelect={openRename}
+            leading={renameMenuIcon}
+            testID={`conversation-tree-menu-rename-${node.id}`}
+          >
+            {t("sidebar.workspace.rename.title")}
+          </ContextMenuItem>
+        ) : null}
+      </ContextMenuContent>
+
+      {!isProject && node.workspaceId ? (
+        <AdaptiveRenameModal
+          visible={isRenameOpen}
+          title={t("sidebar.workspace.rename.title")}
+          initialValue={node.title}
+          placeholder={node.title}
+          submitLabel={t("sidebar.workspace.rename.submit")}
+          onClose={handleCloseRename}
+          onSubmit={handleSubmitRename}
+          testID={`conversation-rename-modal-${node.id}`}
+        />
+      ) : null}
+    </ContextMenu>
   );
 }
 
