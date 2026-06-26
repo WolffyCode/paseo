@@ -1831,7 +1831,9 @@ export function NewWorkspaceScreen({
   return (
     <FileDropZone onFilesDropped={handleFilesDropped}>
       <View style={styles.container}>
-        <ScreenHeader left={screenHeaderLeft} right={screenHeaderRight} borderless />
+        {/* 顶栏保留底线(非 borderless): 与左栏 window-chrome 的底线连成一条贯穿窗口的水平分隔线
+            (设计稿 canvas-top border-bottom 1px; 反馈: 顶栏要在一条水平线上)。 */}
+        <ScreenHeader left={screenHeaderLeft} right={screenHeaderRight} />
         <View style={styles.bodyRow}>
           <View style={contentStyle}>
             <TitlebarDragRegion />

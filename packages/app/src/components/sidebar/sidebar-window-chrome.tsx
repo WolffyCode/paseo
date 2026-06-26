@@ -154,6 +154,11 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: 2,
     paddingHorizontal: theme.spacing[1.5],
+    // Bottom hairline mirrors the canvas top bar's border so the two strips share one continuous
+    // horizontal divider across the whole window (设计稿 sb-lights + canvas-top 都 border-bottom 1px;
+    // 反馈: 顶栏底线要在一条水平线上). Same width/color as ScreenHeader's row border.
+    borderBottomWidth: theme.borderWidth[1],
+    borderBottomColor: theme.colors.border,
   },
   rowCollapsed: {
     flexDirection: "row",
