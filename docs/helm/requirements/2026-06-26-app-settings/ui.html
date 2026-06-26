@@ -1,0 +1,2130 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · 设置 · 应用段（8 tab） · UI 设计稿（2026-06-26-app-settings）</title>
+    <style>
+      :root {
+        --surface0: #ffffff;
+        --surface1: #fafafa;
+        --surface2: #f4f4f5;
+        --surface3: #e4e4e7;
+        --surface4: #d4d4d8;
+        --surfaceSidebar: #f4f4f5;
+        --surfaceWorkspace: #ffffff;
+        --fg: #1a1a1e;
+        --fgMuted: #71717a;
+        --fgFaint: #a1a1aa;
+        --border: #e4e4e7;
+        --borderAccent: #ececf1;
+        --accent: #20744a;
+        --accentBright: #239956;
+        --accentSoft: rgba(32, 116, 74, 0.1);
+        --accentSoftBorder: rgba(32, 116, 74, 0.28);
+        --accentFg: #ffffff;
+        --success: #15803d;
+        --successSoft: rgba(34, 197, 94, 0.12);
+        --warning: #d97706;
+        --warningSoft: rgba(217, 119, 6, 0.12);
+        --danger: #b91c1c;
+        --dangerSoft: rgba(220, 38, 38, 0.1);
+        --xs: 12px;
+        --sm: 14px;
+        --base: 16px;
+        --lg: 18px;
+        --xl: 20px;
+        --xxl: 22px;
+        --xxxl: 26px;
+        --r-sm: 2px;
+        --r-base: 4px;
+        --r-md: 6px;
+        --r-lg: 8px;
+        --r-xl: 12px;
+        --r-2xl: 16px;
+        --ui:
+          system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+          sans-serif;
+        --mono: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        background: #e8e8eb; color: var(--fg); font-family: var(--ui);
+        -webkit-font-smoothing: antialiased; font-size: var(--base); line-height: 1.45;
+      }
+      body { padding: 40px 32px 120px; }
+      svg.i {
+        width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none;
+        stroke-linecap: round; stroke-linejoin: round; flex: none; display: block;
+      }
+      .i.xs { width: 12px; height: 12px; }
+      .i.sm { width: 14px; height: 14px; }
+      .i.md { width: 16px; height: 16px; }
+      .i.lg { width: 20px; height: 20px; }
+      .i.xl { width: 26px; height: 26px; }
+      /* ---------- 设计板自身 chrome（非产品 UI） ---------- */
+      .board-h { max-width: 1240px; margin: 0 auto 18px; }
+      .board-h h1 {
+        font-size: 30px; font-weight: 600; letter-spacing: -0.5px;
+        display: flex; align-items: center; gap: 12px;
+      }
+      .board-h h1 .logo {
+        width: 34px; height: 34px; border-radius: 9px;
+        background: linear-gradient(135deg, var(--accent), #15583a);
+        display: flex; align-items: center; justify-content: center; color: #fff;
+      }
+      .board-h .sub { color: var(--fgMuted); font-size: var(--sm); margin-top: 8px; max-width: 980px; }
+      /* 真实能力纠正盒 */
+      .fixbox { max-width: 1240px; margin: 0 auto 22px; border: 1px solid var(--accentSoftBorder); background: var(--accentSoft); border-radius: var(--r-xl); padding: 14px 18px; }
+      .fixbox h3 { font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 9px; display: flex; align-items: center; gap: 7px; text-transform: uppercase; letter-spacing: 0.4px; }
+      .fixbox ul { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 26px; }
+      .fixbox li { font-size: 12.5px; color: var(--fg); line-height: 1.55; padding-left: 15px; position: relative; }
+      .fixbox li::before { content: "✕→✓"; position: absolute; left: 0; top: 0; color: var(--accentBright); font-size: 9px; font-weight: 700; }
+      .fixbox li b { color: var(--accent); font-weight: 600; }
+      .nav-idx { max-width: 1240px; margin: 0 auto 30px; display: flex; flex-wrap: wrap; gap: 8px; }
+      .nav-idx a {
+        font-size: var(--xs); color: var(--fgMuted); text-decoration: none;
+        padding: 5px 11px; border: 1px solid var(--border); border-radius: 9999px; background: var(--surface1);
+      }
+      .nav-idx a:hover { color: var(--fg); background: var(--surface2); }
+      .nav-idx a.sub { background: var(--surface2); border-style: dashed; }
+      .nav-idx .grp { flex-basis: 100%; font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.6px; margin: 8px 0 2px; padding: 0; }
+      .nav-idx .grp:first-child { margin-top: 0; }
+      .screen { max-width: 1240px; margin: 0 auto 52px; scroll-margin-top: 20px; }
+      .screen-head { margin-bottom: 14px; }
+      .screen-head .tag {
+        display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+        color: var(--accentBright); background: var(--accentSoft); padding: 2px 9px; border-radius: 9999px; margin-bottom: 8px;
+      }
+      .screen-head .tag.plat { color: var(--fgMuted); background: var(--surface2); margin-left: 6px; }
+      .screen-head h2 { font-size: var(--xl); font-weight: 600; letter-spacing: -0.2px; }
+      .screen-head p { color: var(--fgMuted); font-size: var(--sm); margin-top: 5px; max-width: 940px; }
+      .screen-sub { margin: 26px 0 14px; padding-top: 18px; border-top: 1px dashed var(--surface4); }
+      .screen-sub .tag {
+        display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+        color: var(--warning); background: var(--warningSoft); padding: 2px 9px; border-radius: 9999px; margin-bottom: 7px;
+      }
+      .screen-sub h3 { font-size: var(--lg); font-weight: 600; letter-spacing: -0.2px; }
+      .screen-sub p { color: var(--fgMuted); font-size: 13px; margin-top: 4px; max-width: 940px; }
+      .screen-body { display: grid; grid-template-columns: 1fr 340px; gap: 20px; align-items: start; }
+      .screen-body.wide { grid-template-columns: 1fr; }
+      /* ---------- 交互注解块（每屏必带 · 四维度） ---------- */
+      .anno { border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface1); overflow: hidden; }
+      .anno .anno-h {
+        font-size: var(--xs); font-weight: 600; color: var(--fgMuted); text-transform: uppercase;
+        letter-spacing: 0.4px; padding: 9px 12px 6px;
+      }
+      .anno ol { list-style: none; display: flex; flex-direction: column; }
+      .anno li {
+        display: flex; gap: 9px; padding: 9px 12px; border-top: 1px solid var(--border);
+        font-size: 13px; line-height: 1.5; color: var(--fgMuted);
+      }
+      .anno li b { color: var(--fg); font-weight: 500; }
+      .pin {
+        flex: none; width: 18px; height: 18px; border-radius: 9999px; background: var(--accent);
+        color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center;
+      }
+      .pin.warn { background: var(--warning); }
+      .anno li .pin { margin-top: 1px; }
+      .states { border-top: 1px solid var(--border); padding: 9px 12px; background: var(--surface0); }
+      .states .sh { font-size: 11px; font-weight: 600; color: var(--fgMuted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 7px; }
+      .states dl { display: grid; grid-template-columns: 76px 1fr; gap: 5px 8px; font-size: 12px; line-height: 1.45; }
+      .states dt { color: var(--accentBright); font-weight: 600; }
+      .states dd { margin: 0; color: var(--fgMuted); }
+      .states dd b { color: var(--fg); font-weight: 500; }
+      /* ---------- 设备框 ---------- */
+      .frame {
+        border: 1px solid var(--border); border-radius: var(--r-xl); overflow: hidden;
+        background: var(--surface0); box-shadow: 0 20px 50px -20px rgba(0, 0, 0, 0.13);
+      }
+      .titlebar {
+        height: 38px; background: var(--surfaceSidebar); display: flex; align-items: center;
+        padding: 0 14px; gap: 8px; border-bottom: 1px solid var(--border);
+      }
+      .lights { display: flex; gap: 8px; }
+      .lights span { width: 11px; height: 11px; border-radius: 9999px; }
+      .lights .r { background: #ff5f57; }
+      .lights .y { background: #febc2e; }
+      .lights .g { background: #28c840; }
+      .tb-title { margin-left: 10px; font-size: 13px; color: var(--fgMuted); }
+      /* ---------- 设置外壳 master-detail ---------- */
+      .set-shell { display: flex; min-height: 660px; }
+      .set-nav {
+        width: 240px; flex: none; background: var(--surfaceSidebar); border-right: 1px solid var(--border);
+        padding: 10px 10px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px;
+      }
+      .set-navback {
+        display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--fgMuted);
+        padding: 7px 8px; border-radius: var(--r-md); cursor: pointer; margin-bottom: 4px;
+      }
+      .set-navback:hover { background: var(--surface2); color: var(--fg); }
+      .set-navgroup {
+        font-size: 11px; font-weight: 600; color: var(--fgFaint); text-transform: uppercase;
+        letter-spacing: 0.5px; padding: 10px 8px 5px;
+      }
+      .set-navrow {
+        display: flex; align-items: center; gap: 10px; padding: 7px 9px; border-radius: var(--r-md);
+        font-size: var(--sm); color: var(--fg); cursor: pointer; text-decoration: none; position: relative;
+      }
+      .set-navrow .i { color: var(--fgMuted); }
+      .set-navrow:hover { background: var(--surface2); }
+      .set-navrow.active { background: var(--accentSoft); color: var(--accent); font-weight: 500; }
+      .set-navrow.active .i { color: var(--accent); }
+      .set-navrow.disabled { color: var(--fgFaint); cursor: not-allowed; }
+      .set-navrow.disabled .i { color: var(--fgFaint); }
+      .set-navrow .lk { margin-left: auto; color: var(--fgFaint); }
+      .set-navrow .navbadge {
+        margin-left: auto; font-size: 10px; color: var(--fgMuted); background: var(--surface3);
+        border-radius: 9999px; padding: 0 6px; min-width: 17px; text-align: center;
+      }
+      /* host 选择器（主机段头） */
+      .set-hostpick {
+        display: flex; align-items: center; gap: 8px; margin: 4px 0 2px; padding: 8px 9px;
+        border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface0); cursor: pointer;
+      }
+      .set-hostpick:hover { background: var(--surface2); }
+      .set-hostpick .hp-name { font-size: 13px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .set-hostpick .hp-chev { color: var(--fgMuted); }
+      /* 右详情面 */
+      .set-detail { flex: 1; min-width: 0; background: var(--surfaceWorkspace); display: flex; flex-direction: column; }
+      .set-dhead {
+        padding: 18px 24px 14px; border-bottom: 1px solid var(--border); display: flex;
+        align-items: flex-start; gap: 12px;
+      }
+      .set-dhead .dh-main { flex: 1; min-width: 0; }
+      .set-dtitle { font-size: var(--lg); font-weight: 600; letter-spacing: -0.2px; display: flex; align-items: center; gap: 9px; }
+      .set-dsub { color: var(--fgMuted); font-size: 13px; margin-top: 3px; max-width: 620px; line-height: 1.5; }
+      .set-dbody { padding: 18px 24px 28px; overflow-y: auto; display: flex; flex-direction: column; gap: 22px; }
+      /* 详情内分组 */
+      .set-group { display: flex; flex-direction: column; }
+      .set-grouph { font-size: 12px; font-weight: 600; color: var(--fgMuted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 9px; display: flex; align-items: center; gap: 8px; }
+      .set-card { border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface0); overflow: hidden; }
+      /* 表单行 */
+      .set-row { display: flex; align-items: center; gap: 16px; padding: 13px 16px; border-top: 1px solid var(--border); }
+      .set-card > .set-row:first-child { border-top: none; }
+      .set-row:hover { background: var(--surface1); }
+      .set-rl { flex: 1; min-width: 0; }
+      .set-rt { font-size: var(--sm); color: var(--fg); display: flex; align-items: center; gap: 7px; }
+      .set-rd { font-size: var(--xs); color: var(--fgMuted); margin-top: 3px; line-height: 1.5; }
+      .set-rc { flex: none; display: flex; align-items: center; gap: 8px; }
+      /* 控件：toggle 开关 */
+      .set-toggle { width: 38px; height: 22px; border-radius: 9999px; background: var(--surface4); position: relative; transition: background 0.15s; flex: none; cursor: pointer; }
+      .set-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 9999px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.2); transition: left 0.15s; }
+      .set-toggle.on { background: var(--accent); }
+      .set-toggle.on::after { left: 18px; }
+      .set-toggle.dis { opacity: 0.45; }
+      /* 控件：分段 */
+      .set-seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface2); padding: 2px; gap: 2px; }
+      .set-seg span { font-size: var(--xs); padding: 5px 12px; border-radius: var(--r-base); color: var(--fgMuted); cursor: pointer; white-space: nowrap; }
+      .set-seg span.on { background: var(--surface0); color: var(--fg); font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.06); }
+      /* 控件：select / 下拉触发 */
+      .set-select {
+        display: inline-flex; align-items: center; gap: 8px; font-size: var(--sm); padding: 7px 11px;
+        border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface0); color: var(--fg); cursor: pointer; min-width: 150px; justify-content: space-between;
+      }
+      .set-select:hover { background: var(--surface1); }
+      .set-select .i { color: var(--fgMuted); }
+      /* 控件：input / 数字 */
+      .set-input { font-size: var(--sm); padding: 7px 11px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface0); color: var(--fg); min-width: 110px; font-family: var(--ui); }
+      .set-input.mono { font-family: var(--mono); font-size: var(--xs); }
+      .set-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accentSoft); }
+      .set-input:disabled { opacity: 0.5; cursor: not-allowed; }
+      .set-input::placeholder { color: var(--fgFaint); }
+      /* 按钮 */
+      .btn {
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-size: var(--sm);
+        font-weight: 500; padding: 9px 14px; border-radius: var(--r-md); border: 1px solid transparent;
+        white-space: nowrap; cursor: pointer;
+      }
+      .btn.df { background: var(--accent); color: #fff; border-color: var(--accent); }
+      .btn.df:hover { background: #1b6340; }
+      .btn.out { background: var(--surface0); border-color: var(--border); color: var(--fg); }
+      .btn.out:hover { background: var(--surface2); }
+      .btn.ghost { background: transparent; color: var(--fgMuted); border-color: transparent; }
+      .btn.ghost:hover { background: var(--surface2); color: var(--fg); }
+      .btn.danger { background: var(--surface0); border-color: rgba(220, 38, 38, 0.4); color: var(--danger); }
+      .btn.danger:hover { background: var(--dangerSoft); }
+      .btn.sm { padding: 6px 11px; font-size: var(--xs); }
+      .btn.dis { opacity: 0.45; cursor: not-allowed; }
+      .btn .i { width: 15px; height: 15px; }
+      /* 通用小件 */
+      .dot { width: 8px; height: 8px; border-radius: 9999px; flex: none; }
+      .dot.on { background: var(--success); }
+      .dot.busy { background: var(--warning); }
+      .dot.off { background: var(--danger); }
+      .dot.idle { background: var(--fgFaint); }
+      .dot.lg { width: 10px; height: 10px; }
+      .badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+      .badge.suc { color: var(--success); background: var(--successSoft); }
+      .badge.warn { color: var(--warning); background: var(--warningSoft); }
+      .badge.err { color: var(--danger); background: var(--dangerSoft); }
+      .badge.mut { color: var(--fgMuted); background: var(--surface2); }
+      .badge.acc { color: var(--accentBright); background: var(--accentSoft); }
+      .badge.lock { color: var(--fgMuted); background: var(--surface2); }
+      .badge.tgt { color: var(--fgMuted); background: var(--surface1); border: 1px dashed var(--fgFaint); }
+      .chip {
+        display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border);
+        border-radius: 9999px; background: var(--surface0); font-size: var(--xs); color: var(--fg);
+      }
+      .badge-ic {
+        width: 32px; height: 32px; border-radius: var(--r-lg); background: var(--surface2);
+        display: flex; align-items: center; justify-content: center; color: var(--accentBright); flex: none;
+      }
+      .spinner { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--surface3); border-top-color: var(--accent); animation: spin 1s linear infinite; }
+      .spinner.sm { width: 16px; height: 16px; border-width: 2px; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .mini-spin { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--surface3); border-top-color: var(--accent); animation: spin 0.8s linear infinite; flex: none; }
+      .emptybox {
+        border: 1px dashed var(--border); border-radius: var(--r-lg); padding: 26px; text-align: center;
+        color: var(--fgMuted); font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 8px;
+      }
+      .alertbox { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid; border-radius: var(--r-lg); font-size: 13px; background: var(--surface0); }
+      .alertbox.err { border-color: rgba(220, 38, 38, 0.4); }
+      .alertbox.err .i, .alertbox.err .at { color: var(--danger); }
+      .alertbox.warn { border-color: rgba(217, 119, 6, 0.4); }
+      .alertbox.warn .i, .alertbox.warn .at { color: var(--warning); }
+      .alertbox.info { border-color: var(--accentSoftBorder); }
+      .alertbox.info .i, .alertbox.info .at { color: var(--accentBright); }
+      .alertbox .at { font-weight: 600; }
+      .alertbox .ad { color: var(--fgMuted); margin-top: 3px; line-height: 1.5; }
+      /* 右键菜单 / 下拉浮层 */
+      .ctxmenu { width: 218px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface0); box-shadow: 0 12px 34px -12px rgba(0,0,0,0.28); overflow: hidden; padding: 4px; }
+      .ctxmenu.wide { width: 250px; }
+      .ctxmenu .ci { display: flex; align-items: center; gap: 9px; padding: 7px 9px; border-radius: var(--r-base); font-size: 13px; color: var(--fg); cursor: pointer; }
+      .ctxmenu .ci:hover { background: var(--surface2); }
+      .ctxmenu .ci.danger { color: var(--danger); }
+      .ctxmenu .ci.danger:hover { background: var(--dangerSoft); }
+      .ctxmenu .ci .i { color: var(--fgMuted); }
+      .ctxmenu .ci.danger .i { color: var(--danger); }
+      .ctxmenu .ci .ck { margin-left: auto; color: var(--accent); }
+      .ctxmenu .ci .tail { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+      .ctxmenu .csep { height: 1px; background: var(--border); margin: 4px 0; }
+      .ctxmenu .msec { font-size: 10px; font-weight: 600; color: var(--fgFaint); text-transform: uppercase; letter-spacing: 0.4px; padding: 7px 9px 3px; }
+      .sw { width: 14px; height: 14px; border-radius: var(--r-base); border: 1px solid rgba(0,0,0,0.14); flex: none; }
+      .note { max-width: 1240px; margin: 0 auto 10px; color: var(--fgMuted); font-size: var(--xs); display: flex; gap: 8px; align-items: center; }
+      /* ---------- 应用段 ap- / rt- 复用类 ---------- */
+      .ap-input-wide { min-width: 200px; max-width: 240px; flex: 1; }
+      .ap-input-num { min-width: 64px; width: 64px; text-align: right; }
+      .ap-unit { font-size: var(--sm); color: var(--fgMuted); }
+      .ap-val { font-size: var(--sm); color: var(--fg); font-variant-numeric: tabular-nums; }
+      .ap-val.mut { color: var(--fgMuted); }
+      .ap-val.warn { color: var(--warning); }
+      .ap-dhead-act { flex: none; align-self: center; }
+      .ap-keys { display: inline-flex; align-items: center; gap: 4px; }
+      .ap-kbd {
+        display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px;
+        padding: 0 6px; border: 1px solid var(--border); border-bottom-width: 2px; border-radius: var(--r-base);
+        background: var(--surface1); color: var(--fg); font-family: var(--mono); font-size: 11px; font-weight: 600;
+      }
+      .ap-kbd.txt { font-family: var(--ui); font-weight: 500; color: var(--fgMuted); }
+      .ap-caphint { font-size: var(--xs); color: var(--accentBright); font-weight: 500; }
+      .ap-row-cap { background: var(--accentSoft); }
+      .ap-rownote { font-size: 11px; color: var(--fgFaint); margin-top: 3px; }
+      .ap-code { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface1); overflow: hidden; padding: 7px 0; margin-top: 4px; }
+      .ap-cl { font-family: var(--mono); font-size: var(--xs); line-height: 1.7; padding: 0 14px; white-space: pre; color: #383a42; }
+      .ap-cl.add { background: rgba(46, 160, 67, 0.13); }
+      .ap-cl.rem { background: rgba(248, 81, 73, 0.10); }
+      .ap-mk { color: var(--fgFaint); }
+      .ap-mk.a { color: var(--success); }
+      .ap-mk.r { color: var(--danger); }
+      /* One 方案语法 token —— 内容色（非 UI token），同 diff-pane 文档化例外 */
+      .ap-k { color: #a626a4; } /* keyword */
+      .ap-s { color: #50a14f; } /* string */
+      .ap-f { color: #4078f2; } /* function */
+      .ap-c { color: #a0a1a7; font-style: italic; } /* comment */
+      .ap-n { color: #986801; } /* number */
+      .ap-t { color: #c18401; } /* type */
+      .ap-brand { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 9px; padding: 8px 0 2px; }
+      .ap-applogo { width: 54px; height: 54px; border-radius: var(--r-xl); background: linear-gradient(135deg, var(--accent), #15583a); display: flex; align-items: center; justify-content: center; color: #fff; }
+      .ap-brand .bn { font-size: var(--xl); font-weight: 600; letter-spacing: -0.3px; }
+      .ap-brand .bs { font-size: var(--sm); color: var(--fgMuted); }
+      .ap-community { display: flex; justify-content: center; gap: 4px; padding-top: 2px; }
+      .rt-stat { display: inline-flex; align-items: center; gap: 8px; }
+      .rt-err { color: var(--danger); font-size: var(--xs); margin-top: 3px; line-height: 1.5; }
+      .rt-detail { color: var(--fgMuted); font-size: var(--xs); line-height: 1.5; max-width: 230px; text-align: right; }
+      .rt-mono { font-family: var(--mono); font-size: 11px; }
+      .rt-side { display: flex; flex-direction: column; gap: 14px; }
+      .rt-cap { font-size: 11px; font-weight: 600; color: var(--fgMuted); text-transform: uppercase; letter-spacing: 0.4px; margin: 0 2px 6px; }
+      .rt-working { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--accentBright); font-weight: 500; }
+      /* ---------- 本需求新增：目标态缺口块（诚实标注，非可用） ---------- */
+      .tgt-card { border: 1px dashed var(--fgFaint); border-radius: var(--r-xl); background: var(--surface1); overflow: hidden; }
+      .tgt-card .tgt-row { display: flex; align-items: center; gap: 12px; padding: 11px 15px; border-top: 1px dashed var(--surface4); font-size: 13px; color: var(--fgMuted); opacity: 0.78; }
+      .tgt-card > .tgt-row:first-of-type { border-top: none; }
+      .tgt-row .i { color: var(--fgFaint); }
+      .tgt-row .tr-name { flex: 1; min-width: 0; }
+      .tgt-row .tr-d { font-size: 11px; color: var(--fgFaint); margin-top: 2px; }
+      .tgt-head { display: flex; align-items: center; gap: 9px; padding: 10px 15px; background: var(--surface2); border-bottom: 1px dashed var(--surface4); font-size: 12px; font-weight: 600; color: var(--fgMuted); }
+      .tgt-head .badge { margin-left: auto; }
+      .tgt-note { font-size: 11.5px; color: var(--fgMuted); padding: 10px 15px; line-height: 1.55; border-top: 1px dashed var(--surface4); }
+      .tgt-note b { color: var(--fg); font-weight: 500; }
+      *::-webkit-scrollbar { width: 7px; height: 7px; }
+      *::-webkit-scrollbar-thumb { background: #c7c7cc; border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; }
+      * { scrollbar-width: thin; scrollbar-color: #c7c7cc transparent; }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="gauge" viewBox="0 0 24 24"><path d="m12 14 4-4" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></symbol>
+      <symbol id="settings" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></symbol>
+      <symbol id="palette" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.555C21.965 6.012 17.461 2 12 2z" /></symbol>
+      <symbol id="keyboard" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10" /></symbol>
+      <symbol id="server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2" /><rect width="20" height="8" x="2" y="14" rx="2" /><path d="M6 6h.01M6 18h.01" /></symbol>
+      <symbol id="package" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15" /><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></symbol>
+      <symbol id="shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /></symbol>
+      <symbol id="stethoscope" viewBox="0 0 24 24"><path d="M4 3v6a5 5 0 0 0 10 0V3" /><path d="M8 3H4M14 3h-4" /><circle cx="20" cy="14" r="2" /><path d="M18 14v2a6 6 0 0 1-12 0v-2" /></symbol>
+      <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></symbol>
+      <symbol id="network" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="6" rx="1" /><rect x="2" y="16" width="6" height="6" rx="1" /><rect x="16" y="16" width="6" height="6" rx="1" /><path d="M12 8v4M5 16v-2h14v2" /></symbol>
+      <symbol id="link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></symbol>
+      <symbol id="bot" viewBox="0 0 24 24"><path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2M20 14h2M15 13v2M9 13v2" /></symbol>
+      <symbol id="folder" viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" /></symbol>
+      <symbol id="terminal" viewBox="0 0 24 24"><path d="m7 11 2-2-2-2M11 13h4" /><rect width="18" height="18" x="3" y="3" rx="2" /></symbol>
+      <symbol id="layers" viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></symbol>
+      <symbol id="puzzle" viewBox="0 0 24 24"><path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 19.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z" /></symbol>
+      <symbol id="plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14" /></symbol>
+      <symbol id="trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
+      <symbol id="pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></symbol>
+      <symbol id="refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.7 9.7 0 0 1 6.7 2.7L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.7 9.7 0 0 1-6.7-2.7L3 16" /><path d="M8 16H3v5" /></symbol>
+      <symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
+      <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+      <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
+      <symbol id="alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></symbol>
+      <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></symbol>
+      <symbol id="key" viewBox="0 0 24 24"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L18.9 3.9" /><path d="m21 2-9.6 9.6" /><circle cx="7.5" cy="15.5" r="5.5" /></symbol>
+      <symbol id="zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></symbol>
+      <symbol id="smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" /><path d="M12 18h.01" /></symbol>
+      <symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></symbol>
+      <symbol id="monitor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2" /><path d="M8 21h8M12 17v4" /></symbol>
+      <symbol id="copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+      <symbol id="download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></symbol>
+      <symbol id="power" viewBox="0 0 24 24"><path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.77.04" /></symbol>
+      <symbol id="bell" viewBox="0 0 24 24"><path d="M10.268 21a2 2 0 0 0 3.464 0M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326" /></symbol>
+      <symbol id="mic" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="11" rx="3" /><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4M8 22h8" /></symbol>
+      <symbol id="cpu" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2" /><rect width="6" height="6" x="9" y="9" rx="1" /><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2" /></symbol>
+      <symbol id="github" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4" /><path d="M9 18c-4.51 2-5-2-7-2" /></symbol>
+      <symbol id="heart" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" /></symbol>
+      <symbol id="file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v5h5M8 13h8M8 17h8M8 9h2" /></symbol>
+      <symbol id="play" viewBox="0 0 24 24"><path d="M6 3v18l15-9z" /></symbol>
+      <symbol id="external" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></symbol>
+      <symbol id="more-v" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /></symbol>
+      <symbol id="lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
+      <symbol id="wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 5.2-2.8M2 8.8a15 15 0 0 1 4.2-2.5M19 12.9a10 10 0 0 0-2.4-1.6M22 8.8a15 15 0 0 0-4.8-2.7" /><path d="m2 2 20 20" /></symbol>
+    </svg>
+
+    <div class="board-h">
+      <h1><span class="logo"><svg class="i lg"><use href="#gauge" /></svg></span> Helm · 设置 · 应用段（8 tab） · UI 设计稿</h1>
+      <p class="sub">需求 <b>2026-06-26-app-settings</b>（P1）。本稿覆盖<b>应用段（App 级 / 设备级）8 tab</b>：通用 · 外观 · 快捷键 · 守护进程 · 集成 · 权限 · 诊断 · 关于；外加外壳金标准。与产品经理共享同一份冻结结构。设计原则：普通用户、做减法、能力缺口诚实标「目标态」、不画成能用。已按<b>真实代码纠正</b>旧附录失真（见下）。浅色 · accent #20744A · 桌面 only（跨平台 / 桌面专属差异写进各屏注解，不画进框）。</p>
+    </div>
+
+    <div class="fixbox">
+      <h3><svg class="i sm"><use href="#shield" /></svg> 对旧附录的真实能力纠正（本稿已改正）</h3>
+      <ul>
+        <li><b>守护进程</b>：启停 + 开机自启 = 「管理内建 daemon」<b>一个开关</b>（删独立 Start/Stop 按钮、删独立「开机自启」开关）；停止 = 开关关的确认流。</li>
+        <li><b>集成</b>：不是装 agent CLI；单卡只 2 行 —— <b>Helm 命令行（CLI）</b> + <b>技能包（Skills）</b>。装 agent CLI 在「主机 › 模型与提供方」。</li>
+        <li><b>权限</b>：真实只 2 项 —— <b>通知</b>（可测试）+ <b>麦克风</b>（无测试）。摄像头 / 辅助功能 / 系统设置深链 = 目标态缺口块。</li>
+        <li><b>诊断</b>：极简 —— 音频播放测试 + 查看 daemon 日志（复用入口）。<b>连接自检 = 目标态占位（选 A）</b>，真实尚无、与守护进程/主机诊断重叠。</li>
+      </ul>
+    </div>
+
+    <div class="nav-idx">
+      <span class="grp">应用段 · 8 tab + 外壳金标准</span>
+      <a href="#shell">shell · 设置外壳 — 应用 / 主机两段导航 + host 选择器（金标准）</a>
+      <a href="#gen1">gen1 · 通用 — 回车行为 / 界面语言 / 服务 URL / 终端回滚</a>
+      <a href="#ap1">ap1 · 外观 — 主题 · 字体 · 字号 · 语法高亮 + 预览 · 标题来源</a>
+      <a href="#sc1">sc1 · 快捷键 — 5 组 · 键帽 · 改 / 重置 / 全部重置</a>
+      <a href="#sc1-capture" class="sub">↳ sc1-capture · 捕获态（按下快捷键…）</a>
+      <a href="#dm1">dm1 · 守护进程 — 状态 · 管理内建 daemon · 退出保持 · 日志 · 状态</a>
+      <a href="#dm1-stopped" class="sub">↳ dm1-stopped · 未运行态</a>
+      <a href="#int1">int1 · 集成 — Helm CLI + 技能包（2 行）</a>
+      <a href="#int1-installing" class="sub">↳ int1-installing · 安装中 / 处理中（无进度条）</a>
+      <a href="#perm1">perm1 · 权限 — 通知（可测试）+ 麦克风 + 目标态缺口</a>
+      <a href="#perm1-request" class="sub">↳ perm1-request · 未授权 / 请求中</a>
+      <a href="#diag1">diag1 · 诊断 — 音频测试 · daemon 日志 · 连接自检（目标态）</a>
+      <a href="#abt1">abt1 · 关于 — 版本 · 频道 · 更新 · 已连主机 · 社区</a>
+    </div>
+
+    <!-- ==================== #shell · 设置外壳（金标准） ==================== -->
+    <section class="screen" id="shell">
+      <div class="screen-head">
+        <span class="tag">SHELL · 金标准</span><span class="tag plat">桌面 only · 跨平台壳</span>
+        <h2>设置外壳 — 应用 / 主机两段导航 + host 选择器</h2>
+        <p>所有 tab 共用的容器。左导航分「应用（App 级 / 设备级）」「主机（主机级 · 段头带 host 选择器）」两段。<b>应用段 8 行现全部可点 / 可激活</b>。右侧详情面随选中 section 整块替换；下面演示「通用」作为视觉与注解的金标准。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow active"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">通用</div>
+                  <div class="set-dsub">App 全局基础行为。这些设置跟随当前设备 / App，对所有已连主机一致生效。</div>
+                </div>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">对话</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">回合进行中按回车</div>
+                        <div class="set-rd">代理还在回应时，回车是停下当前回合，还是把这条消息排到后面。</div>
+                      </div>
+                      <div class="set-rc"><div class="set-seg"><span class="on">打断</span><span>入队</span></div></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">界面语言</div>
+                        <div class="set-rd">Helm 界面显示的语言。</div>
+                      </div>
+                      <div class="set-rc"><span class="set-select">跟随系统 <svg class="i sm"><use href="#chev-d" /></svg></span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">工作区</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">服务 URL 打开方式 <span class="badge lock" style="font-size:10px"><svg class="i xs"><use href="#monitor"/></svg> 桌面</span></div>
+                        <div class="set-rd">工作区暴露的本地服务，点开时先问、用内置浏览器、还是用系统浏览器。</div>
+                      </div>
+                      <div class="set-rc"><span class="set-select">询问 <svg class="i sm"><use href="#chev-d" /></svg></span></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">终端回滚行数</div>
+                        <div class="set-rd">终端保留的历史输出行数（0 – 1,000,000）。</div>
+                      </div>
+                      <div class="set-rc"><input class="set-input" value="10000" /></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="rt-side">
+          <div>
+            <div class="rt-cap">host 选择器 · 点开（主机段头）</div>
+            <div class="ctxmenu wide">
+              <div class="msec">已连主机</div>
+              <div class="ci"><span class="dot on"></span> Wolffy-MBP <span class="tail"><span class="badge mut" style="font-size:10px">本地</span><svg class="i sm ck"><use href="#check"/></svg></span></div>
+              <div class="ci"><span class="dot on"></span> Office-Linux <span class="tail"><span class="badge mut" style="font-size:10px">relay</span></span></div>
+              <div class="ci"><span class="dot busy"></span> Cloud-Box <span class="tail"><span class="badge mut" style="font-size:10px">连接中</span></span></div>
+              <div class="ci"><span class="dot off"></span> Mini-Server <span class="tail"><span class="badge mut" style="font-size:10px">离线</span></span></div>
+            </div>
+          </div>
+          <div class="anno">
+            <div class="anno-h">点击效果</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>左导航 section 行</b>：点击 = 切到该 section，右详情面整块替换；选中行 accentSoft 底 + accent 字 / 图标。一次只一个 active。</div></li>
+              <li><span class="pin">2</span><div><b>host 选择器</b>（主机段头）：点开列已连主机（在线 / 连接中 / 离线状态点 + 当前项 ✓ + 本地 / relay 标识）；选另一台 → <b>只重载「主机」段</b>的右详情数据，<b>应用段（设备级）不受影响、不重载</b>。不负责「添加主机」（归主壳 / onboarding）。</div></li>
+              <li><span class="pin">3</span><div><b>返回主壳</b>：回到对话主壳（Esc 同效）。</div></li>
+              <li><span class="pin">4</span><div><b>控件即时生效</b>：分段 / 下拉 / 输入<b>立即持久化</b>（应用段写设备本地、主机段写该主机配置），<b>无独立「保存」</b>；输入类失焦 / 回车提交。</div></li>
+            </ol>
+            <div class="states">
+              <div class="sh">状态（四维度齐全）</div>
+              <dl>
+                <dt>布局</dt><dd>桌面 master-detail：左导航固定 240px，右详情面自适应、可滚。<b>本轮桌面 only</b>；手机 / 紧凑态后续适配（列表→全屏详情 push）。</dd>
+                <dt>默认</dt><dd>进入落「通用」（或记忆上次 section）；host 选择器 = 当前 active 主机（本地 Wolffy-MBP）。</dd>
+                <dt>hover</dt><dd>导航行 → surface2；控件行 → surface1；按钮 / 选择器见各自 hover。</dd>
+                <dt>活跃</dt><dd>选中 section 行 accentSoft 高亮；分段选中段白底。</dd>
+                <dt>运行</dt><dd>切 section / 切主机时主机段右详情页级 spinner；应用段为本地同步读、无运行态。</dd>
+                <dt>禁用</dt><dd><b>桌面专属 section（快捷键 / 守护进程 / 集成 / 权限）在非桌面置灰不可点</b>（本轮桌面，仅注明）。</dd>
+                <dt>空</dt><dd>无已连主机时，主机段显「未连接主机」占位 +「去连接」（回主壳）；主机级 section 不可进；<b>应用段照常可用</b>。</dd>
+                <dt>加载</dt><dd>切主机段 section 页级 spinner；行级数据各自 inline spinner；应用段无加载。</dd>
+                <dt>错误</dt><dd>主机段数据拉取失败 → 详情面顶 Alert（err）+ 重试；应用段无网络依赖、无此错误。</dd>
+                <dt>离线</dt><dd>所选主机离线 → host 选择器状态点转红 + 主机段详情顶 callout（主机离线 + 重新连接）；<b>应用段（设备级）与主机无关、照常可改</b>。</dd>
+                <dt>右键</dt><dd>外壳本身无右键菜单；list 类详情（集成行 / 权限行 / 中转站 / 主机行）的右键由各 tab 定义。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== #gen1 · 通用 ==================== -->
+    <section class="screen" id="gen1">
+      <div class="screen-head">
+        <span class="tag">GEN1 · 应用 / 通用</span><span class="tag plat">跨平台（服务 URL 行桌面专属）</span>
+        <h2>通用 — 回车行为 · 界面语言 · 服务 URL · 终端回滚</h2>
+        <p>App 全局基础行为。设备级即时持久化（无独立保存）。「服务 URL 打开方式」为桌面专属；其余跨平台。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow active"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">通用</div>
+                  <div class="set-dsub">App 全局基础行为。跟随当前设备 / App，对所有已连主机一致。</div>
+                </div>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">对话</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">回合进行中按回车</div>
+                        <div class="set-rd">代理还在回应时，回车是停下当前回合，还是把这条消息排到后面。</div>
+                      </div>
+                      <div class="set-rc"><div class="set-seg"><span class="on">打断</span><span>入队</span></div></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">界面语言</div>
+                        <div class="set-rd">Helm 界面显示的语言。跟随系统 / 简体中文 / English / Español / Français / Русский / العربية。</div>
+                      </div>
+                      <div class="set-rc"><span class="set-select">跟随系统 <svg class="i sm"><use href="#chev-d" /></svg></span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">工作区</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">服务 URL 打开方式 <span class="badge lock" style="font-size:10px"><svg class="i xs"><use href="#monitor"/></svg> 桌面</span></div>
+                        <div class="set-rd">工作区暴露的本地服务，点开时先询问、用内置浏览器、还是用系统浏览器。</div>
+                      </div>
+                      <div class="set-rc"><span class="set-select">询问 <svg class="i sm"><use href="#chev-d" /></svg></span></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">终端回滚行数</div>
+                        <div class="set-rd">终端保留的历史输出行数（0 – 1,000,000）。</div>
+                      </div>
+                      <div class="set-rc"><input class="set-input" value="10000" /></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">点击效果</div>
+          <ol>
+            <li><span class="pin">1</span><div><b>回车行为分段</b>：切「打断 / 入队」即时改全局回合行为；<b>默认打断</b>。立即持久化。</div></li>
+            <li><span class="pin">2</span><div><b>界面语言下拉</b>：点开列「跟随系统 / 简体中文 / English / Español / Français / Русский / العربية」，当前项 ✓；选一项全 App 立即切语言（含 RTL 阿拉伯语镜像）。默认<b>跟随系统</b>。</div></li>
+            <li><span class="pin">3</span><div><b>服务 URL 打开方式下拉</b>（桌面专属）：点开列「询问 / 内置浏览器 / 系统浏览器」；默认<b>询问</b>（每次点服务 URL 时问一次）。非桌面隐藏此行。</div></li>
+            <li><span class="pin">4</span><div><b>终端回滚行数输入</b>：仅数字，失焦 / 回车按 0 – 1,000,000 clamp 后提交；越界夹到边界，非数字回退上次值。默认 <b>10000</b>。</div></li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态（四维度齐全）</div>
+            <dl>
+              <dt>布局</dt><dd>右详情两组卡片（对话 / 工作区）。<b>桌面 only</b>；服务 URL 行桌面专属。</dd>
+              <dt>默认</dt><dd>回车 = 打断；语言 = 跟随系统；服务 URL = 询问；终端回滚 = 10000。</dd>
+              <dt>hover</dt><dd>控件行 surface1；下拉 / 输入框 hover 见控件态；分段 hover 不变（仅选中段白底）。</dd>
+              <dt>活跃</dt><dd>分段选中段白底 + 阴影；下拉 / 输入聚焦 accent 描边 + accentSoft 光环。</dd>
+              <dt>运行</dt><dd>无长任务 —— 改动即时写本地，无 spinner。</dd>
+              <dt>禁用</dt><dd>非桌面隐藏「服务 URL 打开方式」整行；本轮桌面，仅注明。</dd>
+              <dt>空</dt><dd>无空态 —— 所有项恒有默认值。</dd>
+              <dt>加载</dt><dd>进入即时无加载（本地同步读）。</dd>
+              <dt>错误</dt><dd>终端行数非数字 / 越界 → 夹边界或回退，不弹错。</dd>
+              <dt>离线</dt><dd>App 级偏好与主机无关，<b>主机离线照常可改</b>。</dd>
+              <dt>右键</dt><dd>无右键菜单。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== #ap1 · 外观 ==================== -->
+    <section class="screen" id="ap1">
+      <div class="screen-head">
+        <span class="tag">AP1 · 应用 / 外观</span><span class="tag plat">跨平台（字体族行桌面 / web 专属）</span>
+        <h2>外观 — 主题 · 字体 · 字号 · 语法高亮 + 预览 · 标题来源</h2>
+        <p>视觉呈现偏好。改动即时本地持久化并实时应用到全 App，无独立保存。默认主题<b>跟随系统</b>；字体 / 字号留空回落系统默认；语法高亮默认 <b>One</b>。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">外观</div>
+                  <div class="set-dsub">视觉呈现偏好。跟随当前设备 / App，对所有已连主机一致。</div>
+                </div>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">主题</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">主题</div>
+                        <div class="set-rd">浅色 / 深色 / 跟随系统，及暗色变体（Zinc / Midnight / Claude / Ghostty），每项带图标或色板。</div>
+                      </div>
+                      <div class="set-rc"><span class="set-select">跟随系统 <svg class="i sm"><use href="#chev-d" /></svg></span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">字体</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">界面字体 <span class="badge lock" style="font-size:10px"><svg class="i xs"><use href="#monitor"/></svg> 桌面 / web</span></div>
+                        <div class="set-rd">用于全 App 文字。留空使用系统默认字体族。</div>
+                      </div>
+                      <div class="set-rc"><input class="set-input ap-input-wide" placeholder="系统默认 · system-ui" /></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">界面字号</div>
+                        <div class="set-rd">11 – 24 px。</div>
+                      </div>
+                      <div class="set-rc"><input class="set-input ap-input-num" value="16" /><span class="ap-unit">px</span></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">代码字体 <span class="badge lock" style="font-size:10px"><svg class="i xs"><use href="#monitor"/></svg> 桌面 / web</span></div>
+                        <div class="set-rd">用于终端、差异与代码块。留空使用等宽默认。</div>
+                      </div>
+                      <div class="set-rc"><input class="set-input mono ap-input-wide" placeholder="系统等宽 · SFMono…" /></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">代码字号</div>
+                        <div class="set-rd">9 – 22 px。</div>
+                      </div>
+                      <div class="set-rc"><input class="set-input ap-input-num" value="12" /><span class="ap-unit">px</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">语法高亮</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">高亮方案</div>
+                        <div class="set-rd">代码块与差异视图的着色方案。GitHub / Catppuccin / Dracula / Tokyo Night / One / Nord / Gruvbox / Solarized。</div>
+                      </div>
+                      <div class="set-rc"><span class="set-select">One <svg class="i sm"><use href="#chev-d" /></svg></span></div>
+                    </div>
+                  </div>
+                  <div class="ap-code">
+                    <div class="ap-cl"><span class="ap-mk">&nbsp;&nbsp;</span><span class="ap-c">// clamp a font size into range</span></div>
+                    <div class="ap-cl"><span class="ap-mk">&nbsp;&nbsp;</span><span class="ap-k">export</span> <span class="ap-k">function</span> <span class="ap-f">clamp</span>(n: <span class="ap-t">number</span>, lo: <span class="ap-t">number</span>, hi: <span class="ap-t">number</span>) {</div>
+                    <div class="ap-cl rem"><span class="ap-mk r">- </span>&nbsp;&nbsp;<span class="ap-k">return</span> n &lt; lo ? lo : n &gt; hi ? hi : n</div>
+                    <div class="ap-cl add"><span class="ap-mk a">+ </span>&nbsp;&nbsp;<span class="ap-k">if</span> (n &lt; lo) <span class="ap-k">return</span> lo</div>
+                    <div class="ap-cl add"><span class="ap-mk a">+ </span>&nbsp;&nbsp;<span class="ap-k">if</span> (n &gt; hi) <span class="ap-k">return</span> hi</div>
+                    <div class="ap-cl add"><span class="ap-mk a">+ </span>&nbsp;&nbsp;<span class="ap-k">return</span> n</div>
+                    <div class="ap-cl"><span class="ap-mk">&nbsp;&nbsp;</span>}</div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">工作区</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">标题来源</div>
+                        <div class="set-rd">工作区标签显示会话标题，还是 Git 分支名。</div>
+                      </div>
+                      <div class="set-rc"><div class="set-seg"><span class="on">标题</span><span>分支</span></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="rt-side">
+          <div>
+            <div class="rt-cap">主题下拉 · 点开（每项色板）</div>
+            <div class="ctxmenu">
+              <div class="ci"><svg class="i sm"><use href="#palette"/></svg> 浅色 <span class="tail"><span class="sw" style="background:#ffffff"></span></span></div>
+              <div class="ci"><svg class="i sm"><use href="#palette"/></svg> 深色 <span class="tail"><span class="sw" style="background:#18181b"></span></span></div>
+              <div class="ci"><svg class="i sm"><use href="#monitor"/></svg> 跟随系统 <span class="tail"><svg class="i sm ck"><use href="#check"/></svg></span></div>
+              <div class="csep"></div>
+              <div class="msec">暗色变体</div>
+              <div class="ci">Zinc <span class="tail"><span class="sw" style="background:#27272a"></span></span></div>
+              <div class="ci">Midnight <span class="tail"><span class="sw" style="background:#0b1220"></span></span></div>
+              <div class="ci">Claude <span class="tail"><span class="sw" style="background:#2b2a26"></span></span></div>
+              <div class="ci">Ghostty <span class="tail"><span class="sw" style="background:#1d1f21"></span></span></div>
+            </div>
+          </div>
+          <div class="anno">
+            <div class="anno-h">点击效果</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>主题下拉</b>：点开列「浅色 / 深色 / 跟随系统」三主项 + 分隔线 + 暗色变体（Zinc / Midnight / Claude / Ghostty），当前项 ✓、每项带图标或色板；选一项全 App 立即重绘。默认<b>跟随系统</b>。</div></li>
+              <li><span class="pin">2</span><div><b>字体输入框</b>（桌面 / web 专属）：输入字体族名，<b>失焦 / 回车</b>提交并即时应用；留空 → 回落系统默认（placeholder 显默认栈）；非法字符 → 静默回退上次值。</div></li>
+              <li><span class="pin">3</span><div><b>字号输入框</b>：仅数字，失焦 / 回车按范围 clamp（界面 11–24、代码 9–22）后提交；越界夹到边界，非数字回退。</div></li>
+              <li><span class="pin">4</span><div><b>高亮方案下拉</b>：点开列 8 个方案，当前项 ✓；选中即时改预览卡 + 全 App 代码着色。默认 <b>One</b>。</div></li>
+              <li><span class="pin">5</span><div><b>代码预览卡</b>：只读统一差异片段，随「代码字体 / 代码字号草稿 + 高亮方案」<b>边打字边实时预览</b>，不可点。</div></li>
+              <li><span class="pin">6</span><div><b>标题来源分段</b>：切「标题 / 分支」即时改所有工作区标签的显示来源；与侧栏「显示偏好」为<b>同一偏好、双入口同步</b>（任一处改、另一处即时同步；外观为正式归集处）。</div></li>
+            </ol>
+            <div class="states">
+              <div class="sh">状态（四维度齐全）</div>
+              <dl>
+                <dt>布局</dt><dd>右详情纵向分组卡（主题 / 字体 / 语法高亮 + 预览 / 工作区）。<b>桌面 only</b>。</dd>
+                <dt>默认</dt><dd>主题 = 跟随系统；字体留空（显默认 placeholder）；界面 <b>16</b> / 代码 <b>12</b>；方案 <b>One</b>；标题来源 = 标题。</dd>
+                <dt>hover</dt><dd>控件行 surface1；下拉 / 输入框 hover 见控件态；分段 hover 不变。</dd>
+                <dt>活跃</dt><dd>分段选中段白底 + 阴影；输入 / 下拉聚焦 accent 描边 + accentSoft 光环。</dd>
+                <dt>运行</dt><dd>无长任务 —— 改动即时写本地，无 spinner。</dd>
+                <dt>禁用</dt><dd><b>移动端隐藏「界面字体 / 代码字体」两行</b>（仅桌面 / web 可设自定义字体族）；本轮桌面，仅注明。</dd>
+                <dt>空</dt><dd>无空态 —— 所有项恒有默认值。</dd>
+                <dt>加载</dt><dd>进入即时无加载（本地同步读）。</dd>
+                <dt>错误</dt><dd>字体族非法 → 静默回退上次值；字号非数字 / 越界 → 夹边界或回退；均不弹错。</dd>
+                <dt>离线</dt><dd>App 级偏好与主机无关，<b>主机离线照常可改</b>。</dd>
+                <dt>右键</dt><dd>无右键菜单。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== #sc1 · 快捷键（+捕获态） ==================== -->
+    <section class="screen" id="sc1">
+      <div class="screen-head">
+        <span class="tag">SC1 · 应用 / 快捷键</span><span class="tag plat">桌面专属</span>
+        <h2>快捷键 — 5 组 · 键帽 · 改 / 重置 / 全部重置</h2>
+        <p>查看与自定义键盘快捷键，按 5 组分区（导航 / 标签与窗格 / 项目 / 面板 / 代理输入）。点「改」捕获新组合，「重置」回默认。Mac 显 ⌘ 键面（注解：非 Mac 显 Ctrl）。<b>捕获无冲突检测，后到优先、不阻断</b>。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">快捷键</div>
+                  <div class="set-dsub">桌面专属。点动作右侧「改」捕获新组合。</div>
+                </div>
+                <button class="btn ghost sm ap-dhead-act">全部重置</button>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">导航</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">跳转到工作区</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd txt">1–9</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">上一个工作区</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">[</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">下一个工作区</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">]</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">标签与窗格</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">新建标签</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">T</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">关闭当前标签</div><div class="ap-rownote">已自定义</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">⌥</span><span class="ap-kbd">W</span></span><button class="btn ghost sm">改</button><button class="btn ghost sm">重置</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">向右拆分窗格</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">⇧</span><span class="ap-kbd">D</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">关闭窗格</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">⇧</span><span class="ap-kbd">W</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">项目</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">打开项目</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">⇧</span><span class="ap-kbd">O</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">新建工作区</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">N</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">归档工作树</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">⇧</span><span class="ap-kbd">⌫</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">面板</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">切换命令中心</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">K</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">切换左侧栏</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">B</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">切换设置</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">,</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">代理输入</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">聚焦消息输入框</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">L</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">中断代理</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">Esc</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">开始 / 停止听写</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">D</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">点击效果</div>
+          <ol>
+            <li><span class="pin">1</span><div><b>「改」按钮</b>：进入捕获态 —— 该行高亮，键位区变「按下快捷键…」，开始监听键盘；按下组合实时回显键帽，<b>Backspace</b> 删最后一段，支持多段 chord（详见 sc1-capture）。</div></li>
+            <li><span class="pin">2</span><div><b>「重置」按钮</b>（仅有覆盖的行显示，如「关闭当前标签 · 已自定义」）：删除该行覆盖回默认键位，「重置」随之消失。</div></li>
+            <li><span class="pin">3</span><div><b>「全部重置」</b>（标题栏右上，仅存在覆盖时显示）：弹确认 → 清空所有覆盖回默认。</div></li>
+            <li><span class="pin">4</span><div><b>键位键帽</b>：纯展示，不可点；改键只走「改」按钮。</div></li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态（四维度齐全）</div>
+            <dl>
+              <dt>布局</dt><dd>右详情按 5 组分卡（导航 / 标签与窗格 / 项目 / 面板 / 代理输入）；行 = 动作名（左）+ 键帽 + 按钮（右）。<b>桌面 only</b>。</dd>
+              <dt>默认</dt><dd>显示默认键位，无「重置」，未捕获；有覆盖行显「已自定义」+「重置」；标题栏「全部重置」仅在存在覆盖时出现。</dd>
+              <dt>hover</dt><dd>行无整行 hover 底（仅捕获时高亮）；「改 / 重置 / 完成 / 取消」按钮 hover surface2。</dd>
+              <dt>活跃</dt><dd>被改的行 accentSoft 高亮 +「按下快捷键…」+ 右侧「完成 / 取消」（见 sc1-capture）。</dd>
+              <dt>运行</dt><dd>捕获是即时本地交互，无异步运行态。</dd>
+              <dt>禁用</dt><dd><b>移动端整页置灰「快捷键在移动端不可用」</b>（本轮桌面，仅注明）；Mac 显 ⌘、非 Mac 显 Ctrl。</dd>
+              <dt>空</dt><dd>不会为空 —— 恒有默认绑定。</dd>
+              <dt>加载</dt><dd>覆盖来自本地存储，进入即时无加载。</dd>
+              <dt>错误</dt><dd><b>无冲突检测</b>：捕获到与系统 / 已占用冲突的组合仍允许保存（后到优先），不阻断、不报错。</dd>
+              <dt>离线</dt><dd>App 级，<b>主机离线照常改键</b>。</dd>
+              <dt>右键</dt><dd>无右键菜单。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- sc1-capture · 捕获态 ---- -->
+      <div class="screen-sub">
+        <span id="sc1-capture"></span>
+        <span class="tag">SC1-CAPTURE · 捕获态</span>
+        <h3>快捷键 — 某行捕获中（按下快捷键…）</h3>
+        <p>点某行「改」后的瞬时态：该行高亮、键位区变「按下快捷键…」并监听键盘，右侧出现「完成 / 取消」。下图以「向右拆分窗格」为例。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">快捷键</div>
+                  <div class="set-dsub">桌面专属。正在捕获「向右拆分窗格」的新组合。</div>
+                </div>
+                <button class="btn ghost sm ap-dhead-act">全部重置</button>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">标签与窗格</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">新建标签</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">T</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                    <div class="set-row ap-row-cap">
+                      <div class="set-rl"><div class="set-rt">向右拆分窗格</div></div>
+                      <div class="set-rc"><span class="ap-caphint">按下快捷键…</span><button class="btn out sm">完成</button><button class="btn ghost sm">取消</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">关闭窗格</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">⇧</span><span class="ap-kbd">W</span></span><button class="btn ghost sm">改</button></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="set-group">
+                  <div class="set-grouph">捕获到组合后</div>
+                  <div class="set-card">
+                    <div class="set-row ap-row-cap">
+                      <div class="set-rl"><div class="set-rt">向右拆分窗格</div><div class="ap-rownote">已捕获 · 待保存</div></div>
+                      <div class="set-rc"><span class="ap-keys"><span class="ap-kbd">⌘</span><span class="ap-kbd">⇧</span><span class="ap-kbd">.</span></span><button class="btn out sm">完成</button><button class="btn ghost sm">取消</button></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">点击效果 · 捕获态</div>
+          <ol>
+            <li><span class="pin">1</span><div><b>捕获中</b>：行 accentSoft 高亮，键位区显「按下快捷键…」（accent 字）；实时监听，按下组合即回显键帽，<b>Backspace</b> 删最后一段，支持多段 chord。</div></li>
+            <li><span class="pin">2</span><div><b>「完成」</b>（捕获到组合后才生效）：保存为该动作覆盖 → 行恢复常态、键位显新组合、出现「重置」。</div></li>
+            <li><span class="pin">3</span><div><b>「取消」</b>（或点走 / 失焦）：放弃捕获，恢复原键位。</div></li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态（四维度齐全）</div>
+            <dl>
+              <dt>布局</dt><dd>同 sc1，仅目标行进入捕获态；其余行常态。<b>桌面 only</b>。</dd>
+              <dt>默认</dt><dd>捕获态本身即此屏；进入时键位区为「按下快捷键…」、未捕获。</dd>
+              <dt>hover</dt><dd>「完成 / 取消」按钮 hover surface2；捕获行恒高亮（非 hover）。</dd>
+              <dt>活跃</dt><dd>捕获行 accentSoft + 键位回显已按下的键帽（见「已捕获 · 待保存」示例 ⌘⇧.）。</dd>
+              <dt>运行</dt><dd>纯前台键盘监听，无异步。</dd>
+              <dt>禁用</dt><dd>捕获期间其它行「改」按钮仍可点（点别处会取消当前捕获并切到新行）。</dd>
+              <dt>空</dt><dd>未按任何键 = 键位区「按下快捷键…」，「完成」此时点击无效（需先捕获）。</dd>
+              <dt>加载</dt><dd>无加载。</dd>
+              <dt>错误</dt><dd>无冲突检测，后到优先；不会因冲突阻断或报错。</dd>
+              <dt>离线</dt><dd>App 级，主机离线照常。</dd>
+              <dt>右键</dt><dd>无右键菜单。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== #dm1 · 守护进程（+未运行态） ==================== -->
+    <section class="screen" id="dm1">
+      <div class="screen-head">
+        <span class="tag">DM1 · 应用 / 守护进程</span><span class="tag plat">桌面 Electron 专属</span>
+        <h2>守护进程 — 状态 · 管理内建 daemon · 退出保持 · 日志 · 状态</h2>
+        <p>App 级（设备级）。管理这台电脑上 Helm 内建的 daemon —— 它在本地托管你的 agent、终端与工作区。<b>启停 + 开机自启合并为「管理内建 daemon」一个开关</b>（无独立 Start/Stop 按钮、无独立「开机自启」开关）。本机内建 daemon（设备级）<b>≠</b> 主机段所选主机的 daemon（可能远程）。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">守护进程</div>
+                  <div class="set-dsub">管理这台电脑上的 Helm 内建 daemon —— 它在本地托管你的 agent、终端与工作区。</div>
+                </div>
+                <button class="btn ghost sm ap-dhead-act"><svg class="i"><use href="#external" /></svg> 高级设置</button>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">本机内建 daemon</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt"><span class="rt-stat"><span class="dot on lg"></span> 运行中</span></div>
+                        <div class="set-rd rt-mono">内置桌面 daemon · v1.0.0 · PID 48217</div>
+                      </div>
+                      <div class="set-rc"><span class="badge suc"><svg class="i xs"><use href="#check" /></svg> 健康</span></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">管理内建 daemon</div>
+                        <div class="set-rd">让 Helm 启动和停止内置 daemon，打开 Helm 时自动运行。</div>
+                      </div>
+                      <div class="set-rc"><span class="set-toggle on"></span></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">退出后保持 daemon 运行</div>
+                        <div class="set-rd">退出 Helm 后 daemon 会继续运行，保持你的 agent 不中断。</div>
+                      </div>
+                      <div class="set-rc"><span class="set-toggle on"></span></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">日志文件</div>
+                        <div class="set-rd rt-mono">~/.helm/daemon.log</div>
+                      </div>
+                      <div class="set-rc">
+                        <button class="btn out sm"><svg class="i"><use href="#copy" /></svg> 复制路径</button>
+                        <button class="btn out sm"><svg class="i"><use href="#file-text" /></svg> 打开日志</button>
+                      </div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">完整状态</div>
+                        <div class="set-rd">运行 <span class="rt-mono">paseo daemon status</span> 并显示输出。</div>
+                      </div>
+                      <div class="set-rc"><button class="btn out sm"><svg class="i"><use href="#stethoscope" /></svg> 查看状态</button></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">点击效果</div>
+          <ol>
+            <li><span class="pin">1</span><div><b>管理内建 daemon</b>（开关 · 唯一启停控制）：开 = Helm 托管并在打开 App 时自动运行内置 daemon；<b>关 → 弹确认</b>「这会立即停止内置 daemon。连接到它的运行中 agents 和 terminals 会被停止。」→「暂停并停止」，之后不再自动起。即时持久化（设备本地）。<b>无独立 Start/Stop 按钮</b>。</div></li>
+            <li><span class="pin">2</span><div><b>退出后保持 daemon 运行</b>（开关）：开 = 关闭 Helm 后 daemon 后台续跑（agent 不中断）；关 = 退出即随之停止。即时持久化。</div></li>
+            <li><span class="pin">3</span><div><b>复制路径</b>：复制 daemon.log 路径到剪贴板，提示「日志路径已复制」。无日志路径时此按钮不显示。</div></li>
+            <li><span class="pin">4</span><div><b>打开日志</b>：弹「Daemon 日志」对话框（路径 + 文件内容，等宽可选中复制；空文件显「（日志文件为空）」）。无日志时按钮禁用。</div></li>
+            <li><span class="pin">5</span><div><b>查看状态</b>：运行 <span class="rt-mono">paseo daemon status</span>，弹「Daemon 状态」对话框（等宽输出 + 关闭 / 复制）；运行中按钮显「加载中」禁用；失败时对话框显「获取 daemon 状态失败：…」。</div></li>
+            <li><span class="pin">6</span><div><b>高级设置 ↗</b>（标题栏）：系统外部浏览器打开 paseo.sh/docs/configuration。</div></li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态（四维度齐全）</div>
+            <dl>
+              <dt>区分</dt><dd>本卡管的是<b>本机内建 daemon（设备级）</b>；与「主机」段 host 选择器所选主机的 daemon（可能远程）<b>不是同一对象</b>，分属两层、互不影响。</dd>
+              <dt>布局</dt><dd>右详情单卡 5 行（状态 / 管理开关 / 退出保持 / 日志 / 完整状态）。<b>桌面 Electron 专属</b>（非桌面该 section 在导航置灰）。</dd>
+              <dt>默认</dt><dd>daemon 运行中（dot 绿 + 健康）+「管理内建 daemon」「退出后保持运行」均开。</dd>
+              <dt>hover</dt><dd>控件行 → surface1；按钮 → 各自 hover；导航行 → surface2。</dd>
+              <dt>活跃</dt><dd>导航「守护进程」accentSoft 高亮。</dd>
+              <dt>运行</dt><dd>开关切换持久化中 = dot 琥珀「启动中… / 停止中…」，开关与按钮短暂禁用。</dd>
+              <dt>禁用</dt><dd>切换持久化中按钮 / 开关短暂禁用；无日志路径时「打开日志」禁用；「查看状态」加载中禁用。</dd>
+              <dt>空</dt><dd>daemon 未运行 = dot 灰「未运行」+「PID —」+「启动」（见 dm1-stopped）。</dd>
+              <dt>加载</dt><dd>首次进入卡位居中 spinner（并行拉取 daemon 状态 + 设备设置）。</dd>
+              <dt>错误</dt><dd>状态拉取失败 → 状态行显「无法加载桌面 daemon 状态」；<b>App 与 daemon 版本不匹配 → 卡下方 amber 警告</b>（见下「条件态」）。</dd>
+              <dt>离线</dt><dd>本机内建 daemon 不经网络 / 主机连接，<b>无「离线」态</b>；进程意外退出 → 同「未运行」。</dd>
+              <dt>右键</dt><dd>无。本卡为表单，所有操作皆显式按钮 / 开关。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <!-- 条件态：版本不匹配 amber 警告 -->
+      <div style="max-width:1240px;margin:6px auto 0;display:grid;grid-template-columns:1fr 340px;gap:20px">
+        <div class="alertbox warn">
+          <svg class="i"><use href="#alert" /></svg>
+          <div><div class="at">App 和 daemon 版本不匹配</div><div class="ad">请将两者更新到相同版本，以避免功能异常。App v1.0.0 · daemon v0.9.8。该 amber 警告出现在卡下方（错误维度）。</div></div>
+        </div>
+        <div class="note" style="margin:0;align-items:flex-start"><svg class="i sm" style="margin-top:2px"><use href="#info" /></svg> 条件态示例：仅当版本不匹配时渲染；默认（同版本）不出现。</div>
+      </div>
+
+      <!-- ---- dm1-stopped · 未运行态 ---- -->
+      <div class="screen-sub">
+        <span id="dm1-stopped"></span>
+        <span class="tag">DM1-STOPPED · 未运行态</span>
+        <h3>守护进程 — daemon 未运行</h3>
+        <p>关闭「管理内建 daemon」开关（确认后停止）或进程意外退出后的态：状态点转灰「未运行」、PID 显「—」，状态行出现「启动」恢复动作。点启动 = 重新拉起并打开管理（开关回 ON）。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">守护进程</div>
+                  <div class="set-dsub">内置 daemon 当前未运行。</div>
+                </div>
+                <button class="btn ghost sm ap-dhead-act"><svg class="i"><use href="#external" /></svg> 高级设置</button>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">本机内建 daemon</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt"><span class="rt-stat"><span class="dot idle lg"></span> 未运行</span></div>
+                        <div class="set-rd rt-mono">内置桌面 daemon · v1.0.0 · PID —</div>
+                      </div>
+                      <div class="set-rc"><button class="btn out sm"><svg class="i"><use href="#power" /></svg> 启动</button></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">管理内建 daemon</div>
+                        <div class="set-rd">已关闭：Helm 不再托管 / 自动运行内置 daemon。</div>
+                      </div>
+                      <div class="set-rc"><span class="set-toggle"></span></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">退出后保持 daemon 运行</div>
+                        <div class="set-rd">退出 Helm 后 daemon 会继续运行，保持你的 agent 不中断。</div>
+                      </div>
+                      <div class="set-rc"><span class="set-toggle on"></span></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">日志文件</div>
+                        <div class="set-rd rt-mono">~/.helm/daemon.log</div>
+                      </div>
+                      <div class="set-rc">
+                        <button class="btn out sm"><svg class="i"><use href="#copy" /></svg> 复制路径</button>
+                        <button class="btn out sm dis"><svg class="i"><use href="#file-text" /></svg> 打开日志</button>
+                      </div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">完整状态</div>
+                        <div class="set-rd">运行 <span class="rt-mono">paseo daemon status</span> 并显示输出。</div>
+                      </div>
+                      <div class="set-rc"><button class="btn out sm"><svg class="i"><use href="#stethoscope" /></svg> 查看状态</button></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">点击效果 · 未运行态</div>
+          <ol>
+            <li><span class="pin">1</span><div><b>「启动」</b>（状态行 · 仅未运行时出现）：立即拉起内置 daemon 并打开管理（开关回 ON）；过程中 dot 转琥珀「启动中…」→ 成功转绿「运行中」。这是唯一的「启动」入口，<b>运行态下无对应「停止」按钮</b>（停止走开关关 + 确认）。</div></li>
+            <li><span class="pin">2</span><div><b>管理内建 daemon</b>（开关 · 当前关）：开 = 重新托管并启动 daemon（同「启动」）。</div></li>
+            <li><span class="pin">3</span><div><b>打开日志</b>：未运行 + 无新日志写入时仍可看历史；若无日志文件则禁用（图示禁用）。</div></li>
+            <li><span class="pin">4</span><div><b>查看状态</b>：仍可运行 <span class="rt-mono">paseo daemon status</span>，输出会显示「daemon not running」。</div></li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态（四维度齐全）</div>
+            <dl>
+              <dt>布局</dt><dd>同 dm1，单卡 5 行；状态行 dot 灰 + 启动按钮。<b>桌面 Electron 专属</b>。</dd>
+              <dt>默认</dt><dd>本屏即未运行态：dot 灰「未运行」+ PID — + 管理开关关 + 启动按钮。</dd>
+              <dt>hover</dt><dd>启动 / 查看状态按钮 hover surface2；行 hover surface1。</dd>
+              <dt>活跃</dt><dd>点「启动」后短暂 dot 琥珀「启动中…」、按钮禁用。</dd>
+              <dt>运行</dt><dd>启动过程 = 琥珀「启动中…」，开关与按钮短暂禁用。</dd>
+              <dt>禁用</dt><dd>无日志文件 →「打开日志」禁用（图示）；启动进行中其余按钮禁用。</dd>
+              <dt>空</dt><dd>本屏即「空 / 未运行」边界态。</dd>
+              <dt>加载</dt><dd>进入读取 daemon 状态快照后定格未运行。</dd>
+              <dt>错误</dt><dd>启动失败 → 状态行红字「无法启动 daemon：…」+ 保留「启动」重试。</dd>
+              <dt>离线</dt><dd>本机进程，无离线态。</dd>
+              <dt>右键</dt><dd>无右键菜单。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== #int1 · 集成（+安装中） ==================== -->
+    <section class="screen" id="int1">
+      <div class="screen-head">
+        <span class="tag">INT1 · 应用 / 集成</span><span class="tag plat">桌面 Electron 专属</span>
+        <h2>集成 — Helm 命令行（CLI）+ 技能包（Skills）</h2>
+        <p>App 级（设备级）。<b>只 2 行</b>：装 Helm 自己的命令行工具，以及 Helm 注入给 Claude / Codex 的技能包。<b>装 agent CLI（Claude Code / Codex / OpenCode / Copilot / Pi）不在此</b> —— 在「主机 › 模型与提供方」每行一键装。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">集成</div>
+                  <div class="set-dsub">Helm 自己的命令行工具与技能包。</div>
+                </div>
+                <button class="btn ghost sm ap-dhead-act"><svg class="i"><use href="#refresh" /></svg> 检查更新</button>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">命令行 &amp; 技能</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="badge-ic"><svg class="i"><use href="#terminal" /></svg></div>
+                      <div class="set-rl">
+                        <div class="set-rt">Helm 命令行（CLI）</div>
+                        <div class="set-rd rt-mono">helm · 装到 ~/.local/bin/helm</div>
+                      </div>
+                      <div class="set-rc">
+                        <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> 已安装</span>
+                        <button class="btn ghost sm"><svg class="i"><use href="#external" /></svg> 文档</button>
+                      </div>
+                    </div>
+                    <div class="set-row">
+                      <div class="badge-ic"><svg class="i"><use href="#puzzle" /></svg></div>
+                      <div class="set-rl">
+                        <div class="set-rt">技能包（Skills）</div>
+                        <div class="set-rd">Helm 为 Claude Code / Codex 注入的技能 · 已装 v3，可更新到 v4。</div>
+                      </div>
+                      <div class="set-rc">
+                        <span class="badge acc">有更新</span>
+                        <button class="btn out sm"><svg class="i"><use href="#download" /></svg> 更新</button>
+                        <button class="btn ghost sm" style="padding:6px"><svg class="i"><use href="#more-v" /></svg></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="alertbox info">
+                  <svg class="i"><use href="#info" /></svg>
+                  <div>
+                    <div class="at">要装 Claude Code / Codex / OpenCode / Copilot / Pi？</div>
+                    <div class="ad">那些命令行 agent 在「主机 › 模型与提供方」每个提供方一键安装。此处只管 Helm 自己的 CLI 与技能包。</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="rt-side">
+          <div>
+            <div class="rt-cap">右键 · 技能包行（已安装）</div>
+            <div class="ctxmenu">
+              <div class="ci"><svg class="i sm"><use href="#refresh" /></svg> 检查更新</div>
+              <div class="ci"><svg class="i sm"><use href="#copy" /></svg> 复制路径</div>
+              <div class="ci"><svg class="i sm"><use href="#folder" /></svg> 在 Finder 中显示</div>
+              <div class="csep"></div>
+              <div class="ci danger"><svg class="i sm"><use href="#trash" /></svg> 卸载</div>
+            </div>
+          </div>
+          <div class="anno">
+            <div class="anno-h">点击效果</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>Helm CLI · 文档 ↗</b>：外部浏览器打开 CLI 用法文档。未安装时该行为 badge「未安装」+「安装」（装到 ~/.local/bin）；<b>诚实缺口：CLI 仅安装，无更新 / 卸载入口</b>。</div></li>
+              <li><span class="pin">2</span><div><b>技能包 · 更新</b>：弹确认<b>列出将变更的技能</b>（新增 / 覆盖）→ 确认后安装；过程「处理中…」（见 int1-installing，<b>无进度条</b>）；完成 badge 转「最新」。未安装时为「安装」、最新时无按钮。</div></li>
+              <li><span class="pin">3</span><div><b>技能包 · 卸载</b>（kebab / 右键）：破坏性，弹确认 → 移除注入的技能 → 行转「未安装」+「安装」。</div></li>
+              <li><span class="pin">4</span><div><b>检查更新 ↗</b>（标题栏）：刷新 CLI 已装状态 + 技能包可更新状态；进行中「正在刷新…」。</div></li>
+            </ol>
+            <div class="states">
+              <div class="sh">状态（四维度齐全）</div>
+              <dl>
+                <dt>布局</dt><dd>右详情单卡 2 行（CLI / 技能包）+ 底部跨引用提示。<b>桌面 Electron 专属</b>。</dd>
+                <dt>默认</dt><dd>按本机实际状态渲染：CLI 已安装；技能包 最新 / 有更新 / 未安装。</dd>
+                <dt>hover</dt><dd>行 → surface1；按钮 → hover；kebab hover surface2；右键浮层 ci → surface2。</dd>
+                <dt>活跃</dt><dd>导航「集成」高亮；行本身无选中态（动作列表，非 master-detail）。</dd>
+                <dt>运行</dt><dd>安装 / 更新 / 卸载进行中 → 该行「安装中… / 处理中…」+ mini-spin，按钮禁用；另一行不受影响可并行。</dd>
+                <dt>禁用</dt><dd>该行操作进行中其按钮禁用；标题栏「检查更新」刷新中禁用。</dd>
+                <dt>空</dt><dd>清单固定 2 行，不会空；全未装时各行「未安装 + 安装」。</dd>
+                <dt>加载</dt><dd>首次进入逐行拉取本机状态 → 行右 inline 占位。</dd>
+                <dt>错误</dt><dd>单行安装失败 → 该行 rt-err 红字 +「失败」+「重试」；批量检查失败 → 卡顶 Alert（err）+「重试」。</dd>
+                <dt>离线</dt><dd>无网络 → 安装 / 更新 / 检查失败（需下载）→ Alert（err）「需要网络连接」；已装项仍显缓存状态。</dd>
+                <dt>右键</dt><dd>技能包行（已装）：检查更新 / 复制路径 / 在 Finder 中显示 /（分隔）卸载。CLI 行收敛为复制路径 / 在 Finder（<b>无卸载</b>）。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- int1-installing · 安装中 / 处理中（无进度条） ---- -->
+      <div class="screen-sub">
+        <span id="int1-installing"></span>
+        <span class="tag">INT1-INSTALLING · 安装中 / 处理中</span>
+        <h3>集成 — 行级安装中（无进度条）</h3>
+        <p>安装 / 更新进行时的行态：文案「安装中… / 处理中…」+ 行内 mini-spinner，<b>无进度条</b>（真实无百分比回报）；该行按钮禁用，另一行不受影响可并行。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">集成</div>
+                  <div class="set-dsub">正在安装 / 更新。</div>
+                </div>
+                <button class="btn ghost sm ap-dhead-act dis"><svg class="i"><use href="#refresh" /></svg> 检查更新</button>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">命令行 &amp; 技能</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="badge-ic"><svg class="i"><use href="#terminal" /></svg></div>
+                      <div class="set-rl">
+                        <div class="set-rt">Helm 命令行（CLI）</div>
+                        <div class="set-rd rt-mono">helm · 装到 ~/.local/bin/helm</div>
+                      </div>
+                      <div class="set-rc"><span class="rt-working"><span class="mini-spin"></span> 安装中…</span></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="badge-ic"><svg class="i"><use href="#puzzle" /></svg></div>
+                      <div class="set-rl">
+                        <div class="set-rt">技能包（Skills）</div>
+                        <div class="set-rd">正在更新到 v4 …</div>
+                      </div>
+                      <div class="set-rc"><span class="rt-working"><span class="mini-spin"></span> 处理中…</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">点击效果 · 安装中</div>
+          <ol>
+            <li><span class="pin">1</span><div><b>行内进行中</b>：右侧文案「安装中… / 处理中…」+ mini-spinner，<b>无进度条 / 无百分比</b>（真实安装无可靠进度回报）；该行所有按钮（更新 / 卸载 / 文档）禁用。</div></li>
+            <li><span class="pin">2</span><div><b>标题栏「检查更新」</b>：有任一行进行中时禁用（图示）。</div></li>
+            <li><span class="pin">3</span><div><b>完成</b>：自动回到默认态 —— CLI → badge「已安装」；技能包 → badge「最新」、版本号更新。</div></li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态（四维度齐全）</div>
+            <dl>
+              <dt>布局</dt><dd>同 int1，进行中的行右侧换为 spinner + 文案。<b>桌面 Electron 专属</b>。</dd>
+              <dt>默认</dt><dd>本屏即「运行 / 进行中」态。</dd>
+              <dt>hover</dt><dd>进行中行的禁用按钮无 hover 反馈；其余照常。</dd>
+              <dt>活跃</dt><dd>进行中行右侧 spinner 持续旋转。</dd>
+              <dt>运行</dt><dd>核心态：安装中 →「安装中…」；更新中 →「处理中…」；两行可同时进行、互不阻塞。</dd>
+              <dt>禁用</dt><dd>进行中行按钮 + 标题栏「检查更新」禁用。</dd>
+              <dt>空</dt><dd>不适用（进行中态）。</dd>
+              <dt>加载</dt><dd>进行中本身即加载态，无独立 spinner 叠加。</dd>
+              <dt>错误</dt><dd>失败 → 该行 rt-err 红字「安装失败：<原因>」+「失败」badge +「重试」。</dd>
+              <dt>离线</dt><dd>中途断网 → 失败并提示「需要网络连接」。</dd>
+              <dt>右键</dt><dd>进行中行右键项禁用（不可卸载 / 重装）。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== #perm1 · 权限（+请求中） ==================== -->
+    <section class="screen" id="perm1">
+      <div class="screen-head">
+        <span class="tag">PERM1 · 应用 / 权限</span><span class="tag plat">桌面 Electron 专属</span>
+        <h2>权限 — 通知（可测试）+ 麦克风 + 目标态缺口</h2>
+        <p>App 级（设备级 · 桌面 only）。<b>真实只 2 项</b>：通知（可发测试）+ 麦克风（无测试）。授权状态由 macOS 系统控制，Helm 仅在你授权后访问。摄像头 / 辅助功能 / 系统设置深链为<b>目标态（当前不做）</b>，下方明显标注，不画成能用的行。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">权限</div>
+                  <div class="set-dsub">管理 Helm 桌面端需要的系统权限。授权状态由 macOS 系统控制。</div>
+                </div>
+                <button class="btn ghost sm ap-dhead-act"><svg class="i"><use href="#refresh" /></svg> 刷新</button>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">系统权限</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">通知</div>
+                        <div class="set-rd">agent 完成或需要你介入时推送系统通知。</div>
+                      </div>
+                      <div class="set-rc">
+                        <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> 已授权</span>
+                        <button class="btn out sm"><svg class="i"><use href="#bell" /></svg> 测试</button>
+                      </div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">麦克风</div>
+                        <div class="set-rd">语音输入、口述消息给 agent。</div>
+                      </div>
+                      <div class="set-rc"><span class="badge suc"><svg class="i xs"><use href="#check" /></svg> 已授权</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">更多权限</div>
+                  <div class="tgt-card">
+                    <div class="tgt-head">
+                      <svg class="i sm"><use href="#shield" /></svg> 摄像头 · 辅助功能 · 系统设置深链
+                      <span class="badge tgt">目标态 · 后续（当前不做）</span>
+                    </div>
+                    <div class="tgt-row">
+                      <svg class="i sm"><use href="#smartphone" /></svg>
+                      <div class="tr-name">摄像头<div class="tr-d">扫描二维码配对设备</div></div>
+                      <span class="badge tgt" style="font-size:10px">未实现</span>
+                    </div>
+                    <div class="tgt-row">
+                      <svg class="i sm"><use href="#keyboard" /></svg>
+                      <div class="tr-name">辅助功能<div class="tr-d">全局快捷键与窗口自动化</div></div>
+                      <span class="badge tgt" style="font-size:10px">未实现</span>
+                    </div>
+                    <div class="tgt-row">
+                      <svg class="i sm"><use href="#external" /></svg>
+                      <div class="tr-name">打开系统设置深链<div class="tr-d">跳转 macOS 隐私与安全性面板</div></div>
+                      <span class="badge tgt" style="font-size:10px">未实现</span>
+                    </div>
+                    <div class="tgt-note"><b>目标态占位</b>：这三项真实尚未接入（仅通知 + 麦克风可用）。此块为路线图可见性，<b>不可点、非能用行</b>；后续阶段补齐。</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="rt-side">
+          <div>
+            <div class="rt-cap">右键 · 权限行</div>
+            <div class="ctxmenu">
+              <div class="ci"><svg class="i sm"><use href="#refresh" /></svg> 刷新此项状态</div>
+              <div class="ci"><svg class="i sm"><use href="#copy" /></svg> 复制状态详情</div>
+            </div>
+          </div>
+          <div class="anno">
+            <div class="anno-h">点击效果</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>「测试」</b>（通知 · 已授权）：发送一条测试系统通知；进行中转「测试…」；失败 → 该行下方红字错误。未授权或忙时禁用。<b>麦克风无测试按钮</b>（诚实：真实未提供麦克风自测）。</div></li>
+              <li><span class="pin">2</span><div><b>「请求」</b>（未授权行 · 见 perm1-request）：弹 macOS 系统授权对话框；按钮转「正在请求…」禁用；授权后 badge 转绿「已授权」。</div></li>
+              <li><span class="pin">3</span><div><b>「刷新」↗</b>（标题栏）：重新读取通知 / 麦克风的当前系统状态；进行中转「正在刷新…」禁用。</div></li>
+              <li><span class="pin warn">!</span><div><b>目标态缺口块</b>：摄像头 / 辅助功能 / 系统设置深链 = 后续，<b>明显标「目标态 · 未实现」、不可点</b>；不画成能用的行。</div></li>
+            </ol>
+            <div class="states">
+              <div class="sh">状态（四维度齐全）</div>
+              <dl>
+                <dt>布局</dt><dd>右详情单卡 2 行（通知 / 麦克风）+ 下方目标态缺口块。<b>桌面 Electron 专属</b>（非桌面导航置灰）。</dd>
+                <dt>默认</dt><dd>按 macOS 当前授权状态渲染：已授权（绿）/ 未授权（灰）。本图示均已授权。</dd>
+                <dt>hover</dt><dd>行 → surface1；按钮 → hover；右键 ci → surface2；目标态行无 hover（不可点）。</dd>
+                <dt>活跃</dt><dd>导航「权限」高亮。</dd>
+                <dt>运行</dt><dd>测试中 →「测试…」；请求中 →「正在请求…」；刷新中 → 标题栏「正在刷新…」。</dd>
+                <dt>禁用</dt><dd>任一操作进行中（busy）→ 其它按钮禁用；「测试」在未授权时禁用；目标态行恒不可点。</dd>
+                <dt>空</dt><dd>权限项为固定集（通知 / 麦克风），无空态。</dd>
+                <dt>加载</dt><dd>首次进入读取系统权限快照 → 各行 badge 占位。</dd>
+                <dt>错误</dt><dd>测试通知失败 → 该行下方红字（xs · destructive）；快照读取失败 → 卡顶 Alert（err）。</dd>
+                <dt>离线</dt><dd>权限为本机系统状态，<b>不依赖网络 / 主机连接，无离线态</b>。</dd>
+                <dt>右键</dt><dd>权限行：刷新此项状态 / 复制状态详情（2 项）。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- perm1-request · 未授权 / 请求中 ---- -->
+      <div class="screen-sub">
+        <span id="perm1-request"></span>
+        <span class="tag">PERM1-REQUEST · 未授权 / 请求中</span>
+        <h3>权限 — 未授权与请求中</h3>
+        <p>首次或被拒后的态：未授权 = badge 灰「未授权」+「请求」按钮；点请求 → 弹 macOS 系统对话框、按钮转「正在请求…」禁用。下图：通知未授权、麦克风请求中。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">权限</div>
+                  <div class="set-dsub">部分权限尚未授权。</div>
+                </div>
+                <button class="btn ghost sm ap-dhead-act"><svg class="i"><use href="#refresh" /></svg> 刷新</button>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">系统权限</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">通知</div>
+                        <div class="set-rd">agent 完成或需要你介入时推送系统通知。</div>
+                      </div>
+                      <div class="set-rc">
+                        <span class="badge mut">未授权</span>
+                        <button class="btn out sm">请求</button>
+                      </div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">麦克风</div>
+                        <div class="set-rd">语音输入、口述消息给 agent。</div>
+                      </div>
+                      <div class="set-rc"><button class="btn out sm dis"><span class="mini-spin"></span> 正在请求…</button></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">点击效果 · 未授权 / 请求中</div>
+          <ol>
+            <li><span class="pin">1</span><div><b>「请求」</b>（未授权）：点击弹 macOS 系统授权对话框；按钮转「正在请求…」+ spinner 禁用；用户允许 → badge 转绿「已授权」（通知行同时出现「测试」）；用户拒绝 → 回「未授权」（可再次请求）。</div></li>
+            <li><span class="pin">2</span><div><b>「正在请求…」</b>（请求中）：按钮禁用、显 spinner；等待系统对话框结果；期间「刷新」与另一项请求仍可点。</div></li>
+            <li><span class="pin">3</span><div><b>麦克风无测试</b>：授权后也不出现「测试」按钮（诚实：真实未提供麦克风自测）。</div></li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态（四维度齐全）</div>
+            <dl>
+              <dt>布局</dt><dd>同 perm1，行右侧换为「请求」/「正在请求…」。<b>桌面 Electron 专属</b>。</dd>
+              <dt>默认</dt><dd>本屏即未授权 / 请求中边界态。</dd>
+              <dt>hover</dt><dd>「请求」按钮 hover surface2；请求中禁用无 hover。</dd>
+              <dt>活跃</dt><dd>点「请求」瞬间转「正在请求…」并弹系统对话框。</dd>
+              <dt>运行</dt><dd>请求中 = spinner +「正在请求…」，等待系统结果。</dd>
+              <dt>禁用</dt><dd>请求中该行按钮禁用；其它项与「刷新」仍可点。</dd>
+              <dt>空</dt><dd>固定集，无空态。</dd>
+              <dt>加载</dt><dd>读取系统快照得出未授权后定格。</dd>
+              <dt>错误</dt><dd>请求异常 → 该行红字「无法请求权限：…」；系统拒绝 → 回「未授权」。</dd>
+              <dt>离线</dt><dd>本机系统状态，无离线态。</dd>
+              <dt>右键</dt><dd>刷新此项状态 / 复制状态详情。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== #diag1 · 诊断 ==================== -->
+    <section class="screen" id="diag1">
+      <div class="screen-head">
+        <span class="tag">DIAG1 · 应用 / 诊断</span><span class="tag plat">跨平台</span>
+        <h2>诊断 — 音频测试 · daemon 日志 · 连接自检（目标态）</h2>
+        <p>本地自检与排障，极简。即时动作型（无持久化）：测试语音音频输出、打开既有 daemon 日志视图（只露入口、不重复实现）。<b>连接自检 = 目标态占位（选 A）</b>：真实尚无此能力、与守护进程 / 主机连接诊断重叠，明显标注、不画成能用。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">诊断</div>
+                  <div class="set-dsub">本地自检与排障。这些是即时动作，不写入配置。</div>
+                </div>
+              </header>
+              <div class="set-dbody">
+                <div class="set-group">
+                  <div class="set-grouph">音频</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">音频播放测试</div>
+                        <div class="set-rd">播放一段测试音，确认语音模式的输出设备正常。上次：<b>成功 · 输出 MacBook Pro 扬声器</b>。</div>
+                      </div>
+                      <div class="set-rc"><button class="btn out sm"><svg class="i"><use href="#play" /></svg> 播放测试</button></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">日志</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">查看本地 daemon 日志</div>
+                        <div class="set-rd">连不上本机 daemon 时来这里排障。打开既有日志视图（~/.helm/daemon.log）；复制 / 打开等动作归该视图本身，诊断不重复实现。</div>
+                      </div>
+                      <div class="set-rc"><button class="btn out sm"><svg class="i"><use href="#file-text" /></svg> 查看日志</button></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">连接自检</div>
+                  <div class="tgt-card">
+                    <div class="tgt-head">
+                      <svg class="i sm"><use href="#network" /></svg> 连接链路逐项自检
+                      <span class="badge tgt">目标态 · 后续（本轮不做）</span>
+                    </div>
+                    <div class="tgt-row"><svg class="i sm"><use href="#monitor" /></svg><div class="tr-name">本地 daemon 进程</div><span class="badge tgt" style="font-size:10px">未实现</span></div>
+                    <div class="tgt-row"><svg class="i sm"><use href="#network" /></svg><div class="tr-name">WebSocket 连接</div><span class="badge tgt" style="font-size:10px">未实现</span></div>
+                    <div class="tgt-row"><svg class="i sm"><use href="#link" /></svg><div class="tr-name">中继（relay）通道</div><span class="badge tgt" style="font-size:10px">未实现</span></div>
+                    <div class="tgt-row"><svg class="i sm"><use href="#key" /></svg><div class="tr-name">配对密钥</div><span class="badge tgt" style="font-size:10px">未实现</span></div>
+                    <div class="tgt-note"><b>目标态占位</b>：逐项连接自检真实尚无实现，且与「守护进程」状态、主机连接诊断<b>能力重叠</b>（YAGNI）。本块仅作路线图可见性，<b>不可点、非能用行</b>，本轮不做。</div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">点击效果</div>
+          <ol>
+            <li><span class="pin">1</span><div><b>「播放测试」</b>：播放一段内置提示音（与代理思考提示音同源）；播放期间按钮 →「播放中…」并禁用，结束把结果（成功 / 失败 + 输出设备）回填上方说明行。<b>无音频输出能力时按钮禁用</b>。</div></li>
+            <li><span class="pin">2</span><div><b>「查看日志」</b>：打开既有「本地 daemon 日志」视图（能力归「守护进程」tab，诊断<b>仅复用入口、不重复实现</b>复制 / 打开控件）；亦是 <b>onboarding 本机连接失败「查看诊断」的深链落点</b>。</div></li>
+            <li><span class="pin warn">!</span><div><b>连接自检（目标态占位）</b>：四项逐项检查<b>明显标「目标态 · 未实现」、不可点</b>；真实尚无、与守护进程 / 主机诊断重叠，本轮不做（选 A：标注式占位，非静默移除）。</div></li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态（四维度齐全）</div>
+            <dl>
+              <dt>布局</dt><dd>右详情三组（音频 / 日志 / 连接自检目标态块）。<b>跨平台</b>（桌面 only 渲染；移动端音频 / 日志同样可用）。</dd>
+              <dt>默认</dt><dd>音频显上次结果；日志显入口；连接自检为目标态占位（灰 · 未实现）。</dd>
+              <dt>hover</dt><dd>控件行 surface1；out 按钮 hover surface2；目标态行无 hover（不可点）。</dd>
+              <dt>活跃</dt><dd>按钮按下 0.85 不变色。</dd>
+              <dt>运行</dt><dd>音频 →「播放中…」禁用；无其它长任务。</dd>
+              <dt>禁用</dt><dd>无音频引擎 →「播放测试」禁用（变暗）；连接自检整块恒不可点。</dd>
+              <dt>空</dt><dd>首次无历史 → 音频仅标题（无上次结果）。</dd>
+              <dt>加载</dt><dd>进入页面本身无加载（即时动作型）。</dd>
+              <dt>错误</dt><dd>音频失败 → 说明行红字「播放失败：<原因>」。</dd>
+              <dt>离线</dt><dd>音频 / 日志为本机能力，<b>主机离线照常可用</b>。</dd>
+              <dt>右键</dt><dd>无右键菜单。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==================== #abt1 · 关于 ==================== -->
+    <section class="screen" id="abt1">
+      <div class="screen-head">
+        <span class="tag">ABT1 · 应用 / 关于</span><span class="tag plat">跨平台（更新 / 频道桌面专属）</span>
+        <h2>关于 — 版本 · 频道 · 更新 · 已连主机 · 社区</h2>
+        <p>版本与更新信息。App 版本（此设备）、发布频道（桌面专属）、软件更新（桌面 auto-update）、已连主机 daemon 版本对比（<b>列全部、不跟 host 选择器</b>）、社区链接。</p>
+      </div>
+      <div class="screen-body">
+        <div class="frame">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title">Helm — 设置</span>
+          </div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">应用</div>
+              <a class="set-navrow"><svg class="i sm"><use href="#settings" /></svg> 通用</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#monitor" /></svg> 守护进程</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#package" /></svg> 集成</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#shield" /></svg> 权限</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#info" /></svg> 关于</a>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件</a>
+            </nav>
+
+            <section class="set-detail">
+              <header class="set-dhead">
+                <div class="dh-main">
+                  <div class="set-dtitle">关于</div>
+                  <div class="set-dsub">版本与更新。</div>
+                </div>
+              </header>
+              <div class="set-dbody">
+                <div class="ap-brand">
+                  <div class="ap-applogo"><svg class="i xl"><use href="#gauge" /></svg></div>
+                  <div class="bn">Helm</div>
+                  <div class="bs">AI 编码代理控制台</div>
+                  <span class="badge acc">v1.0.0</span>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">版本</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">App 版本</div><div class="set-rd">此设备。</div></div>
+                      <div class="set-rc"><span class="ap-val">v1.0.0</span></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">发布频道 <span class="badge lock" style="font-size:10px"><svg class="i xs"><use href="#monitor"/></svg> 桌面</span></div>
+                        <div class="set-rd">接收稳定版还是测试版更新。</div>
+                      </div>
+                      <div class="set-rc"><div class="set-seg"><span class="on">稳定版</span><span>测试版</span></div></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl">
+                        <div class="set-rt">软件更新 <span class="badge lock" style="font-size:10px"><svg class="i xs"><use href="#monitor"/></svg> 桌面</span></div>
+                        <div class="set-rd">已是最新版本。</div>
+                      </div>
+                      <div class="set-rc">
+                        <button class="btn out sm"><svg class="i"><use href="#refresh" /></svg> 检查更新</button>
+                        <button class="btn df sm dis"><svg class="i"><use href="#download" /></svg> 安装更新</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">已连主机</div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt"><span class="rt-stat"><span class="dot on"></span> Wolffy-MBP</span></div><div class="ap-rownote">本机 · 内建 daemon</div></div>
+                      <div class="set-rc"><span class="ap-val">daemon v1.0.0</span></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt"><span class="rt-stat"><span class="dot on"></span> Office-Linux</span></div><div class="ap-rownote">版本与本机不一致</div></div>
+                      <div class="set-rc"><span class="badge warn">版本不一致</span><span class="ap-val warn">daemon v0.9.8</span></div>
+                    </div>
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt"><span class="rt-stat"><span class="dot idle"></span> Cloud-Box</span></div></div>
+                      <div class="set-rc"><span class="ap-val mut">离线</span></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="ap-community">
+                    <button class="btn ghost sm"><svg class="i"><use href="#github" /></svg> Star</button>
+                    <button class="btn ghost sm"><svg class="i"><use href="#heart" /></svg> Sponsor</button>
+                    <button class="btn ghost sm"><svg class="i"><use href="#globe" /></svg> Community</button>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <div class="anno">
+          <div class="anno-h">点击效果</div>
+          <ol>
+            <li><span class="pin">1</span><div><b>「检查更新」</b>（桌面）：向更新服务查询；查询中「检查中…」禁用；有更新则更新「软件更新」文案 + 点亮「安装更新」，无更新回「已是最新版本」。进入页面自动静默检查一次。</div></li>
+            <li><span class="pin">2</span><div><b>「安装更新」</b>（桌面 · 有更新时才亮，文案随状态为「安装更新 / 更新到 vX」）：弹确认 → 下载并安装 → 重启应用；<b>无更新时禁用</b>（图示变暗）。</div></li>
+            <li><span class="pin">3</span><div><b>发布频道分段</b>（桌面）：切「稳定版 / 测试版」即时改更新通道，下次检查按新通道取版本。</div></li>
+            <li><span class="pin">4</span><div><b>已连主机行</b>：纯展示该主机 daemon 版本（与本机对比）；<b>列出全部已连主机、不跟随 host 选择器</b>；离线显「离线」灰、版本不一致显黄 badge + 黄值，不可点。</div></li>
+            <li><span class="pin">5</span><div><b>社区按钮</b>：「Star」开 GitHub 仓库、「Sponsor」开赞助页、「Community」开 Discord，均系统外部浏览器打开。<b>诚实：社区链接当前仍指上游 getpaseo，待改 Helm</b>。</div></li>
+          </ol>
+          <div class="states">
+            <div class="sh">状态（四维度齐全）</div>
+            <dl>
+              <dt>布局</dt><dd>品牌头（logo + 名 + 版本）居中 → 版本卡 → 已连主机卡 → 社区按钮行。<b>桌面 only</b>。</dd>
+              <dt>默认</dt><dd>App v1.0.0；频道 = 稳定版；更新「已是最新版本」；「安装更新」禁用。</dd>
+              <dt>hover</dt><dd>控件行 surface1；out / ghost 按钮 hover surface2。</dd>
+              <dt>活跃</dt><dd>分段选中段白底；按钮按下 0.85。</dd>
+              <dt>运行</dt><dd>检查中「检查中…」；安装中「安装中… / 正在更新到 vX」，两按钮同时禁用。</dd>
+              <dt>禁用</dt><dd><b>非桌面隐藏「发布频道 / 软件更新」+「检查更新」</b>（更新仅桌面，本轮桌面仅注明）；无可用更新时「安装更新」禁用。</dd>
+              <dt>空</dt><dd>无已连主机 →「已连主机」整组不渲染。</dd>
+              <dt>加载</dt><dd>进入自动静默检查更新一次（不阻塞页面）。</dd>
+              <dt>错误</dt><dd>检查 / 安装失败 →「软件更新」说明下红字错误信息。</dd>
+              <dt>离线</dt><dd>主机行显「离线」灰值；检查更新无网 → 错误「无法连接更新服务」。</dd>
+              <dt>右键</dt><dd>无右键菜单。</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="note" style="margin-top:8px"><svg class="i sm"><use href="#info" /></svg> 设计稿 = 评审 / 实现的视觉真相。本稿与产品经理 requirement.md 共享同一份冻结结构；锚点：shell / gen1 / ap1 / sc1(+sc1-capture) / dm1(+dm1-stopped) / int1(+int1-installing) / perm1(+perm1-request) / diag1 / abt1。浅色 · accent #20744A · 桌面 only。</div>
+  </body>
+</html>
