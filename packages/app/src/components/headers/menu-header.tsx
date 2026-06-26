@@ -85,8 +85,10 @@ export function SidebarMenuToggle({
         ) : (
           // Desktop: match the other top-bar icons — muted by default, foreground on hover.
           // 反馈 1/3: □ 颜色统一、不随 sidebar 展开/收起态变深变浅。
+          // 反馈: 图标缩小到 15 (比标准 md=16 小 1px) 与交通灯协调。此处是 □ 的唯一渲染点,
+          // web(浏览器) 与 Electron(客户端) 同走此处 → 两端始终一致。
           <PanelLeft
-            size={theme.iconSize.md}
+            size={15}
             color={hovered ? theme.colors.foreground : theme.colors.foregroundMuted}
           />
         )

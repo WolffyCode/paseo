@@ -3778,6 +3778,19 @@ function WorkspaceScreenContent({
       handleOpenUrlInBrowserTab,
     ],
   );
+  // 收起态(桌面)把 canvas 顶栏左侧整行(□ ✎ + 对话标题)对齐到展开态 chrome 的 □ 位置(贴交通灯),
+  // 让 □ 展开/收起不跳、整行对齐成一条线:
+  //  · 左移 6 = canvas 顶栏 baseHorizontalPadding(spacing[2]=8) − 展开态 chrome 的 TOGGLE_LEFT_NUDGE(2)
+  //  · 下移 3.5 让 □ 的 cy 精确对齐展开态 chrome 的 □(cy21); 理论 (42−36)/2=3, 实测收起态 row
+  //    子像素居中偏 0.5, 故 3.5。
+  // 展开态(left 只剩标题)不偏移。
+  const collapsedHeaderLeftStyle = useMemo(
+    () =>
+      !isMobile && !isAgentListOpen
+        ? { transform: [{ translateX: -6 }, { translateY: 3.5 }] }
+        : undefined,
+    [isMobile, isAgentListOpen],
+  );
   const workspaceHeaderNode = useMemo(
     () =>
       showScreenHeader ? (
@@ -3786,10 +3799,11 @@ function WorkspaceScreenContent({
           borderless
           rowHeight={isMobile ? undefined : WORKSPACE_SECONDARY_HEADER_HEIGHT}
           left={headerLeft}
+          leftStyle={collapsedHeaderLeftStyle}
           right={headerRight}
         />
       ) : null,
-    [showScreenHeader, onHeaderLayout, headerLeft, headerRight, isMobile],
+    [showScreenHeader, onHeaderLayout, headerLeft, headerRight, isMobile, collapsedHeaderLeftStyle],
   );
   const renderSplitPaneHeader = useCallback(
     function renderSplitPaneHeader(paneId: string) {
