@@ -7,7 +7,6 @@ import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { HeaderToggleButton } from "@/components/headers/header-toggle-button";
 import { SidebarMenuToggle } from "@/components/headers/menu-header";
-import { HEADER_INNER_HEIGHT } from "@/constants/layout";
 import {
   selectConversationCanGoBack,
   selectConversationCanGoForward,
@@ -27,6 +26,11 @@ const activeIconColor = (theme: Theme) => ({ color: theme.colors.foreground });
 
 const NO_SHORTCUT_KEYS: [] = [];
 const CHROME_ICON_SIZE = 16;
+// Chrome strip height aligns the toggle / back-forward icon centers with the macOS traffic lights to
+// their left. The lights sit at trafficLightPosition {x:16, y:14}; their button center is ~y20 (14 + ~6px
+// radius), so a 40px strip with vertically-centered icons lands the toggle center on y20 to match.
+// 反馈: 展开收起图标要跟苹果关闭/最小化按钮在同一条水平线 (实测 48px 时 □ 中心 y24，比交通灯低 ~4px)。
+const CHROME_ROW_HEIGHT = 40;
 
 interface SidebarWindowChromeProps {
   /** Collapsed: the bar lives in the canvas top bar (sidebar hidden) and gains a ✎ new-conversation icon. */
@@ -63,15 +67,14 @@ export function SidebarWindowChrome({ collapsed, onNewConversation }: SidebarWin
     if (route) router.navigate(route as Href);
   }, [goForward]);
 
-  // Expanded chrome height locks to the canvas top bar's HEADER_INNER_HEIGHT (not the raw traffic-light
-  // height, which is 45 on macOS) so the toggle/back-forward icons sit on the exact same horizontal line
-  // as the canvas top bar controls to its right (反馈: 顶栏要在一条水平线). padding.left still inset past
-  // the traffic lights.
+  // Height = CHROME_ROW_HEIGHT so the toggle / back-forward icon centers line up with the macOS traffic
+  // lights to the left (反馈: 展开收起图标要跟苹果关闭/最小化按钮在同一条水平线). padding.left insets the
+  // first icon past the lights.
   const rowStyle = useMemo(
     () =>
       collapsed
         ? styles.rowCollapsed
-        : [styles.rowExpanded, { paddingLeft: padding.left, minHeight: HEADER_INNER_HEIGHT }],
+        : [styles.rowExpanded, { paddingLeft: padding.left, minHeight: CHROME_ROW_HEIGHT }],
     [collapsed, padding.left],
   );
 
@@ -154,11 +157,6 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: 2,
     paddingHorizontal: theme.spacing[1.5],
-    // Bottom hairline mirrors the canvas top bar's border so the two strips share one continuous
-    // horizontal divider across the whole window (设计稿 sb-lights + canvas-top 都 border-bottom 1px;
-    // 反馈: 顶栏底线要在一条水平线上). Same width/color as ScreenHeader's row border.
-    borderBottomWidth: theme.borderWidth[1],
-    borderBottomColor: theme.colors.border,
   },
   rowCollapsed: {
     flexDirection: "row",
