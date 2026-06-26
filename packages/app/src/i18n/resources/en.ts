@@ -548,6 +548,8 @@ export const en = {
         newFile: "Open file",
         newSideChat: "New side chat",
         review: "Review changes",
+        openLocation: "Open location",
+        environmentInfo: "Environment",
         importSession: "Import session",
         copyPath: "Copy workspace path",
         copyBranchName: "Copy branch name",

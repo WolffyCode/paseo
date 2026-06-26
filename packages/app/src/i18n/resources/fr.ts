@@ -554,6 +554,8 @@ export const fr: TranslationResources = {
         newFile: "Ouvrir un fichier",
         newSideChat: "Nouveau chat latéral",
         review: "Réviser les modifications",
+        openLocation: "Ouvrir l'emplacement",
+        environmentInfo: "Environnement",
         importSession: "Session d'importation",
         copyPath: "Copier le chemin de l'espace de travail",
         copyBranchName: "Copier le nom de la branche",

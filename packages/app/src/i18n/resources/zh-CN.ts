@@ -547,6 +547,8 @@ export const zhCN: TranslationResources = {
         newFile: "打开文件",
         newSideChat: "新建侧边聊天",
         review: "审查变更",
+        openLocation: "打开位置",
+        environmentInfo: "环境信息",
         importSession: "导入会话",
         copyPath: "复制 workspace 路径",
         copyBranchName: "复制分支名称",

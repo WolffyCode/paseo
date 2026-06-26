@@ -549,6 +549,8 @@ export const ar: TranslationResources = {
         newFile: "فتح ملف",
         newSideChat: "محادثة جانبية جديدة",
         review: "مراجعة التغييرات",
+        openLocation: "فتح الموقع",
+        environmentInfo: "البيئة",
         importSession: "جلسة الاستيراد",
         copyPath: "نسخ مسار مساحة العمل",
         copyBranchName: "انسخ اسم الفرع",

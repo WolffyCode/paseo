@@ -554,6 +554,8 @@ export const ru: TranslationResources = {
         newFile: "Открыть файл",
         newSideChat: "Новый боковой чат",
         review: "Обзор изменений",
+        openLocation: "Открыть расположение",
+        environmentInfo: "Окружение",
         importSession: "Импортировать сеанс",
         copyPath: "Копировать путь к рабочей области",
         copyBranchName: "Скопировать название ветки",
