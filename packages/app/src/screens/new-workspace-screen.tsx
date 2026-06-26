@@ -1817,6 +1817,16 @@ export function NewWorkspaceScreen({
     () => (!isCompact && isAgentListOpen ? null : <SidebarMenuToggle />),
     [isCompact, isAgentListOpen],
   );
+  // 反馈: 收起态 □ 对齐到展开态 □ 位置(贴交通灯, left80/cy21)。空态 ScreenHeader 48 高、□ 落在
+  // baseHorizontalPadding(spacing[2]=8) + 交通灯宽 处, 所以左移 6(= 8 − TOGGLE_LEFT_NUDGE 2)、
+  // 上移 3(= 48/2 − 21) 让 □ 贴交通灯线。展开态(无 □)不偏移。
+  const collapsedToggleStyle = useMemo(
+    () =>
+      !isCompact && !isAgentListOpen
+        ? { transform: [{ translateX: -6 }, { translateY: -3 }] }
+        : undefined,
+    [isCompact, isAgentListOpen],
+  );
 
   // 反馈6(简化版): the right-panel toggle (□) only appears once a project/dir is chosen.
   const { screenHeaderRight, rightPanelBody } = useNewWorkspaceRightPanel({
@@ -1831,7 +1841,12 @@ export function NewWorkspaceScreen({
   return (
     <FileDropZone onFilesDropped={handleFilesDropped}>
       <View style={styles.container}>
-        <ScreenHeader left={screenHeaderLeft} right={screenHeaderRight} borderless />
+        <ScreenHeader
+          left={screenHeaderLeft}
+          leftStyle={collapsedToggleStyle}
+          right={screenHeaderRight}
+          borderless
+        />
         <View style={styles.bodyRow}>
           <View style={contentStyle}>
             <TitlebarDragRegion />

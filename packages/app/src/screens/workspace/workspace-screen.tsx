@@ -4051,8 +4051,6 @@ const styles = StyleSheet.create((theme) => ({
     fontWeight: "600",
     color: theme.colors.foreground,
     flexShrink: 1,
-    // 反馈: 标题视觉比 □ 偏下 → 上移 2px(文字基线补偿, transform 不影响布局)。
-    transform: [{ translateY: -2 }],
   },
   headerTitleContainer: {
     flex: 1,
@@ -4065,6 +4063,9 @@ const styles = StyleSheet.create((theme) => ({
       md: theme.spacing[2],
     },
     overflow: "hidden",
+    // 反馈: 标题 + ··· 整体上移 2px —— 对齐交通灯线后, 文字标题和 ··· 视觉比 □ 图标偏下, 统一补偿
+    // (放容器上, 标题和 ··· 一起移, 不会出现 ··· 比标题低的情况)。
+    transform: [{ translateY: -2 }],
   },
   headerTitleTextGroup: {
     minWidth: 0,
