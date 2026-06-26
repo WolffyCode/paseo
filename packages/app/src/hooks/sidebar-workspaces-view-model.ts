@@ -106,9 +106,9 @@ export function buildSidebarProjectsFromHostProjects(input: {
 
   return input.projects.map((project) => ({
     projectKey: project.projectKey,
-    // 项目名默认显示本地物理目录名 (iconWorkingDir 的 basename), 对齐 Codex (反馈: 目录名=本地目录名);
-    // 回退到上游 projectName (例如无工作目录的远程项目)。
-    projectName: workspaceNameFromDirectory(project.iconWorkingDir) || project.projectName,
+    // 项目名已由 workspace-structure 经 resolveProjectTreeName 算好(用户 rename 优先, 否则目录 basename);
+    // 这里直接透传, 不再用 basename 覆盖 —— 否则会盖掉重命名(反馈: 重命名确定后名称不变)。
+    projectName: project.projectName,
     projectKind: project.projectKind,
     iconWorkingDir: project.iconWorkingDir,
     canCreateWorktree: project.canCreateWorktree,

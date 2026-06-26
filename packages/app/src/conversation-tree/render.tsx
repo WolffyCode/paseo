@@ -470,7 +470,7 @@ function ConversationTreeRowView({
           <ProjectRowMenu node={node} projectActions={projectActions} />
         ) : (
           <>
-            <ContextMenuContent side="bottom" align="end" minWidth={200}>
+            <ContextMenuContent side="bottom" align="start" minWidth={200}>
               {node.workspaceId ? (
                 <ContextMenuItem
                   onSelect={openRename}
@@ -512,7 +512,7 @@ function ProjectRowMenu({
   const { t } = useTranslation();
   return (
     <>
-      <ContextMenuContent side="bottom" align="end" minWidth={200}>
+      <ContextMenuContent side="bottom" align="start" minWidth={200}>
         <ContextMenuItem
           onSelect={projectActions.onTogglePin}
           leading={pinMenuIcon}
@@ -640,6 +640,8 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.borderRadius.md,
     // 行尾 action 绝对定位的锚点(反馈: hover 不变宽)。
     position: "relative",
+    // 相邻行(选中对话 + hover 项目)的背景之间留 1px 间隔(反馈)。
+    marginBottom: 1,
   },
   rowHovered: {
     backgroundColor: theme.colors.surfaceSidebarHover,

@@ -29,6 +29,7 @@ import { QuittingOverlay } from "@/components/quitting-overlay";
 import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
 import { LeftSidebar } from "@/components/left-sidebar";
 import { TrafficLights } from "@/components/desktop/traffic-lights";
+import { useSuppressBrowserContextMenu } from "@/hooks/use-suppress-browser-context-menu";
 import { ProjectPickerModal } from "@/components/project-picker-modal";
 import { ProviderSettingsHost } from "@/components/provider-settings-host";
 import { WorkspaceSetupDialog } from "@/components/workspace-setup-dialog";
@@ -429,6 +430,9 @@ function AppContainer({
   const closeDesktopAgentList = usePanelStore((state) => state.closeDesktopAgentList);
   const toggleFocusMode = usePanelStore((state) => state.toggleFocusMode);
   const isFocusModeEnabled = usePanelStore((state) => state.desktop.focusModeEnabled);
+
+  // 抑制非自定义区域的浏览器默认右键菜单(反馈: 空白区域右键 Copy/Paste 删掉)。web only, native noop。
+  useSuppressBrowserContextMenu();
 
   const cycleTheme = useCallback(() => {
     const currentIndex = THEME_CYCLE_ORDER.indexOf(settings.theme as ThemeName);
