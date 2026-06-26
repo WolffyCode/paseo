@@ -683,7 +683,7 @@ export function WorkspaceDraftAgentTab({
             </View>
           ) : (
             <View style={styles.emptyHero}>
-              <Text style={styles.emptyTitle}>{t("workspace.draft.emptyTitle")}</Text>
+              <Text style={styles.emptyTitle}>{t("panels.draft.emptyTitle")}</Text>
               {formErrorMessage ? (
                 <View style={styles.errorContainer}>
                   <Text style={styles.errorText}>{formErrorMessage}</Text>
