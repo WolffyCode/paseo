@@ -1261,8 +1261,6 @@ interface WorkspaceHeaderTitleBarProps {
 function WorkspaceHeaderTitleBar({
   isLoading,
   title,
-  subtitle,
-  showSubtitle,
   currentBranchName,
   normalizedServerId,
   normalizedWorkspaceId,
@@ -1307,18 +1305,10 @@ function WorkspaceHeaderTitleBar({
         </View>
       ) : (
         <View style={styles.headerTitleTextGroup}>
+          {/* 反馈: subtitle(项目目录 WolffyCode/paseo)不在顶栏显示 — 左栏已有目录, 顶栏只留对话标题。 */}
           <ScreenTitle testID="workspace-header-title" style={styles.headerTitle}>
             {title}
           </ScreenTitle>
-          {showSubtitle ? (
-            <Text
-              testID="workspace-header-subtitle"
-              style={styles.headerProjectTitle}
-              numberOfLines={1}
-            >
-              {subtitle}
-            </Text>
-          ) : null}
         </View>
       )}
       <View style={styles.compactHeaderMenuCluster}>
@@ -4061,6 +4051,8 @@ const styles = StyleSheet.create((theme) => ({
     fontWeight: "600",
     color: theme.colors.foreground,
     flexShrink: 1,
+    // 反馈: 标题视觉比 □ 偏下 → 上移 2px(文字基线补偿, transform 不影响布局)。
+    transform: [{ translateY: -2 }],
   },
   headerTitleContainer: {
     flex: 1,
@@ -4078,8 +4070,8 @@ const styles = StyleSheet.create((theme) => ({
     minWidth: 0,
     overflow: "hidden",
     flexShrink: 1,
-    // 反馈: 标题范围太短 → 桌面也让标题组伸展占满中间, 标题/项目名能显示更多。
-    flexGrow: 1,
+    // flexGrow 0: 标题组只占自身宽度, 不挤掉右侧的 ··· 菜单(反馈: ··· 要保留)。
+    flexGrow: 0,
     flexDirection: {
       xs: "column",
       md: "row",
