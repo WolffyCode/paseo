@@ -1073,9 +1073,27 @@ export const zhCN: TranslationResources = {
   },
   onboarding: {
     title: "欢迎使用 Helm",
-    subtitle: "连接你的电脑即可开始",
+    subtitle: "连接你本机/远程的 AI 编码代理，一处统管。你的代码留在你机器上。",
     actions: {
-      settings: "设置",
+      start: "开始使用",
+      connectRemote: "连接远程主机",
+      cancel: "取消",
+      retryLocal: "重试本地",
+      retry: "重试",
+      useOtherMethods: "改用其它连接方式",
+      diagnostics: "查看诊断",
+    },
+    connecting: {
+      title: "正在连接本地 daemon...",
+    },
+    picker: {
+      title: "选择连接方式",
+      description: "直连主机、粘贴配对链接，或扫码连接。",
+    },
+    error: {
+      title: "无法连接本地 daemon",
+      description: "可能原因：daemon 未运行、本地端口被占用，或连接超时。",
+      reasonLabel: "详情：{{reason}}",
     },
   },
   modelSelector: {

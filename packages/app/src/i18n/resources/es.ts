@@ -1110,10 +1110,30 @@ export const es: TranslationResources = {
     },
   },
   onboarding: {
-    title: "Bienvenido aPaseo",
-    subtitle: "Conecte su computadora para comenzar",
+    title: "Te damos la bienvenida a Helm",
+    subtitle:
+      "Conecta agentes de codificación de IA locales o remotos desde un solo lugar. Tu código permanece en tu máquina.",
     actions: {
-      settings: "Ajustes",
+      start: "Comenzar",
+      connectRemote: "Conectar host remoto",
+      cancel: "Cancelar",
+      retryLocal: "Reintentar local",
+      retry: "Reintentar",
+      useOtherMethods: "Usar otro método",
+      diagnostics: "Ver diagnósticos",
+    },
+    connecting: {
+      title: "Conectando al daemon local...",
+    },
+    picker: {
+      title: "Elegir método de conexión",
+      description: "Conecta directamente, pega un enlace de emparejamiento o escanea un QR.",
+    },
+    error: {
+      title: "No se puede conectar al daemon local",
+      description:
+        "Causas posibles: el daemon no se está ejecutando, el puerto local está en uso o la conexión agotó el tiempo.",
+      reasonLabel: "Detalles: {{reason}}",
     },
   },
   modelSelector: {

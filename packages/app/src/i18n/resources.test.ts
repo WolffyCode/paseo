@@ -268,7 +268,10 @@ describe("translation resources", () => {
 
   it("includes onboarding and direct connection keys for the Batch 4E migration", () => {
     expect(en.onboarding.title).toBe("Welcome to Helm");
-    expect(en.onboarding.actions.settings).toBe("Settings");
+    expect(en.onboarding.connecting.title).toBe("Connecting to local daemon...");
+    expect(en.onboarding.error.description).toBe(
+      "Possible causes: daemon not running, the local port is in use, or the connection timed out.",
+    );
     expect(en.pairing.direct.title).toBe("Direct connection");
     expect(en.pairing.direct.fields.host).toBe("Host");
     expect(en.pairing.scan.title).toBe("Scan QR");

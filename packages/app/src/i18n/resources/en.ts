@@ -1093,9 +1093,29 @@ export const en = {
   },
   onboarding: {
     title: "Welcome to Helm",
-    subtitle: "Connect your computer to get started",
+    subtitle:
+      "Connect local or remote AI coding agents from one place. Your code stays on your machine.",
     actions: {
-      settings: "Settings",
+      start: "Get started",
+      connectRemote: "Connect remote host",
+      cancel: "Cancel",
+      retryLocal: "Retry local",
+      retry: "Retry",
+      useOtherMethods: "Use another connection method",
+      diagnostics: "View diagnostics",
+    },
+    connecting: {
+      title: "Connecting to local daemon...",
+    },
+    picker: {
+      title: "Choose connection method",
+      description: "Connect directly, paste a pairing link, or scan a QR code.",
+    },
+    error: {
+      title: "Unable to connect to local daemon",
+      description:
+        "Possible causes: daemon not running, the local port is in use, or the connection timed out.",
+      reasonLabel: "Details: {{reason}}",
     },
   },
   modelSelector: {
