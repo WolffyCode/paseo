@@ -28,6 +28,7 @@ import { DownloadToast } from "@/components/download-toast";
 import { QuittingOverlay } from "@/components/quitting-overlay";
 import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
 import { LeftSidebar } from "@/components/left-sidebar";
+import { TrafficLights } from "@/components/desktop/traffic-lights";
 import { ProjectPickerModal } from "@/components/project-picker-modal";
 import { ProviderSettingsHost } from "@/components/provider-settings-host";
 import { WorkspaceSetupDialog } from "@/components/workspace-setup-dialog";
@@ -472,6 +473,9 @@ function AppContainer({
 
   const content = (
     <View style={layoutStyles.surfaceFill}>
+      {/* Web-only DOM traffic lights (Electron uses OS-native ones) — keeps browser chrome identical
+          to the desktop app, 反馈: 不做两套 UI。Renders null on Electron/native internally. */}
+      <TrafficLights />
       <View style={rowStyle}>
         {!isCompactLayout && chromeEnabled && !isFocusModeEnabled && (
           <LeftSidebar selectedAgentId={selectedAgentId} />
