@@ -1,12 +1,16 @@
 import { usePathname } from "expo-router";
 import { Bot, ChevronRight, Folder, FolderPlus, SquarePen } from "lucide-react-native";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Pressable, type PressableStateCallbackType, ScrollView, Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { AgentStatusDot } from "@/components/agent-status-dot";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isNative } from "@/constants/platform";
+import { AdaptiveRenameModal } from "@/components/rename-modal";
+import { getHostRuntimeStore } from "@/runtime/host-runtime";
+import { useToast } from "@/contexts/toast-context";
 import type { SidebarProjectEntry } from "@/hooks/sidebar-workspaces-view-model";
 import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { useSessionStore } from "@/stores/session-store";
@@ -278,10 +282,45 @@ function ConversationTreeRowView({
     onNewConversation(node.id);
   }, [onNewConversation, node.id]);
 
+  // Conversation rows support double-tap-to-rename (反馈13); the title persists via
+  // setWorkspaceTitle. Project rows have no workspace, so the modal stays inert for them.
+  const { t } = useTranslation();
+  const toast = useToast();
+  const [isRenameOpen, setIsRenameOpen] = useState(false);
+  const renameMutation = useMutation({
+    mutationFn: async (title: string) => {
+      if (!node.workspaceId) return;
+      const client = getHostRuntimeStore().getClient(node.serverId);
+      if (!client) throw new Error(t("sidebar.workspace.toasts.hostDisconnected"));
+      await client.setWorkspaceTitle(node.workspaceId, title.length === 0 ? null : title);
+    },
+  });
+  const lastTapRef = useRef(0);
+  const handleRowPress = useCallback(() => {
+    const now = Date.now();
+    if (!isProject && node.workspaceId && now - lastTapRef.current < 300) {
+      setIsRenameOpen(true);
+    } else {
+      handlePress();
+    }
+    lastTapRef.current = now;
+  }, [handlePress, isProject, node.workspaceId]);
+  const handleSubmitRename = useCallback(
+    async (value: string) => {
+      try {
+        await renameMutation.mutateAsync(value.trim());
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Rename failed");
+      }
+    },
+    [renameMutation, toast],
+  );
+  const handleCloseRename = useCallback(() => setIsRenameOpen(false), []);
+
   return (
     <Pressable
       style={rowStyle}
-      onPress={handlePress}
+      onPress={handleRowPress}
       testID={`conversation-tree-row-${node.id}`}
       accessibilityRole="button"
       accessibilityState={isProject ? undefined : SELECTED_STATE_FALSE}
@@ -342,6 +381,19 @@ function ConversationTreeRowView({
                 style={isExpanded ? styles.chevronExpanded : styles.chevronCollapsed}
               />
             </Pressable>
+          ) : null}
+
+          {!isProject && node.workspaceId ? (
+            <AdaptiveRenameModal
+              visible={isRenameOpen}
+              title={t("sidebar.workspace.rename.title")}
+              initialValue={node.title}
+              placeholder={node.title}
+              submitLabel={t("sidebar.workspace.rename.submit")}
+              onClose={handleCloseRename}
+              onSubmit={handleSubmitRename}
+              testID={`conversation-rename-modal-${node.id}`}
+            />
           ) : null}
         </>
       )}
