@@ -9,7 +9,6 @@ import { Shortcut } from "@/components/ui/shortcut";
 import type { ShortcutKey } from "@/utils/format-shortcut";
 
 const foregroundColorMapping = (theme: Theme) => ({ color: theme.colors.foreground });
-const foregroundMutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
 type SidebarHeaderRowVariant = "header" | "compact";
 
@@ -63,10 +62,7 @@ export function SidebarHeaderRow({
       const isHighlighted = Boolean(state.hovered) || isActive;
       return (
         <>
-          <ThemedIcon
-            size={ICON_SIZE.sm}
-            uniProps={isHighlighted ? foregroundColorMapping : foregroundMutedColorMapping}
-          />
+          <ThemedIcon size={ICON_SIZE.sm} uniProps={foregroundColorMapping} />
           <SidebarHeaderRowLabel label={label} isHighlighted={isHighlighted} />
           {shortcutKeys && Boolean(state.hovered) ? (
             <Shortcut chord={shortcutKeys} style={styles.shortcut} />
@@ -150,8 +146,9 @@ const styles = StyleSheet.create((theme) => ({
   },
   label: {
     fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.normal,
-    color: theme.colors.foregroundMuted,
+    // 字重 medium 让"新对话/搜索"更饱满(反馈: 没有 Codex 饱满)。
+    fontWeight: theme.fontWeight.medium,
+    color: theme.colors.foreground,
   },
   labelHighlighted: {
     color: theme.colors.foreground,

@@ -1,7 +1,7 @@
 import { router, usePathname } from "expo-router";
 import { Search, Settings, SquarePen, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet as RNStyleSheet, useWindowDimensions, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -300,19 +300,32 @@ export const LeftSidebar = memo(function LeftSidebar({
 function SidebarFooter({
   settingsLabel,
   onSettings,
+  hostSlot,
 }: {
   settingsLabel: string;
   onSettings: () => void;
+  hostSlot?: ReactNode;
 }) {
+  const settings = (
+    <SidebarHeaderRow
+      icon={Settings}
+      label={settingsLabel}
+      onPress={onSettings}
+      testID="sidebar-settings"
+      variant="compact"
+    />
+  );
+  // Desktop: 设置在左、主机切换 pill 在右, 同一行 (反馈: 主机切换放设置右边)。Mobile: 仅设置。
   return (
     <View style={styles.sidebarFooter}>
-      <SidebarHeaderRow
-        icon={Settings}
-        label={settingsLabel}
-        onPress={onSettings}
-        testID="sidebar-settings"
-        variant="compact"
-      />
+      {hostSlot ? (
+        <View style={styles.footerRow}>
+          {settings}
+          <View style={styles.footerHostSlot}>{hostSlot}</View>
+        </View>
+      ) : (
+        settings
+      )}
     </View>
   );
 }
@@ -704,6 +717,12 @@ function DesktopSidebar({
     [activeServerId],
   );
 
+  // Memoized so the footer host slot isn't a fresh JSX value each render (react-perf jsx-no-jsx-as-prop).
+  const hostSlot = useMemo(
+    () => <HostSwitcherPill activeServerId={activeServerId} dropUp />,
+    [activeServerId],
+  );
+
   // No early `return null` when collapsed — the panel stays mounted and animates its width to 0 so the
   // expand/collapse is a smooth slide. pointerEvents drops to "none" while collapsed so the zero-width
   // (clipped) content can't capture clicks.
@@ -713,9 +732,6 @@ function DesktopSidebar({
         <View style={desktopSidebarBorderStyle}>
           <View style={styles.sidebarDragArea}>
             <SidebarWindowChrome collapsed={false} onNewConversation={handleNewWorkspaceNavigate} />
-          </View>
-          <View style={styles.hostSwitcherSlot}>
-            <HostSwitcherPill activeServerId={activeServerId} />
           </View>
           <View style={styles.sidebarHeaderGroup}>
             <SidebarHeaderRow
@@ -749,7 +765,11 @@ function DesktopSidebar({
 
           <SidebarCalloutSlot />
 
-          <SidebarFooter settingsLabel={labels.settings} onSettings={handleSettings} />
+          <SidebarFooter
+            settingsLabel={labels.settings}
+            onSettings={handleSettings}
+            hostSlot={hostSlot}
+          />
 
           {/* Resize handle - absolutely positioned over right border */}
           <GestureDetector gesture={resizeGesture}>
@@ -827,13 +847,19 @@ const styles = StyleSheet.create((theme) => ({
   sidebarDragArea: {
     position: "relative",
   },
-  hostSwitcherSlot: {
-    paddingHorizontal: theme.spacing[2],
-    paddingTop: theme.spacing[2],
-    // Keep the pill + its anchored dropdown stacked above the list rows below it.
-    zIndex: 20,
-  },
   sidebarFooter: {
     paddingVertical: theme.spacing[1.5],
+    // The footer host dropdown opens upward; keep the footer above the list rows when stacked.
+    zIndex: 20,
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+  },
+  footerHostSlot: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: theme.spacing[2],
   },
 }));

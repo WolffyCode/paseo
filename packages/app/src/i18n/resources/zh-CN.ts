@@ -728,7 +728,7 @@ export const zhCN: TranslationResources = {
       pinned: "置顶",
       projects: "项目",
       conversations: "对话",
-      noConversations: "还没有对话",
+      noConversations: "暂无对话",
     },
     worktreeSetup: {
       title: "设置 worktree scripts",

@@ -13,7 +13,6 @@ import { useMutation } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { AgentStatusDot } from "@/components/agent-status-dot";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isNative } from "@/constants/platform";
 import { AdaptiveRenameModal } from "@/components/rename-modal";
@@ -218,7 +217,19 @@ export function ConversationTree({
           </Pressable>
         ) : null}
       </View>
-      {projectRows.map(renderRow)}
+      {projectRows.flatMap((row) => {
+        const rowElement = renderRow(row);
+        // 项目展开但没有对话 → 紧跟一行"暂无对话"(反馈: 目录下没对话应展示暂无对话, 对齐 Codex)。
+        if (row.node.kind === "project" && row.isExpanded && row.node.children.length === 0) {
+          return [
+            rowElement,
+            <Text key={`empty-${row.node.id}`} style={styles.emptyHintProject}>
+              {t("sidebar.sections.noConversations")}
+            </Text>,
+          ];
+        }
+        return rowElement;
+      })}
 
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>{t("sidebar.sections.conversations")}</Text>
@@ -346,117 +357,122 @@ function ConversationTreeRowView({
   const openRename = useCallback(() => setIsRenameOpen(true), []);
 
   return (
-    <ContextMenu open={menuOpen} onOpenChange={setMenuOpen}>
-      <ContextMenuTrigger
-        onPress={handleRowPress}
-        onHoverIn={handleHoverIn}
-        onHoverOut={handleHoverOut}
-        style={rowStyle}
-        enabledOnMobile
-        testID={`conversation-tree-row-${node.id}`}
-        accessibilityRole="button"
-        accessibilityState={isProject ? undefined : SELECTED_STATE_FALSE}
-      >
-        {isProject ? (
-          <ThemedFolder size={TREE_ICON_SIZE} uniProps={mutedIconColor} />
-        ) : (
-          <>
-            {node.kind === "subagent" ? (
-              <ThemedBot size={SUBAGENT_ICON_SIZE} uniProps={mutedIconColor} />
-            ) : null}
-            <AgentStatusDot
-              status={node.status}
-              requiresAttention={node.requiresAttention}
-              showInactive
-            />
-          </>
-        )}
+    // Hover 靶: plain View + onPointerEnter/Leave —— 内部 action(Pressable) 不再抢占 hover, 鼠标移到
+    // 按钮上行 hover 不丢失 (docs/hover.md Failure Mode 1; 反馈: 悬浮到按钮时行的悬浮效果没了)。
+    <View
+      style={styles.rowHoverTracker}
+      onPointerEnter={handleHoverIn}
+      onPointerLeave={handleHoverOut}
+    >
+      <ContextMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <ContextMenuTrigger
+          onPress={handleRowPress}
+          style={rowStyle}
+          enabledOnMobile
+          testID={`conversation-tree-row-${node.id}`}
+          accessibilityRole="button"
+          accessibilityState={isProject ? undefined : SELECTED_STATE_FALSE}
+        >
+          {/* 展开/收起 chevron 前置(反馈: 放前边, 对齐 Codex); 不可展开的行用等宽占位保持图标左对齐。*/}
+          {canExpand ? (
+            <Pressable
+              onPress={handleChevron}
+              style={styles.chevronButton}
+              testID={`conversation-tree-chevron-${node.id}`}
+              accessibilityRole="button"
+              hitSlop={4}
+            >
+              <ThemedChevron
+                size={CHEVRON_SIZE}
+                uniProps={mutedIconColor}
+                style={isExpanded ? styles.chevronExpanded : styles.chevronCollapsed}
+              />
+            </Pressable>
+          ) : (
+            <View style={styles.chevronSpacer} />
+          )}
 
-        <Text style={selected ? styles.rowNameSelected : styles.rowName} numberOfLines={1}>
-          {node.title.length > 0 ? node.title : node.id}
-        </Text>
-
-        {/* Trailing hover action: project → new conversation (反馈7); conversation → "more" that
-            opens the same menu as right-click / long-press (反馈14). */}
-        {isProject && showRowActions ? (
-          <Pressable
-            onPress={handleNewConversation}
-            style={styles.rowAction}
-            testID={`conversation-tree-new-conversation-${node.id}`}
-            accessibilityRole="button"
-            hitSlop={6}
-          >
-            <ThemedSquarePen size={CHEVRON_SIZE} uniProps={mutedIconColor} />
-          </Pressable>
-        ) : null}
-        {!isProject && showRowActions ? (
-          <Pressable
-            onPress={openMenu}
-            style={styles.rowAction}
-            testID={`conversation-tree-more-${node.id}`}
-            accessibilityRole="button"
-            hitSlop={6}
-          >
-            <ThemedMoreHorizontal size={CHEVRON_SIZE} uniProps={mutedIconColor} />
-          </Pressable>
-        ) : null}
-
-        {!isProject && node.subagentCount > 0 ? (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{node.subagentCount}</Text>
-          </View>
-        ) : null}
-
-        {canExpand ? (
-          <Pressable
-            onPress={handleChevron}
-            style={styles.chevronButton}
-            testID={`conversation-tree-chevron-${node.id}`}
-            accessibilityRole="button"
-          >
-            <ThemedChevron
-              size={CHEVRON_SIZE}
+          {/* 对话/subagent → 小机器人; 项目→文件夹。状态图标先删(反馈: 达不到想要的效果)。*/}
+          {isProject ? (
+            <ThemedFolder size={TREE_ICON_SIZE} uniProps={mutedIconColor} />
+          ) : (
+            <ThemedBot
+              size={node.kind === "subagent" ? SUBAGENT_ICON_SIZE : TREE_ICON_SIZE}
               uniProps={mutedIconColor}
-              style={isExpanded ? styles.chevronExpanded : styles.chevronCollapsed}
             />
-          </Pressable>
-        ) : null}
-      </ContextMenuTrigger>
+          )}
 
-      <ContextMenuContent side="bottom" align="end" minWidth={168}>
-        {isProject ? (
-          <ContextMenuItem
-            onSelect={handleNewConversation}
-            leading={newConversationMenuIcon}
-            testID={`conversation-tree-menu-new-${node.id}`}
-          >
-            {t("sidebar.actions.newConversation")}
-          </ContextMenuItem>
-        ) : null}
+          <Text style={selected ? styles.rowNameSelected : styles.rowName} numberOfLines={1}>
+            {node.title.length > 0 ? node.title : node.id}
+          </Text>
+
+          {/* Trailing hover action: project → new conversation (反馈7); conversation → "more" that
+            opens the same menu as right-click / long-press (反馈14). */}
+          {isProject && showRowActions ? (
+            <Pressable
+              onPress={handleNewConversation}
+              style={styles.rowAction}
+              testID={`conversation-tree-new-conversation-${node.id}`}
+              accessibilityRole="button"
+              hitSlop={6}
+            >
+              <ThemedSquarePen size={CHEVRON_SIZE} uniProps={mutedIconColor} />
+            </Pressable>
+          ) : null}
+          {!isProject && showRowActions ? (
+            <Pressable
+              onPress={openMenu}
+              style={styles.rowAction}
+              testID={`conversation-tree-more-${node.id}`}
+              accessibilityRole="button"
+              hitSlop={6}
+            >
+              <ThemedMoreHorizontal size={CHEVRON_SIZE} uniProps={mutedIconColor} />
+            </Pressable>
+          ) : null}
+
+          {!isProject && node.subagentCount > 0 ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{node.subagentCount}</Text>
+            </View>
+          ) : null}
+        </ContextMenuTrigger>
+
+        <ContextMenuContent side="bottom" align="end" minWidth={168}>
+          {isProject ? (
+            <ContextMenuItem
+              onSelect={handleNewConversation}
+              leading={newConversationMenuIcon}
+              testID={`conversation-tree-menu-new-${node.id}`}
+            >
+              {t("sidebar.actions.newConversation")}
+            </ContextMenuItem>
+          ) : null}
+          {!isProject && node.workspaceId ? (
+            <ContextMenuItem
+              onSelect={openRename}
+              leading={renameMenuIcon}
+              testID={`conversation-tree-menu-rename-${node.id}`}
+            >
+              {t("sidebar.workspace.rename.title")}
+            </ContextMenuItem>
+          ) : null}
+        </ContextMenuContent>
+
         {!isProject && node.workspaceId ? (
-          <ContextMenuItem
-            onSelect={openRename}
-            leading={renameMenuIcon}
-            testID={`conversation-tree-menu-rename-${node.id}`}
-          >
-            {t("sidebar.workspace.rename.title")}
-          </ContextMenuItem>
+          <AdaptiveRenameModal
+            visible={isRenameOpen}
+            title={t("sidebar.workspace.rename.title")}
+            initialValue={node.title}
+            placeholder={node.title}
+            submitLabel={t("sidebar.workspace.rename.submit")}
+            onClose={handleCloseRename}
+            onSubmit={handleSubmitRename}
+            testID={`conversation-rename-modal-${node.id}`}
+          />
         ) : null}
-      </ContextMenuContent>
-
-      {!isProject && node.workspaceId ? (
-        <AdaptiveRenameModal
-          visible={isRenameOpen}
-          title={t("sidebar.workspace.rename.title")}
-          initialValue={node.title}
-          placeholder={node.title}
-          submitLabel={t("sidebar.workspace.rename.submit")}
-          onClose={handleCloseRename}
-          onSubmit={handleSubmitRename}
-          testID={`conversation-rename-modal-${node.id}`}
-        />
-      ) : null}
-    </ContextMenu>
+      </ContextMenu>
+    </View>
   );
 }
 
@@ -484,7 +500,8 @@ const styles = StyleSheet.create((theme) => ({
   },
   sectionTitle: {
     flex: 1,
-    fontSize: 12,
+    // "项目"/"对话" 标题加大(反馈: 这两个字体太小了)。
+    fontSize: 13,
     fontWeight: "500",
     color: theme.colors.foregroundMuted,
   },
@@ -495,8 +512,19 @@ const styles = StyleSheet.create((theme) => ({
   emptyHint: {
     paddingVertical: 10,
     paddingHorizontal: 10,
-    fontSize: 12,
+    fontSize: 13,
     color: theme.colors.foregroundMuted,
+  },
+  // 项目展开后无对话的"暂无对话"提示, 缩进到项目下一层(反馈)。
+  emptyHintProject: {
+    paddingLeft: ROW_BASE_PADDING + INDENT_PER_DEPTH + 22,
+    paddingVertical: 6,
+    fontSize: 13,
+    color: theme.colors.foregroundMuted,
+  },
+  // Hover 靶容器(plain View): 只负责 onPointerEnter/Leave 检测, 不参与布局(docs/hover.md canonical)。
+  rowHoverTracker: {
+    position: "relative",
   },
   row: {
     flexDirection: "row",
@@ -504,14 +532,18 @@ const styles = StyleSheet.create((theme) => ({
     gap: 6,
     paddingRight: 8,
     paddingVertical: 6,
+    // 行 pitch 归一化(pitch/字高)≈ Codex 2.2; 30 这档就对齐 Codex, 不再加大。
     minHeight: 30,
     borderRadius: theme.borderRadius.md,
+    // 行尾 action 绝对定位的锚点(反馈: hover 不变宽)。
+    position: "relative",
   },
   rowHovered: {
     backgroundColor: theme.colors.surfaceSidebarHover,
   },
   rowSelected: {
-    backgroundColor: theme.colors.surface2,
+    // 选中背景与 hover 一致(反馈: 单击选中, 背景跟悬浮背景色一致)。
+    backgroundColor: theme.colors.surfaceSidebarHover,
   },
   chevronButton: {
     width: 14,
@@ -519,9 +551,19 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "center",
   },
+  // 不可展开行的 chevron 占位,等宽 chevronButton,保持主图标与可展开行左对齐(反馈: chevron 前置)。
+  chevronSpacer: {
+    width: 14,
+    height: 14,
+  },
   rowAction: {
+    // 绝对定位, 不占行内布局: hover 出现/消失不改变行宽(反馈: 悬浮变宽); 落在行 hover 区内 →
+    // 移上去 hover 不丢失, 可点(反馈: 新增对话图标一悬浮就没、选不中)。
+    position: "absolute",
+    right: 8,
+    top: 0,
+    bottom: 0,
     width: 22,
-    height: 22,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: theme.borderRadius.sm,
@@ -535,13 +577,15 @@ const styles = StyleSheet.create((theme) => ({
   rowName: {
     flex: 1,
     minWidth: 0,
-    fontSize: 13,
-    color: theme.colors.foregroundMuted,
+    // 界面默认正文 14(反馈: 默认界面字体 14px); 之前硬编码 13 偏小且不统一。
+    fontSize: theme.fontSize.sm,
+    // 默认深色, 对齐 Codex(反馈: 字体颜色对照 codex); 选中态靠底色区分。
+    color: theme.colors.foreground,
   },
   rowNameSelected: {
     flex: 1,
     minWidth: 0,
-    fontSize: 13,
+    fontSize: theme.fontSize.sm,
     color: theme.colors.foreground,
   },
   badge: {

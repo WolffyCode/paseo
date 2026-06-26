@@ -149,7 +149,10 @@ export function flattenConversationTreeRows(
   const rows: ConversationTreeRow[] = [];
   const visit = (node: ConversationTreeNode, depth: number) => {
     const childrenWithinCap = depth + 1 <= options.maxDepth;
-    const canExpand = node.children.length > 0 && childrenWithinCap;
+    // 项目(目录)即使没有对话也可展开 —— 展开后渲染层显示"暂无对话"(反馈, 对齐 Codex);
+    // 对话/subagent 仍需真有子节点才显示 chevron。
+    const canExpand =
+      node.kind === "project" ? childrenWithinCap : node.children.length > 0 && childrenWithinCap;
     const isExpanded = canExpand && !isNodeCollapsed(node, options);
     rows.push({ node, depth, canExpand, isExpanded });
     if (isExpanded) {

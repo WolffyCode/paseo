@@ -119,7 +119,8 @@ describe("buildSidebarProjectsFromStructure", () => {
     });
 
     expect(projects).toHaveLength(1);
-    expect(projects[0]?.projectName).toBe("Project 1");
+    // 项目名取本地目录 basename (反馈: 目录名=本地物理目录名), 不再透传上游 displayName "Project 1"。
+    expect(projects[0]?.projectName).toBe("main");
     expect(projects[0]?.workspaces[0]).toMatchObject({
       workspaceKey: "srv:ws-main",
       serverId: "srv",

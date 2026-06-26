@@ -33,6 +33,8 @@ type HoverState = PressableStateCallbackType & { hovered?: boolean };
 interface HostSwitcherPillProps {
   /** The host whose data the shell currently shows — drives the pill label + status dot. */
   activeServerId: string | null;
+  /** Open the dropdown upward — the pill now sits in the bottom footer next to 设置 (反馈: 放设置右边). */
+  dropUp?: boolean;
 }
 
 /**
@@ -42,7 +44,7 @@ interface HostSwitcherPillProps {
  * never full-width / full-screen). Selecting a host navigates to its root route so the
  * whole shell reloads for that host; "add host" opens the existing add-host flow.
  */
-export function HostSwitcherPill({ activeServerId }: HostSwitcherPillProps) {
+export function HostSwitcherPill({ activeServerId, dropUp = false }: HostSwitcherPillProps) {
   const { t } = useTranslation();
   const hosts = useHosts();
   const [open, setOpen] = useState(false);
@@ -145,7 +147,7 @@ export function HostSwitcherPill({ activeServerId }: HostSwitcherPillProps) {
       </Pressable>
 
       {open ? (
-        <View style={styles.dropdown} testID="host-switcher-dropdown">
+        <View style={dropUp ? styles.dropdownUp : styles.dropdown} testID="host-switcher-dropdown">
           <Text style={styles.dropdownHeader}>{t("sidebar.host.dropdownTitle")}</Text>
           {hosts.map((host) => (
             <HostSwitcherRow
@@ -271,7 +273,6 @@ function statusTextStyleForTone(tone: HostConnectionTone) {
 const styles = StyleSheet.create((theme) => ({
   container: {
     position: "relative",
-    marginBottom: 10,
   },
   pill: {
     flexDirection: "row",
@@ -293,7 +294,8 @@ const styles = StyleSheet.create((theme) => ({
   pillName: {
     flex: 1,
     minWidth: 0,
-    fontSize: 13,
+    // 界面默认正文 14(反馈: 默认界面字体 14px)。
+    fontSize: theme.fontSize.sm,
     color: theme.colors.foreground,
   },
   dotOnline: {
@@ -332,6 +334,25 @@ const styles = StyleSheet.create((theme) => ({
     shadowOffset: { width: 0, height: 16 },
     elevation: 12,
   },
+  // Footer 形态: pill 在最底, 下拉向上展开 (bottom 锚定) 避免被裁出屏幕 (反馈: host 放设置右边)。
+  dropdownUp: {
+    position: "absolute",
+    bottom: "100%",
+    left: 0,
+    right: 0,
+    marginBottom: theme.spacing[1.5],
+    backgroundColor: theme.colors.surface0,
+    borderWidth: 1,
+    borderColor: theme.colors.borderAccent,
+    borderRadius: theme.borderRadius.lg,
+    padding: theme.spacing[1],
+    zIndex: 30,
+    shadowColor: "#000000",
+    shadowOpacity: 0.16,
+    shadowRadius: 40,
+    shadowOffset: { width: 0, height: 16 },
+    elevation: 12,
+  },
   dropdownHeader: {
     fontSize: 11,
     color: theme.colors.foregroundMuted,
@@ -356,7 +377,7 @@ const styles = StyleSheet.create((theme) => ({
   hostRowName: {
     flex: 1,
     minWidth: 0,
-    fontSize: 13,
+    fontSize: theme.fontSize.sm,
     color: theme.colors.foreground,
   },
   statusOnline: {

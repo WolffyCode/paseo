@@ -211,4 +211,18 @@ describe("flattenConversationTreeRows", () => {
     expect(rows.map((row) => row.node.id)).toEqual(["p1", "root"]);
     expect(rows.find((row) => row.node.id === "root")?.isExpanded).toBe(false);
   });
+
+  it("keeps an empty project expandable so the renderer can show 暂无对话", () => {
+    const tree = buildConversationTree({
+      serverId: "s1",
+      agents: [],
+      projects: [project("p1", ["w1"])],
+    });
+    const rows = flattenConversationTreeRows(tree, { ...NO_COLLAPSE, maxDepth: 2 });
+
+    expect(rows.map((row) => row.node.id)).toEqual(["p1"]);
+    expect(rows[0]?.canExpand).toBe(true);
+    expect(rows[0]?.isExpanded).toBe(true);
+    expect(rows[0]?.node.children).toHaveLength(0);
+  });
 });
