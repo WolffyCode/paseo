@@ -1,5 +1,5 @@
 import { usePathname } from "expo-router";
-import { Bot, ChevronRight, Folder, FolderPlus } from "lucide-react-native";
+import { Bot, ChevronRight, Folder, FolderPlus, SquarePen } from "lucide-react-native";
 import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, type PressableStateCallbackType, ScrollView, Text, View } from "react-native";
@@ -34,6 +34,7 @@ const ThemedChevron = withUnistyles(ChevronRight);
 const ThemedFolder = withUnistyles(Folder);
 const ThemedFolderPlus = withUnistyles(FolderPlus);
 const ThemedBot = withUnistyles(Bot);
+const ThemedSquarePen = withUnistyles(SquarePen);
 
 const mutedIconColor = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
@@ -46,6 +47,8 @@ interface ConversationTreeProps {
   /** Project grouping (置顶 first, then the rest), reused from the sidebar workspace list. */
   projects: SidebarProjectEntry[];
   onAddProject?: () => void;
+  /** Hover action on a project row: start a new conversation scoped to that project. */
+  onNewConversation?: (project: SidebarProjectEntry) => void;
   /** Called after navigating to a conversation (e.g. close the mobile drawer). */
   onNavigate?: () => void;
 }
@@ -61,6 +64,7 @@ export function ConversationTree({
   serverId,
   projects,
   onAddProject,
+  onNewConversation,
   onNavigate,
 }: ConversationTreeProps) {
   const { t } = useTranslation();
@@ -98,6 +102,19 @@ export function ConversationTree({
         workspaceIds: project.workspaces.map((workspace) => workspace.workspaceId),
       })),
     [projects],
+  );
+  // Map projectKey → full entry so a project row's new-conversation hover action can resolve the
+  // working dir for routing (the lightweight tree node only carries keys).
+  const projectByKey = useMemo(
+    () => new Map(projects.map((project) => [project.projectKey, project])),
+    [projects],
+  );
+  const handleNewConversationForProject = useCallback(
+    (projectKey: string) => {
+      const project = projectByKey.get(projectKey);
+      if (project) onNewConversation?.(project);
+    },
+    [projectByKey, onNewConversation],
   );
   const agentList = useMemo(() => (agents ? Array.from(agents.values()) : EMPTY_AGENTS), [agents]);
   const tree = useMemo(
@@ -151,6 +168,7 @@ export function ConversationTree({
       onSelectAgent={handleSelectAgent}
       onToggleProject={toggleProjectCollapsed}
       onToggleConversation={handleToggleConversation}
+      onNewConversation={handleNewConversationForProject}
     />
   );
 
@@ -214,12 +232,14 @@ function ConversationTreeRowView({
   onSelectAgent,
   onToggleProject,
   onToggleConversation,
+  onNewConversation,
 }: {
   row: ConversationTreeRow;
   selected: boolean;
   onSelectAgent: (node: ConversationTreeNode) => void;
   onToggleProject: (projectKey: string) => void;
   onToggleConversation: (conversationId: string) => void;
+  onNewConversation: (projectKey: string) => void;
 }) {
   const { node, depth, canExpand, isExpanded } = row;
   const isProject = node.kind === "project";
@@ -254,6 +274,10 @@ function ConversationTreeRowView({
     }
   }, [isProject, node.id, onToggleProject, onToggleConversation]);
 
+  const handleNewConversation = useCallback(() => {
+    onNewConversation(node.id);
+  }, [onNewConversation, node.id]);
+
   return (
     <Pressable
       style={rowStyle}
@@ -262,47 +286,65 @@ function ConversationTreeRowView({
       accessibilityRole="button"
       accessibilityState={isProject ? undefined : SELECTED_STATE_FALSE}
     >
-      {isProject ? (
-        <ThemedFolder size={TREE_ICON_SIZE} uniProps={mutedIconColor} />
-      ) : (
+      {({ hovered }) => (
         <>
-          {node.kind === "subagent" ? (
-            <ThemedBot size={SUBAGENT_ICON_SIZE} uniProps={mutedIconColor} />
+          {isProject ? (
+            <ThemedFolder size={TREE_ICON_SIZE} uniProps={mutedIconColor} />
+          ) : (
+            <>
+              {node.kind === "subagent" ? (
+                <ThemedBot size={SUBAGENT_ICON_SIZE} uniProps={mutedIconColor} />
+              ) : null}
+              <AgentStatusDot
+                status={node.status}
+                requiresAttention={node.requiresAttention}
+                showInactive
+              />
+            </>
+          )}
+
+          <Text style={selected ? styles.rowNameSelected : styles.rowName} numberOfLines={1}>
+            {node.title.length > 0 ? node.title : node.id}
+          </Text>
+
+          {/* Project rows reveal a new-conversation action on hover (反馈: 悬浮目录出新对话图标),
+              always shown on touch where hover is unreachable. */}
+          {isProject && (hovered || isNative) ? (
+            <Pressable
+              onPress={handleNewConversation}
+              style={styles.rowAction}
+              testID={`conversation-tree-new-conversation-${node.id}`}
+              accessibilityRole="button"
+              hitSlop={6}
+            >
+              <ThemedSquarePen size={CHEVRON_SIZE} uniProps={mutedIconColor} />
+            </Pressable>
           ) : null}
-          <AgentStatusDot
-            status={node.status}
-            requiresAttention={node.requiresAttention}
-            showInactive
-          />
+
+          {!isProject && node.subagentCount > 0 ? (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{node.subagentCount}</Text>
+            </View>
+          ) : null}
+
+          {/* Expand/collapse chevron sits after the name (反馈: 放目录名后边); the flex name
+              pushes it to the row's trailing edge. */}
+          {canExpand ? (
+            <Pressable
+              onPress={handleChevron}
+              style={styles.chevronButton}
+              testID={`conversation-tree-chevron-${node.id}`}
+              accessibilityRole="button"
+            >
+              <ThemedChevron
+                size={CHEVRON_SIZE}
+                uniProps={mutedIconColor}
+                style={isExpanded ? styles.chevronExpanded : styles.chevronCollapsed}
+              />
+            </Pressable>
+          ) : null}
         </>
       )}
-
-      <Text style={selected ? styles.rowNameSelected : styles.rowName} numberOfLines={1}>
-        {node.title.length > 0 ? node.title : node.id}
-      </Text>
-
-      {!isProject && node.subagentCount > 0 ? (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{node.subagentCount}</Text>
-        </View>
-      ) : null}
-
-      {/* Expand/collapse chevron now sits after the name (反馈: 放目录名后边); the flex
-          name pushes it to the row's trailing edge. */}
-      {canExpand ? (
-        <Pressable
-          onPress={handleChevron}
-          style={styles.chevronButton}
-          testID={`conversation-tree-chevron-${node.id}`}
-          accessibilityRole="button"
-        >
-          <ThemedChevron
-            size={CHEVRON_SIZE}
-            uniProps={mutedIconColor}
-            style={isExpanded ? styles.chevronExpanded : styles.chevronCollapsed}
-          />
-        </Pressable>
-      ) : null}
     </Pressable>
   );
 }
@@ -365,6 +407,13 @@ const styles = StyleSheet.create((theme) => ({
     height: 14,
     alignItems: "center",
     justifyContent: "center",
+  },
+  rowAction: {
+    width: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.borderRadius.sm,
   },
   chevronCollapsed: {
     transform: [{ rotate: "0deg" }],

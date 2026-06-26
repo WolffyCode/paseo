@@ -663,6 +663,19 @@ function DesktopSidebar({
     () => [...pinnedProjects, ...unpinnedProjects],
     [pinnedProjects, unpinnedProjects],
   );
+  // Project-row "new conversation" hover action: open New Workspace scoped to that project's dir.
+  const handleNewConversationInProject = useCallback(
+    (project: SidebarProjectEntry) => {
+      if (!activeServerId) return;
+      router.navigate(
+        buildHostNewWorkspaceRoute(activeServerId, project.iconWorkingDir, {
+          projectId: project.projectKey,
+          displayName: project.projectName,
+        }),
+      );
+    },
+    [activeServerId],
+  );
 
   if (!isOpen) {
     return null;
@@ -703,6 +716,7 @@ function DesktopSidebar({
             serverId={activeServerId}
             projects={treeProjects}
             onAddProject={handleOpenProject}
+            onNewConversation={handleNewConversationInProject}
           />
         )}
 
