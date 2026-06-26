@@ -179,6 +179,32 @@ describe("flattenConversationTreeRows", () => {
     ]);
   });
 
+  it("renders 主子孙 (and deeper) agents nested without limit when maxDepth is high (阶段2)", () => {
+    // project → conversation → subagent → sub-subagent → sub-sub-subagent (5 levels deep)
+    const deepTree = buildConversationTree({
+      serverId: "s1",
+      agents: [
+        agent("root", { workspaceId: "w1" }),
+        agent("sub", { workspaceId: "w1", parentAgentId: "root" }),
+        agent("subsub", { workspaceId: "w1", parentAgentId: "sub" }),
+        agent("subsubsub", { workspaceId: "w1", parentAgentId: "subsub" }),
+      ],
+      projects: [project("p1", ["w1"])],
+    });
+    const rows = flattenConversationTreeRows(deepTree, { ...NO_COLLAPSE, maxDepth: 64 });
+
+    expect(rows.map((row) => [row.node.id, row.depth])).toEqual([
+      ["p1", 0],
+      ["root", 1],
+      ["sub", 2],
+      ["subsub", 3],
+      ["subsubsub", 4],
+    ]);
+    // Every node with children is expandable (no artificial depth cap); the leaf is not.
+    expect(rows.find((row) => row.node.id === "subsub")?.canExpand).toBe(true);
+    expect(rows.find((row) => row.node.id === "subsubsub")?.canExpand).toBe(false);
+  });
+
   it("flags a row that has children below the render cap as non-expandable but still counted", () => {
     const rows = flattenConversationTreeRows(sampleTree(), { ...NO_COLLAPSE, maxDepth: 2 });
 

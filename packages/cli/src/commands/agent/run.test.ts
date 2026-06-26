@@ -1,5 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { runRunCommand, type AgentRunOptions } from "./run";
+import { PARENT_AGENT_ID_LABEL } from "@getpaseo/protocol/agent-labels";
+import { applyCallerParentLabel, runRunCommand, type AgentRunOptions } from "./run";
+
+describe("applyCallerParentLabel", () => {
+  it("defaults the spawned agent to a subagent of the caller (PASEO_AGENT_ID)", () => {
+    const result = applyCallerParentLabel({}, "agent-123");
+    expect(result[PARENT_AGENT_ID_LABEL]).toBe("agent-123");
+  });
+
+  it("is a no-op when there is no caller agent (human shell, no PASEO_AGENT_ID)", () => {
+    expect(applyCallerParentLabel({ foo: "bar" }, undefined)).toEqual({ foo: "bar" });
+    expect(applyCallerParentLabel({ foo: "bar" }, "   ")).toEqual({ foo: "bar" });
+  });
+
+  it("lets an explicit --label parent win over the caller default", () => {
+    const result = applyCallerParentLabel(
+      { [PARENT_AGENT_ID_LABEL]: "explicit-parent" },
+      "agent-123",
+    );
+    expect(result[PARENT_AGENT_ID_LABEL]).toBe("explicit-parent");
+  });
+
+  it("trims the caller id", () => {
+    expect(applyCallerParentLabel({}, "  agent-123  ")[PARENT_AGENT_ID_LABEL]).toBe("agent-123");
+  });
+});
 
 // validateRunOptions runs before the CLI ever connects to a daemon, so these
 // invalid combinations reject without one running.

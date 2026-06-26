@@ -58,11 +58,15 @@ import {
 } from "./select";
 import type { ConversationTreeNode, ConversationTreeRow } from "./types";
 
-// The render-depth cap (本轮 = 2: 对话 + subagent 一层). The data layer already fills the
-// full recursion — un-capping deeper nesting later is a one-line change here, no data/selector
-// edits (architecture §6 ①).
-export const MAX_RENDER_DEPTH = 2;
+// Render-depth cap. The data layer (select.ts) fills the full recursion; this only bounds how deep
+// the tree renders. Set high so 主子孙 agents nest effectively without limit (阶段2: 对话下还有对话
+// / agent 下有 subagent, 无限嵌套, 还含 paseo run 调起的其他 CLI 子 agent); the constant only guards
+// against pathological recursion depth.
+export const MAX_RENDER_DEPTH = 64;
 const INDENT_PER_DEPTH = 14;
+// Indentation stops growing past this depth so very deep subtrees stay within the sidebar width
+// (the nesting still renders — only the left inset is clamped)。
+const MAX_INDENT_DEPTH = 8;
 const ROW_BASE_PADDING = 8;
 const TREE_ICON_SIZE = 16;
 const SUBAGENT_ICON_SIZE = 14;
@@ -430,7 +434,9 @@ function ConversationTreeRowView({
   const showRowActions = rowHovered || isNative;
 
   const indentStyle = useMemo(
-    () => ({ paddingLeft: ROW_BASE_PADDING + depth * INDENT_PER_DEPTH }),
+    () => ({
+      paddingLeft: ROW_BASE_PADDING + Math.min(depth, MAX_INDENT_DEPTH) * INDENT_PER_DEPTH,
+    }),
     [depth],
   );
   const rowStyle = useMemo(
