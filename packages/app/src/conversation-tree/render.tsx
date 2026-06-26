@@ -1,12 +1,17 @@
 import { usePathname } from "expo-router";
 import {
+  Archive,
   Bot,
   ChevronRight,
   Folder,
+  FolderOpen,
   FolderPlus,
+  GitBranch,
   MoreHorizontal,
   Pencil,
+  Pin,
   SquarePen,
+  Trash2,
 } from "lucide-react-native";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
@@ -30,6 +35,7 @@ import { useSessionStore } from "@/stores/session-store";
 import { useSidebarCollapsedSectionsStore } from "@/stores/sidebar-collapsed-sections-store";
 import type { Theme } from "@/styles/theme";
 import { navigateToAgent } from "@/utils/navigate-to-agent";
+import { type ProjectRowActions, useProjectRowActions } from "./use-project-row-actions";
 import {
   buildConversationTree,
   type ConversationTreeProject,
@@ -54,12 +60,21 @@ const ThemedBot = withUnistyles(Bot);
 const ThemedSquarePen = withUnistyles(SquarePen);
 const ThemedMoreHorizontal = withUnistyles(MoreHorizontal);
 const ThemedPencil = withUnistyles(Pencil);
+const ThemedPin = withUnistyles(Pin);
+const ThemedFolderOpen = withUnistyles(FolderOpen);
+const ThemedGitBranch = withUnistyles(GitBranch);
+const ThemedArchive = withUnistyles(Archive);
+const ThemedTrash2 = withUnistyles(Trash2);
 
 const mutedIconColor = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
 // Menu-item leading icons (module-level so they aren't re-created per row — react-perf).
-const newConversationMenuIcon = <ThemedSquarePen size={16} uniProps={mutedIconColor} />;
 const renameMenuIcon = <ThemedPencil size={16} uniProps={mutedIconColor} />;
+const pinMenuIcon = <ThemedPin size={16} uniProps={mutedIconColor} />;
+const revealMenuIcon = <ThemedFolderOpen size={16} uniProps={mutedIconColor} />;
+const worktreeMenuIcon = <ThemedGitBranch size={16} uniProps={mutedIconColor} />;
+const archiveMenuIcon = <ThemedArchive size={16} uniProps={mutedIconColor} />;
+const removeMenuIcon = <ThemedTrash2 size={16} uniProps={mutedIconColor} />;
 
 const EMPTY_AGENTS: never[] = [];
 
@@ -190,6 +205,9 @@ export function ConversationTree({
       onToggleProject={toggleProjectCollapsed}
       onToggleConversation={handleToggleConversation}
       onNewConversation={handleNewConversationForProject}
+      projectWorkingDir={
+        row.node.kind === "project" ? projectByKey.get(row.node.id)?.iconWorkingDir : undefined
+      }
     />
   );
 
@@ -266,6 +284,7 @@ function ConversationTreeRowView({
   onToggleProject,
   onToggleConversation,
   onNewConversation,
+  projectWorkingDir,
 }: {
   row: ConversationTreeRow;
   selected: boolean;
@@ -273,9 +292,18 @@ function ConversationTreeRowView({
   onToggleProject: (projectKey: string) => void;
   onToggleConversation: (conversationId: string) => void;
   onNewConversation: (projectKey: string) => void;
+  projectWorkingDir?: string;
 }) {
   const { node, depth, canExpand, isExpanded } = row;
   const isProject = node.kind === "project";
+
+  // 项目行右键菜单的全部操作 model(对话行也会调用但不使用结果 —— hook 必须无条件调用)。
+  const projectActions = useProjectRowActions({
+    serverId: node.serverId,
+    projectKey: node.id,
+    projectName: node.title.length > 0 ? node.title : node.id,
+    workingDir: projectWorkingDir,
+  });
 
   // Row hover drives the trailing action (more / new-conversation); right-click & long-press open
   // the same menu, also openable from the more button (反馈8/12/14).
@@ -438,41 +466,116 @@ function ConversationTreeRowView({
           ) : null}
         </ContextMenuTrigger>
 
-        <ContextMenuContent side="bottom" align="end" minWidth={168}>
-          {isProject ? (
-            <ContextMenuItem
-              onSelect={handleNewConversation}
-              leading={newConversationMenuIcon}
-              testID={`conversation-tree-menu-new-${node.id}`}
-            >
-              {t("sidebar.actions.newConversation")}
-            </ContextMenuItem>
-          ) : null}
-          {!isProject && node.workspaceId ? (
-            <ContextMenuItem
-              onSelect={openRename}
-              leading={renameMenuIcon}
-              testID={`conversation-tree-menu-rename-${node.id}`}
-            >
-              {t("sidebar.workspace.rename.title")}
-            </ContextMenuItem>
-          ) : null}
-        </ContextMenuContent>
-
-        {!isProject && node.workspaceId ? (
-          <AdaptiveRenameModal
-            visible={isRenameOpen}
-            title={t("sidebar.workspace.rename.title")}
-            initialValue={node.title}
-            placeholder={node.title}
-            submitLabel={t("sidebar.workspace.rename.submit")}
-            onClose={handleCloseRename}
-            onSubmit={handleSubmitRename}
-            testID={`conversation-rename-modal-${node.id}`}
-          />
-        ) : null}
+        {isProject ? (
+          <ProjectRowMenu node={node} projectActions={projectActions} />
+        ) : (
+          <>
+            <ContextMenuContent side="bottom" align="end" minWidth={200}>
+              {node.workspaceId ? (
+                <ContextMenuItem
+                  onSelect={openRename}
+                  leading={renameMenuIcon}
+                  testID={`conversation-tree-menu-rename-${node.id}`}
+                >
+                  {t("sidebar.workspace.rename.title")}
+                </ContextMenuItem>
+              ) : null}
+            </ContextMenuContent>
+            {node.workspaceId ? (
+              <AdaptiveRenameModal
+                visible={isRenameOpen}
+                title={t("sidebar.workspace.rename.title")}
+                initialValue={node.title}
+                placeholder={node.title}
+                submitLabel={t("sidebar.workspace.rename.submit")}
+                onClose={handleCloseRename}
+                onSubmit={handleSubmitRename}
+                testID={`conversation-rename-modal-${node.id}`}
+              />
+            ) : null}
+          </>
+        )}
       </ContextMenu>
     </View>
+  );
+}
+
+// 项目(目录)行右键菜单 —— 对照 Codex #40(置顶/Finder/创建永久工作树/重命名/归档/移除)。提取成独立
+// 组件让 ConversationTreeRowView 不超 complexity 上限; 全部 state/handler 来自 useProjectRowActions。
+function ProjectRowMenu({
+  node,
+  projectActions,
+}: {
+  node: ConversationTreeNode;
+  projectActions: ProjectRowActions;
+}) {
+  const { t } = useTranslation();
+  return (
+    <>
+      <ContextMenuContent side="bottom" align="end" minWidth={200}>
+        <ContextMenuItem
+          onSelect={projectActions.onTogglePin}
+          leading={pinMenuIcon}
+          testID={`conversation-tree-menu-pin-${node.id}`}
+        >
+          {projectActions.isPinned
+            ? t("sidebar.project.actions.unpin")
+            : t("sidebar.project.actions.pin")}
+        </ContextMenuItem>
+        {projectActions.canReveal ? (
+          <ContextMenuItem
+            onSelect={projectActions.onReveal}
+            leading={revealMenuIcon}
+            testID={`conversation-tree-menu-reveal-${node.id}`}
+          >
+            {t("sidebar.project.actions.revealInFinder")}
+          </ContextMenuItem>
+        ) : null}
+        {projectActions.canCreateWorktree ? (
+          <ContextMenuItem
+            onSelect={projectActions.onCreateWorktree}
+            leading={worktreeMenuIcon}
+            testID={`conversation-tree-menu-worktree-${node.id}`}
+          >
+            {t("sidebar.project.actions.createWorktree")}
+          </ContextMenuItem>
+        ) : null}
+        <ContextMenuItem
+          onSelect={projectActions.onOpenRename}
+          leading={renameMenuIcon}
+          testID={`conversation-tree-menu-rename-project-${node.id}`}
+        >
+          {t("sidebar.project.actions.renameProject")}
+        </ContextMenuItem>
+        {/* "归档对话" 项目级语义待定, 暂以 disabled 呈现(对照 Codex #40 的灰态)。 */}
+        <ContextMenuItem
+          disabled
+          leading={archiveMenuIcon}
+          testID={`conversation-tree-menu-archive-${node.id}`}
+        >
+          {t("sidebar.project.actions.archive")}
+        </ContextMenuItem>
+        <ContextMenuItem
+          onSelect={projectActions.onRemove}
+          leading={removeMenuIcon}
+          destructive
+          status={projectActions.isRemoving ? "pending" : "idle"}
+          pendingLabel={t("sidebar.project.actions.removing")}
+          testID={`conversation-tree-menu-remove-${node.id}`}
+        >
+          {t("sidebar.project.actions.remove")}
+        </ContextMenuItem>
+      </ContextMenuContent>
+      <AdaptiveRenameModal
+        visible={projectActions.isRenameOpen}
+        title={t("sidebar.project.actions.renameProject")}
+        initialValue={node.title}
+        placeholder={node.title}
+        onClose={projectActions.onCloseRename}
+        onSubmit={projectActions.onSubmitRename}
+        testID={`conversation-tree-project-rename-modal-${node.id}`}
+      />
+    </>
   );
 }
 
