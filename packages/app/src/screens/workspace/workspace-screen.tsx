@@ -188,6 +188,7 @@ import {
 import { getIsElectron, isNative, isWeb } from "@/constants/platform";
 import { useContainerWidthBelow } from "@/hooks/use-container-width";
 import {
+  buildHostNewWorkspaceRoute,
   buildHostRootRoute,
   buildSettingsHostRoute,
   buildSettingsHostSectionRoute,
@@ -1306,7 +1307,9 @@ function WorkspaceHeaderTitleBar({
         </View>
       ) : (
         <View style={styles.headerTitleTextGroup}>
-          <ScreenTitle testID="workspace-header-title">{title}</ScreenTitle>
+          <ScreenTitle testID="workspace-header-title" style={styles.headerTitle}>
+            {title}
+          </ScreenTitle>
           {showSubtitle ? (
             <Text
               testID="workspace-header-subtitle"
@@ -2541,6 +2544,14 @@ function WorkspaceScreenContent({
     [focusWorkspacePane, openWorkspaceDraftTab, persistenceKey],
   );
 
+  // 反馈: 收起态顶栏的 ✎ 行为 = 左栏「新对话」(导航到新对话空态), 与 left-sidebar 的
+  // handleNewWorkspaceNavigate 一致, 而不是在当前 workspace 内开草稿 tab。
+  const newConversationRouter = useRouter();
+  const handleStartNewConversation = useCallback(() => {
+    if (!normalizedServerId) return;
+    newConversationRouter.navigate(buildHostNewWorkspaceRoute(normalizedServerId) as Href);
+  }, [newConversationRouter, normalizedServerId]);
+
   const handleCreateTerminal = useStableEvent(createTerminal);
 
   const handleCreateTerminalWithProfile = useCallback(
@@ -3692,7 +3703,7 @@ function WorkspaceScreenContent({
     () => (
       <>
         {!isMobile && !isAgentListOpen ? (
-          <SidebarWindowChrome collapsed onNewConversation={handleCreateDraftTab} />
+          <SidebarWindowChrome collapsed onNewConversation={handleStartNewConversation} />
         ) : null}
         {canvasTopBarChrome.showTitle ? (
           <WorkspaceHeaderTitleBar
@@ -3762,6 +3773,7 @@ function WorkspaceScreenContent({
       menuNewTerminalIcon,
       menuCopyIcon,
       menuSettingsIcon,
+      handleStartNewConversation,
       handleCreateDraftTab,
       handleCreateTerminal,
       handleCreateTerminalWithProfile,
@@ -4044,11 +4056,9 @@ const styles = StyleSheet.create((theme) => ({
     minHeight: 0,
   },
   headerTitle: {
-    fontSize: theme.fontSize.base,
-    fontWeight: {
-      xs: "400",
-      md: "300",
-    },
+    // 反馈: 对话标题字体偏大且太细 → 缩到 sm + 加粗(对齐 codex 顶栏标题风格)。
+    fontSize: theme.fontSize.sm,
+    fontWeight: "600",
     color: theme.colors.foreground,
     flexShrink: 1,
   },
@@ -4068,10 +4078,8 @@ const styles = StyleSheet.create((theme) => ({
     minWidth: 0,
     overflow: "hidden",
     flexShrink: 1,
-    flexGrow: {
-      xs: 1,
-      md: 0,
-    },
+    // 反馈: 标题范围太短 → 桌面也让标题组伸展占满中间, 标题/项目名能显示更多。
+    flexGrow: 1,
     flexDirection: {
       xs: "column",
       md: "row",
@@ -4094,7 +4102,8 @@ const styles = StyleSheet.create((theme) => ({
     },
     flexShrink: 1,
     minWidth: 0,
-    maxWidth: "60%",
+    // 反馈: 标题显示范围太短 → 项目名放宽到 80%。
+    maxWidth: "80%",
   },
   headerTitleSkeleton: {
     width: 220,

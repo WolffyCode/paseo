@@ -138,7 +138,9 @@ export const LeftSidebar = memo(function LeftSidebar({
 
   const { projects, isInitialLoad, isRevalidating, refreshAll } = useSidebarWorkspacesList({
     serverId: activeServerId,
-    enabled: isCompactLayout || isOpen,
+    // 常驻 enable(不随 isOpen 翻转): 否则每次展开/收起都 disable→enable 触发重新拉取 + isInitialLoad
+    // 闪, 造成展开瞬间的卡顿 (反馈: 展开收起卡顿)。列表轻量, 收起时保持已拉取即可。
+    enabled: true,
   });
   const {
     collapsedProjectKeys,
@@ -627,8 +629,9 @@ function DesktopSidebar({
   const openProgress = useSharedValue(isOpen ? 1 : 0);
   useEffect(() => {
     openProgress.value = withTiming(isOpen ? 1 : 0, {
-      duration: 200,
-      easing: Easing.out(Easing.cubic),
+      // inOut 让起步/收尾都柔(out 会前重, 在 reflow 重的页面上起步掉帧更明显); 180ms 略短减少卡顿窗口。
+      duration: 180,
+      easing: Easing.inOut(Easing.cubic),
     });
   }, [isOpen, openProgress]);
 
