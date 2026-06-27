@@ -63,6 +63,10 @@ const STORED_AGENT_SCHEMA = z.object({
   attentionReason: z.enum(["finished", "error", "permission"]).nullable().optional(),
   attentionTimestamp: z.string().nullable().optional(),
   internal: z.boolean().optional(),
+  // Read-only mirror of a provider's internal subagent, bound to a real child
+  // session id (persistence.sessionId). Persisted so the node survives restart
+  // and stays read-only; it is NEVER resumed (continuing = deriving a new agent).
+  observed: z.boolean().optional(),
   archivedAt: z.string().nullable().optional(),
 });
 
@@ -80,6 +84,30 @@ export type SerializableAgentConfig = Pick<
 export type StoredAgentRecord = z.infer<typeof STORED_AGENT_SCHEMA>;
 export function parseStoredAgentRecord(value: unknown): StoredAgentRecord {
   return STORED_AGENT_SCHEMA.parse(value);
+}
+
+interface SnapshotOverrides {
+  title?: string | null;
+  internal?: boolean;
+  observed?: boolean;
+}
+
+// Resolves the projection inputs for a snapshot write: an explicitly provided
+// override wins (even when false/null), otherwise the live agent value, then the
+// existing stored value. Keeps applySnapshot flat.
+function buildSnapshotProjectionOptions(
+  agent: ManagedAgent,
+  options: SnapshotOverrides | undefined,
+  existing: StoredAgentRecord | null,
+) {
+  const overridden = (key: keyof SnapshotOverrides): boolean =>
+    options !== undefined && Object.prototype.hasOwnProperty.call(options, key);
+  return {
+    title: overridden("title") ? (options?.title ?? null) : (existing?.title ?? null),
+    createdAt: existing?.createdAt,
+    internal: overridden("internal") ? options?.internal : (agent.internal ?? existing?.internal),
+    observed: overridden("observed") ? options?.observed : (agent.observed ?? existing?.observed),
+  };
 }
 
 export class AgentStorage {
@@ -192,20 +220,15 @@ export class AgentStorage {
 
   async applySnapshot(
     agent: ManagedAgent,
-    options?: { title?: string | null; internal?: boolean },
+    options?: { title?: string | null; internal?: boolean; observed?: boolean },
   ): Promise<void> {
     await this.load();
     await this.waitForPendingWrite(agent.id);
     const existing = (await this.get(agent.id)) ?? null;
-    const hasTitleOverride =
-      options !== undefined && Object.prototype.hasOwnProperty.call(options, "title");
-    const hasInternalOverride =
-      options !== undefined && Object.prototype.hasOwnProperty.call(options, "internal");
-    const record = toStoredAgentRecord(agent, {
-      title: hasTitleOverride ? (options?.title ?? null) : (existing?.title ?? null),
-      createdAt: existing?.createdAt,
-      internal: hasInternalOverride ? options?.internal : (agent.internal ?? existing?.internal),
-    });
+    const record = toStoredAgentRecord(
+      agent,
+      buildSnapshotProjectionOptions(agent, options, existing),
+    );
 
     // Preserve soft-delete/archive status across snapshot flushes.
     // `archivedAt` is not part of the ManagedAgent snapshot, so a naive projection

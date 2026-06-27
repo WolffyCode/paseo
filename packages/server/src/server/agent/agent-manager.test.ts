@@ -6506,3 +6506,89 @@ test("settles running observed subagents to idle when the parent turn completes"
     rmSync(workdir, { recursive: true, force: true });
   }
 });
+
+test("refuses to resume an observed sub-agent after restart and never spawns its session", async () => {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-test-"));
+  const storagePath = join(workdir, "agents");
+  const storage = new AgentStorage(storagePath, logger);
+
+  class ObservationClient extends TestAgentClient {
+    session: TestAgentSession | null = null;
+
+    override async createSession(config: AgentSessionConfig): Promise<AgentSession> {
+      this.session = new TestAgentSession(config);
+      return this.session;
+    }
+  }
+
+  const liveClient = new ObservationClient();
+  const liveManager = new AgentManager({
+    clients: { codex: liveClient },
+    registry: storage,
+    logger,
+    idFactory: () => "00000000-0000-4000-8000-0000000005d4",
+  });
+
+  try {
+    const parent = await liveManager.createAgent({ provider: "codex", cwd: workdir });
+    const observedId = observedSubAgentId(parent.id, "task-call-1");
+
+    await new Promise<void>((resolve) => {
+      const unsubscribe = liveManager.subscribe(
+        (event) => {
+          if (event.type === "agent_state" && event.agent.id === observedId) {
+            unsubscribe();
+            resolve();
+          }
+        },
+        { replayState: false },
+      );
+      liveClient.session?.pushEvent({
+        type: "sub_agent_observation",
+        provider: "codex",
+        callId: "task-call-1",
+        childSessionId: "child-real-id",
+        subAgentType: "general-purpose",
+        status: "running",
+      });
+    });
+
+    // Wait for the fire-and-forget persistence to land on disk.
+    let persistedObserved = false;
+    for (let attempt = 0; attempt < 50 && !persistedObserved; attempt += 1) {
+      await storage.flush();
+      const stored = await storage.list();
+      persistedObserved = stored.some(
+        (record) => record.observed === true && record.persistence?.sessionId === "child-real-id",
+      );
+      if (!persistedObserved) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+    expect(persistedObserved).toBe(true);
+
+    // Simulate a daemon restart: a fresh manager over the same storage, with an
+    // empty live observed map. The observed record is now only in storage.
+    const restartClient = new ObservationClient();
+    const restartManager = new AgentManager({
+      clients: { codex: restartClient },
+      registry: storage,
+      logger,
+    });
+
+    // Resuming the observed sub-session is refused — continuing it would mean
+    // deriving a new agent, never resuming this read-only mirror.
+    await expect(
+      restartManager.resumeAgentFromPersistence({
+        provider: "codex",
+        sessionId: "child-real-id",
+      }),
+    ).rejects.toThrow(/observed/i);
+
+    // The critical guarantee: no provider session was ever spawned.
+    expect(restartClient.resumeOverrides).toHaveLength(0);
+    expect(restartClient.session).toBeNull();
+  } finally {
+    rmSync(workdir, { recursive: true, force: true });
+  }
+});

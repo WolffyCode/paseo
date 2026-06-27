@@ -538,6 +538,16 @@ function getFirstUserMessageTextFromRows(rows: readonly AgentTimelineRow[]): str
   return null;
 }
 
+// Thrown when something tries to resume an observed sub-agent. They are
+// read-only mirrors of a provider's internal sub-agent and must never be
+// resumed; continuing one is a separate "derive a new agent" flow.
+export class ObservedAgentNotResumableError extends Error {
+  constructor(readonly sessionId: string) {
+    super(`Observed sub-agent session ${sessionId} is read-only and cannot be resumed`);
+    this.name = "ObservedAgentNotResumableError";
+  }
+}
+
 export class AgentManager {
   private readonly clients = new Map<AgentProvider, AgentClient>();
   private readonly providerEnabled = new Map<AgentProvider, boolean>();
@@ -988,6 +998,15 @@ export class AgentManager {
       workspaceId?: string;
     },
   ): Promise<ManagedAgent> {
+    // Observed sub-agents are read-only mirrors and are NEVER resumed — resuming
+    // would spawn a session on the provider's own sub-agent and break its native
+    // orchestration. Continuing one means deriving a NEW agent (separate flow).
+    // This guard holds across restart: the observed record lives in storage even
+    // when the live map is empty.
+    if (handle.sessionId && (await this.isObservedSession(handle.sessionId))) {
+      throw new ObservedAgentNotResumableError(handle.sessionId);
+    }
+
     const resolvedAgentId = validateAgentId(
       agentId ?? this.idFactory(),
       "resumeAgentFromPersistence",
@@ -3440,6 +3459,14 @@ export class AgentManager {
         });
     this.observedAgents.set(id, record);
 
+    // Persist the record (not the live timeline) so the read-only node survives
+    // restart. Only on create / status change / first id binding — the per-item
+    // stream below never writes storage.
+    const boundIdentity = !existing?.persistence && persistence !== null;
+    if (!existing || existing.observedStatus !== status || boundIdentity) {
+      void this.persistObservedSubAgent(record);
+    }
+
     if (!this.timelineStore.has(id)) {
       this.timelineStore.initialize(id, { timestamp: now.toISOString() });
     }
@@ -3508,6 +3535,38 @@ export class AgentManager {
     };
   }
 
+  // True when a session id is owned by an observed sub-agent — live (in-memory)
+  // or persisted (across restart). Used to refuse resume so an observed mirror
+  // never spawns a provider session.
+  private async isObservedSession(sessionId: string): Promise<boolean> {
+    for (const record of this.observedAgents.values()) {
+      if (record.persistence?.sessionId === sessionId) {
+        return true;
+      }
+    }
+    if (!this.registry) {
+      return false;
+    }
+    const records = await this.registry.list();
+    return records.some(
+      (record) => record.observed === true && record.persistence?.sessionId === sessionId,
+    );
+  }
+
+  // Writes the observed record (identity + relationship + observed flag), never
+  // its live timeline, so the read-only node survives restart. Best-effort and
+  // fire-and-forget from the hot observation path.
+  private async persistObservedSubAgent(record: ManagedAgentClosed): Promise<void> {
+    if (!this.registry) {
+      return;
+    }
+    try {
+      await this.registry.applySnapshot(record, { observed: true, title: record.title ?? null });
+    } catch (error) {
+      this.logger.warn({ err: error, agentId: record.id }, "Failed to persist observed sub-agent");
+    }
+  }
+
   // Settles a parent's still-running observed subagents to idle. A provider's
   // internal subagent always finishes within the parent's turn, so once that
   // turn completes any observed node that never received a terminal update can
@@ -3526,6 +3585,7 @@ export class AgentManager {
         updatedAt: new Date(),
       };
       this.observedAgents.set(id, settled);
+      void this.persistObservedSubAgent(settled);
       this.dispatch({ type: "agent_state", agent: { ...settled } });
     }
   }

@@ -26,6 +26,7 @@ interface ProjectionOptions {
   title?: string | null;
   createdAt?: string;
   internal?: boolean;
+  observed?: boolean;
 }
 
 interface RecentProviderSessionProjectionOptions {
@@ -93,6 +94,7 @@ export function toStoredAgentRecord(
       ? agent.attention.attentionTimestamp.toISOString()
       : null,
     internal: options?.internal,
+    observed: options?.observed,
   } satisfies StoredAgentRecord;
 }
 
@@ -228,7 +230,9 @@ export function buildStoredAgentPayload(
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt.toISOString(),
     lastUserMessageAt: lastUserMessageAt ? lastUserMessageAt.toISOString() : null,
-    status: record.lastStatus,
+    // A restored observed sub-agent is historical (its parent turn ended before
+    // the restart), so it shows the idle dot, not the stored "closed" lifecycle.
+    status: record.observed ? "idle" : record.lastStatus,
     capabilities: defaultCapabilities,
     currentModeId: record.lastModeId ?? null,
     availableModes: [],
@@ -239,6 +243,8 @@ export function buildStoredAgentPayload(
     attentionReason: record.attentionReason ?? null,
     attentionTimestamp: record.attentionTimestamp ?? null,
     archivedAt: record.archivedAt ?? null,
+    // A restored observed subagent stays read-only after restart.
+    ...(record.observed ? { observed: true } : {}),
     labels: normalizeLabels(record.labels),
     ...(providerAvailable ? {} : { providerUnavailable: true }),
   };
