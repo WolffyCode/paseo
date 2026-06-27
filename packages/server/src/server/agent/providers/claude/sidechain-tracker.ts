@@ -1,6 +1,10 @@
 import type { SDKMessage } from "@anthropic-ai/claude-agent-sdk";
 
-import { mapClaudeRunningToolCall } from "./tool-call-mapper.js";
+import {
+  mapClaudeCompletedToolCall,
+  mapClaudeFailedToolCall,
+  mapClaudeRunningToolCall,
+} from "./tool-call-mapper.js";
 import { buildToolCallDisplayModel } from "@getpaseo/protocol/tool-call-display";
 
 import type { AgentMetadata, AgentStreamEvent, AgentTimelineItem } from "../../agent-sdk-types.js";
@@ -19,6 +23,13 @@ interface SubAgentActionEntry {
 interface SubAgentActivityState {
   subAgentType?: string;
   description?: string;
+  // The sub-agent's real session id, captured from its own messages. Bound to
+  // the observed agent as a real, resumable identity.
+  childSessionId?: string;
+  // Per-child tool_use inputs (callId -> input), so a later tool_result maps to a
+  // completed tool call with its input. Isolated from the parent's tool cache so
+  // observing never disturbs the parent stream.
+  toolInputs: Map<string, unknown>;
   actions: SubAgentActionEntry[];
   actionKeys: string[];
   nextActionIndex: number;
@@ -48,6 +59,13 @@ function isClaudeContentChunk(value: unknown): value is ClaudeContentChunk {
   );
 }
 
+// The sub-agent's own session id, carried on its sidechain messages. This is the
+// real, on-disk session that backs the observed agent's identity.
+function readChildSessionId(message: SDKMessage): string | undefined {
+  const record = message as { session_id?: unknown; sessionId?: unknown };
+  return readTrimmedString(record.session_id) ?? readTrimmedString(record.sessionId);
+}
+
 export class ClaudeSidechainTracker {
   private readonly activeSidechains = new Map<string, SubAgentActivityState>();
   private readonly getToolInput: (toolUseId: string) => AgentMetadata | null | undefined;
@@ -64,63 +82,66 @@ export class ClaudeSidechainTracker {
         actionKeys: [],
         nextActionIndex: 1,
         actionIndexByKey: new Map<string, number>(),
+        toolInputs: new Map<string, unknown>(),
       } satisfies SubAgentActivityState);
     this.activeSidechains.set(parentToolUseId, state);
 
+    const childSessionId = readChildSessionId(message);
+    if (childSessionId && !state.childSessionId) {
+      state.childSessionId = childSessionId;
+    }
+
     const contextUpdated = this.updateSubAgentContextFromTaskInput(state, parentToolUseId);
+
+    // Parent-stream summary (the sub_agent tool-call log) — unchanged behavior.
     const actionCandidates = this.extractSubAgentActionCandidates(message);
     let actionUpdated = false;
-    const observedChildItems: AgentTimelineItem[] = [];
     for (const action of actionCandidates) {
-      if (!this.appendSubAgentAction(state, action)) {
-        continue;
-      }
-      actionUpdated = true;
-      const childToolCall = mapClaudeRunningToolCall({
-        name: action.toolName,
-        callId: action.key,
-        input: action.input,
-        output: null,
-      });
-      if (childToolCall) {
-        observedChildItems.push(childToolCall);
+      if (this.appendSubAgentAction(state, action)) {
+        actionUpdated = true;
       }
     }
 
-    if (!contextUpdated && !actionUpdated) {
+    // Mirror the sub-agent's FULL live conversation (prose + tool calls + tool
+    // results) as read-only observations, in the same timeline shape as the main
+    // agent so the read-only view renders identically.
+    const observedItems = this.extractObservedChildItems(message, state);
+
+    if (!contextUpdated && !actionUpdated && observedItems.length === 0 && !childSessionId) {
       return [];
     }
 
     const events: AgentStreamEvent[] = [];
 
-    const toolCall = mapClaudeRunningToolCall({
-      name: "Task",
-      callId: parentToolUseId,
-      input: null,
-      output: null,
-    });
-    if (toolCall) {
-      const detail: Extract<AgentTimelineItem, { type: "tool_call" }>["detail"] = {
-        type: "sub_agent",
-        ...(state.subAgentType ? { subAgentType: state.subAgentType } : {}),
-        ...(state.description ? { description: state.description } : {}),
-        log: state.actions
-          .map((action) =>
-            action.summary ? `[${action.toolName}] ${action.summary}` : `[${action.toolName}]`,
-          )
-          .join("\n"),
-        actions: [],
-      };
-      events.push({ type: "timeline", item: { ...toolCall, detail }, provider: "claude" });
+    if (contextUpdated || actionUpdated) {
+      const toolCall = mapClaudeRunningToolCall({
+        name: "Task",
+        callId: parentToolUseId,
+        input: null,
+        output: null,
+      });
+      if (toolCall) {
+        const detail: Extract<AgentTimelineItem, { type: "tool_call" }>["detail"] = {
+          type: "sub_agent",
+          ...(state.subAgentType ? { subAgentType: state.subAgentType } : {}),
+          ...(state.description ? { description: state.description } : {}),
+          log: state.actions
+            .map((action) =>
+              action.summary ? `[${action.toolName}] ${action.summary}` : `[${action.toolName}]`,
+            )
+            .join("\n"),
+          actions: [],
+        };
+        events.push({ type: "timeline", item: { ...toolCall, detail }, provider: "claude" });
+      }
     }
 
-    // Mirror the sub-agent as a read-only observed agent without touching the
-    // parent stream above: emit the node, then each newly observed child tool
-    // call. The status stays "running"; the daemon settles it to idle when the
-    // parent's turn completes.
+    // Read-only observations without touching the parent stream above: the node
+    // (carrying the real session id), then each mirrored child timeline item.
+    // Status stays "running"; the daemon settles it when the parent turn ends.
     events.push(this.buildSubAgentObservation(parentToolUseId, state));
-    for (const childItem of observedChildItems) {
-      events.push(this.buildSubAgentObservation(parentToolUseId, state, childItem));
+    for (const item of observedItems) {
+      events.push(this.buildSubAgentObservation(parentToolUseId, state, item));
     }
 
     return events;
@@ -135,11 +156,105 @@ export class ClaudeSidechainTracker {
       type: "sub_agent_observation",
       provider: "claude",
       callId,
+      ...(state.childSessionId ? { childSessionId: state.childSessionId } : {}),
       ...(state.subAgentType ? { subAgentType: state.subAgentType } : {}),
       ...(state.description ? { description: state.description } : {}),
       status: "running",
       ...(item ? { item } : {}),
     };
+  }
+
+  // Maps one sub-agent message into full timeline items, reusing the same tool
+  // mappers as the main agent so rendering matches. Only complete assistant/user
+  // messages are mirrored (stream_event deltas would double the prose); the
+  // parent summary above still tracks streaming actions separately.
+  private extractObservedChildItems(
+    message: SDKMessage,
+    state: SubAgentActivityState,
+  ): AgentTimelineItem[] {
+    if (message.type === "assistant") {
+      const content = message.message?.content;
+      return Array.isArray(content) ? this.mapChildAssistantBlocks(content, state) : [];
+    }
+    if (message.type === "user") {
+      const content = message.message?.content;
+      return Array.isArray(content) ? this.mapChildUserBlocks(content, state) : [];
+    }
+    return [];
+  }
+
+  private mapChildAssistantBlocks(
+    content: ReadonlyArray<unknown>,
+    state: SubAgentActivityState,
+  ): AgentTimelineItem[] {
+    const items: AgentTimelineItem[] = [];
+    for (const block of content) {
+      if (!isClaudeContentChunk(block)) {
+        continue;
+      }
+      if (block.type === "text" || block.type === "text_delta") {
+        const text = readTrimmedString(block.text);
+        if (text) {
+          items.push({ type: "assistant_message", text });
+        }
+        continue;
+      }
+      if (block.type === "thinking" || block.type === "thinking_delta") {
+        const text = readTrimmedString(block.thinking);
+        if (text) {
+          items.push({ type: "reasoning", text });
+        }
+        continue;
+      }
+      if (
+        block.type === "tool_use" ||
+        block.type === "mcp_tool_use" ||
+        block.type === "server_tool_use"
+      ) {
+        const callId = readTrimmedString(block.id);
+        const name = readTrimmedString(block.name);
+        if (!callId || !name) {
+          continue;
+        }
+        state.toolInputs.set(callId, block.input ?? null);
+        const toolCall = mapClaudeRunningToolCall({
+          name,
+          callId,
+          input: block.input ?? null,
+          output: null,
+        });
+        if (toolCall) {
+          items.push(toolCall);
+        }
+      }
+    }
+    return items;
+  }
+
+  private mapChildUserBlocks(
+    content: ReadonlyArray<unknown>,
+    state: SubAgentActivityState,
+  ): AgentTimelineItem[] {
+    const items: AgentTimelineItem[] = [];
+    for (const block of content) {
+      if (!isClaudeContentChunk(block) || !block.type.endsWith("tool_result")) {
+        continue;
+      }
+      const callId = readTrimmedString(block.tool_use_id);
+      if (!callId) {
+        continue;
+      }
+      const name = readTrimmedString(block.tool_name) ?? "tool";
+      const input = state.toolInputs.get(callId) ?? null;
+      const output = block.content ?? null;
+      const mapped = block.is_error
+        ? mapClaudeFailedToolCall({ name, callId, input, output, error: block })
+        : mapClaudeCompletedToolCall({ name, callId, input, output });
+      if (mapped) {
+        items.push(mapped);
+      }
+    }
+    return items;
   }
 
   delete(toolUseId: string): void {

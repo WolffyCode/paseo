@@ -244,7 +244,88 @@ describe("ClaudeAgentSession sub-agent sidechain updates", () => {
     queryFactory.mockReset();
   });
 
-  test("emits read-only sub_agent_observation events for child sub-agent tool calls", async () => {
+  test("mirrors the full child conversation (prose + tools + results) bound to its real session id", async () => {
+    queryFactory.mockImplementation(() =>
+      buildQueryMock([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "parent-session",
+          permissionMode: "default",
+          model: "opus",
+        },
+        {
+          type: "stream_event",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_start",
+            index: 0,
+            content_block: {
+              type: "tool_use",
+              id: "task-1",
+              name: "Task",
+              input: { subagent_type: "Explore", description: "查询北京今日天气" },
+            },
+          },
+        },
+        // Child sub-agent's own turn: prose + a tool call, carrying its real session id.
+        {
+          type: "assistant",
+          parent_tool_use_id: "task-1",
+          session_id: "child-session-abc",
+          message: {
+            content: [
+              { type: "text", text: "我来查一下北京今天的天气。" },
+              {
+                type: "tool_use",
+                id: "sub-search-1",
+                name: "WebSearch",
+                input: { query: "北京 天气 今天" },
+              },
+            ],
+          },
+        },
+        // Child's tool result.
+        {
+          type: "user",
+          parent_tool_use_id: "task-1",
+          session_id: "child-session-abc",
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "sub-search-1",
+                tool_name: "WebSearch",
+                content: "晴，24–31°C",
+                is_error: false,
+              },
+            ],
+          },
+        },
+        {
+          type: "assistant",
+          parent_tool_use_id: null,
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "task-1",
+                tool_name: "Task",
+                content: "done",
+                is_error: false,
+              },
+            ],
+          },
+        },
+        {
+          type: "result",
+          subtype: "success",
+          usage: { input_tokens: 1, cache_read_input_tokens: 0, output_tokens: 1 },
+          total_cost_usd: 0,
+        },
+      ]),
+    );
+
     const session = await new ClaudeAgentClient({
       logger,
       queryFactory,
@@ -258,27 +339,33 @@ describe("ClaudeAgentSession sub-agent sidechain updates", () => {
     await session.close();
 
     const observations = events.filter((event) => event.type === "sub_agent_observation");
-
-    // The node surfaces with the Task description + subagent type so the daemon
-    // can nest + title the read-only observed agent under its parent.
     expect(observations.length).toBeGreaterThan(0);
-    expect(observations[0]).toMatchObject({
-      type: "sub_agent_observation",
-      provider: "claude",
-      callId: "task-call-1",
-      subAgentType: "Explore",
-      description: "Inspect repository structure",
-      status: "running",
-    });
 
-    // The child's own Read tool call is mirrored as a read-only timeline item.
+    // Bound to the sub-agent's real session id (a real, resumable identity).
+    const bound = observations.find((event) => event.childSessionId !== undefined);
+    expect(bound?.childSessionId).toBe("child-session-abc");
+
     const childItems = observations
       .map((event) => event.item)
       .filter((item): item is NonNullable<typeof item> => item !== undefined);
-    const readToolCall = childItems.find(
-      (item) => item.type === "tool_call" && item.name === "Read",
+
+    // Prose (assistant reasoning text) is mirrored — same timeline shape as the
+    // main agent, not a tool-only summary.
+    const prose = childItems.find(
+      (item) => item.type === "assistant_message" && item.text.includes("北京今天的天气"),
     );
-    expect(readToolCall).toBeDefined();
+    expect(prose).toBeDefined();
+
+    // The child's tool call and its result are both mirrored.
+    const runningSearch = childItems.find(
+      (item) => item.type === "tool_call" && item.name === "WebSearch" && item.status === "running",
+    );
+    expect(runningSearch).toBeDefined();
+    const completedSearch = childItems.find(
+      (item) =>
+        item.type === "tool_call" && item.name === "WebSearch" && item.status === "completed",
+    );
+    expect(completedSearch).toBeDefined();
   });
 
   test("accumulates lightweight sub_agent detail and preserves callId lifecycle collapse", async () => {
