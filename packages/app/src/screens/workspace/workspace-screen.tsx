@@ -3794,7 +3794,9 @@ function WorkspaceScreenContent({
   );
 
   const showScreenHeader = useMemo(
-    () => shouldShowWorkspaceScreenHeader({ isFocusModeEnabled, isMobile }),
+    // The desktop workspace header moved into the unified top bar (home shell); only
+    // the mobile shell still renders its own in-pane header.
+    () => isMobile && shouldShowWorkspaceScreenHeader({ isFocusModeEnabled, isMobile }),
     [isFocusModeEnabled, isMobile],
   );
   const createTerminalDisabled = useMemo(

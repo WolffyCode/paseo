@@ -47,7 +47,7 @@ export interface Settings extends AppSettings {
 }
 
 export const DEFAULT_CLIENT_SETTINGS: AppSettings = {
-  theme: "auto",
+  theme: "codePilot",
   language: "system",
   sendBehavior: "interrupt",
   serviceUrlBehavior: "ask",
