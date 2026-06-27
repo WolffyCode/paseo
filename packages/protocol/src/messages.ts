@@ -69,6 +69,7 @@ import {
   type PaseoScriptEntryRaw,
   type ProjectConfigRpcError,
 } from "@getpaseo/protocol/paseo-config-schema";
+import { ProviderVendorSchema } from "@getpaseo/protocol/provider-config";
 export {
   PaseoConfigRawSchema,
   PaseoLifecycleCommandRawSchema,
@@ -100,6 +101,10 @@ const MutableDaemonProviderConfigSchema = z
   .object({
     enabled: z.boolean().optional(),
     additionalModels: z.array(MutableDaemonProviderModelSchema).optional(),
+    // 中转站子树走既有 set_daemon_config 单一结构化写路径(additive，不另开写路径)。
+    // 全 optional 后向兼容；本期持久化 + 设置内回显，NOT 被对话流消费(deferred seam)。
+    vendors: z.array(ProviderVendorSchema).optional(),
+    currentVendorId: z.string().optional(),
   })
   .passthrough();
 
@@ -1083,6 +1088,145 @@ export const WriteProjectConfigRequestMessageSchema = z.object({
   repoRoot: z.string(),
   config: PaseoConfigRawSchema,
   expectedRevision: PaseoConfigRevisionSchema.nullable(),
+});
+
+// ============================================================================
+// 主机配置(cfg1) 原始读写 + 中转站(vendor) 测速 / 拉模型
+// COMPAT(hostConfigFile/vendorDiagnostics): added in v0.1.99, drop the gates when floor >= v0.1.99.
+// 对标 read/write_project_config 的 revision + 判别式 ok 联合；vendor 探测纯配置期能力，
+// 不在 send 路径。点号命名空间(domain.provider.operation.request/response)。
+// ============================================================================
+
+// config.json 的乐观并发版本(mtimeMs/size)；与项目配置同形但主机配置自有一份，物理解耦。
+export const HostConfigRevisionSchema = z.object({
+  mtimeMs: z.number(),
+  size: z.number(),
+});
+
+// host.config.* 失败码：stale=并发版本过期、invalid=JSON/schema 不合法、write_failed=落盘失败。
+export const HostConfigRpcErrorSchema = z.discriminatedUnion("code", [
+  z.object({ code: z.literal("invalid"), message: z.string().optional() }),
+  z.object({
+    code: z.literal("stale"),
+    currentRevision: HostConfigRevisionSchema.nullable(),
+  }),
+  z.object({ code: z.literal("write_failed") }),
+]);
+
+export const HostConfigReadRequestMessageSchema = z.object({
+  type: z.literal("host.config.read.request"),
+  requestId: z.string(),
+});
+
+export const HostConfigReadResponseMessageSchema = z.object({
+  type: z.literal("host.config.read.response"),
+  payload: z.discriminatedUnion("ok", [
+    z.object({
+      requestId: z.string(),
+      ok: z.literal(true),
+      text: z.string().nullable(),
+      revision: HostConfigRevisionSchema.nullable(),
+    }),
+    z.object({
+      requestId: z.string(),
+      ok: z.literal(false),
+      error: HostConfigRpcErrorSchema,
+    }),
+  ]),
+});
+
+export const HostConfigWriteRequestMessageSchema = z.object({
+  type: z.literal("host.config.write.request"),
+  requestId: z.string(),
+  text: z.string(),
+  expectedRevision: HostConfigRevisionSchema.nullable(),
+});
+
+export const HostConfigWriteResponseMessageSchema = z.object({
+  type: z.literal("host.config.write.response"),
+  payload: z.discriminatedUnion("ok", [
+    z.object({
+      requestId: z.string(),
+      ok: z.literal(true),
+      text: z.string(),
+      revision: HostConfigRevisionSchema,
+    }),
+    z.object({
+      requestId: z.string(),
+      ok: z.literal(false),
+      error: HostConfigRpcErrorSchema,
+    }),
+  ]),
+});
+
+// 中转站连接子集(base_url/key/协议/鉴权风格)：诊断与拉模型共用的最小入参。
+export const VendorConnectionSchema = z.object({
+  baseUrl: z.string(),
+  apiKey: z.string().optional(),
+  apiFormat: z.enum(["anthropic", "openai"]),
+  authStyle: z.enum(["anthropic-auth-token", "anthropic-api-key", "openai-api-key"]).optional(),
+});
+
+export const VendorProbeTargetSchema = VendorConnectionSchema.extend({
+  endpoints: z.array(z.string()).optional(),
+});
+
+// 单端点诊断结果：health 五态 + 可选延迟 / HTTP 状态，供 L3「端点测速」逐条渲染。
+export const VendorDiagnosisSchema = z.object({
+  url: z.string(),
+  health: z.enum(["healthy", "unauthorized", "timeout", "unreachable", "error"]),
+  latencyMs: z.number().optional(),
+  httpStatus: z.number().optional(),
+  message: z.string().optional(),
+});
+
+export const HostVendorDiagnoseRequestMessageSchema = z.object({
+  type: z.literal("host.vendor.diagnose.request"),
+  requestId: z.string(),
+  target: VendorProbeTargetSchema,
+});
+
+export const HostVendorDiagnoseResponseMessageSchema = z.object({
+  type: z.literal("host.vendor.diagnose.response"),
+  payload: z.object({
+    requestId: z.string(),
+    results: z.array(VendorDiagnosisSchema),
+  }),
+});
+
+export const VendorDiscoveredModelSchema = z.object({
+  id: z.string().min(1),
+  label: z.string().optional(),
+});
+
+// 拉模型失败原因：codepilot 纪律要求「空集合不伪造」——空 models 是 ok:true 的合法结果，
+// 仅网络 / 鉴权 / 响应不合法才走 ok:false。
+export const VendorDiscoverModelsErrorSchema = z.object({
+  code: z.enum(["unreachable", "unauthorized", "invalid_response", "timeout", "error"]),
+  message: z.string().optional(),
+});
+
+export const HostVendorDiscoverModelsRequestMessageSchema = z.object({
+  type: z.literal("host.vendor.discover_models.request"),
+  requestId: z.string(),
+  target: VendorConnectionSchema,
+});
+
+export const HostVendorDiscoverModelsResponseMessageSchema = z.object({
+  type: z.literal("host.vendor.discover_models.response"),
+  payload: z.discriminatedUnion("ok", [
+    z.object({
+      requestId: z.string(),
+      ok: z.literal(true),
+      models: z.array(VendorDiscoveredModelSchema),
+      fetchedAt: z.string(),
+    }),
+    z.object({
+      requestId: z.string(),
+      ok: z.literal(false),
+      error: VendorDiscoverModelsErrorSchema,
+    }),
+  ]),
 });
 
 // ============================================================================
@@ -2319,6 +2463,12 @@ export const ServerInfoStatusPayloadSchema = z
         providerUsageList: z.boolean().optional(),
         // COMPAT(agentDetach): added in v0.1.98, remove gate after 2026-12-19 once daemon floor >= v0.1.98.
         agentDetach: z.boolean().optional(),
+        // COMPAT(hostProviderVendors): added in v0.1.99, drop the gate when daemon floor >= v0.1.99.
+        hostProviderVendors: z.boolean().optional(),
+        // COMPAT(hostConfigFile): added in v0.1.99, drop the gate when daemon floor >= v0.1.99.
+        hostConfigFile: z.boolean().optional(),
+        // COMPAT(vendorDiagnostics): added in v0.1.99, drop the gate when daemon floor >= v0.1.99.
+        vendorDiagnostics: z.boolean().optional(),
       })
       .optional(),
   })
