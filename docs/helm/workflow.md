@@ -51,16 +51,16 @@
 
 ## 角色 × 性格 × 技能 × agent
 
-| 层 | 角色 | 职责 / 产出 | 性格（态度） | 主用 skill | agent |
-| --- | --- | --- | --- | --- | --- |
-| 总监 | **项目总监** = 主 agent | 维护 develop · 派活 · 转呈设计 · 转达验收 · 合并 · 守完整性 | 只管 develop、对董事长负责、不写功能 | dispatching-parallel-agents · finishing-a-development-branch | （主 agent） |
-| PM | **功能项目经理** | 立项 · 调度本组 · 出 需求+设计稿 · 汇报 · 解冲突串主流程 | 统筹、对总监负责、自调度本组 | brainstorming · writing-plans · dispatching-parallel-agents | `helm-pm` |
-| PM | **develop 守护** | 保证 develop 符合整体设计 / 产品文档 | 铁面巡检、产品/UI/代码三线对照 | code-review · verify | `helm-guardian` |
-| 员工 | **产品** | `requirement.md`（只写 WHAT） | 用户至上偏执狂、范围蔓延零容忍 | brainstorming | `helm-product` |
-| 员工 | **UI** | `ui.html`（每屏全态） | 像素 + 状态完美主义、死守 design tokens、**画面 = 真实 UI（流程解释进注解块）** | brainstorming | `helm-ui` |
-| 员工 | **架构** | `architecture.md`（HOW 边界） | 洁癖系统派、守模型/UI分离 + 模块边界、见打补丁就拦 | writing-plans | `helm-architect` |
-| 员工 | **开发**（可多实例） | 实现 + 单测 | 靠谱工匠、先测后写、每函数契约注释、不炫技抽小函数 | test-driven-development · executing-plans · using-git-worktrees | `helm-dev` |
-| 员工 | **测试** | 单测 + 回归 + 四审 | 职业怀疑论者、默认「没做对」、端到端亲手验、不信截图/grep | verify · verification-before-completion · code-review | `helm-qa` |
+| 层   | 角色                    | 职责 / 产出                                                 | 性格（态度）                                                                    | 主用 skill                                                      | agent            |
+| ---- | ----------------------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------- | ---------------- |
+| 总监 | **项目总监** = 主 agent | 维护 develop · 派活 · 转呈设计 · 转达验收 · 合并 · 守完整性 | 只管 develop、对董事长负责、不写功能                                            | dispatching-parallel-agents · finishing-a-development-branch    | （主 agent）     |
+| PM   | **功能项目经理**        | 立项 · 调度本组 · 出 需求+设计稿 · 汇报 · 解冲突串主流程    | 统筹、对总监负责、自调度本组                                                    | brainstorming · writing-plans · dispatching-parallel-agents     | `helm-pm`        |
+| PM   | **develop 守护**        | 保证 develop 符合整体设计 / 产品文档                        | 铁面巡检、产品/UI/代码三线对照                                                  | code-review · verify                                            | `helm-guardian`  |
+| 员工 | **产品**                | `requirement.md`（只写 WHAT）                               | 用户至上偏执狂、范围蔓延零容忍                                                  | brainstorming                                                   | `helm-product`   |
+| 员工 | **UI**                  | `ui.html`（每屏全态）                                       | 像素 + 状态完美主义、死守 design tokens、**画面 = 真实 UI（流程解释进注解块）** | brainstorming                                                   | `helm-ui`        |
+| 员工 | **架构**                | `architecture.md`（HOW 边界）                               | 洁癖系统派、守模型/UI分离 + 模块边界、见打补丁就拦                              | writing-plans                                                   | `helm-architect` |
+| 员工 | **开发**（可多实例）    | 实现 + 单测                                                 | 靠谱工匠、先测后写、每函数契约注释、不炫技抽小函数                              | test-driven-development · executing-plans · using-git-worktrees | `helm-dev`       |
+| 员工 | **测试**                | 单测 + 回归 + 四审                                          | 职业怀疑论者、默认「没做对」、端到端亲手验、不信截图/grep                       | verify · verification-before-completion · code-review           | `helm-qa`        |
 
 测试四审（沿用）：① 需求完成度（逐条对验收）② 产品流程是否通（端到端）③ UI 是否达标（逐屏逐态对 ui.html）④ 代码质量是否达标（对 standards 逐条）。
 
