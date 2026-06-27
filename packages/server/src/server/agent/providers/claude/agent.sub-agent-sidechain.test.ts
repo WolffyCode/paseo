@@ -244,6 +244,43 @@ describe("ClaudeAgentSession sub-agent sidechain updates", () => {
     queryFactory.mockReset();
   });
 
+  test("emits read-only sub_agent_observation events for child sub-agent tool calls", async () => {
+    const session = await new ClaudeAgentClient({
+      logger,
+      queryFactory,
+      resolveBinary: async () => "/test/claude/bin",
+    }).createSession({
+      provider: "claude",
+      cwd: process.cwd(),
+    });
+
+    const events = await collectUntilTerminal(streamSession(session, "delegate work"));
+    await session.close();
+
+    const observations = events.filter((event) => event.type === "sub_agent_observation");
+
+    // The node surfaces with the Task description + subagent type so the daemon
+    // can nest + title the read-only observed agent under its parent.
+    expect(observations.length).toBeGreaterThan(0);
+    expect(observations[0]).toMatchObject({
+      type: "sub_agent_observation",
+      provider: "claude",
+      callId: "task-call-1",
+      subAgentType: "Explore",
+      description: "Inspect repository structure",
+      status: "running",
+    });
+
+    // The child's own Read tool call is mirrored as a read-only timeline item.
+    const childItems = observations
+      .map((event) => event.item)
+      .filter((item): item is NonNullable<typeof item> => item !== undefined);
+    const readToolCall = childItems.find(
+      (item) => item.type === "tool_call" && item.name === "Read",
+    );
+    expect(readToolCall).toBeDefined();
+  });
+
   test("accumulates lightweight sub_agent detail and preserves callId lifecycle collapse", async () => {
     const session = await new ClaudeAgentClient({
       logger,

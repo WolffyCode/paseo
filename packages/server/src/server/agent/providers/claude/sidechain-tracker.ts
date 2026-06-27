@@ -70,9 +70,20 @@ export class ClaudeSidechainTracker {
     const contextUpdated = this.updateSubAgentContextFromTaskInput(state, parentToolUseId);
     const actionCandidates = this.extractSubAgentActionCandidates(message);
     let actionUpdated = false;
+    const observedChildItems: AgentTimelineItem[] = [];
     for (const action of actionCandidates) {
-      if (this.appendSubAgentAction(state, action)) {
-        actionUpdated = true;
+      if (!this.appendSubAgentAction(state, action)) {
+        continue;
+      }
+      actionUpdated = true;
+      const childToolCall = mapClaudeRunningToolCall({
+        name: action.toolName,
+        callId: action.key,
+        input: action.input,
+        output: null,
+      });
+      if (childToolCall) {
+        observedChildItems.push(childToolCall);
       }
     }
 
@@ -80,38 +91,55 @@ export class ClaudeSidechainTracker {
       return [];
     }
 
+    const events: AgentStreamEvent[] = [];
+
     const toolCall = mapClaudeRunningToolCall({
       name: "Task",
       callId: parentToolUseId,
       input: null,
       output: null,
     });
-    if (!toolCall) {
-      return [];
+    if (toolCall) {
+      const detail: Extract<AgentTimelineItem, { type: "tool_call" }>["detail"] = {
+        type: "sub_agent",
+        ...(state.subAgentType ? { subAgentType: state.subAgentType } : {}),
+        ...(state.description ? { description: state.description } : {}),
+        log: state.actions
+          .map((action) =>
+            action.summary ? `[${action.toolName}] ${action.summary}` : `[${action.toolName}]`,
+          )
+          .join("\n"),
+        actions: [],
+      };
+      events.push({ type: "timeline", item: { ...toolCall, detail }, provider: "claude" });
     }
 
-    const detail: Extract<AgentTimelineItem, { type: "tool_call" }>["detail"] = {
-      type: "sub_agent",
+    // Mirror the sub-agent as a read-only observed agent without touching the
+    // parent stream above: emit the node, then each newly observed child tool
+    // call. The status stays "running"; the daemon settles it to idle when the
+    // parent's turn completes.
+    events.push(this.buildSubAgentObservation(parentToolUseId, state));
+    for (const childItem of observedChildItems) {
+      events.push(this.buildSubAgentObservation(parentToolUseId, state, childItem));
+    }
+
+    return events;
+  }
+
+  private buildSubAgentObservation(
+    callId: string,
+    state: SubAgentActivityState,
+    item?: AgentTimelineItem,
+  ): Extract<AgentStreamEvent, { type: "sub_agent_observation" }> {
+    return {
+      type: "sub_agent_observation",
+      provider: "claude",
+      callId,
       ...(state.subAgentType ? { subAgentType: state.subAgentType } : {}),
       ...(state.description ? { description: state.description } : {}),
-      log: state.actions
-        .map((action) =>
-          action.summary ? `[${action.toolName}] ${action.summary}` : `[${action.toolName}]`,
-        )
-        .join("\n"),
-      actions: [],
+      status: "running",
+      ...(item ? { item } : {}),
     };
-
-    return [
-      {
-        type: "timeline",
-        item: {
-          ...toolCall,
-          detail,
-        },
-        provider: "claude",
-      },
-    ];
   }
 
   delete(toolUseId: string): void {

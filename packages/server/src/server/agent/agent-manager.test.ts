@@ -6430,3 +6430,74 @@ test("drops observed subagents when their parent agent closes", async () => {
     rmSync(workdir, { recursive: true, force: true });
   }
 });
+
+test("settles running observed subagents to idle when the parent turn completes", async () => {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-test-"));
+  const storagePath = join(workdir, "agents");
+  const storage = new AgentStorage(storagePath, logger);
+
+  class ObservationClient extends TestAgentClient {
+    session: TestAgentSession | null = null;
+
+    override async createSession(config: AgentSessionConfig): Promise<AgentSession> {
+      this.session = new TestAgentSession(config);
+      return this.session;
+    }
+  }
+
+  const client = new ObservationClient();
+  const manager = new AgentManager({
+    clients: { codex: client },
+    registry: storage,
+    logger,
+    idFactory: () => "00000000-0000-4000-8000-0000000004c3",
+  });
+
+  try {
+    const parent = await manager.createAgent({ provider: "codex", cwd: workdir });
+    const observedId = observedSubAgentId(parent.id, "task-call-1");
+
+    await new Promise<void>((resolve) => {
+      const unsubscribe = manager.subscribe(
+        (event) => {
+          if (event.type === "agent_state" && event.agent.id === observedId) {
+            unsubscribe();
+            resolve();
+          }
+        },
+        { replayState: false },
+      );
+      client.session?.pushEvent({
+        type: "sub_agent_observation",
+        provider: "codex",
+        callId: "task-call-1",
+        status: "running",
+        subAgentType: "general-purpose",
+      });
+    });
+
+    expect(manager.getAgent(observedId)?.observedStatus).toBe("running");
+
+    const settled = new Promise<ManagedAgent>((resolve) => {
+      const unsubscribe = manager.subscribe(
+        (event) => {
+          if (
+            event.type === "agent_state" &&
+            event.agent.id === observedId &&
+            event.agent.observedStatus === "idle"
+          ) {
+            unsubscribe();
+            resolve(event.agent);
+          }
+        },
+        { replayState: false },
+      );
+      client.session?.pushEvent({ type: "turn_completed", provider: "codex", turnId: "turn-x" });
+    });
+
+    const agent = await settled;
+    expect(agent.observedStatus).toBe("idle");
+  } finally {
+    rmSync(workdir, { recursive: true, force: true });
+  }
+});

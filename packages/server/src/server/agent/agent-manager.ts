@@ -3225,6 +3225,7 @@ export class AgentManager {
       (agent as ActiveManagedAgent).lifecycle = "idle";
       this.emitState(agent);
     }
+    this.settleObservedSubAgents(agent.id);
     void this.refreshRuntimeInfo(agent);
   }
 
@@ -3475,6 +3476,28 @@ export class AgentManager {
       title,
       labels: { [PARENT_AGENT_ID_LABEL]: parent.id },
     };
+  }
+
+  // Settles a parent's still-running observed subagents to idle. A provider's
+  // internal subagent always finishes within the parent's turn, so once that
+  // turn completes any observed node that never received a terminal update can
+  // safely stop pulsing. Generic across providers — no provider branching.
+  private settleObservedSubAgents(parentAgentId: string): void {
+    for (const [id, record] of this.observedAgents) {
+      if (record.labels[PARENT_AGENT_ID_LABEL] !== parentAgentId) {
+        continue;
+      }
+      if (record.observedStatus !== "running") {
+        continue;
+      }
+      const settled: ManagedAgentClosed = {
+        ...record,
+        observedStatus: "idle",
+        updatedAt: new Date(),
+      };
+      this.observedAgents.set(id, settled);
+      this.dispatch({ type: "agent_state", agent: { ...settled } });
+    }
   }
 
   // Drops the observed subagents nested under a parent and tells clients to
