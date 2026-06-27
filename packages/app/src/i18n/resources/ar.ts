@@ -216,6 +216,10 @@ export const ar: TranslationResources = {
       callout: "تمت أرشفة هذا الوكيل",
       unarchive: "إلغاء الأرشفة",
     },
+    observed: {
+      readOnly:
+        "🔒 للقراءة فقط · وكيل فرعي داخلي خاص بـ {{provider}} — يديره {{provider}}، ولا يمكنك الإرسال إليه أو مقاطعته",
+    },
   },
   sessions: {
     title: "السجل",

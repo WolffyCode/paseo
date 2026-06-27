@@ -116,6 +116,10 @@ export interface Agent {
   attentionTimestamp?: Date | null;
   archivedAt?: Date | null;
   parentAgentId: string | null;
+  // True for a provider-internal subagent (Claude Task / Codex sub-agent) the
+  // daemon surfaces read-only. The conversation view hides the composer and
+  // shows a read-only banner; the tree renders it like any other subagent.
+  observed?: boolean;
   labels: Record<string, string>;
   projectPlacement?: ProjectPlacementPayload | null;
 }

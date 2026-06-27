@@ -216,6 +216,9 @@ export const zhCN: TranslationResources = {
       callout: "此 Agent 已归档",
       unarchive: "取消归档",
     },
+    observed: {
+      readOnly: "🔒 只读 · 这是 {{provider}} 内部 subagent，归 {{provider}} 编排，不能发送 / 中断",
+    },
   },
   sessions: {
     title: "历史",

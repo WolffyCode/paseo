@@ -219,6 +219,10 @@ export const fr: TranslationResources = {
       callout: "Cet agent est archivé",
       unarchive: "Désarchiver",
     },
+    observed: {
+      readOnly:
+        "🔒 Lecture seule · sous-agent interne de {{provider}} — orchestré par {{provider}}, vous ne pouvez ni lui envoyer de message ni l'interrompre",
+    },
   },
   sessions: {
     title: "Historique",

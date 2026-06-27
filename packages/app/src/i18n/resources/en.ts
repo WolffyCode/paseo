@@ -215,6 +215,10 @@ export const en = {
       callout: "This agent is archived",
       unarchive: "Unarchive",
     },
+    observed: {
+      readOnly:
+        "🔒 Read-only · {{provider}}'s own internal subagent — orchestrated by {{provider}}, you can't send or interrupt it",
+    },
   },
   sessions: {
     title: "History",

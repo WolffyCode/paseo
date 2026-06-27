@@ -218,6 +218,10 @@ export const ru: TranslationResources = {
       callout: "Этот агент находится в архиве",
       unarchive: "Разархивировать",
     },
+    observed: {
+      readOnly:
+        "🔒 Только чтение · внутренний субагент {{provider}} — управляется {{provider}}, вы не можете отправлять сообщения или прерывать его",
+    },
   },
   sessions: {
     title: "История",
