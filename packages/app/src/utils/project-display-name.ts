@@ -35,6 +35,27 @@ export function resolveProjectTreeName(input: {
   return projectDisplayNameFromProjectId(input.projectId);
 }
 
+/**
+ * Recover the *raw* user-set custom name from the server's resolved `projectDisplayName`.
+ *
+ * The daemon resolves `projectDisplayName = customName ?? autoSlug(projectId)` (workspace-registry
+ * `resolveProjectDisplayName`). The client only receives that resolved value, so on its own it can't
+ * tell a real rename from the auto github "Org/repo" slug. We recover it: when the display name equals
+ * the slug derived from the project id, the user never renamed it → return null so callers fall back
+ * to the local directory basename (反馈: 目录名默认用本地物理目录名, 不是 github slug)。A genuine
+ * rename (display name ≠ slug) is returned as-is so it still wins over the basename.
+ */
+export function rawProjectCustomName(
+  projectDisplayName: string | null | undefined,
+  projectId: string,
+): string | null {
+  const trimmed = projectDisplayName?.trim() ?? "";
+  if (trimmed.length === 0) {
+    return null;
+  }
+  return trimmed === projectDisplayNameFromProjectId(projectId) ? null : trimmed;
+}
+
 export function projectIconPlaceholderLabelFromDisplayName(displayName: string): string {
   const trimmedDisplayName = displayName.trim();
   if (!trimmedDisplayName) {

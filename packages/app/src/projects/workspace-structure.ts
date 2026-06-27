@@ -1,5 +1,5 @@
 import type { EmptyProjectDescriptor, WorkspaceDescriptor } from "@/stores/session-store";
-import { resolveProjectTreeName } from "@/utils/project-display-name";
+import { rawProjectCustomName, resolveProjectTreeName } from "@/utils/project-display-name";
 
 export interface WorkspaceStructureProject {
   projectKey: string;
@@ -64,7 +64,7 @@ export function buildWorkspaceStructureProjects(input: {
     byProject.set(emptyProject.projectId, {
       projectKey: emptyProject.projectId,
       projectName: resolveProjectTreeName({
-        customName: emptyProject.projectDisplayName,
+        customName: rawProjectCustomName(emptyProject.projectDisplayName, emptyProject.projectId),
         workingDir: emptyProject.projectRootPath,
         projectId: emptyProject.projectId,
       }),
@@ -81,7 +81,7 @@ export function buildWorkspaceStructureProjects(input: {
       ({
         projectKey: workspace.projectId,
         projectName: resolveProjectTreeName({
-          customName: workspace.projectDisplayName,
+          customName: rawProjectCustomName(workspace.projectDisplayName, workspace.projectId),
           workingDir: workspace.projectRootPath,
           projectId: workspace.projectId,
         }),
