@@ -182,6 +182,9 @@ import {
   writePaseoConfigForEdit,
   type ProjectConfigRpcError,
 } from "../utils/paseo-config-file.js";
+import { readHostConfigForEdit, writeHostConfigForEdit } from "./host-config-file.js";
+import { diagnoseVendor } from "./agent/vendor-diagnose.js";
+import { discoverVendorModels } from "./agent/vendor-models-fetcher.js";
 import { buildMetadataPrompt } from "../utils/build-metadata-prompt.js";
 import {
   archivePersistedWorkspaceRecord,
@@ -1882,6 +1885,16 @@ export class Session {
         return this.handleReadProjectConfigRequest(msg);
       case "write_project_config_request":
         return this.handleWriteProjectConfigRequest(msg);
+      case "host.config.read.request":
+        this.handleHostConfigReadRequest(msg);
+        return undefined;
+      case "host.config.write.request":
+        this.handleHostConfigWriteRequest(msg);
+        return undefined;
+      case "host.vendor.diagnose.request":
+        return this.handleHostVendorDiagnoseRequest(msg);
+      case "host.vendor.discover_models.request":
+        return this.handleHostVendorDiscoverModelsRequest(msg);
       default:
         return undefined;
     }
@@ -1971,6 +1984,90 @@ export class Session {
         config: result.config,
         revision: result.revision,
       },
+    });
+  }
+
+  // cfg1 逃生舱读：返回当前主机 config.json 原始文本 + revision(读不校验，可打开破损去修)。
+  private handleHostConfigReadRequest(
+    msg: Extract<SessionInboundMessage, { type: "host.config.read.request" }>,
+  ): void {
+    const result = readHostConfigForEdit(this.paseoHome);
+    if (result.ok) {
+      this.emit({
+        type: "host.config.read.response",
+        payload: {
+          requestId: msg.requestId,
+          ok: true,
+          text: result.text,
+          revision: result.revision,
+        },
+      });
+      return;
+    }
+    this.emit({
+      type: "host.config.read.response",
+      payload: { requestId: msg.requestId, ok: false, error: result.error },
+    });
+  }
+
+  // cfg1 逃生舱写：服务端 schema 校验 + 乐观并发后原子落盘用户原文本，stale/invalid/write_failed 判别返回。
+  private handleHostConfigWriteRequest(
+    msg: Extract<SessionInboundMessage, { type: "host.config.write.request" }>,
+  ): void {
+    const result = writeHostConfigForEdit({
+      paseoHome: this.paseoHome,
+      text: msg.text,
+      expectedRevision: msg.expectedRevision,
+    });
+    if (result.ok) {
+      this.emit({
+        type: "host.config.write.response",
+        payload: {
+          requestId: msg.requestId,
+          ok: true,
+          text: result.text,
+          revision: result.revision,
+        },
+      });
+      return;
+    }
+    this.emit({
+      type: "host.config.write.response",
+      payload: { requestId: msg.requestId, ok: false, error: result.error },
+    });
+  }
+
+  // 中转站测速/测 key——纯配置期探测，不接 agent 启动 / 不落盘。
+  private async handleHostVendorDiagnoseRequest(
+    msg: Extract<SessionInboundMessage, { type: "host.vendor.diagnose.request" }>,
+  ): Promise<void> {
+    const results = await diagnoseVendor(msg.target);
+    this.emit({
+      type: "host.vendor.diagnose.response",
+      payload: { requestId: msg.requestId, results },
+    });
+  }
+
+  // 中转站拉模型——纯配置期发现，空集合不伪造、非 send 路径。
+  private async handleHostVendorDiscoverModelsRequest(
+    msg: Extract<SessionInboundMessage, { type: "host.vendor.discover_models.request" }>,
+  ): Promise<void> {
+    const result = await discoverVendorModels(msg.target);
+    if (result.ok) {
+      this.emit({
+        type: "host.vendor.discover_models.response",
+        payload: {
+          requestId: msg.requestId,
+          ok: true,
+          models: result.models,
+          fetchedAt: result.fetchedAt,
+        },
+      });
+      return;
+    }
+    this.emit({
+      type: "host.vendor.discover_models.response",
+      payload: { requestId: msg.requestId, ok: false, error: result.error },
     });
   }
 

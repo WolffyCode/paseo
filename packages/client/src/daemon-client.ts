@@ -82,6 +82,9 @@ import type {
   PaseoConfigRaw,
   PaseoConfigRevision,
   WorkspaceCreateRequest,
+  HostConfigRevision,
+  VendorConnection,
+  VendorProbeTarget,
 } from "@getpaseo/protocol/messages";
 import type {
   AgentPermissionRequest,
@@ -368,6 +371,27 @@ export interface WriteProjectConfigInput {
   repoRoot: string;
   config: PaseoConfigRaw;
   expectedRevision: PaseoConfigRevision | null;
+  requestId?: string;
+}
+type HostConfigReadPayload = Extract<
+  SessionOutboundMessage,
+  { type: "host.config.read.response" }
+>["payload"];
+type HostConfigWritePayload = Extract<
+  SessionOutboundMessage,
+  { type: "host.config.write.response" }
+>["payload"];
+type HostVendorDiagnosePayload = Extract<
+  SessionOutboundMessage,
+  { type: "host.vendor.diagnose.response" }
+>["payload"];
+type HostVendorDiscoverModelsPayload = Extract<
+  SessionOutboundMessage,
+  { type: "host.vendor.discover_models.response" }
+>["payload"];
+export interface WriteHostConfigInput {
+  text: string;
+  expectedRevision: HostConfigRevision | null;
   requestId?: string;
 }
 interface ListCommandsOptions {
@@ -3793,6 +3817,56 @@ export class DaemonClient {
       },
       responseType: "write_project_config_response",
       timeout: 10000,
+    });
+  }
+
+  // cfg1 逃生舱：读当前主机 config.json 原始文本 + revision。
+  async readHostConfig(requestId?: string): Promise<HostConfigReadPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "host.config.read.request" },
+      responseType: "host.config.read.response",
+      timeout: 10000,
+    });
+  }
+
+  // cfg1 逃生舱：写原始文本(乐观并发 expectedRevision)，服务端 schema 校验后原子落盘。
+  async writeHostConfig(input: WriteHostConfigInput): Promise<HostConfigWritePayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId: input.requestId,
+      message: {
+        type: "host.config.write.request",
+        text: input.text,
+        expectedRevision: input.expectedRevision,
+      },
+      responseType: "host.config.write.response",
+      timeout: 10000,
+    });
+  }
+
+  // 中转站测速/测 key(纯配置期探测，非 send 路径)。
+  async diagnoseVendor(
+    target: VendorProbeTarget,
+    requestId?: string,
+  ): Promise<HostVendorDiagnosePayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "host.vendor.diagnose.request", target },
+      responseType: "host.vendor.diagnose.response",
+      timeout: 30000,
+    });
+  }
+
+  // 中转站拉模型(纯配置期发现，非 send 路径)。
+  async discoverVendorModels(
+    target: VendorConnection,
+    requestId?: string,
+  ): Promise<HostVendorDiscoverModelsPayload> {
+    return this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "host.vendor.discover_models.request", target },
+      responseType: "host.vendor.discover_models.response",
+      timeout: 30000,
     });
   }
 
