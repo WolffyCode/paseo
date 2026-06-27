@@ -107,7 +107,7 @@ export const baseColors = {
   },
 } as const;
 
-export type ThemeName = "light" | "dark" | "zinc" | "midnight" | "claude" | "ghostty";
+export type ThemeName = "codePilot" | "light" | "dark" | "zinc" | "midnight" | "claude" | "ghostty";
 
 // Diff stat colors — light uses muted tones, dark uses the brighter palette values
 const lightDiffColors = {
@@ -149,6 +149,10 @@ const lightSemanticColors = {
   surfaceSidebar: "#f4f4f5", // Sidebar background (darker than main)
   surfaceSidebarHover: "#e9e9ec", // Sidebar hover (darker in light mode)
   surfaceWorkspace: "#ffffff", // Workspace main background
+  // Home-shell vibrancy tokens — only the desktop shell consumes these. On
+  // non-codePilot themes they fall back to solid surfaces so the shell reads flat.
+  surfaceShell: "#f4f4f5", // Window backdrop behind the floating cards (gutters + top bar)
+  sidebarTranslucent: "#f4f4f5", // Left card surface (translucent only under codePilot)
 
   // Text
   foreground: "#1a1a1e",
@@ -268,6 +272,8 @@ function buildDarkSemanticColors(tint: DarkThemeConfig) {
     surfaceSidebar: tint.surfaceSidebar,
     surfaceSidebarHover: tint.surfaceSidebarHover,
     surfaceWorkspace: tint.surface1,
+    surfaceShell: tint.surfaceSidebar,
+    sidebarTranslucent: tint.surfaceSidebar,
 
     foreground: "#fafafa",
     foregroundMuted: tint.foregroundMuted,
@@ -599,13 +605,174 @@ export const lightTheme = {
   ...commonTheme,
 } as const;
 
+// ---------------------------------------------------------------------------
+// codePilot — CodePilot's "github" theme (themes/github.json) mapped onto the
+// existing semantic contract so every screen adapts from one source. GitHub
+// Primer light: white surfaces, cool-gray sidebar, near-black text, GitHub blue
+// as an accent only. Selection is a very light gray (#eaeef2), never black.
+// Built by spreading the base theme so the token key-set stays identical, then
+// overriding with the github values.
+// ---------------------------------------------------------------------------
+const codePilotLightColors = {
+  ...lightSemanticColors,
+  surface0: "#ffffff",
+  surface1: "#f6f8fa", // subtle hover / accent background
+  surface2: "#eaeef2", // elevated: badges, inputs, secondary
+  surface3: "#d1d9e0",
+  surface4: "#c2cbd4",
+  surfaceDiffEmpty: "#f6f8fa",
+  surfaceSidebar: "#f6f8fa",
+  surfaceSidebarHover: "#eaeef2", // selection — light gray, NOT black
+  surfaceWorkspace: "#ffffff",
+  surfaceShell: "#e9edf1", // window vibrancy backdrop base (matches the design body)
+  sidebarTranslucent: "rgba(255, 255, 255, 0.58)", // left card frosted surface
+  foreground: "#1f2328",
+  foregroundMuted: "#59636e",
+  scrollbarHandle: "#59636e",
+  border: "#d1d9e0",
+  borderAccent: "#eaeef2",
+  accent: "#0969da", // GitHub blue — buttons / links / focus only
+  accentBright: "#218bff",
+  accentForeground: "#ffffff",
+  destructive: "#cf222e",
+  destructiveForeground: "#ffffff",
+  success: "#1a7f37",
+  successForeground: "#ffffff",
+  background: "#ffffff",
+  popover: "#ffffff",
+  popoverForeground: "#1f2328",
+  primary: "#0969da",
+  primaryForeground: "#ffffff",
+  secondary: "#eaeef2",
+  secondaryForeground: "#3d444d", // selection text — dark gray
+  muted: "#eaeef2",
+  mutedForeground: "#59636e",
+  accentBorder: "#eaeef2",
+  input: "#f6f8fa",
+  ring: "#0969da",
+  diffAddition: "#1a7f37",
+  diffDeletion: "#cf222e",
+  statusSuccess: "#1a7f37",
+  statusDanger: "#cf222e",
+  statusWarning: "#9a6700",
+  statusMerged: "#8250df",
+  terminal: {
+    ...lightSemanticColors.terminal,
+    background: "#ffffff",
+    foreground: "#1f2328",
+    cursor: "#1f2328",
+    selectionForeground: "#1f2328",
+  },
+} as const;
+
+const codePilotDarkColors = {
+  ...codePilotLightColors,
+  surface0: "#0d1117",
+  surface1: "#161b22",
+  surface2: "#21262d",
+  surface3: "#30363d",
+  surface4: "#3d444d",
+  surfaceDiffEmpty: "#161b22",
+  surfaceSidebar: "#010409",
+  surfaceSidebarHover: "#21262d", // selection (dark)
+  surfaceWorkspace: "#0d1117",
+  surfaceShell: "#0b0e14",
+  sidebarTranslucent: "rgba(1, 4, 9, 0.55)",
+  foreground: "#e6edf3",
+  foregroundMuted: "#8b949e",
+  scrollbarHandle: "#8b949e",
+  border: "#30363d",
+  borderAccent: "#21262d",
+  accent: "#1f6feb",
+  accentBright: "#388bfd",
+  accentForeground: "#ffffff",
+  destructive: "#f85149",
+  destructiveForeground: "#ffffff",
+  success: "#3fb950",
+  successForeground: "#ffffff",
+  background: "#0d1117",
+  popover: "#161b22",
+  popoverForeground: "#e6edf3",
+  primary: "#1f6feb",
+  primaryForeground: "#ffffff",
+  secondary: "#21262d",
+  secondaryForeground: "#e6edf3",
+  muted: "#21262d",
+  mutedForeground: "#8b949e",
+  accentBorder: "#21262d",
+  input: "#161b22",
+  ring: "#1f6feb",
+  diffAddition: "#3fb950",
+  diffDeletion: "#f85149",
+  statusSuccess: "#3fb950",
+  statusDanger: "#f85149",
+  statusWarning: "#d29922",
+  statusMerged: "#a371f7",
+  terminal: {
+    ...lightSemanticColors.terminal,
+    background: "#0d1117",
+    foreground: "#e6edf3",
+    cursor: "#e6edf3",
+    cursorAccent: "#0d1117",
+    selectionBackground: "rgba(255, 255, 255, 0.2)",
+    selectionForeground: "#e6edf3",
+    black: "#010409",
+    red: "#ff7b72",
+    green: "#3fb950",
+    yellow: "#d29922",
+    blue: "#58a6ff",
+    magenta: "#bc8cff",
+    cyan: "#39c5cf",
+    white: "#b1bac4",
+    brightBlack: "#30363d",
+    brightRed: "#ffa198",
+    brightGreen: "#56d364",
+    brightYellow: "#e3b341",
+    brightBlue: "#79c0ff",
+    brightMagenta: "#d2a8ff",
+    brightCyan: "#56d4dd",
+    brightWhite: "#f0f6fc",
+  },
+} as const;
+
+export const codePilotLight = {
+  colorScheme: "light" as const,
+  colors: {
+    ...codePilotLightColors,
+    palette: baseColors,
+    syntax: lightHighlightColors,
+  },
+  shadow: lightTheme.shadow,
+  ...commonTheme,
+} as const;
+
+export const codePilotDark = {
+  colorScheme: "dark" as const,
+  colors: {
+    ...codePilotDarkColors,
+    palette: baseColors,
+    syntax: darkHighlightColors,
+  },
+  shadow: darkShadow,
+  ...commonTheme,
+} as const;
+
 // Keep compatibility with existing code
 export const theme = darkTheme;
 
-// Export a union type that works for both themes
-export type Theme = typeof darkTheme | typeof lightTheme;
+// Union of every registered theme shape. codePilot is a genuinely new literal-typed
+// theme pair (its colors differ from the light/dark anchors), so it must join the
+// union — otherwise `UnistylesTheme` stops being assignable to `Theme` and every
+// `(theme: Theme) => …` style callback across the app fails to type-check.
+export type Theme =
+  | typeof darkTheme
+  | typeof lightTheme
+  | typeof codePilotLight
+  | typeof codePilotDark;
 
 type UnistylesThemeKey =
+  | "codePilotLight"
+  | "codePilotDark"
   | "light"
   | "dark"
   | "darkZinc"
@@ -614,6 +781,7 @@ type UnistylesThemeKey =
   | "darkGhostty";
 
 export const THEME_TO_UNISTYLES: Record<ThemeName, UnistylesThemeKey> = {
+  codePilot: "codePilotLight",
   light: "light",
   dark: "dark",
   zinc: "darkZinc",
@@ -623,6 +791,7 @@ export const THEME_TO_UNISTYLES: Record<ThemeName, UnistylesThemeKey> = {
 };
 
 export const THEME_SWATCHES: Record<ThemeName, string> = {
+  codePilot: "#0969da",
   light: "#ffffff",
   dark: "#2D8B62",
   zinc: "#808080",

@@ -52,7 +52,12 @@ const ThemedChevronDown = withUnistyles(ChevronDown);
 const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
 function getThemeLabel(t: TFunction, value: AppSettings["theme"]): string {
-  const labelKeys: Record<AppSettings["theme"], string> = {
+  // codePilot is a brand name shown as-is (its light/dark switcher UI is deferred,
+  // so it never appears in the localized picker list — only as the current label).
+  if (value === "codePilot") {
+    return "CodePilot";
+  }
+  const labelKeys: Record<Exclude<AppSettings["theme"], "codePilot">, string> = {
     light: "settings.appearance.theme.options.light",
     dark: "settings.appearance.theme.options.dark",
     zinc: "settings.appearance.theme.options.zinc",

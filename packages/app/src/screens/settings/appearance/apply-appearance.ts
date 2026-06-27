@@ -8,10 +8,12 @@ import {
 } from "@/styles/theme";
 import { applyRootUiFont } from "./apply-root-font";
 
-// All six registered Unistyles keys — pinned literal (greppable, type-checked).
+// All registered Unistyles keys — pinned literal (greppable, type-checked).
 // The `as const` element types are exactly `keyof UnistylesThemes`, so each key
 // is assignable to `UnistylesRuntime.updateTheme`'s first argument with no cast.
 const ALL_THEME_KEYS = [
+  "codePilotLight",
+  "codePilotDark",
   "light",
   "dark",
   "darkZinc",
@@ -72,30 +74,19 @@ export function applyAppearance(input: AppearanceInput): void {
     // scheme for `auto`; named palettes ignore it. `colors.base`/plain text stays
     // `theme.colors.foreground` (owned by `syntaxTokenStyles.base`, not patched).
     //
-    // Narrow on the `colorScheme` discriminant before spreading: the updater must
-    // return the theme union, and a spread of the union widens `colorScheme` to
-    // `"light" | "dark"`, assignable to neither concrete member. Each branch spreads
-    // a single narrowed theme type.
+    // Spreading the themed union widens `colorScheme` to `"light" | "dark"`, and
+    // there are now two distinct light theme types (light + codePilot), so no single
+    // `colorScheme` branch yields one concrete member. The patch only ever replaces
+    // font + syntax (never the scheme), so the result is asserted back to the input
+    // theme type — runtime-safe.
     UnistylesRuntime.updateTheme(key, (t) => {
-      const fontFamily = { ui, mono };
-      const fontSize = scaleFontSize(input.uiFontSize, input.codeFontSize);
-      const lineHeight = { ...t.lineHeight, diff: diffLineHeight };
-      if (t.colorScheme === "light") {
-        return {
-          ...t,
-          fontFamily,
-          fontSize,
-          lineHeight,
-          colors: { ...t.colors, syntax: resolveSyntaxColors(input.syntaxTheme, t.colorScheme) },
-        };
-      }
       return {
         ...t,
-        fontFamily,
-        fontSize,
-        lineHeight,
+        fontFamily: { ui, mono },
+        fontSize: scaleFontSize(input.uiFontSize, input.codeFontSize),
+        lineHeight: { ...t.lineHeight, diff: diffLineHeight },
         colors: { ...t.colors, syntax: resolveSyntaxColors(input.syntaxTheme, t.colorScheme) },
-      };
+      } as typeof t;
     });
   }
 
