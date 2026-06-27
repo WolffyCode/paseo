@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildKeyboardShortcutHelpSections,
   buildEffectiveBindings,
+  DEFAULT_BINDINGS,
   getBindingIdForAction,
   getWorkspaceIndexJumpModifierKey,
   resolveKeyboardShortcut,
@@ -652,5 +653,29 @@ describe("getWorkspaceIndexJumpModifierKey", () => {
 
   it("uses Ctrl on desktop non-Mac, not Meta or Alt", () => {
     expect(getWorkspaceIndexJumpModifierKey({ isMac: false, isDesktop: true })).toBe("Control");
+  });
+});
+
+describe("buildEffectiveBindings — override back-compat", () => {
+  const targetId = "settings-toggle-cmd-comma-mac";
+
+  it("applies a valid override to the matching binding only", () => {
+    const effective = buildEffectiveBindings({ [targetId]: "Cmd+Alt+," });
+    expect(effective.find((binding) => binding.id === targetId)?.combo).toBe("Cmd+Alt+,");
+    expect(effective).toHaveLength(DEFAULT_BINDINGS.length);
+  });
+
+  it("ignores overrides whose binding id no longer exists", () => {
+    const effective = buildEffectiveBindings({ "binding-id-from-a-future-version": "Cmd+Z" });
+    expect(effective).toHaveLength(DEFAULT_BINDINGS.length);
+    expect(effective.map((binding) => binding.combo)).toEqual(
+      DEFAULT_BINDINGS.map((binding) => binding.combo),
+    );
+  });
+
+  it("falls back to the default combo when an override string is malformed", () => {
+    const defaultCombo = DEFAULT_BINDINGS.find((binding) => binding.id === targetId)?.combo;
+    const effective = buildEffectiveBindings({ [targetId]: "NotAValidCombo+++" });
+    expect(effective.find((binding) => binding.id === targetId)?.combo).toBe(defaultCombo);
   });
 });

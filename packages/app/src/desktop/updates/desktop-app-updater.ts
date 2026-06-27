@@ -160,6 +160,24 @@ export function formatStatusText(input: {
   return i18n.t("desktop.updates.status.idle");
 }
 
+/**
+ * Whether the "check" / "update" buttons are disabled for a snapshot. Keeps the
+ * button gating out of the component so the matrix is unit-testable: any
+ * in-flight check or install disables both; "update" also needs an installable
+ * update to be enabled.
+ */
+export function desktopUpdateButtonsDisabled(input: {
+  isChecking: boolean;
+  isInstalling: boolean;
+  availableUpdate: DesktopAppUpdateCheckResult | null;
+}): { check: boolean; update: boolean } {
+  const busy = input.isChecking || input.isInstalling;
+  return {
+    check: busy,
+    update: busy || input.availableUpdate === null,
+  };
+}
+
 export function createDesktopAppUpdater(deps: DesktopAppUpdaterDeps): DesktopAppUpdater {
   let state: InternalState = { ...INITIAL_STATE };
   let cachedSnapshot: DesktopAppUpdaterSnapshot = buildSnapshot(state);

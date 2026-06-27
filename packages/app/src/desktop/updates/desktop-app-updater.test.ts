@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { i18n } from "@/i18n/i18next";
 import {
   createDesktopAppUpdater,
+  desktopUpdateButtonsDisabled,
   formatStatusText,
   type DesktopAppUpdater,
   type DesktopAppUpdaterErrorReport,
@@ -320,5 +321,88 @@ describe("formatStatusText", () => {
     } finally {
       await i18n.changeLanguage("en");
     }
+  });
+});
+
+describe("formatStatusText — remaining status branches", () => {
+  const formatVersion = (version: string | null | undefined) =>
+    version ? `v${version.replace(/^v/i, "")}` : "—";
+  const formatLastCheckedAt = (timestamp: number) => `time-${timestamp}`;
+
+  function statusText(status: Parameters<typeof formatStatusText>[0]["status"]): string {
+    return formatStatusText({
+      status,
+      availableUpdate: null,
+      installMessage: null,
+      lastCheckedAt: null,
+      formatVersion,
+      formatLastCheckedAt,
+    });
+  }
+
+  it("reports the checking branch", () => {
+    expect(statusText("checking")).toBe("Checking for app updates...");
+  });
+
+  it("reports the installing branch", () => {
+    expect(statusText("installing")).toBe("Installing app update...");
+  });
+
+  it("reports the pending branch", () => {
+    expect(statusText("pending")).toBe("We'll let you know when the update is ready.");
+  });
+
+  it("reports the error branch", () => {
+    expect(statusText("error")).toBe("Failed to update app.");
+  });
+
+  it("reports the idle branch when no check has run yet", () => {
+    expect(statusText("idle")).toBe("Update status has not been checked yet.");
+  });
+
+  it("falls back to the bare up-to-date message when there is no last-checked time", () => {
+    expect(statusText("up-to-date")).toBe("App is up to date.");
+  });
+});
+
+describe("desktopUpdateButtonsDisabled", () => {
+  it("disables both buttons while checking", () => {
+    expect(
+      desktopUpdateButtonsDisabled({
+        isChecking: true,
+        isInstalling: false,
+        availableUpdate: null,
+      }),
+    ).toEqual({ check: true, update: true });
+  });
+
+  it("disables both buttons while installing", () => {
+    expect(
+      desktopUpdateButtonsDisabled({
+        isChecking: false,
+        isInstalling: true,
+        availableUpdate: buildFakeCheckResult({ latestVersion: "1.1.0" }),
+      }),
+    ).toEqual({ check: true, update: true });
+  });
+
+  it("enables both buttons when an update is available and idle", () => {
+    expect(
+      desktopUpdateButtonsDisabled({
+        isChecking: false,
+        isInstalling: false,
+        availableUpdate: buildFakeCheckResult({ latestVersion: "1.1.0" }),
+      }),
+    ).toEqual({ check: false, update: false });
+  });
+
+  it("keeps update disabled when idle with no available update", () => {
+    expect(
+      desktopUpdateButtonsDisabled({
+        isChecking: false,
+        isInstalling: false,
+        availableUpdate: null,
+      }),
+    ).toEqual({ check: false, update: true });
   });
 });
