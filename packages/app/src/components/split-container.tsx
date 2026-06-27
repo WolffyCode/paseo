@@ -12,12 +12,7 @@ import {
   type ReactNode,
   type SetStateAction,
 } from "react";
-import Animated, {
-  SlideInRight,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from "react-native-reanimated";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import {
   DndContext,
@@ -1159,14 +1154,14 @@ function SplitPaneView({
     </View>
   );
 
+  // No mount `entering` animation: maximizing the right panel restructures the layout tree
+  // (MAIN dropped), which re-mounts this pane and would replay a slide-in, sliding the tab-bar
+  // controls out from under the cursor for ~200ms and swallowing an immediate restore click.
+  // The panel appears in place; the collapse slide-out is driven by `rightPaneExitStyle`.
   return (
     <RenderProfile id={`SplitPaneView:${pane.id}`}>
       {isRightPanel ? (
-        <Animated.View
-          style={rightPaneAnimatedStyle}
-          entering={SlideInRight.duration(200)}
-          onLayout={handleRightPaneLayout}
-        >
+        <Animated.View style={rightPaneAnimatedStyle} onLayout={handleRightPaneLayout}>
           {paneBody}
         </Animated.View>
       ) : (
