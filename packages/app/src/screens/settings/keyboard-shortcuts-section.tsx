@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer } from "react";
 import { useTranslation } from "react-i18next";
 import { View, Text } from "react-native";
 import { useIsFocused } from "@react-navigation/native";
@@ -13,6 +13,12 @@ import {
   getBindingIdForAction,
   type KeyboardShortcutHelpRow,
 } from "@/keyboard/keyboard-shortcuts";
+import {
+  canSaveCapture,
+  capturedComboString,
+  captureReducer,
+  IDLE_CAPTURE_STATE,
+} from "@/keyboard/shortcut-capture-machine";
 import {
   chordStringToShortcutKeys,
   comboStringToShortcutKeys,
@@ -56,12 +62,14 @@ interface ShortcutRowContainerProps {
   isCapturing: boolean;
   capturedCombos: string[];
   heldModifiers: string | null;
+  canSave: boolean;
   onStartCapture: (bindingId: string) => void;
   onSaveCapture: () => void;
   onCancelCapture: () => void;
   onRemoveOverride: (bindingId: string) => void;
 }
 
+// Binds the row's rebind/reset handlers to its bindingId; pure passthrough otherwise.
 function ShortcutRowContainer({
   row,
   bindingId,
@@ -69,6 +77,7 @@ function ShortcutRowContainer({
   isCapturing,
   capturedCombos,
   heldModifiers,
+  canSave,
   onStartCapture,
   onSaveCapture,
   onCancelCapture,
@@ -90,6 +99,7 @@ function ShortcutRowContainer({
       isCapturing={isCapturing}
       capturedCombos={capturedCombos}
       heldModifiers={heldModifiers}
+      canSave={canSave}
       onRebind={handleRebind}
       onDone={onSaveCapture}
       onCancel={onCancelCapture}
@@ -98,6 +108,8 @@ function ShortcutRowContainer({
   );
 }
 
+// Renders one shortcut row across all states (default / capturing / overridden);
+// the "done" button is gated by the model-derived `canSave`, not a local count.
 function ShortcutRow({
   row,
   bindingId,
@@ -105,6 +117,7 @@ function ShortcutRow({
   isCapturing,
   capturedCombos,
   heldModifiers,
+  canSave,
   onRebind,
   onDone,
   onCancel,
@@ -116,6 +129,7 @@ function ShortcutRow({
   isCapturing: boolean;
   capturedCombos: string[];
   heldModifiers: string | null;
+  canSave: boolean;
   onRebind: () => void;
   onDone: () => void;
   onCancel: () => void;
@@ -139,7 +153,7 @@ function ShortcutRow({
         )}
         {bindingId !== null && (
           <>
-            {isCapturing && capturedCombos.length > 0 ? (
+            {isCapturing && canSave ? (
               <Button variant="ghost" size="sm" onPress={onDone}>
                 {t("settings.shortcuts.actions.done")}
               </Button>
@@ -161,11 +175,13 @@ function ShortcutRow({
   );
 }
 
+// Renders the rebindable shortcut list; all capture state lives in the pure
+// `captureReducer`, so this component only translates key events into events and
+// renders model-derived state. Native has no hardware keyboard, so it shows a
+// placeholder instead.
 export function KeyboardShortcutsSection() {
   const { t } = useTranslation();
-  const [capturingBindingId, setCapturingBindingId] = useState<string | null>(null);
-  const [capturedCombos, setCapturedCombos] = useState<string[]>([]);
-  const [heldModifiers, setHeldModifiers] = useState<string | null>(null);
+  const [capture, dispatch] = useReducer(captureReducer, IDLE_CAPTURE_STATE);
   const { overrides, hasOverrides, setOverride, removeOverride, resetAll } =
     useKeyboardShortcutOverrides();
   const setCapturingShortcut = useKeyboardShortcutsStore((s) => s.setCapturingShortcut);
@@ -175,72 +191,67 @@ export function KeyboardShortcutsSection() {
   const isDesktopApp = getIsElectronRuntime();
   const sections = buildKeyboardShortcutHelpSections({ isMac, isDesktop: isDesktopApp });
 
-  const cancelCapture = useCallback(() => {
-    setCapturedCombos([]);
-    setHeldModifiers(null);
-    setCapturingBindingId(null);
-    setCapturingShortcut(false);
-  }, [setCapturingShortcut]);
+  const isCapturing = capture.bindingId !== null;
 
-  const startCapture = useCallback(
-    (bindingId: string) => {
-      setCapturedCombos([]);
-      setHeldModifiers(null);
-      setCapturingBindingId(bindingId);
-      setCapturingShortcut(true);
-    },
-    [setCapturingShortcut],
-  );
+  const startCapture = useCallback((bindingId: string) => {
+    dispatch({ type: "start", bindingId });
+  }, []);
+
+  const cancelCapture = useCallback(() => {
+    dispatch({ type: "cancel" });
+  }, []);
 
   const saveCapture = useCallback(() => {
-    if (capturingBindingId === null || capturedCombos.length === 0) {
+    if (capture.bindingId === null || !canSaveCapture(capture)) {
       return;
     }
-    void setOverride(capturingBindingId, capturedCombos.join(" "));
-    cancelCapture();
-  }, [capturingBindingId, capturedCombos, setOverride, cancelCapture]);
+    void setOverride(capture.bindingId, capturedComboString(capture));
+    dispatch({ type: "save" });
+  }, [capture, setOverride]);
 
+  // Keep the global "suppress shortcuts while capturing" flag in lockstep with
+  // the machine, covering blur auto-cancel and unmount (cleanup clears it).
   useEffect(() => {
-    if (!isFocused && capturingBindingId !== null) {
-      cancelCapture();
-    }
-  }, [isFocused, capturingBindingId, cancelCapture]);
+    setCapturingShortcut(isCapturing);
+    return () => setCapturingShortcut(false);
+  }, [isCapturing, setCapturingShortcut]);
 
+  // Switching away from the settings tab abandons an in-progress capture.
+  useEffect(() => {
+    if (!isFocused && isCapturing) {
+      dispatch({ type: "blur" });
+    }
+  }, [isFocused, isCapturing]);
+
+  // Web-only: intercept keydowns while capturing and translate them into
+  // machine events. The reducer owns every transition; this only parses events.
   useEffect(() => {
     if (isNative) return;
-    if (capturingBindingId === null) return;
+    if (!isCapturing) return;
 
     function handleKeyDown(event: KeyboardEvent) {
       event.preventDefault();
       event.stopPropagation();
 
-      const key = event.key ?? "";
-      if (key === "Backspace") {
-        setCapturedCombos((current) => (current.length > 0 ? current.slice(0, -1) : current));
+      if ((event.key ?? "") === "Backspace") {
+        dispatch({ type: "backspace" });
         return;
       }
 
       const comboString = keyboardEventToComboString(event);
       if (comboString === null) {
-        setHeldModifiers(heldModifiersFromEvent(event));
+        dispatch({ type: "key", combo: null, held: heldModifiersFromEvent(event) });
         return;
       }
 
-      setHeldModifiers(null);
-      setCapturedCombos((current) => [...current, comboString]);
+      dispatch({ type: "key", combo: comboString, held: null });
     }
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [capturingBindingId]);
-
-  useEffect(() => {
-    return () => {
-      setCapturingShortcut(false);
-    };
-  }, [setCapturingShortcut]);
+  }, [isCapturing]);
 
   const handleResetAll = useCallback(() => void resetAll(), [resetAll]);
   const handleRemoveOverride = useCallback(
@@ -280,6 +291,7 @@ export function KeyboardShortcutsSection() {
                   isDesktop: isDesktopApp,
                 });
                 const overrideCombo = bindingId ? overrides[bindingId] : undefined;
+                const isRowCapturing = bindingId !== null && capture.bindingId === bindingId;
 
                 return (
                   <View key={row.id}>
@@ -287,11 +299,12 @@ export function KeyboardShortcutsSection() {
                       row={row}
                       bindingId={bindingId}
                       overrideCombo={overrideCombo}
-                      isCapturing={capturingBindingId === bindingId}
+                      isCapturing={isRowCapturing}
                       capturedCombos={
-                        capturingBindingId === bindingId ? capturedCombos : EMPTY_CAPTURED_COMBOS
+                        isRowCapturing ? capture.capturedCombos : EMPTY_CAPTURED_COMBOS
                       }
-                      heldModifiers={capturingBindingId === bindingId ? heldModifiers : null}
+                      heldModifiers={isRowCapturing ? capture.heldModifiers : null}
+                      canSave={isRowCapturing && canSaveCapture(capture)}
                       onStartCapture={startCapture}
                       onSaveCapture={saveCapture}
                       onCancelCapture={cancelCapture}

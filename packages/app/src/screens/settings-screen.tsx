@@ -78,7 +78,6 @@ import { AddHostModal } from "@/components/add-host-modal";
 import { PairLinkModal } from "@/components/pair-link-modal";
 import { KeyboardShortcutsSection } from "@/screens/settings/keyboard-shortcuts-section";
 import { Button } from "@/components/ui/button";
-import { CommunityLinks } from "@/components/community-links";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Combobox, ComboboxItem, type ComboboxOption } from "@/components/ui/combobox";
@@ -87,6 +86,7 @@ import { IntegrationsSection } from "@/desktop/components/integrations-section";
 import { LocalDaemonSection } from "@/desktop/components/desktop-updates-section";
 import { isElectronRuntime } from "@/desktop/host";
 import { useDesktopAppUpdater } from "@/desktop/updates/use-desktop-app-updater";
+import { desktopUpdateButtonsDisabled } from "@/desktop/updates/desktop-app-updater";
 import { formatVersionWithPrefix } from "@/desktop/updates/desktop-updates";
 import { resolveAppVersion } from "@/utils/app-version";
 import { settingsStyles } from "@/styles/settings";
@@ -111,6 +111,7 @@ import {
 import ProjectsScreen from "@/screens/projects-screen";
 import ProjectSettingsScreen from "@/screens/project-settings-screen";
 import { useIsCompactFormFactor } from "@/constants/layout";
+import { isNative } from "@/constants/platform";
 import { useLocalDaemonServerId } from "@/hooks/use-is-local-daemon";
 import { useWebScrollbarStyle } from "@/hooks/use-web-scrollbar-style";
 import {
@@ -516,9 +517,6 @@ function AboutSection({ appVersion, appVersionText, isDesktopApp }: AboutSection
         </View>
       </SettingsSection>
       <ConnectedHostsSection clientVersion={appVersion} />
-      <View style={styles.aboutCommunity}>
-        <CommunityLinks />
-      </View>
     </>
   );
 }
@@ -695,6 +693,12 @@ function DesktopAppUpdateRow() {
     return null;
   }
 
+  const buttonsDisabled = desktopUpdateButtonsDisabled({
+    isChecking,
+    isInstalling,
+    availableUpdate,
+  });
+
   return (
     <>
       <View style={ROW_WITH_BORDER_STYLE}>
@@ -729,7 +733,7 @@ function DesktopAppUpdateRow() {
             variant="outline"
             size="sm"
             onPress={handleCheckForUpdates}
-            disabled={isChecking || isInstalling}
+            disabled={buttonsDisabled.check}
           >
             {isChecking ? t("settings.about.updates.checking") : t("settings.about.updates.check")}
           </Button>
@@ -737,7 +741,7 @@ function DesktopAppUpdateRow() {
             variant="default"
             size="sm"
             onPress={handleInstallUpdate}
-            disabled={isChecking || isInstalling || !availableUpdate}
+            disabled={buttonsDisabled.update}
           >
             {getUpdateButtonLabel(t, isInstalling, availableUpdate?.latestVersion)}
           </Button>
@@ -1521,7 +1525,9 @@ export default function SettingsScreen({ view }: SettingsScreenProps) {
         case "appearance":
           return <AppearanceSection />;
         case "shortcuts":
-          return isDesktopApp ? <KeyboardShortcutsSection /> : null;
+          // Keyboard shortcuts work on any hardware-keyboard surface (desktop
+          // app + browser web), only mobile native has no keyboard.
+          return !isNative ? <KeyboardShortcutsSection /> : null;
         case "integrations":
           return isDesktopApp ? <IntegrationsSection /> : null;
         case "permissions":
@@ -1713,9 +1719,6 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.palette.red[300],
     fontSize: theme.fontSize.xs,
     marginTop: theme.spacing[1],
-  },
-  aboutCommunity: {
-    marginTop: theme.spacing[4],
   },
   aboutUpdateActions: {
     flexDirection: "row",

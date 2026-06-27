@@ -62,7 +62,12 @@ export function useKeyboardShortcutOverrides(): UseKeyboardShortcutOverridesRetu
   };
 }
 
-async function loadOverridesFromStorage(): Promise<Record<string, string>> {
+/**
+ * Read the persisted override map. Client-prefs back-compat: corrupt JSON
+ * resolves to an empty map (never throws) so a bad write can't brick the section
+ * — unknown binding ids are dropped later by `buildEffectiveBindings`.
+ */
+export async function loadOverridesFromStorage(): Promise<Record<string, string>> {
   try {
     const stored = await AsyncStorage.getItem(STORAGE_KEY);
     if (stored) {
