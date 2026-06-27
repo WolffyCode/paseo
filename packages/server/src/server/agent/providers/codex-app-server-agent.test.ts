@@ -1557,12 +1557,14 @@ describe("Codex app-server provider", () => {
     const observations = events.filter((event) => event.type === "sub_agent_observation");
 
     // The parent's sub-agent tool-call surfaces the observed node, carrying the
-    // call id + description so the daemon can nest + title the read-only record.
+    // call id + description so the daemon can nest + title the read-only record,
+    // and the child thread id as the sub-agent's real (resumable) session id.
     expect(observations.length).toBeGreaterThan(0);
     expect(observations[0]).toMatchObject({
       type: "sub_agent_observation",
       provider: "codex",
       callId: "call-observe-child",
+      childSessionId: "child-thread-weather",
       description: "查询北京今日天气",
       status: "running",
     });

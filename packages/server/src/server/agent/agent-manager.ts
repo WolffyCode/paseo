@@ -3423,9 +3423,21 @@ export class AgentManager {
     });
     const now = new Date();
     const existing = this.observedAgents.get(id);
+    // Bind the sub-agent's REAL session id once the provider reports it. This is
+    // the observed agent's real identity (a real on-disk session) and the
+    // extension point for a future "continue conversation" (resume this handle).
+    const persistence =
+      existing?.persistence ?? this.buildObservedPersistence(parent, event.childSessionId);
     const record: ManagedAgentClosed = existing
-      ? { ...existing, observedStatus: status, title, updatedAt: now }
-      : this.buildObservedSubAgentRecord({ id, parent, title, status, createdAt: now });
+      ? { ...existing, observedStatus: status, title, persistence, updatedAt: now }
+      : this.buildObservedSubAgentRecord({
+          id,
+          parent,
+          title,
+          status,
+          persistence,
+          createdAt: now,
+        });
     this.observedAgents.set(id, record);
 
     if (!this.timelineStore.has(id)) {
@@ -3438,14 +3450,32 @@ export class AgentManager {
     this.dispatch({ type: "agent_state", agent: { ...record } });
   }
 
+  // Real persistence handle for an observed sub-agent bound to its real session
+  // id. Null until the provider reports the id. Carrying it (not a synthetic
+  // stub) is what makes the observed agent a real, resumable identity rather
+  // than a throwaway summary.
+  private buildObservedPersistence(
+    parent: ActiveManagedAgent,
+    childSessionId: string | undefined,
+  ): AgentPersistenceHandle | null {
+    if (!childSessionId) {
+      return null;
+    }
+    return attachPersistenceCwd(
+      { provider: parent.provider, sessionId: childSessionId },
+      parent.cwd,
+    );
+  }
+
   private buildObservedSubAgentRecord(input: {
     id: string;
     parent: ActiveManagedAgent;
     title: string;
     status: AgentLifecycleStatus;
+    persistence: AgentPersistenceHandle | null;
     createdAt: Date;
   }): ManagedAgentClosed {
-    const { id, parent, title, status, createdAt } = input;
+    const { id, parent, title, status, persistence, createdAt } = input;
     return {
       id,
       provider: parent.provider,
@@ -3467,7 +3497,7 @@ export class AgentManager {
       foregroundTurnWaiters: new Set(),
       finalizedForegroundTurnIds: new Set(),
       unsubscribeSession: null,
-      persistence: null,
+      persistence,
       historyPrimed: true,
       lastUserMessageAt: null,
       attention: { requiresAttention: false },

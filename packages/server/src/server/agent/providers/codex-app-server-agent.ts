@@ -2894,6 +2894,9 @@ interface CodexSubAgentCallState {
   toolCall: ToolCallTimelineItem;
   childItemOrder: string[];
   childItems: Map<string, AgentTimelineItem>;
+  // The sub-agent's real thread id (its persisted rollout). Bound to the
+  // observed agent as its real identity + future "continue conversation" handle.
+  childThreadId?: string;
 }
 
 export class CodexAppServerAgentSession implements AgentSession {
@@ -4404,6 +4407,9 @@ export class CodexAppServerAgentSession implements AgentSession {
     for (const receiverThreadId of receiverThreadIds) {
       this.subAgentCallIdByChildThreadId.set(receiverThreadId, timelineItem.callId);
     }
+    if (!state.childThreadId && receiverThreadIds.length > 0) {
+      state.childThreadId = receiverThreadIds[0];
+    }
 
     this.emitSubAgentObservation(timelineItem.callId, timelineItem.status);
   }
@@ -4444,6 +4450,7 @@ export class CodexAppServerAgentSession implements AgentSession {
       type: "sub_agent_observation",
       provider: CODEX_PROVIDER,
       callId,
+      ...(state.childThreadId ? { childSessionId: state.childThreadId } : {}),
       ...(detail.subAgentType ? { subAgentType: detail.subAgentType } : {}),
       ...(detail.description ? { description: detail.description } : {}),
       status,

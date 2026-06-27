@@ -6343,6 +6343,7 @@ test("surfaces a provider-internal subagent as a read-only observed agent", asyn
         type: "sub_agent_observation",
         provider: "codex",
         callId: "task-call-1",
+        childSessionId: "child-thread-real-id",
         subAgentType: "general-purpose",
         description: "查询北京今日天气",
         status: "running",
@@ -6357,6 +6358,10 @@ test("surfaces a provider-internal subagent as a read-only observed agent", asyn
     expect(observed.labels[PARENT_AGENT_ID_LABEL]).toBe(parent.id);
     expect(observed.observedStatus).toBe("running");
     expect(observed.provider).toBe("codex");
+
+    // It binds the sub-agent's REAL session id (a real, resumable identity), not
+    // a synthetic stub — this is the extension point for "continue conversation".
+    expect(observed.persistence?.sessionId).toBe("child-thread-real-id");
 
     // It projects to a read-only snapshot whose wire status is the running dot.
     const payload = toAgentPayload(observed);

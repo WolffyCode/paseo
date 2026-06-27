@@ -410,12 +410,19 @@ export type AgentStreamEvent =
       // Codex sub-agent) so the daemon can surface that subagent as a read-only
       // "observed" agent. Purely observational — providers keep orchestrating
       // their subagents unchanged. `callId` is the parent's `sub_agent`
-      // tool-call id (stable per child). `item`, when present, is one child
-      // timeline item to append to the observed agent's read-only timeline. The
-      // manager consumes this event and never forwards it to the parent stream.
+      // tool-call id (stable per child). `childSessionId`, when known, is the
+      // sub-agent's REAL session id (Claude session_id / Codex receiverThreadId):
+      // it gives the observed agent a real identity bound to a real on-disk
+      // session, and is the extension point for a future "continue conversation"
+      // (resume that session) + sub-terminal. `item`, when present, is one child
+      // timeline item mirrored from the provider's live sub-stream (prose, tool
+      // calls, tool results) — same shape as the main agent timeline, so the
+      // read-only view renders identically. The manager consumes this event and
+      // never forwards it to the parent stream.
       type: "sub_agent_observation";
       provider: AgentProvider;
       callId: string;
+      childSessionId?: string;
       subAgentType?: string;
       description?: string;
       status: "running" | "completed" | "failed" | "canceled";
