@@ -167,6 +167,7 @@ export const MutableDaemonConfigPatchSchema = z
 
 export type MutableDaemonConfig = z.infer<typeof MutableDaemonConfigSchema>;
 export type MutableDaemonConfigPatch = z.infer<typeof MutableDaemonConfigPatchSchema>;
+export type MutableDaemonProviderConfig = z.infer<typeof MutableDaemonProviderConfigSchema>;
 import type {
   AgentCapabilityFlags,
   AgentModelDefinition,
