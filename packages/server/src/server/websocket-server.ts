@@ -1174,6 +1174,12 @@ export class VoiceAssistantWebSocketServer {
         providerUsageList: true,
         // COMPAT(agentDetach): added in v0.1.98, remove gate after 2026-12-19 once daemon floor >= v0.1.98.
         agentDetach: true,
+        // COMPAT(hostProviderVendors): added in v0.1.99, drop the gate when daemon floor >= v0.1.99.
+        hostProviderVendors: true,
+        // COMPAT(hostConfigFile): added in v0.1.99, drop the gate when daemon floor >= v0.1.99.
+        hostConfigFile: true,
+        // COMPAT(vendorDiagnostics): added in v0.1.99, drop the gate when daemon floor >= v0.1.99.
+        vendorDiagnostics: true,
       },
     };
   }
