@@ -1229,6 +1229,14 @@ export const HostVendorDiscoverModelsResponseMessageSchema = z.object({
   ]),
 });
 
+export type HostConfigRevision = z.infer<typeof HostConfigRevisionSchema>;
+export type HostConfigRpcError = z.infer<typeof HostConfigRpcErrorSchema>;
+export type VendorConnection = z.infer<typeof VendorConnectionSchema>;
+export type VendorProbeTarget = z.infer<typeof VendorProbeTargetSchema>;
+export type VendorDiagnosis = z.infer<typeof VendorDiagnosisSchema>;
+export type VendorDiscoveredModel = z.infer<typeof VendorDiscoveredModelSchema>;
+export type VendorDiscoverModelsError = z.infer<typeof VendorDiscoverModelsErrorSchema>;
+
 // ============================================================================
 // Dictation Streaming (lossless, resumable)
 // ============================================================================
@@ -2172,6 +2180,10 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   SetDaemonConfigRequestMessageSchema,
   ReadProjectConfigRequestMessageSchema,
   WriteProjectConfigRequestMessageSchema,
+  HostConfigReadRequestMessageSchema,
+  HostConfigWriteRequestMessageSchema,
+  HostVendorDiagnoseRequestMessageSchema,
+  HostVendorDiscoverModelsRequestMessageSchema,
   DictationStreamStartMessageSchema,
   DictationStreamChunkMessageSchema,
   DictationStreamFinishMessageSchema,
@@ -4271,6 +4283,10 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   SetDaemonConfigResponseMessageSchema,
   ReadProjectConfigResponseMessageSchema,
   WriteProjectConfigResponseMessageSchema,
+  HostConfigReadResponseMessageSchema,
+  HostConfigWriteResponseMessageSchema,
+  HostVendorDiagnoseResponseMessageSchema,
+  HostVendorDiscoverModelsResponseMessageSchema,
   SetAgentModeResponseMessageSchema,
   SetAgentModelResponseMessageSchema,
   SetAgentThinkingResponseMessageSchema,
