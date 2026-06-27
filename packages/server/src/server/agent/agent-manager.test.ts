@@ -16,6 +16,7 @@ import { AgentStorage } from "./agent-storage.js";
 import { toAgentPayload } from "./agent-projections.js";
 import { PARENT_AGENT_ID_LABEL } from "@getpaseo/protocol/agent-labels";
 import { observedSubAgentId } from "./observed-sub-agents.js";
+import { ensureAgentLoaded } from "./agent-loading.js";
 import { formatSystemNotificationPrompt } from "./agent-prompt.js";
 import type { StoredAgentRecord } from "./agent-storage.js";
 import type {
@@ -6586,6 +6587,108 @@ test("refuses to resume an observed sub-agent after restart and never spawns its
     ).rejects.toThrow(/observed/i);
 
     // The critical guarantee: no provider session was ever spawned.
+    expect(restartClient.resumeOverrides).toHaveLength(0);
+    expect(restartClient.session).toBeNull();
+  } finally {
+    rmSync(workdir, { recursive: true, force: true });
+  }
+});
+
+test("loads observed sub-agent history read-only on restart, without resuming or spawning", async () => {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-test-"));
+  const storagePath = join(workdir, "agents");
+  const storage = new AgentStorage(storagePath, logger);
+
+  const childHistory: AgentTimelineItem[] = [
+    { type: "reasoning", text: "先查北京今天的天气" },
+    { type: "assistant_message", text: "北京今天晴，24–31°C。" },
+  ];
+
+  class ObservationClient extends TestAgentClient {
+    session: TestAgentSession | null = null;
+    readonly historyRequests: Array<{ sessionId: string; cwd: string }> = [];
+
+    override async createSession(config: AgentSessionConfig): Promise<AgentSession> {
+      this.session = new TestAgentSession(config);
+      return this.session;
+    }
+
+    async loadObservedSubAgentHistory(params: {
+      sessionId: string;
+      cwd: string;
+    }): Promise<AgentTimelineItem[]> {
+      this.historyRequests.push(params);
+      return childHistory;
+    }
+  }
+
+  const liveClient = new ObservationClient();
+  const liveManager = new AgentManager({
+    clients: { codex: liveClient },
+    registry: storage,
+    logger,
+    idFactory: () => "00000000-0000-4000-8000-0000000006e5",
+  });
+
+  try {
+    const parent = await liveManager.createAgent({ provider: "codex", cwd: workdir });
+    const observedId = observedSubAgentId(parent.id, "task-call-1");
+
+    await new Promise<void>((resolve) => {
+      const unsubscribe = liveManager.subscribe(
+        (event) => {
+          if (event.type === "agent_state" && event.agent.id === observedId) {
+            unsubscribe();
+            resolve();
+          }
+        },
+        { replayState: false },
+      );
+      liveClient.session?.pushEvent({
+        type: "sub_agent_observation",
+        provider: "codex",
+        callId: "task-call-1",
+        childSessionId: "child-real-id",
+        subAgentType: "general-purpose",
+        status: "running",
+      });
+    });
+
+    let persisted = false;
+    for (let attempt = 0; attempt < 50 && !persisted; attempt += 1) {
+      await storage.flush();
+      const stored = await storage.list();
+      persisted = stored.some((record) => record.observed === true);
+      if (!persisted) {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    }
+    expect(persisted).toBe(true);
+
+    // Restart: a fresh manager over the same storage, empty live observed map.
+    const restartClient = new ObservationClient();
+    const restartManager = new AgentManager({
+      clients: { codex: restartClient },
+      registry: storage,
+      logger,
+    });
+
+    const loaded = await ensureAgentLoaded(observedId, {
+      agentManager: restartManager,
+      agentStorage: storage,
+      logger,
+    });
+
+    // Reloaded read-only, bound to the real child session id.
+    expect(loaded.observed).toBe(true);
+    expect(loaded.persistence?.sessionId).toBe("child-real-id");
+
+    // Its history was read read-only from the real child session and rendered as
+    // a full timeline (prose + reasoning), identical to the live shape.
+    expect(restartClient.historyRequests).toEqual([{ sessionId: "child-real-id", cwd: workdir }]);
+    expect(restartManager.getTimeline(observedId)).toEqual(childHistory);
+
+    // Pure read-only: the child session was never resumed or spawned.
     expect(restartClient.resumeOverrides).toHaveLength(0);
     expect(restartClient.session).toBeNull();
   } finally {

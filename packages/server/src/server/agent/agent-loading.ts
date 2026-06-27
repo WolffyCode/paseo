@@ -45,6 +45,13 @@ export async function ensureAgentLoaded(
       throw new Error(`Agent ${agentId} references unavailable provider '${record.provider}'`);
     }
 
+    // Observed sub-agents are read-only mirrors: re-materialize them and load
+    // their history from the real child session WITHOUT resuming — continuing one
+    // is a separate "derive a new agent" flow.
+    if (record.observed) {
+      return deps.agentManager.loadObservedSubAgentFromStorage(record);
+    }
+
     const handle = toAgentPersistenceHandle(validProviders, record.persistence);
 
     let snapshot: ManagedAgent;

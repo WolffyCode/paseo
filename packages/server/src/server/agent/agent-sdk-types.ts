@@ -669,6 +669,13 @@ export interface ListModesOptions {
   force: boolean;
 }
 
+export interface ObservedSubAgentHistoryParams {
+  // The sub-agent's real persisted session id (Claude session_id / Codex thread).
+  sessionId: string;
+  // Working directory of the parent, used to resolve the on-disk transcript.
+  cwd: string;
+}
+
 export interface AgentClient {
   readonly provider: AgentProvider;
   readonly capabilities: AgentCapabilityFlags;
@@ -695,6 +702,15 @@ export interface AgentClient {
     input: ImportProviderSessionInput,
     context: ImportProviderSessionContext,
   ): Promise<ImportedProviderSession>;
+  /**
+   * Read-only load of an observed sub-agent's history from its real persisted
+   * session, returning the full timeline in the same shape as the live stream
+   * (prose, reasoning, tool calls + results). Used ONLY after restart, when the
+   * sub-agent has already ended — never on the live path. Pure read: it must not
+   * resume, spawn, or mutate the session. Providers that don't run internal
+   * sub-agents leave this undefined.
+   */
+  loadObservedSubAgentHistory?(params: ObservedSubAgentHistoryParams): Promise<AgentTimelineItem[]>;
   /**
    * Check if this provider is available (CLI binary is installed).
    * Returns true if available, false otherwise.

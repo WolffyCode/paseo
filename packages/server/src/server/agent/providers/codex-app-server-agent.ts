@@ -31,6 +31,7 @@ import {
   type ImportProviderSessionInput,
   type ListImportableSessionsOptions,
   type ListModelsOptions,
+  type ObservedSubAgentHistoryParams,
 } from "../agent-sdk-types.js";
 import { importSessionFromPersistence } from "../provider-session-import.js";
 import type { Logger } from "pino";
@@ -3293,6 +3294,24 @@ export class CodexAppServerAgentSession implements AgentSession {
     }
   }
 
+  // Read-only load of an observed sub-agent's thread history (after restart, when
+  // the sub-agent has ended). Reuses the SAME thread->timeline conversion as the
+  // live history path, so rendering matches. Connects only to read the rollout;
+  // never starts a turn or mutates the thread.
+  async loadObservedThreadHistory(threadId: string): Promise<AgentTimelineItem[]> {
+    await this.connect();
+    const client = this.client;
+    if (!client) {
+      return [];
+    }
+    const timeline = await loadCodexThreadHistoryTimeline({
+      threadId,
+      cwd: this.config.cwd ?? null,
+      requestThread: (threadIdToRead) => readCodexThread(client, threadIdToRead),
+    });
+    return timeline.map((entry) => entry.item);
+  }
+
   private async ensureThreadLoaded(): Promise<void> {
     if (!this.client || !this.currentThreadId) return;
     try {
@@ -5511,6 +5530,31 @@ export class CodexAppServerAgentClient implements AgentClient {
     );
     await session.connect();
     return session;
+  }
+
+  // Read-only history of an observed sub-agent (a child thread) from its rollout.
+  // Builds a session purely to reuse the app-server thread read + the same
+  // thread->timeline conversion as the live path; it never starts a turn.
+  async loadObservedSubAgentHistory(
+    params: ObservedSubAgentHistoryParams,
+  ): Promise<AgentTimelineItem[]> {
+    const goalsEnabled = await this.resolveGoalsEnabled();
+    const autoReviewEnabled = await this.resolveAutoReviewEnabled();
+    const session = new CodexAppServerAgentSession(
+      { provider: CODEX_PROVIDER, cwd: params.cwd },
+      null,
+      this.logger,
+      () => this.spawnAppServer(undefined, { goalsEnabled }),
+      this.sessionDeps(),
+      false,
+      goalsEnabled,
+      autoReviewEnabled,
+    );
+    try {
+      return await session.loadObservedThreadHistory(params.sessionId);
+    } finally {
+      await session.close().catch(() => undefined);
+    }
   }
 
   async resumeSession(

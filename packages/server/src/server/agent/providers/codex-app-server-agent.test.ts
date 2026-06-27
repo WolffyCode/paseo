@@ -13,6 +13,7 @@ import type {
   AgentSessionConfig,
   AgentSlashCommand,
   AgentStreamEvent,
+  AgentTimelineItem,
 } from "../agent-sdk-types.js";
 import {
   buildCodexAppServerEnv,
@@ -48,6 +49,7 @@ interface CodexSessionTestAccess {
   handleToolApprovalRequest(params: unknown): Promise<unknown>;
   handleNotification(method: string, params: unknown): void;
   loadPersistedHistory(): Promise<void>;
+  loadObservedThreadHistory(threadId: string): Promise<AgentTimelineItem[]>;
   refreshResolvedCollaborationMode(): void;
   serviceTier: "fast" | null;
   planModeEnabled: boolean;
@@ -1722,6 +1724,49 @@ describe("Codex app-server provider", () => {
         },
       },
     ]);
+  });
+
+  test("loads an observed sub-agent's thread history read-only (full timeline, no turn)", async () => {
+    const session = createSession();
+    const requests: Array<{ method: string; params: unknown }> = [];
+    session.client = {
+      request: vi.fn(async (method: string, params: unknown) => {
+        requests.push({ method, params });
+        if (method !== "thread/read") {
+          return {};
+        }
+        return {
+          thread: {
+            turns: [
+              {
+                items: [
+                  { type: "reasoning", id: "r1", summary: ["先查北京今天的天气"] },
+                  { type: "agentMessage", id: "m1", text: "北京今天晴，24–31°C。" },
+                ],
+              },
+            ],
+          },
+        };
+      }),
+    };
+
+    const timeline = await asInternals(session).loadObservedThreadHistory("child-thread-id");
+
+    // Read the child thread's rollout (read-only) — no turn started.
+    expect(requests).toContainEqual({
+      method: "thread/read",
+      params: { threadId: "child-thread-id", includeTurns: true },
+    });
+
+    // Full timeline in the same shape as the live path: reasoning + prose.
+    const reasoning = timeline.find(
+      (item) => item.type === "reasoning" && item.text.includes("北京今天的天气"),
+    );
+    expect(reasoning).toBeDefined();
+    const prose = timeline.find(
+      (item) => item.type === "assistant_message" && item.text.includes("北京今天晴"),
+    );
+    expect(prose).toBeDefined();
   });
 
   test("uses Codex turn timestamps for timestamp-less persisted history items", async () => {

@@ -82,6 +82,7 @@ import {
   type ListImportableSessionsOptions,
   type ListModelsOptions,
   type McpServerConfig,
+  type ObservedSubAgentHistoryParams,
 } from "../../agent-sdk-types.js";
 import { importSessionFromPersistence } from "../../provider-session-import.js";
 import {
@@ -1391,6 +1392,23 @@ export class ClaudeAgentClient implements AgentClient {
       queryFactory: this.queryFactory,
       resolveBinary: this.resolveBinary,
     });
+  }
+
+  // Read-only history of an observed sub-agent (a Task sidechain) from the parent
+  // transcript. Builds a throwaway session purely to reuse its transcript->
+  // timeline conversion — it never runs, so no process is spawned.
+  async loadObservedSubAgentHistory(
+    params: ObservedSubAgentHistoryParams,
+  ): Promise<AgentTimelineItem[]> {
+    const claudeConfig = this.assertConfig({ provider: "claude", cwd: params.cwd });
+    const session = new ClaudeAgentSession(claudeConfig, {
+      defaults: this.defaults,
+      runtimeSettings: this.runtimeSettings,
+      logger: this.logger,
+      queryFactory: this.queryFactory,
+      resolveBinary: this.resolveBinary,
+    });
+    return session.loadObservedChildHistory(params.sessionId);
   }
 
   async resumeSession(
@@ -4164,6 +4182,37 @@ class ClaudeAgentSession implements AgentSession {
     } catch {
       // ignore history load failures
     }
+  }
+
+  // Read-only load of an observed sub-agent's history from this transcript. The
+  // OPPOSITE of loadPersistedHistory: it keeps ONLY the sidechain (sub-agent)
+  // entries and converts them through the same `convertHistoryEntry` path as the
+  // main timeline, so the read-only view renders identically. Pure disk read —
+  // never connects, spawns, or mutates. Used only after restart (child ended).
+  loadObservedChildHistory(sessionId: string): AgentTimelineItem[] {
+    const historyPath = this.resolveHistoryPath(sessionId);
+    if (!historyPath || !fs.existsSync(historyPath)) {
+      return [];
+    }
+    const timeline: AgentTimelineItem[] = [];
+    for (const line of fs.readFileSync(historyPath, "utf8").split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      let entry: Record<string, unknown>;
+      try {
+        const record = toObjectRecord(JSON.parse(trimmed));
+        if (!record || record.isSidechain !== true) {
+          continue;
+        }
+        entry = record;
+      } catch {
+        continue;
+      }
+      timeline.push(...this.convertHistoryEntry(entry));
+    }
+    return timeline;
   }
 
   private ingestPersistedHistory(content: string): void {

@@ -3535,6 +3535,88 @@ export class AgentManager {
     };
   }
 
+  // Re-materializes a persisted observed sub-agent after restart as a read-only
+  // record, then loads its history from the real child session — read-only,
+  // never resuming or spawning. This is the ONLY place we read the on-disk
+  // session; the child has ended, so reading the full record is accurate (not
+  // the live path, which mirrors the stream). Provider dispatch is generic.
+  async loadObservedSubAgentFromStorage(record: StoredAgentRecord): Promise<ManagedAgent> {
+    const cached = this.observedAgents.get(record.id);
+    if (cached) {
+      return { ...cached };
+    }
+
+    const observed = this.buildObservedSubAgentFromRecord(record);
+    this.observedAgents.set(record.id, observed);
+
+    const childSessionId = observed.persistence?.sessionId;
+    const client = this.clients.get(record.provider);
+    let history: AgentTimelineItem[] = [];
+    if (childSessionId && client?.loadObservedSubAgentHistory) {
+      try {
+        history = await client.loadObservedSubAgentHistory({
+          sessionId: childSessionId,
+          cwd: record.cwd,
+        });
+      } catch (error) {
+        this.logger.warn(
+          { err: error, agentId: record.id },
+          "Failed to load observed sub-agent history",
+        );
+      }
+    }
+
+    this.timelineStore.delete(record.id);
+    this.timelineStore.initialize(record.id, {
+      items: history,
+      timestamp: new Date().toISOString(),
+    });
+
+    this.dispatch({ type: "agent_state", agent: { ...observed } });
+    return { ...observed };
+  }
+
+  private buildObservedSubAgentFromRecord(record: StoredAgentRecord): ManagedAgentClosed {
+    const persistence = record.persistence
+      ? attachPersistenceCwd(
+          { provider: record.provider, sessionId: record.persistence.sessionId },
+          record.cwd,
+        )
+      : null;
+    return {
+      id: record.id,
+      provider: record.provider,
+      cwd: record.cwd,
+      ...(record.workspaceId ? { workspaceId: record.workspaceId } : {}),
+      capabilities: OBSERVED_AGENT_CAPABILITIES,
+      config: { provider: record.provider, cwd: record.cwd },
+      lifecycle: "closed",
+      session: null,
+      createdAt: new Date(record.createdAt),
+      updatedAt: new Date(record.updatedAt),
+      availableModes: [],
+      currentModeId: null,
+      pendingPermissions: new Map(),
+      bufferedPermissionResolutions: new Map(),
+      inFlightPermissionResponses: new Set(),
+      pendingReplacement: false,
+      activeForegroundTurnId: null,
+      foregroundTurnWaiters: new Set(),
+      finalizedForegroundTurnIds: new Set(),
+      unsubscribeSession: null,
+      persistence,
+      historyPrimed: true,
+      lastUserMessageAt: null,
+      attention: { requiresAttention: false },
+      observed: true,
+      // A restored observed sub-agent is historical: its parent turn ended
+      // before the restart, so it settles to idle.
+      observedStatus: "idle",
+      title: record.title ?? null,
+      labels: record.labels,
+    };
+  }
+
   // True when a session id is owned by an observed sub-agent — live (in-memory)
   // or persisted (across restart). Used to refuse resume so an observed mirror
   // never spawns a provider session.
