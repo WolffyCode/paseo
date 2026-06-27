@@ -1,18 +1,20 @@
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Pressable, Text, View } from "react-native";
-import { StyleSheet, withUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 import {
   ChevronRight,
   ClipboardPaste,
   Link2,
+  Network,
   QrCode,
   RefreshCw,
-  Network,
 } from "lucide-react-native";
-import { Button } from "@/components/ui/button";
 import { getIsElectron, isNative, isWeb } from "@/constants/platform";
-import type { Theme } from "@/styles/theme";
+import { codePilotLight } from "@/styles/codepilot-theme";
+import { OnboardingBrandMark } from "./onboarding-brand-mark";
+import { OnboardingButton } from "./onboarding-button";
+import { OnboardingCard } from "./onboarding-card";
 
 type MethodKey = "scan-qr" | "direct-connection" | "paste-pairing-link";
 
@@ -33,18 +35,10 @@ export interface MethodPickerStageProps {
   onRetryLocal: () => void;
 }
 
-const ThemedNetwork = withUnistyles(Network);
-const ThemedChevronRight = withUnistyles(ChevronRight);
-const ThemedQrCode = withUnistyles(QrCode);
-const ThemedLink2 = withUnistyles(Link2);
-const ThemedClipboardPaste = withUnistyles(ClipboardPaste);
-const foregroundMutedIconMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
-const accentIconMapping = (theme: Theme) => ({ color: theme.colors.accent });
-
 const METHOD_ICON = {
-  "scan-qr": ThemedQrCode,
-  "direct-connection": ThemedLink2,
-  "paste-pairing-link": ThemedClipboardPaste,
+  "scan-qr": QrCode,
+  "direct-connection": Link2,
+  "paste-pairing-link": ClipboardPaste,
 } as const;
 
 // Renders the connection-method picker with platform-specific ordering and availability.
@@ -90,31 +84,29 @@ export function MethodPickerStage({
 
   return (
     <View style={styles.stage} testID="onboarding-method-picker">
-      <View style={styles.badgeIcon}>
-        <ThemedNetwork size={24} uniProps={accentIconMapping} />
-      </View>
-      <View style={styles.copyBlock}>
-        <Text style={styles.title}>{t("onboarding.picker.title")}</Text>
-        <Text style={styles.subtitle}>{t("onboarding.picker.description")}</Text>
-      </View>
-      <View style={styles.card}>
-        {methods.map((method, index) => (
-          <ConnectionMethodRow key={method.key} method={method} hasTopBorder={index > 0} />
-        ))}
-      </View>
-      {canRetryLocal ? (
-        <Button
-          variant="outline"
-          size="md"
-          leftIcon={RefreshCw}
-          onPress={onRetryLocal}
-          style={styles.retryButton}
-          testID="onboarding-picker-retry-local"
-        >
-          {t("onboarding.actions.retryLocal")}
-        </Button>
-      ) : null}
-      <Text style={styles.versionLabel}>{versionLabel}</Text>
+      <OnboardingCard>
+        <OnboardingBrandMark icon={Network} size={48} />
+        <View style={styles.copyBlock}>
+          <Text style={styles.title}>{t("onboarding.picker.title")}</Text>
+          <Text style={styles.subtitle}>{t("onboarding.picker.description")}</Text>
+        </View>
+        <View style={styles.methods}>
+          {methods.map((method, index) => (
+            <ConnectionMethodRow key={method.key} method={method} hasTopBorder={index > 0} />
+          ))}
+        </View>
+        {canRetryLocal ? (
+          <OnboardingButton
+            variant="outline"
+            leftIcon={RefreshCw}
+            onPress={onRetryLocal}
+            testID="onboarding-picker-retry-local"
+          >
+            {t("onboarding.actions.retryLocal")}
+          </OnboardingButton>
+        ) : null}
+        <Text style={styles.versionLabel}>{versionLabel}</Text>
+      </OnboardingCard>
     </View>
   );
 }
@@ -125,28 +117,33 @@ interface ConnectionMethodRowProps {
 }
 
 // Renders one selectable connection method row without owning the connection flow.
+// Hover tints its own row (self-contained: no nested Pressables; hover state is read only by this row's style).
 function ConnectionMethodRow({ method, hasTopBorder }: ConnectionMethodRowProps) {
   const Icon = METHOD_ICON[method.key];
+  const [hovered, setHovered] = useState(false);
+  const handleHoverIn = useCallback(() => setHovered(true), []);
+  const handleHoverOut = useCallback(() => setHovered(false), []);
   const rowStyle = useMemo(
-    () => [styles.row, hasTopBorder ? styles.rowBorder : null],
-    [hasTopBorder],
+    () => [styles.row, hasTopBorder ? styles.rowBorder : null, hovered ? styles.rowHover : null],
+    [hasTopBorder, hovered],
   );
-
   return (
     <Pressable
       accessibilityRole="button"
       onPress={method.onPress}
-      style={rowStyle}
       testID={method.testID}
+      onHoverIn={handleHoverIn}
+      onHoverOut={handleHoverOut}
+      style={rowStyle}
     >
       <View style={styles.rowIcon}>
-        <Icon size={16} uniProps={accentIconMapping} />
+        <Icon color={codePilotLight.foregroundMuted} size={16} />
       </View>
       <View style={styles.rowCopy}>
         <Text style={styles.rowTitle}>{method.title}</Text>
         <Text style={styles.rowDescription}>{method.description}</Text>
       </View>
-      <ThemedChevronRight size={16} uniProps={foregroundMutedIconMapping} />
+      <ChevronRight color={codePilotLight.foregroundMuted} size={16} />
     </Pressable>
   );
 }
@@ -159,52 +156,45 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     paddingHorizontal: theme.spacing[6],
     paddingVertical: theme.spacing[8],
-    gap: theme.spacing[4],
-  },
-  badgeIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: theme.borderRadius.xl,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.colors.surface2,
   },
   copyBlock: {
     alignItems: "center",
     gap: theme.spacing[2],
   },
   title: {
-    color: theme.colors.foreground,
-    fontSize: theme.fontSize.lg,
-    fontWeight: theme.fontWeight.normal,
+    color: codePilotLight.foreground,
+    fontSize: theme.fontSize.xl,
+    fontWeight: theme.fontWeight.semibold,
     textAlign: "center",
   },
   subtitle: {
-    color: theme.colors.foregroundMuted,
+    color: codePilotLight.foregroundMuted,
     fontSize: theme.fontSize.sm,
     textAlign: "center",
-    maxWidth: 420,
+    maxWidth: 344,
     lineHeight: 20,
   },
-  card: {
+  methods: {
     width: "100%",
-    maxWidth: 420,
+    backgroundColor: codePilotLight.surface,
     borderWidth: 1,
-    borderColor: theme.colors.border,
+    borderColor: codePilotLight.border,
     borderRadius: theme.borderRadius.xl,
-    backgroundColor: theme.colors.surface1,
     overflow: "hidden",
   },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[3],
-    paddingVertical: theme.spacing[4],
-    paddingHorizontal: theme.spacing[4],
+    paddingVertical: theme.spacing[3],
+    paddingHorizontal: theme.spacing[3],
   },
   rowBorder: {
     borderTopWidth: 1,
-    borderTopColor: theme.colors.border,
+    borderTopColor: codePilotLight.border,
+  },
+  rowHover: {
+    backgroundColor: codePilotLight.hoverSurface,
   },
   rowIcon: {
     width: 32,
@@ -212,7 +202,7 @@ const styles = StyleSheet.create((theme) => ({
     borderRadius: theme.borderRadius.lg,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.colors.surface2,
+    backgroundColor: codePilotLight.muted,
   },
   rowCopy: {
     flex: 1,
@@ -220,21 +210,16 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing[1],
   },
   rowTitle: {
-    color: theme.colors.foreground,
+    color: codePilotLight.foreground,
     fontSize: theme.fontSize.sm,
   },
   rowDescription: {
-    color: theme.colors.foregroundMuted,
+    color: codePilotLight.foregroundMuted,
     fontSize: theme.fontSize.xs,
-  },
-  retryButton: {
-    width: "100%",
-    maxWidth: 420,
   },
   versionLabel: {
-    color: theme.colors.foregroundMuted,
+    color: codePilotLight.foregroundMuted,
     fontSize: theme.fontSize.xs,
     textAlign: "center",
-    marginTop: theme.spacing[1],
   },
 }));

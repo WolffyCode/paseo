@@ -1,15 +1,45 @@
-import { ActivityIndicator, Text, View } from "react-native";
+import { useEffect, useMemo, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, withUnistyles } from "react-native-unistyles";
-import { Button } from "@/components/ui/button";
-import type { Theme } from "@/styles/theme";
+import { Animated, Easing, StyleSheet as RNStyleSheet, Text, View } from "react-native";
+import { StyleSheet } from "react-native-unistyles";
+import { codePilotLight } from "@/styles/codepilot-theme";
+import { OnboardingButton } from "./onboarding-button";
+import { OnboardingCard } from "./onboarding-card";
 
 export interface ConnectingStageProps {
   onCancel: () => void;
 }
 
-const ThemedActivityIndicator = withUnistyles(ActivityIndicator);
-const accentSpinnerMapping = (theme: Theme) => ({ color: theme.colors.accent });
+// Drives the codePilot ring spinner (grey track + blue cap) with a looping native-driver rotation.
+// Ring colors/size are fixed codePilot values held in a plain RN StyleSheet so the animated node
+// never mixes Unistyles' shadow-tree proxy with the rotation transform.
+function ConnectingSpinner() {
+  const rotation = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [rotation]);
+  const animatedStyle = useMemo(
+    () => [
+      spinnerStyles.ring,
+      {
+        transform: [
+          { rotate: rotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "360deg"] }) },
+        ],
+      },
+    ],
+    [rotation],
+  );
+  return <Animated.View style={animatedStyle} />;
+}
 
 // Renders the local-daemon connection progress surface with only a cancel dispatch.
 export function ConnectingStage({ onCancel }: ConnectingStageProps) {
@@ -17,16 +47,27 @@ export function ConnectingStage({ onCancel }: ConnectingStageProps) {
 
   return (
     <View style={styles.stage} testID="onboarding-connecting">
-      <ThemedActivityIndicator size="large" uniProps={accentSpinnerMapping} />
-      <View style={styles.copyBlock}>
+      <OnboardingCard>
+        <ConnectingSpinner />
         <Text style={styles.title}>{t("onboarding.connecting.title")}</Text>
-      </View>
-      <Button variant="ghost" size="sm" onPress={onCancel} testID="onboarding-cancel-local">
-        {t("onboarding.actions.cancel")}
-      </Button>
+        <OnboardingButton variant="ghost" onPress={onCancel} testID="onboarding-cancel-local">
+          {t("onboarding.actions.cancel")}
+        </OnboardingButton>
+      </OnboardingCard>
     </View>
   );
 }
+
+const spinnerStyles = RNStyleSheet.create({
+  ring: {
+    width: 34,
+    height: 34,
+    borderRadius: 9999,
+    borderWidth: 3,
+    borderColor: codePilotLight.muted,
+    borderTopColor: codePilotLight.primary,
+  },
+});
 
 const styles = StyleSheet.create((theme) => ({
   stage: {
@@ -36,14 +77,9 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     paddingHorizontal: theme.spacing[6],
     paddingVertical: theme.spacing[8],
-    gap: theme.spacing[6],
-  },
-  copyBlock: {
-    alignItems: "center",
-    gap: theme.spacing[2],
   },
   title: {
-    color: theme.colors.foreground,
+    color: codePilotLight.foreground,
     fontSize: theme.fontSize.lg,
     fontWeight: theme.fontWeight.normal,
     textAlign: "center",

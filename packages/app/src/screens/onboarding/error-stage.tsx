@@ -1,9 +1,10 @@
 import { useTranslation } from "react-i18next";
 import { Text, View } from "react-native";
-import { StyleSheet, withUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 import { RefreshCw, Stethoscope, TriangleAlert } from "lucide-react-native";
-import { Button } from "@/components/ui/button";
-import type { Theme } from "@/styles/theme";
+import { codePilotLight } from "@/styles/codepilot-theme";
+import { OnboardingButton } from "./onboarding-button";
+import { OnboardingCard } from "./onboarding-card";
 
 export interface ErrorStageProps {
   reason: string;
@@ -11,9 +12,6 @@ export interface ErrorStageProps {
   onUseOtherMethods: () => void;
   onOpenDiagnostics: () => void;
 }
-
-const ThemedTriangleAlert = withUnistyles(TriangleAlert);
-const destructiveIconMapping = (theme: Theme) => ({ color: theme.colors.destructive });
 
 // Renders the local-daemon failure recovery surface without parsing raw daemon errors.
 export function ErrorStage({
@@ -26,46 +24,45 @@ export function ErrorStage({
 
   return (
     <View style={styles.stage} testID="onboarding-error">
-      <View style={styles.alert}>
-        <ThemedTriangleAlert size={18} uniProps={destructiveIconMapping} />
-        <View style={styles.alertCopy}>
-          <Text style={styles.alertTitle}>{t("onboarding.error.title")}</Text>
-          <Text style={styles.alertDescription}>{t("onboarding.error.description")}</Text>
-          {reason ? (
-            <Text style={styles.reason} numberOfLines={3}>
-              {t("onboarding.error.reasonLabel", { reason })}
-            </Text>
-          ) : null}
+      <OnboardingCard>
+        <View style={styles.alert}>
+          <TriangleAlert color={codePilotLight.danger} size={18} />
+          <View style={styles.alertCopy}>
+            <Text style={styles.alertTitle}>{t("onboarding.error.title")}</Text>
+            <Text style={styles.alertDescription}>{t("onboarding.error.description")}</Text>
+            {reason ? (
+              <Text style={styles.reason} numberOfLines={3}>
+                {t("onboarding.error.reasonLabel", { reason })}
+              </Text>
+            ) : null}
+          </View>
         </View>
-      </View>
-      <View style={styles.actions}>
-        <Button
-          variant="default"
-          size="md"
-          leftIcon={RefreshCw}
-          onPress={onRetry}
-          testID="onboarding-error-retry-local"
+        <View style={styles.actions}>
+          <OnboardingButton
+            variant="primary"
+            leftIcon={RefreshCw}
+            onPress={onRetry}
+            testID="onboarding-error-retry-local"
+          >
+            {t("onboarding.actions.retry")}
+          </OnboardingButton>
+          <OnboardingButton
+            variant="outline"
+            onPress={onUseOtherMethods}
+            testID="onboarding-use-other-methods"
+          >
+            {t("onboarding.actions.useOtherMethods")}
+          </OnboardingButton>
+        </View>
+        <OnboardingButton
+          variant="ghost"
+          leftIcon={Stethoscope}
+          onPress={onOpenDiagnostics}
+          testID="onboarding-open-diagnostics"
         >
-          {t("onboarding.actions.retry")}
-        </Button>
-        <Button
-          variant="outline"
-          size="md"
-          onPress={onUseOtherMethods}
-          testID="onboarding-use-other-methods"
-        >
-          {t("onboarding.actions.useOtherMethods")}
-        </Button>
-      </View>
-      <Button
-        variant="ghost"
-        size="sm"
-        leftIcon={Stethoscope}
-        onPress={onOpenDiagnostics}
-        testID="onboarding-open-diagnostics"
-      >
-        {t("onboarding.actions.diagnostics")}
-      </Button>
+          {t("onboarding.actions.diagnostics")}
+        </OnboardingButton>
+      </OnboardingCard>
     </View>
   );
 }
@@ -78,19 +75,18 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     paddingHorizontal: theme.spacing[6],
     paddingVertical: theme.spacing[8],
-    gap: theme.spacing[4],
   },
   alert: {
     width: "100%",
-    maxWidth: 420,
     flexDirection: "row",
     alignItems: "flex-start",
-    gap: theme.spacing[3],
-    borderWidth: 1,
-    borderColor: theme.colors.destructive,
-    borderRadius: theme.borderRadius.xl,
+    gap: 10,
     paddingVertical: theme.spacing[3],
-    paddingHorizontal: theme.spacing[4],
+    paddingHorizontal: theme.spacing[3],
+    backgroundColor: codePilotLight.dangerSurface,
+    borderWidth: 1,
+    borderColor: codePilotLight.dangerBorder,
+    borderRadius: theme.borderRadius.md,
   },
   alertCopy: {
     flex: 1,
@@ -98,24 +94,23 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing[1],
   },
   alertTitle: {
-    color: theme.colors.destructive,
+    color: codePilotLight.foreground,
     fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
+    fontWeight: theme.fontWeight.semibold,
   },
   alertDescription: {
-    color: theme.colors.foregroundMuted,
+    color: codePilotLight.foregroundMuted,
     fontSize: theme.fontSize.xs,
     lineHeight: 18,
   },
   reason: {
-    color: theme.colors.foregroundMuted,
+    color: codePilotLight.foregroundMuted,
     fontSize: theme.fontSize.xs,
     fontFamily: theme.fontFamily.mono,
     lineHeight: 18,
   },
   actions: {
     width: "100%",
-    maxWidth: 420,
-    gap: theme.spacing[3],
+    gap: 10,
   },
 }));

@@ -20,6 +20,7 @@ import { shouldUseDesktopDaemon } from "@/desktop/daemon/desktop-daemon";
 import { formatVersionWithPrefix } from "@/desktop/updates/desktop-updates";
 import { useOnboardingStore, useOnboardingStoreHydrated } from "@/stores/onboarding-store";
 import { resolveAppVersion } from "@/utils/app-version";
+import { codePilotLight } from "@/styles/codepilot-theme";
 import { ConnectingStage } from "./connecting-stage";
 import { ErrorStage } from "./error-stage";
 import { MethodPickerStage } from "./method-picker-stage";
@@ -161,10 +162,10 @@ function useHostRuntimeRevision(): number {
   );
 }
 
-const styles = StyleSheet.create((theme) => ({
+const styles = StyleSheet.create({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.surface0,
+    backgroundColor: codePilotLight.canvas,
   },
   scrollView: {
     flex: 1,
@@ -173,4 +174,4 @@ const styles = StyleSheet.create((theme) => ({
     flexGrow: 1,
     minHeight: "100%",
   },
-}));
+});
