@@ -694,6 +694,12 @@ export const AgentSnapshotPayloadSchema = z.object({
   attentionTimestamp: z.string().nullable().optional(),
   archivedAt: z.string().nullable().optional(),
   providerUnavailable: z.boolean().optional(),
+  // True when the daemon surfaced this agent by observing a provider's own
+  // internal subagent (Claude Task / Codex sub-agent). Observed agents are
+  // read-only: the client hides the composer and shows a read-only banner.
+  // Additive + optional so old daemons (no field) and old clients (ignore it)
+  // both keep parsing.
+  observed: z.boolean().optional(),
 });
 
 export type AgentSnapshotPayload = z.infer<typeof AgentSnapshotPayloadSchema>;
