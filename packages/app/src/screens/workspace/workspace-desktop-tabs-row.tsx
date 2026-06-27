@@ -823,8 +823,8 @@ function TabChip({
   );
 
   const tabAccessibilityState = useMemo(() => ({ selected: isActive }), [isActive]);
-  const tabFocusIndicatorStyle = useMemo(
-    () => [styles.tabFocusIndicator, !isFocused && styles.tabFocusIndicatorUnfocused],
+  const tabActivePillStyle = useMemo(
+    () => [styles.tabActivePill, !isFocused && styles.tabActivePillUnfocused],
     [isFocused],
   );
   const tabLabelSkeletonStyle = useMemo(
@@ -861,7 +861,7 @@ function TabChip({
               accessibilityState={tabAccessibilityState}
               aria-selected={isActive}
             >
-              {isActive && <View style={tabFocusIndicatorStyle} />}
+              {isActive && <View pointerEvents="none" style={tabActivePillStyle} />}
               <TabHandleContent
                 presentation={presentation}
                 isHighlighted={isHighlighted}
@@ -1104,10 +1104,13 @@ export function WorkspaceDesktopTabsRow({
         activeDragTabId !== null &&
         tabDropPreviewIndex === tabs.length &&
         index === tabs.length - 1;
+      const nextTabActive = tabs[index + 1]?.isActive ?? false;
+      const showRightDivider = index < tabs.length - 1 && !item.isActive && !nextTabActive;
 
       return (
         <ResolvedDesktopTabChip
           key={`${item.tab.key}:${item.tab.kind}`}
+          showRightDivider={showRightDivider}
           item={item}
           isFocused={isFocused}
           isDragging={isActive}
@@ -1157,7 +1160,7 @@ export function WorkspaceDesktopTabsRow({
       setHoveredCloseTabKey,
       tabMenuLabels,
       tabDropPreviewIndex,
-      tabs.length,
+      tabs,
     ],
   );
 
@@ -1292,6 +1295,7 @@ function ResolvedDesktopTabChip({
   onCloseTab,
   labels,
   dragHandleProps,
+  showRightDivider,
   showDropIndicatorBefore,
   showDropIndicatorAfter,
 }: {
@@ -1318,6 +1322,7 @@ function ResolvedDesktopTabChip({
   onCloseTab: (tabId: string) => Promise<void> | void;
   labels: WorkspaceTabMenuLabels;
   dragHandleProps: DraggableListDragHandleProps | undefined;
+  showRightDivider: boolean;
   showDropIndicatorBefore: boolean;
   showDropIndicatorAfter: boolean;
 }) {
@@ -1369,7 +1374,7 @@ function ResolvedDesktopTabChip({
             : presentation.label;
 
         return (
-          <View style={styles.tabSlot}>
+          <View style={showRightDivider ? TAB_SLOT_DIVIDER_STYLE : styles.tabSlot}>
             {showDropIndicatorBefore ? <View style={TAB_DROP_INDICATOR_BEFORE_STYLE} /> : null}
             <TabChip
               tab={item.tab}
@@ -1434,8 +1439,7 @@ const styles = StyleSheet.create((theme) => ({
   tab: {
     paddingHorizontal: theme.spacing[2],
     paddingVertical: theme.spacing[1],
-    borderRightWidth: 1,
-    borderRightColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[1],
@@ -1444,6 +1448,12 @@ const styles = StyleSheet.create((theme) => ({
   tabSlot: {
     position: "relative",
     overflow: "visible",
+  },
+  // Codex-style separator: a thin divider between adjacent inactive tabs. Suppressed next to the
+  // active tab so its highlight pill stands alone, and never drawn after the last tab.
+  tabSlotDivider: {
+    borderRightWidth: 1,
+    borderRightColor: theme.colors.border,
   },
   tabHandle: {
     flexDirection: "row",
@@ -1456,16 +1466,20 @@ const styles = StyleSheet.create((theme) => ({
   tabIcon: {
     flexShrink: 0,
   },
-  tabFocusIndicator: {
+  // Codex-style active highlight: a neutral rounded pill behind the tab content (inset from the bar
+  // edges), not a colored top bar. Focused pane uses a stronger surface; an unfocused pane's active
+  // tab dims to surface1 so split focus stays legible.
+  tabActivePill: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: theme.colors.accent,
+    top: 4,
+    bottom: 4,
+    left: 2,
+    right: 2,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surface2,
   },
-  tabFocusIndicatorUnfocused: {
-    backgroundColor: theme.colors.borderAccent,
+  tabActivePillUnfocused: {
+    backgroundColor: theme.colors.surface1,
   },
   tabDropIndicator: {
     position: "absolute",
@@ -1509,6 +1523,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   tabLabelActive: {
     color: theme.colors.foreground,
+    fontWeight: theme.fontWeight.medium,
   },
   tabCloseButton: {
     width: 18,
@@ -1578,3 +1593,4 @@ const styles = StyleSheet.create((theme) => ({
 
 const TAB_DROP_INDICATOR_BEFORE_STYLE = [styles.tabDropIndicator, styles.tabDropIndicatorBefore];
 const TAB_DROP_INDICATOR_AFTER_STYLE = [styles.tabDropIndicator, styles.tabDropIndicatorAfter];
+const TAB_SLOT_DIVIDER_STYLE = [styles.tabSlot, styles.tabSlotDivider];
