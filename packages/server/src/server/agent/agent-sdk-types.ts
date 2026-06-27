@@ -406,6 +406,22 @@ export type AgentStreamEvent =
       timestamp?: string;
     }
   | {
+      // Emitted by a provider that runs its own internal subagent (Claude Task /
+      // Codex sub-agent) so the daemon can surface that subagent as a read-only
+      // "observed" agent. Purely observational — providers keep orchestrating
+      // their subagents unchanged. `callId` is the parent's `sub_agent`
+      // tool-call id (stable per child). `item`, when present, is one child
+      // timeline item to append to the observed agent's read-only timeline. The
+      // manager consumes this event and never forwards it to the parent stream.
+      type: "sub_agent_observation";
+      provider: AgentProvider;
+      callId: string;
+      subAgentType?: string;
+      description?: string;
+      status: "running" | "completed" | "failed" | "canceled";
+      item?: AgentTimelineItem;
+    }
+  | {
       type: "permission_requested";
       provider: AgentProvider;
       request: AgentPermissionRequest;

@@ -10,6 +10,11 @@ import {
   isDelegatedAgent,
   PARENT_AGENT_ID_LABEL,
 } from "@getpaseo/protocol/agent-labels";
+import {
+  observedSubAgentId,
+  observedSubAgentStatus,
+  observedSubAgentTitle,
+} from "./observed-sub-agents.js";
 import type { Logger } from "pino";
 import { z } from "zod";
 import type { TerminalManager } from "../../terminal/terminal-manager.js";
@@ -70,6 +75,20 @@ const INTERRUPT_SESSION_TIMEOUT_MS = 2_000;
 const STORED_AGENT_CAPABILITIES: AgentCapabilityFlags = {
   supportsStreaming: false,
   supportsSessionPersistence: true,
+  supportsDynamicModes: false,
+  supportsMcpServers: false,
+  supportsReasoningStream: false,
+  supportsToolInvocations: true,
+  supportsRewindConversation: false,
+  supportsRewindFiles: false,
+  supportsRewindBoth: false,
+};
+
+// Observed subagents are pure mirrors of a provider's internal subagent: the
+// user can read their timeline but can never send, interrupt, or rewind them.
+const OBSERVED_AGENT_CAPABILITIES: AgentCapabilityFlags = {
+  supportsStreaming: false,
+  supportsSessionPersistence: false,
   supportsDynamicModes: false,
   supportsMcpServers: false,
   supportsReasoningStream: false,
@@ -290,6 +309,21 @@ interface ManagedAgentBase {
    */
   internal?: boolean;
   /**
+   * Observed agents are read-only records the daemon synthesizes by watching a
+   * provider's own internal subagent (Claude Task / Codex sub-agent). Unlike
+   * internal agents they stay visible to global subscribers; the client renders
+   * them read-only. They are never persisted (rebuilt live from the parent).
+   * The record is sessionless (carried as a closed ManagedAgent), so the tree
+   * status comes from `observedStatus`, not `lifecycle`.
+   */
+  observed?: boolean;
+  observedStatus?: AgentLifecycleStatus;
+  /**
+   * Title carried on the live record. Persisted agents resolve their title from
+   * storage; observed agents are not persisted, so they carry it here.
+   */
+  title?: string | null;
+  /**
    * User-defined labels for categorizing agents (e.g., { surface: "workspace" }).
    */
   labels: Record<string, string>;
@@ -508,6 +542,10 @@ export class AgentManager {
   private readonly clients = new Map<AgentProvider, AgentClient>();
   private readonly providerEnabled = new Map<AgentProvider, boolean>();
   private readonly agents = new Map<string, LiveManagedAgent>();
+  // Read-only records synthesized by observing a provider's internal subagents.
+  // Kept out of `agents` (sessionless, never persisted) and unioned into the
+  // client-facing read paths so the tree + conversation view reuse them.
+  private readonly observedAgents = new Map<string, ManagedAgentClosed>();
   private readonly timelineStore = new InMemoryAgentTimelineStore();
   private readonly agentsAwaitingInitialSnapshotPersist = new Set<string>();
   private readonly sessionEventTails = new Map<string, Promise<void>>();
@@ -683,7 +721,7 @@ export class AgentManager {
 
     if (options?.replayState !== false) {
       if (record.agentId) {
-        const agent = this.agents.get(record.agentId);
+        const agent = this.agents.get(record.agentId) ?? this.observedAgents.get(record.agentId);
         if (agent) {
           callback({
             type: "agent_state",
@@ -696,6 +734,13 @@ export class AgentManager {
           if (agent.internal) {
             continue;
           }
+          callback({
+            type: "agent_state",
+            agent: { ...agent },
+          });
+        }
+        // Observed subagents stay visible to global subscribers (read-only).
+        for (const agent of this.observedAgents.values()) {
           callback({
             type: "agent_state",
             agent: { ...agent },
@@ -861,26 +906,36 @@ export class AgentManager {
   }
 
   getAgent(id: string): ManagedAgent | null {
-    const agent = this.agents.get(id);
+    const agent = this.agents.get(id) ?? this.observedAgents.get(id);
     return agent ? { ...agent } : null;
   }
 
   getTimeline(id: string): AgentTimelineItem[] {
-    this.requireAgent(id);
+    this.requireAgentOrObserved(id);
     return this.timelineStore.getItems(id);
   }
 
   async getTimelineRows(id: string): Promise<AgentTimelineRow[]> {
-    this.requireAgent(id);
-    if (this.durableTimelineStore) {
+    this.requireAgentOrObserved(id);
+    // Observed agents are never durable; serve their live in-memory timeline.
+    if (this.durableTimelineStore && !this.observedAgents.has(id)) {
       return await this.durableTimelineStore.getCommittedRows(id);
     }
     return this.timelineStore.getRows(id);
   }
 
   fetchTimeline(id: string, options?: AgentTimelineFetchOptions): AgentTimelineFetchResult {
-    this.requireAgent(id);
+    this.requireAgentOrObserved(id);
     return this.timelineStore.fetch(id, options);
+  }
+
+  // Like requireAgent, but also accepts observed subagents — their read-only
+  // timeline is served through the same store as any agent's.
+  private requireAgentOrObserved(id: string): void {
+    if (this.observedAgents.has(id)) {
+      return;
+    }
+    this.requireAgent(id);
   }
 
   async createAgent(
@@ -2596,6 +2651,7 @@ export class AgentManager {
   ): ManagedAgentClosed {
     this.agentStreamCoalescer.flushAndDiscard(agent.id);
     this.agents.delete(agent.id);
+    this.dropObservedSubAgents(agent.id);
     this.previousStatuses.delete(agent.id);
     if (agent.unsubscribeSession) {
       agent.unsubscribeSession();
@@ -3065,6 +3121,11 @@ export class AgentManager {
         return undefined;
       case "timeline":
         return this.onStreamTimelineEvent({ agent, event, options, isForegroundEvent, flags });
+      case "sub_agent_observation":
+        this.applyObservedSubAgent(agent, event);
+        flags.shouldDispatchEvent = false;
+        flags.shouldNotifyWaiters = false;
+        return undefined;
       case "turn_completed":
         this.onStreamTurnCompleted({ agent, event, eventTurnId, isForegroundEvent });
         return undefined;
@@ -3342,6 +3403,92 @@ export class AgentManager {
     }
 
     return event;
+  }
+
+  // Surfaces a provider's internal subagent as a read-only observed agent. Each
+  // observation upserts a sessionless record nested under the parent, broadcasts
+  // it via agent_state so it appears in the tree, and streams any observed child
+  // timeline item so the read-only view updates live. Purely a mirror of what the
+  // provider already emits — it never touches how the provider runs its subagent.
+  private applyObservedSubAgent(
+    parent: ActiveManagedAgent,
+    event: Extract<AgentStreamEvent, { type: "sub_agent_observation" }>,
+  ): void {
+    const id = observedSubAgentId(parent.id, event.callId);
+    const status = observedSubAgentStatus(event.status);
+    const title = observedSubAgentTitle({
+      description: event.description,
+      subAgentType: event.subAgentType,
+    });
+    const now = new Date();
+    const existing = this.observedAgents.get(id);
+    const record: ManagedAgentClosed = existing
+      ? { ...existing, observedStatus: status, title, updatedAt: now }
+      : this.buildObservedSubAgentRecord({ id, parent, title, status, createdAt: now });
+    this.observedAgents.set(id, record);
+
+    if (!this.timelineStore.has(id)) {
+      this.timelineStore.initialize(id, { timestamp: now.toISOString() });
+    }
+    if (event.item) {
+      this.recordAndDispatchTimelineItem(id, event.item, event.provider);
+    }
+
+    this.dispatch({ type: "agent_state", agent: { ...record } });
+  }
+
+  private buildObservedSubAgentRecord(input: {
+    id: string;
+    parent: ActiveManagedAgent;
+    title: string;
+    status: AgentLifecycleStatus;
+    createdAt: Date;
+  }): ManagedAgentClosed {
+    const { id, parent, title, status, createdAt } = input;
+    return {
+      id,
+      provider: parent.provider,
+      cwd: parent.cwd,
+      ...(parent.workspaceId ? { workspaceId: parent.workspaceId } : {}),
+      capabilities: OBSERVED_AGENT_CAPABILITIES,
+      config: { provider: parent.provider, cwd: parent.cwd },
+      lifecycle: "closed",
+      session: null,
+      createdAt,
+      updatedAt: createdAt,
+      availableModes: [],
+      currentModeId: null,
+      pendingPermissions: new Map(),
+      bufferedPermissionResolutions: new Map(),
+      inFlightPermissionResponses: new Set(),
+      pendingReplacement: false,
+      activeForegroundTurnId: null,
+      foregroundTurnWaiters: new Set(),
+      finalizedForegroundTurnIds: new Set(),
+      unsubscribeSession: null,
+      persistence: null,
+      historyPrimed: true,
+      lastUserMessageAt: null,
+      attention: { requiresAttention: false },
+      observed: true,
+      observedStatus: status,
+      title,
+      labels: { [PARENT_AGENT_ID_LABEL]: parent.id },
+    };
+  }
+
+  // Drops the observed subagents nested under a parent and tells clients to
+  // remove them. Called when the parent's runtime goes away, since observed
+  // records live only as long as the parent session is observed.
+  private dropObservedSubAgents(parentAgentId: string): void {
+    for (const [id, record] of this.observedAgents) {
+      if (record.labels[PARENT_AGENT_ID_LABEL] !== parentAgentId) {
+        continue;
+      }
+      this.observedAgents.delete(id);
+      this.timelineStore.delete(id);
+      this.dispatch({ type: "agent_state", agent: { ...record, observedStatus: "closed" } });
+    }
   }
 
   private async appendSystemErrorTimelineMessage(

@@ -119,15 +119,20 @@ export function toAgentPayload(
     createdAt: agent.createdAt.toISOString(),
     updatedAt: agent.updatedAt.toISOString(),
     lastUserMessageAt: agent.lastUserMessageAt ? agent.lastUserMessageAt.toISOString() : null,
-    status: agent.lifecycle,
+    // Observed agents are carried as sessionless (closed) records; their tree
+    // status rides on observedStatus instead of the pinned "closed" lifecycle.
+    status: agent.observed ? (agent.observedStatus ?? agent.lifecycle) : agent.lifecycle,
     capabilities: cloneCapabilities(agent.capabilities),
     currentModeId: agent.currentModeId,
     availableModes: cloneAvailableModes(agent.availableModes),
     features: normalizeFeatures(agent.features),
     pendingPermissions: sanitizePendingPermissions(agent.pendingPermissions),
     persistence: sanitizePersistenceHandle(agent.persistence),
-    title: options?.title ?? null,
+    // Observed agents aren't persisted, so their title rides on the live record
+    // rather than coming from storage via options.title.
+    title: options?.title ?? agent.title ?? null,
     labels: agent.labels,
+    ...(agent.observed ? { observed: true } : {}),
   };
 
   const usage = sanitizeUsage(agent.lastUsage);
