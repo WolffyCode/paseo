@@ -1446,7 +1446,10 @@ describe("Codex app-server provider", () => {
       },
     });
 
-    expect(events).toEqual([
+    // The parent stream still carries the sub-agent tool call unchanged; the
+    // read-only observation rides a separate event (asserted in its own test).
+    const timelineEvents = events.filter((event) => event.type === "timeline");
+    expect(timelineEvents).toEqual([
       {
         type: "timeline",
         provider: "codex",
@@ -1523,6 +1526,54 @@ describe("Codex app-server provider", () => {
         actions: [],
       },
     });
+  });
+
+  test("emits sub_agent_observation events mirroring the child sub-agent timeline", () => {
+    const session = createSession();
+    const events: AgentStreamEvent[] = [];
+    session.subscribe((event) => events.push(event));
+
+    asInternals(session).handleNotification("item/started", {
+      threadId: "test-thread",
+      item: {
+        type: "collabAgentToolCall",
+        id: "call-observe-child",
+        tool: "spawnAgent",
+        status: "inProgress",
+        prompt: "查询北京今日天气",
+        receiverThreadIds: ["child-thread-weather"],
+        agentsStates: {},
+      },
+    });
+    asInternals(session).handleNotification("item/completed", {
+      threadId: "child-thread-weather",
+      item: {
+        type: "agentMessage",
+        id: "child-weather-msg",
+        text: "晴，气温 24–31°C。",
+      },
+    });
+
+    const observations = events.filter((event) => event.type === "sub_agent_observation");
+
+    // The parent's sub-agent tool-call surfaces the observed node, carrying the
+    // call id + description so the daemon can nest + title the read-only record.
+    expect(observations.length).toBeGreaterThan(0);
+    expect(observations[0]).toMatchObject({
+      type: "sub_agent_observation",
+      provider: "codex",
+      callId: "call-observe-child",
+      description: "查询北京今日天气",
+      status: "running",
+    });
+
+    // The child's own message is mirrored as a read-only timeline item.
+    const withItem = observations.find((event) => event.item !== undefined);
+    expect(withItem?.item).toMatchObject({
+      type: "assistant_message",
+      text: "晴，气温 24–31°C。",
+    });
+    expect(withItem?.callId).toBe("call-observe-child");
   });
 
   test("keeps the parent sub-agent running when a child command fails during the child turn", () => {

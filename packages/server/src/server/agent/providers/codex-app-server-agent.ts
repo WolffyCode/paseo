@@ -4404,6 +4404,8 @@ export class CodexAppServerAgentSession implements AgentSession {
     for (const receiverThreadId of receiverThreadIds) {
       this.subAgentCallIdByChildThreadId.set(receiverThreadId, timelineItem.callId);
     }
+
+    this.emitSubAgentObservation(timelineItem.callId, timelineItem.status);
   }
 
   private upsertSubAgentChildItem(callId: string, itemId: string, item: AgentTimelineItem): void {
@@ -4415,12 +4417,38 @@ export class CodexAppServerAgentSession implements AgentSession {
       state.childItemOrder.push(itemId);
     }
     state.childItems.set(itemId, item);
+    this.emitSubAgentObservation(callId, "running", item);
   }
 
   private getSubAgentChildTimeline(state: CodexSubAgentCallState): AgentTimelineItem[] {
     return state.childItemOrder
       .map((itemId) => state.childItems.get(itemId))
       .filter((item): item is AgentTimelineItem => Boolean(item));
+  }
+
+  // Mirrors a sub-agent observation to the daemon so it can surface the child as
+  // a read-only observed agent. Purely additive to the existing sub_agent tool
+  // call — it never changes how Codex orchestrates the sub-agent. `item`, when
+  // present, is one child timeline item to append to the observed timeline.
+  private emitSubAgentObservation(
+    callId: string,
+    status: ToolCallTimelineItem["status"],
+    item?: AgentTimelineItem,
+  ): void {
+    const state = this.subAgentCallsByCallId.get(callId);
+    if (!state || state.toolCall.detail.type !== "sub_agent") {
+      return;
+    }
+    const detail = state.toolCall.detail;
+    this.emitEvent({
+      type: "sub_agent_observation",
+      provider: CODEX_PROVIDER,
+      callId,
+      ...(detail.subAgentType ? { subAgentType: detail.subAgentType } : {}),
+      ...(detail.description ? { description: detail.description } : {}),
+      status,
+      ...(item ? { item } : {}),
+    });
   }
 
   private emitSubAgentActivityUpdate(
@@ -4458,6 +4486,11 @@ export class CodexAppServerAgentSession implements AgentSession {
           };
     state.toolCall = nextToolCall;
     this.emitEvent({ type: "timeline", provider: CODEX_PROVIDER, item: nextToolCall });
+    // Running activity is already mirrored per child item; only forward the
+    // terminal transition so the observed node settles to idle/error.
+    if (resolvedStatus !== "running") {
+      this.emitSubAgentObservation(callId, resolvedStatus);
+    }
   }
 
   private handleSubAgentChildItemCompleted(
