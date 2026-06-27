@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · 设置 · 应用段 · 关于 About</title>
+    <style>
+      /* =========================================================================
+         主题令牌 = CodePilot「github」主题（themes/github.json 原值）· 内部命名 codePilot
+         —— 与「CodePilot 主布局」(2026-06-27-codepilot-layout/ui.html) 整段 <style> 同源。
+         GitHub Primer 浅色：冷灰中性 + GitHub 蓝 #0969da 仅点缀；选中态 = 很淡的灰
+         （sidebar-accent #eaeef2 + 深灰字 #3d444d），绝非黑底白字 / 绝非 primary。
+         卡片 = GitHub 扁平：1px #d1d9e0 边 + 12px 圆角 + 轻投影（--card-drop），去玻璃/去厚投影。
+         ========================================================================= */
+      :root {
+        --bg: oklch(1 0 0);                        /* #ffffff 主背景/卡面 */
+        --fg: oklch(0.254 0.011 254);             /* #1f2328 主文字·近黑 */
+        --card: oklch(1 0 0);                      /* #ffffff */
+        --primary: oklch(0.540 0.191 257.5);      /* #0969da GitHub 蓝 · 仅按钮/链接/focus/品牌强调 */
+        --primary-fg: oklch(1 0 0);               /* #ffffff 蓝底白字 */
+        --secondary: oklch(0.947 0.007 247.9);    /* #eaeef2 次级浅灰底 */
+        --secondary-fg: oklch(0.338 0.015 252.3); /* #3d444d */
+        --muted: oklch(0.947 0.007 247.9);        /* #eaeef2 */
+        --muted-fg: oklch(0.531 0.017 251.3);     /* #59636e 次要文字灰 */
+        --accent: oklch(0.978 0.003 247.9);       /* #f6f8fa 极淡冷灰·hover 底 */
+        --accent-fg: oklch(0.338 0.015 252.3);    /* #3d444d */
+        --border: oklch(0.876 0.012 248);         /* #d1d9e0 边框浅灰 */
+        --input: oklch(0.876 0.012 248);
+        --ring: oklch(0.540 0.191 257.5);         /* #0969da focus 蓝环 */
+        --sidebar: oklch(0.978 0.003 247.9);      /* #f6f8fa 左栏背景·浅冷灰 */
+        --sidebar-accent: oklch(0.947 0.007 247.9);    /* #eaeef2 选中/hover 高亮·很淡的灰（不是黑！） */
+        --sidebar-accent-fg: oklch(0.338 0.015 252.3); /* #3d444d 选中态文字·深灰 */
+        --destructive: oklch(0.552 0.205 24.5);   /* #cf222e 危险红 */
+        --success: oklch(0.503 0.137 152);        /* ≈#1a7f37 成功绿 */
+        --warning: oklch(0.555 0.118 75);         /* ≈#9a6700 警告橙 */
+        --info: oklch(0.540 0.191 257.5);         /* #0969da 信息蓝 */
+        /* 几何 —— GitHub 偏扁平：靠 1px 边框分隔，圆角克制 */
+        --radius: 12px;
+        --r-card: 12px;       /* 内容卡片圆角（GitHub 扁平，绝不 16/大圆角） */
+        --r-ctrl: 6px;        /* 控件圆角 */
+        --r-sm: 6px;
+        /* 卡片质感 = GitHub 扁平：清晰 1px 边框 + 轻投影（弱化厚玻璃，去内高光） */
+        --card-drop: 0 1px 0 rgba(31, 35, 40, 0.04), 0 1px 3px rgba(31, 35, 40, 0.08);
+        --win-backdrop:
+          radial-gradient(135% 90% at 12% -10%, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0) 55%),
+          radial-gradient(120% 120% at 108% 115%, rgba(174, 192, 214, 0.40), rgba(174, 192, 214, 0) 50%),
+          linear-gradient(152deg, #edf0f4 0%, #e4e9ef 48%, #e9edf1 100%);
+        --win-shadow: 0 12px 30px -16px rgba(31, 35, 40, 0.16), 0 2px 6px -3px rgba(31, 35, 40, 0.10);
+        --ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+      .dark {
+        --bg: oklch(0.176 0.014 258.4);
+        --fg: oklch(0.943 0.011 243.7);
+        --card: oklch(0.220 0.016 256.8);
+        --primary: oklch(0.569 0.202 259.7);
+        --primary-fg: oklch(1 0 0);
+        --secondary: oklch(0.267 0.015 256.8);
+        --secondary-fg: oklch(0.857 0.014 248);
+        --muted: oklch(0.267 0.015 256.8);
+        --muted-fg: oklch(0.662 0.018 250.9);
+        --accent: oklch(0.246 0.015 256.8);
+        --accent-fg: oklch(0.943 0.011 243.7);
+        --border: oklch(0.330 0.015 252.3);
+        --sidebar: oklch(0.104 0.019 248.3);
+        --sidebar-accent: oklch(0.267 0.015 256.8);
+        --sidebar-accent-fg: oklch(0.943 0.011 243.7);
+        --destructive: oklch(0.665 0.205 27.0);
+        --success: oklch(0.65 0.15 152);
+        --warning: oklch(0.74 0.13 80);
+        --card-drop: 0 1px 0 rgba(1, 4, 9, 0.30), 0 1px 3px rgba(1, 4, 9, 0.40);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        background: #eaeef2;
+        color: var(--fg);
+        font-family: var(--ui);
+        -webkit-font-smoothing: antialiased;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+      body { padding: 40px 32px 120px; }
+      button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+      svg.i { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+      .i.xs { width: 12px; height: 12px; }
+      .i.sm { width: 14px; height: 14px; }
+      .i.md { width: 16px; height: 16px; }
+      .i.lg { width: 20px; height: 20px; }
+
+      /* ===== board header（设计板外壳 · 与布局 ui.html 逐字同源） ===== */
+      .board-h { max-width: 1480px; margin: 0 auto 24px; }
+      .board-h h1 { font-size: 30px; font-weight: 600; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px; color: #1f2328; }
+      .board-h h1 .logo { width: 34px; height: 34px; border-radius: 9px; background: #0969da; display: flex; align-items: center; justify-content: center; color: #fff; }
+      .board-h .sub { color: #59636e; font-size: 14px; margin-top: 8px; max-width: 1040px; }
+      .board-h .sub b { color: #1f2328; font-weight: 600; }
+      .board-h .sub code { font-family: var(--mono); font-size: 12.5px; background: #eaeef2; padding: 1px 5px; border-radius: 5px; color: #3d444d; }
+      .req-log { max-width: 1480px; margin: 0 auto 18px; border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; overflow: hidden; }
+      .req-log .rl-h { padding: 10px 16px; background: #eaeef2; font-size: 12px; font-weight: 600; color: #59636e; letter-spacing: 0.4px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #d1d9e0; }
+      .req-log table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      .req-log td, .req-log th { padding: 8px 16px; text-align: left; border-top: 1px solid #d1d9e0; vertical-align: top; }
+      .req-log th { color: #59636e; font-weight: 500; font-size: 12px; }
+      .req-log td:first-child { color: #59636e; white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .pill { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+      .pill.p0 { color: #3d444d; background: rgba(120, 113, 108, 0.16); }
+      .pill.new { color: #0969da; background: rgba(9, 105, 218, 0.12); }
+      .nav-idx { max-width: 1480px; margin: 0 auto 30px; display: flex; flex-wrap: wrap; gap: 8px; }
+      .nav-idx a { font-size: 12px; color: #59636e; text-decoration: none; padding: 5px 11px; border: 1px solid #d1d9e0; border-radius: 9999px; background: #f6f8fa; }
+      .nav-idx a:hover { color: #1f2328; background: #eaeef2; }
+      .nav-idx a.new { color: #0969da; border-color: rgba(9, 105, 218, 0.3); }
+      .note { max-width: 1480px; margin: 0 auto 30px; font-size: 13px; color: #59636e; display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border: 1px dashed #d1d9e0; border-radius: 10px; background: #f6f8fa; }
+      .note b { color: #1f2328; }
+      .note code { font-family: var(--mono); font-size: 12px; background: #eaeef2; padding: 1px 5px; border-radius: 5px; color: #3d444d; }
+
+      /* ===== screen scaffold（逐字同源） ===== */
+      .screen { max-width: 1480px; margin: 0 auto 60px; scroll-margin-top: 20px; }
+      .screen-head { margin-bottom: 14px; }
+      .screen-head .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #3d444d; background: rgba(120, 113, 108, 0.16); padding: 2px 9px; border-radius: 9999px; margin-bottom: 8px; }
+      .screen-head .tag.new { color: #0969da; background: rgba(9, 105, 218, 0.12); }
+      .screen-head h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.2px; color: #1f2328; }
+      .screen-head p { color: #59636e; font-size: 14px; margin-top: 5px; max-width: 1040px; }
+      .screen-head p b { color: #1f2328; font-weight: 600; }
+      .screen-head p code { font-family: var(--mono); font-size: 12.5px; background: #eaeef2; padding: 1px 5px; border-radius: 5px; color: #3d444d; }
+
+      /* ===== FRAME = macOS 浮窗（窗口背景 + 整窗投影 + 圆角，逐字同源） ===== */
+      .cap { display: inline-block; padding: 28px; background: #eaeef2; border-radius: 16px; }
+      .frame { border-radius: 16px; overflow: hidden; background: var(--win-backdrop); box-shadow: var(--win-shadow); position: relative; }
+      .titlebar { height: 40px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 14px; }
+      .lights { display: flex; gap: 8px; }
+      .lights span { width: 12px; height: 12px; border-radius: 9999px; }
+      .lights .r { background: #ff5f57; }
+      .lights .y { background: #febc2e; }
+      .lights .g { background: #28c840; }
+      .tb-title { font-size: 13px; font-weight: 500; color: var(--muted-fg); display: inline-flex; align-items: center; gap: 7px; margin-left: 4px; }
+      .tb-title .i { color: var(--muted-fg); }
+
+      /* ===== 设置外壳 master-detail（左导航 card.sidebar 质感 + 右详情 card.main 质感） ===== */
+      .shell { display: flex; align-items: stretch; min-height: 560px; padding: 0 8px 8px; gap: 8px; }
+      /* 左导航 = 浅冷灰侧栏（对齐布局 .card.sidebar：#f6f8fa + 1px 边 + 轻投影） */
+      .nav { width: 248px; flex: none; background: var(--sidebar); border: 1px solid var(--border); border-radius: var(--r-card); box-shadow: var(--card-drop); padding: 8px; display: flex; flex-direction: column; gap: 2px; }
+      .navback { display: flex; align-items: center; gap: 7px; height: 32px; padding: 0 10px; border-radius: var(--r-ctrl); font-size: 13px; color: var(--muted-fg); position: relative; }
+      .navback:hover { background: var(--sidebar-accent); color: var(--sidebar-accent-fg); }
+      .navback .i { color: var(--muted-fg); }
+      .navgroup { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: 0.3px; text-transform: uppercase; padding: 12px 10px 5px; }
+      .navrow { display: flex; align-items: center; gap: 10px; height: 34px; padding: 0 10px; border-radius: var(--r-ctrl); font-size: 13px; color: var(--fg); position: relative; }
+      .navrow .i { color: var(--muted-fg); }
+      .navrow:hover { background: var(--sidebar-accent); }
+      /* 选中·激活 = sidebar-accent 很淡的灰 #eaeef2 + 深灰字 #3d444d + 加粗（绝非黑底 / 绝非左竖条 / 绝非蓝铺底） */
+      .navrow.active { background: var(--sidebar-accent); color: var(--sidebar-accent-fg); font-weight: 500; }
+      .navrow.active .i { color: var(--sidebar-accent-fg); }
+      .navsep { height: 1px; background: var(--border); margin: 6px 8px; }
+      .deskmark { margin-left: auto; display: inline-flex; align-items: center; color: var(--muted-fg); opacity: 0.7; }
+      .deskmark .i { color: var(--muted-fg); }
+      .pinb { display: inline-flex; align-items: center; justify-content: center; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 9999px; background: var(--primary); color: var(--primary-fg); font-size: 10px; font-weight: 700; position: absolute; top: -5px; right: -5px; font-variant-numeric: tabular-nums; }
+
+      /* 右详情 = 实色白卡（对齐布局 .card.main：#fff + 1px 边 + 轻投影） */
+      .detail { flex: 1; min-width: 0; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-card); box-shadow: var(--card-drop); overflow: hidden; display: flex; flex-direction: column; }
+      .dhead { display: flex; align-items: flex-start; gap: 13px; padding: 20px 24px 16px; border-bottom: 1px solid var(--border); }
+      .dh-ic { width: 36px; height: 36px; flex: none; border-radius: 9px; background: var(--accent); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--fg); }
+      .dtitle { font-size: 17px; font-weight: 600; color: var(--fg); }
+      .dsub { font-size: 13px; color: var(--muted-fg); margin-top: 3px; max-width: 560px; }
+      .dbody { flex: 1; min-height: 0; overflow: visible; padding: 18px 24px 26px; display: flex; flex-direction: column; gap: 22px; }
+
+      /* 设置分组 + 设置卡（GitHub 扁平：1px 边 + 12px + 轻投影） */
+      .group { display: flex; flex-direction: column; gap: 8px; }
+      .grouph { font-size: 12px; font-weight: 600; color: var(--muted-fg); letter-spacing: 0.3px; text-transform: uppercase; padding-left: 2px; display: flex; align-items: center; gap: 6px; }
+      .gh-sub { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--muted-fg); position: relative; }
+      .scard { border: 1px solid var(--border); border-radius: var(--r-card); background: var(--card); box-shadow: var(--card-drop); overflow: hidden; }
+      .srow { display: flex; align-items: center; gap: 14px; padding: 13px 16px; }
+      .srow + .srow { border-top: 1px solid var(--border); }
+      .rl { flex: 1; min-width: 0; }
+      .rt { font-size: 14px; color: var(--fg); font-weight: 500; display: flex; align-items: center; gap: 8px; }
+      .rd { font-size: 12.5px; color: var(--muted-fg); margin-top: 3px; }
+      .rd.err { color: var(--destructive); }
+      .rc { display: flex; align-items: center; gap: 8px; flex: none; position: relative; }
+
+      /* 值文本 */
+      .about-val { font-size: 13.5px; color: var(--muted-fg); font-variant-numeric: tabular-nums; font-family: var(--mono); }
+      .about-val.cur { color: var(--fg); font-weight: 600; }
+      .about-val.mismatch { color: var(--warning); font-weight: 600; }
+      .about-val.offline { color: var(--destructive); font-family: var(--ui); }
+
+      /* SegmentedControl = 冷灰轨 + 白底浮起选中段 */
+      .seg { display: inline-flex; padding: 2px; background: var(--secondary); border-radius: 8px; gap: 2px; }
+      .seg span { font-size: 12.5px; color: var(--muted-fg); padding: 4px 14px; border-radius: 6px; }
+      .seg span.on { background: var(--bg); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgba(31, 35, 40, 0.12); }
+
+      /* 按钮：primary = 蓝底白字；outline = 白底冷灰边 */
+      .btn { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 12px; border-radius: var(--r-ctrl); font-size: 13px; font-weight: 500; border: 1px solid transparent; white-space: nowrap; }
+      .btn .i { width: 14px; height: 14px; }
+      .btn.sm { height: 28px; padding: 0 10px; font-size: 12.5px; }
+      .btn.outline { background: var(--bg); border-color: var(--border); color: var(--fg); }
+      .btn.outline:hover { background: var(--accent); }
+      .btn.primary { background: var(--primary); color: var(--primary-fg); }
+      .btn.primary:hover { filter: brightness(1.06); }
+      .btn.dis { opacity: 0.45; pointer-events: none; }
+
+      /* 徽标 badge（语义色） */
+      .badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 9999px; }
+      .badge .i { width: 11px; height: 11px; }
+      .badge.mut { color: var(--muted-fg); background: var(--secondary); }
+      .badge.suc { color: var(--success); background: color-mix(in oklch, var(--success) 14%, transparent); }
+      .badge.warn { color: var(--warning); background: color-mix(in oklch, var(--warning) 16%, transparent); }
+      .badge.err { color: var(--destructive); background: color-mix(in oklch, var(--destructive) 13%, transparent); }
+
+      /* 主机行状态点 + 主机名 */
+      .hostname { font-weight: 500; }
+      .dot { width: 8px; height: 8px; border-radius: 9999px; flex: none; }
+      .dot.on { background: var(--success); }
+      .dot.off { background: var(--destructive); }
+      .dot.idle { background: var(--muted-fg); }
+
+      /* 状态机卡（S2） */
+      .statecase { padding: 0; }
+      .staterow-wrap { padding: 0; }
+      .staterow-wrap + .staterow-wrap { border-top: 1px solid var(--border); }
+      .state-tag { display: flex; align-items: center; gap: 8px; font-size: 11.5px; font-weight: 600; color: var(--muted-fg); padding: 11px 16px 0; }
+      .state-tag .n { width: 18px; height: 18px; border-radius: 5px; background: var(--secondary); color: var(--secondary-fg); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+      .mini-spin { width: 13px; height: 13px; border-radius: 9999px; border: 2px solid var(--border); border-top-color: var(--muted-fg); flex: none; }
+
+      /* ===== 安装确认弹窗 modal + 遮罩（S3） ===== */
+      .modal-stage { position: relative; background: var(--bg); overflow: hidden; }
+      .stage-dim { padding: 18px 22px 24px; display: flex; flex-direction: column; gap: 18px; filter: saturate(0.92); }
+      .scrim { position: absolute; inset: 0; background: rgba(31, 35, 40, 0.34); display: flex; align-items: center; justify-content: center; }
+      .modal { width: 416px; max-width: calc(100% - 44px); background: var(--bg); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 18px 50px -14px rgba(31, 35, 40, 0.4), 0 5px 14px -5px rgba(31, 35, 40, 0.2); overflow: hidden; }
+      .modal-h { display: flex; align-items: center; gap: 12px; padding: 18px 20px 12px; }
+      .modal-h .mh-ic { width: 36px; height: 36px; flex: none; border-radius: 9px; background: color-mix(in oklch, var(--primary) 12%, transparent); color: var(--primary); display: flex; align-items: center; justify-content: center; }
+      .modal-h .mh-t { font-size: 15.5px; font-weight: 600; color: var(--fg); }
+      .modal-b { padding: 0 20px 16px 68px; font-size: 13.5px; color: var(--muted-fg); line-height: 1.55; }
+      .modal-b b { color: var(--fg); font-weight: 500; }
+      .modal-warn { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; padding: 9px 11px; border-radius: 8px; background: color-mix(in oklch, var(--warning) 9%, transparent); border: 1px solid color-mix(in oklch, var(--warning) 26%, transparent); font-size: 12.5px; color: var(--muted-fg); line-height: 1.5; }
+      .modal-warn .i { width: 14px; height: 14px; color: var(--warning); margin-top: 1px; flex: none; }
+      .modal-f { display: flex; justify-content: flex-end; gap: 9px; padding: 13px 20px; border-top: 1px solid var(--border); background: var(--accent); }
+
+      /* 兜底错误 toast（弹窗打开失败） */
+      .toast { display: inline-flex; align-items: flex-start; gap: 9px; padding: 11px 14px; border-radius: 10px; border: 1px solid color-mix(in oklch, var(--destructive) 42%, transparent); background: color-mix(in oklch, var(--destructive) 9%, transparent); font-size: 13px; color: var(--fg); max-width: 480px; }
+      .toast .i { width: 16px; height: 16px; color: var(--destructive); margin-top: 1px; flex: none; }
+      .toast .tt { font-weight: 600; }
+      .toast .td { color: var(--muted-fg); margin-top: 2px; line-height: 1.5; }
+
+      /* ===== 紧凑 / 手机单栏（S4） ===== */
+      .phone { width: 392px; border-radius: 30px; padding: 8px; background: #11151c; box-shadow: var(--win-shadow); }
+      .phone-screen { border-radius: 23px; overflow: hidden; background: var(--bg); border: 1px solid var(--border); }
+      .phone-status { height: 30px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; font-size: 12px; font-weight: 600; color: var(--fg); }
+      .phone-status .dots { display: flex; align-items: center; gap: 4px; }
+      .phone-status .dots span { width: 5px; height: 5px; border-radius: 9999px; background: var(--muted-fg); }
+      .mtopbar { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 12px; border-bottom: 1px solid var(--border); }
+      .mtopbar .mback { display: inline-flex; align-items: center; gap: 5px; font-size: 14px; color: var(--primary); }
+      .mtopbar .mtitle { font-size: 15px; font-weight: 600; color: var(--fg); }
+      .mbody { padding: 14px 14px 22px; display: flex; flex-direction: column; gap: 18px; }
+
+      /* 平台缺省提示条（紧凑/空态用） */
+      .absent { display: flex; align-items: flex-start; gap: 9px; padding: 11px 13px; border: 1px dashed var(--border); border-radius: 10px; background: var(--accent); font-size: 12.5px; color: var(--muted-fg); line-height: 1.5; }
+      .absent .i { width: 15px; height: 15px; color: var(--muted-fg); margin-top: 1px; flex: none; }
+      .absent b { color: var(--fg); font-weight: 600; }
+
+      /* ===== annotation block（逐字同源） ===== */
+      .anno { border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; overflow: hidden; margin-top: 18px; max-width: 1480px; }
+      .anno > .anno-h { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 11px 14px 4px; }
+      .anno-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; padding: 12px 14px 14px; align-items: start; }
+      .anno-card { border: 1px solid #d1d9e0; border-radius: 8px; background: #fff; overflow: hidden; }
+      .anno-card > .ac-h { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 10px 13px 7px; }
+      .anno-card.span2 { grid-column: 1 / -1; }
+      .anno ol { list-style: none; display: flex; flex-direction: column; }
+      .anno-card ol li { display: flex; gap: 10px; padding: 9px 13px; border-top: 1px solid #d1d9e0; font-size: 13px; line-height: 1.6; color: #59636e; }
+      .anno-card ol li b { color: #1f2328; font-weight: 600; }
+      .anno-card ol li code { font-family: var(--mono); font-size: 12px; background: #eaeef2; padding: 1px 5px; border-radius: 5px; color: #3d444d; }
+      .pin { flex: none; width: 18px; height: 18px; border-radius: 9999px; background: #0969da; color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+      .menulist { background: #fff; padding: 4px 13px 12px; font-size: 13px; line-height: 1.6; color: #59636e; }
+      .menulist .ml-note { color: #59636e; }
+      .menulist .ml-note b { color: #1f2328; }
+      .states { padding: 4px 13px 12px; }
+      .states dl { display: grid; grid-template-columns: 78px 1fr; gap: 8px 14px; font-size: 13px; line-height: 1.55; }
+      .states dt { color: #3d444d; font-weight: 600; }
+      .states dd { margin: 0; color: #59636e; }
+      .states dd b { color: #1f2328; font-weight: 500; }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></symbol>
+      <symbol id="keyboard" viewBox="0 0 24 24"><rect width="20" height="16" x="2" y="4" rx="2" /><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h.01M12 12h.01M16 12h.01M7 16h10" /></symbol>
+      <symbol id="settings" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></symbol>
+      <symbol id="palette" viewBox="0 0 24 24"><circle cx="13.5" cy="6.5" r=".5" fill="currentColor" stroke="none" /><circle cx="17.5" cy="10.5" r=".5" fill="currentColor" stroke="none" /><circle cx="8.5" cy="7.5" r=".5" fill="currentColor" stroke="none" /><circle cx="6.5" cy="12.5" r=".5" fill="currentColor" stroke="none" /><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" /></symbol>
+      <symbol id="stethoscope" viewBox="0 0 24 24"><path d="M11 2v2M5 2v2M5 3H4a2 2 0 0 0-2 2v4a6 6 0 0 0 12 0V5a2 2 0 0 0-2-2h-1" /><path d="M8 15a6 6 0 0 0 12 0v-3" /><circle cx="20" cy="10" r="2" /></symbol>
+      <symbol id="check-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="m8.5 12 2.2 2.2 4.8-4.8" /></symbol>
+      <symbol id="alert-tri" viewBox="0 0 24 24"><path d="m21.7 18-8-14a2 2 0 0 0-3.4 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3Z" /><path d="M12 9v4M12 17h.01" /></symbol>
+      <symbol id="alert-circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></symbol>
+      <symbol id="download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><path d="m7 10 5 5 5-5" /><path d="M12 15V3" /></symbol>
+      <symbol id="refresh" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><path d="M21 3v5h-5" /></symbol>
+      <symbol id="chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
+      <symbol id="laptop" viewBox="0 0 24 24"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16" /></symbol>
+      <symbol id="server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2" /><rect width="20" height="8" x="2" y="14" rx="2" /><path d="M6 6h.01M6 18h.01" /></symbol>
+      <symbol id="wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01" /><path d="M8.5 16.5a5 5 0 0 1 7 0" /><path d="M2 8.8a16 16 0 0 1 4.5-2.7M19.6 11A10 10 0 0 0 14 9M5 12.5a10 10 0 0 1 3-1.8" /><path d="M22 8.8a16 16 0 0 0-9-2.7" /><path d="m2 2 20 20" /></symbol>
+      <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></symbol>
+      <symbol id="spark" viewBox="0 0 24 24"><path d="M9.9 15.5A2 2 0 0 0 8.5 14L2.4 12.5a.5.5 0 0 1 0-1L8.5 10a2 2 0 0 0 1.4-1.4L11.5 2.4a.5.5 0 0 1 1 0L14 8.5a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z" /></symbol>
+      <symbol id="smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2.5" /><path d="M12 18h.01" /></symbol>
+      <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
+    </svg>
+
+    <!-- ============ BOARD HEADER ============ -->
+    <div class="board-h">
+      <h1><span class="logo"><svg class="i lg"><use href="#info" /></svg></span> Helm · 设置 · 应用段 · 关于 About</h1>
+      <p class="sub">
+        本地需求设计稿（gate-1 · 待董事长看 PNG）。需求 <b>2026-06-27-settings-app-general</b> 第一批之一：把设置「应用段」的<b>关于 About</b> tab 细化并出高保真稿。
+        外壳 = <b>新设置 master-detail</b>（左导航 5 tab · 应用段无 host 选择器 + 右详情）。主题 <b>整段 &lt;style&gt; 同源</b>「CodePilot 主布局」（<b>github.json / codePilot</b> · GitHub Primer 冷灰中性白底 + 蓝 #0969da 仅点缀；选中淡灰 #eaeef2 非黑；卡片 1px #d1d9e0 + 12px + 轻投影，扁平绝不玻璃/厚阴影）。
+        内容贴 <b>真实代码</b>（settings-screen.tsx <code>AboutSection</code> / <code>ConnectedHostsSection</code> / <code>DesktopAppUpdateRow</code>），不臆造能力。<b>只设计、不实现。</b>
+      </p>
+    </div>
+
+    <div class="req-log">
+      <div class="rl-h"><svg class="i sm"><use href="#clock" /></svg> 需求日志</div>
+      <table>
+        <tr><th style="width: 110px">日期</th><th>需求</th><th style="width: 440px">关键决策</th></tr>
+        <tr>
+          <td>2026-06-27</td>
+          <td>应用段「关于」tab 内容细化 + 设计稿（不实现）</td>
+          <td>
+            <span class="pill new">新设置外壳 master-detail</span>
+            <span class="pill new">CodePilot github token（蓝仅点缀）</span>
+            <span class="pill new">软件更新 5 状态</span>
+            <span class="pill new">安装确认弹窗 + 兜底</span>
+            <span class="pill new">主机版本对比（一致/不一致/离线/未知）</span>
+            <span class="pill new">非桌面 2 块 + 主机空态</span>
+            <span class="pill p0">仅到设计</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="nav-idx">
+      <a href="#s1" class="new">S1 关于 · 主屏（About 选中）</a>
+      <a href="#s2" class="new">S2 软件更新 · 5 状态变体</a>
+      <a href="#s3" class="new">S3 安装确认弹窗 + 兜底错误</a>
+      <a href="#s4" class="new">S4 紧凑/手机变体 + 主机空态</a>
+    </div>
+
+    <div class="note">
+      <svg class="i sm"><use href="#spark" /></svg>
+      <span>
+        交互标注：蓝色圆点 <span class="pin" style="width: 16px; height: 16px; vertical-align: middle">1</span> 标在控件旁，对应注解块「点击效果」编号。设备框内只画真实 UI；流程 / 平台逻辑写进注解。
+        <b>发布通道 + 软件更新两行为桌面专属</b>（<code>isDesktopApp</code> 才渲染，非桌面隐藏）；App 版本 / 已连接主机为全平台。
+      </span>
+    </div>
+
+    <!-- ============================================================ S1 ============================================================ -->
+    <section class="screen" id="s1">
+      <div class="screen-head">
+        <span class="tag new">关于 · 主屏</span>
+        <h2>设置 · 应用段 · 关于（About 选中 · 桌面 1200 宽）</h2>
+        <p>
+          左导航 5 tab（<b>通用 / 外观 / 快捷键 ·(分隔)· 诊断 / 关于</b>），<b>关于</b>选中（sidebar-accent 淡灰填充 #eaeef2 + 深灰字，无左竖条）。右详情 2 段：
+          <b>应用版本</b>（App 版本「本设备」+ 发布通道分段 + 软件更新行，本屏取「有可用更新·可安装」态）、<b>已连接的主机</b>（列全部主机 + 版本对比，含一致 / 不一致高亮 / 离线 / 未知四种行）。
+        </p>
+      </div>
+      <div class="cap" id="cap-about-main">
+        <div class="frame" style="width: 1180px">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title"><svg class="i sm"><use href="#settings" /></svg> 设置</span>
+          </div>
+          <div class="shell">
+            <!-- 左导航 -->
+            <div class="nav">
+              <div class="navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回<span class="pinb">1</span></div>
+              <div class="navgroup">应用</div>
+              <div class="navrow"><svg class="i sm"><use href="#settings" /></svg> 通用</div>
+              <div class="navrow"><svg class="i sm"><use href="#palette" /></svg> 外观</div>
+              <div class="navrow"><svg class="i sm"><use href="#keyboard" /></svg> 快捷键<span class="deskmark"><svg class="i xs"><use href="#laptop" /></svg></span></div>
+              <div class="navsep"></div>
+              <div class="navrow"><svg class="i sm"><use href="#stethoscope" /></svg> 诊断</div>
+              <div class="navrow active"><svg class="i sm"><use href="#info" /></svg> 关于<span class="pinb">2</span></div>
+            </div>
+            <!-- 右详情 -->
+            <div class="detail">
+              <div class="dhead">
+                <div class="dh-ic"><svg class="i lg"><use href="#info" /></svg></div>
+                <div class="dh-main">
+                  <div class="dtitle">关于</div>
+                  <div class="dsub">应用版本、发布通道、软件更新，以及全部已连接主机与本设备的版本对比。</div>
+                </div>
+              </div>
+              <div class="dbody">
+                <!-- 应用版本 -->
+                <div class="group">
+                  <div class="grouph">应用版本</div>
+                  <div class="scard">
+                    <div class="srow">
+                      <div class="rl"><div class="rt">App 版本</div><div class="rd">本设备</div></div>
+                      <div class="rc"><span class="about-val cur">v1.0.0</span></div>
+                    </div>
+                    <div class="srow">
+                      <div class="rl"><div class="rt">发布通道 <span class="badge mut"><svg class="i"><use href="#laptop" /></svg>桌面专属</span></div><div class="rd">切换到 Beta 可更早获取更新并参与改进</div></div>
+                      <div class="rc">
+                        <div class="seg"><span class="on">稳定</span><span>测试</span></div><span class="pinb">3</span>
+                      </div>
+                    </div>
+                    <div class="srow">
+                      <div class="rl">
+                        <div class="rt">软件更新 <span class="badge mut"><svg class="i"><use href="#laptop" /></svg>桌面专属</span></div>
+                        <div class="rd">更新已就绪：v1.1.0</div>
+                        <div class="rd" style="color: var(--fg)">可安装：v1.1.0</div>
+                      </div>
+                      <div class="rc">
+                        <button class="btn outline sm"><svg class="i"><use href="#refresh" /></svg> 检查<span class="pinb">4</span></button>
+                        <button class="btn primary sm"><svg class="i"><use href="#download" /></svg> 更新到 v1.1.0<span class="pinb">5</span></button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 已连接的主机 -->
+                <div class="group">
+                  <div class="grouph">已连接的主机 <span class="gh-sub">· 列出全部已连接主机与本设备的版本对比（不随主机切换器变化）<span class="pinb">6</span></span></div>
+                  <div class="scard">
+                    <div class="srow">
+                      <div class="rl"><div class="rt hostname"><span class="dot on"></span><svg class="i sm"><use href="#server" /></svg> 本地 daemon</div></div>
+                      <div class="rc"><span class="about-val">v1.0.0</span></div>
+                    </div>
+                    <div class="srow">
+                      <div class="rl"><div class="rt hostname"><span class="dot on"></span><svg class="i sm"><use href="#laptop" /></svg> MacBook Pro（远程）</div><div class="rd" style="color: var(--warning)">版本与此设备不同</div></div>
+                      <div class="rc"><span class="badge warn"><svg class="i"><use href="#alert-tri" /></svg>不一致</span><span class="about-val mismatch">v0.9.4</span><span class="pinb">7</span></div>
+                    </div>
+                    <div class="srow">
+                      <div class="rl"><div class="rt hostname"><span class="dot off"></span><svg class="i sm"><use href="#wifi-off" /></svg> 办公室 Linux（远程）</div></div>
+                      <div class="rc"><span class="about-val offline">离线</span></div>
+                    </div>
+                    <div class="srow">
+                      <div class="rl"><div class="rt hostname"><span class="dot idle"></span><svg class="i sm"><use href="#server" /></svg> home-pi（远程）</div></div>
+                      <div class="rc"><span class="about-val">—</span></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解 · 关于</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>返回（导航顶部）</b>：退出设置 / 回上一层（设置壳通用返回）。hover 显淡灰底。</div></li>
+              <li><span class="pin">2</span><div><b>左导航 · 关于（选中）</b>：当前 tab。选中 = sidebar-accent 淡灰填充（#eaeef2）+ 深灰字 #3d444d 加粗（<b>无左竖条 · 非黑非蓝铺底</b>）。点其它 tab 即切换右详情；本段无 host 选择器。</div></li>
+              <li><span class="pin">3</span><div><b>发布通道 SegmentedControl（桌面专属）</b>：稳定 ⟷ 测试 二选一，点击即 <code>updateSettings({releaseChannel})</code>。选中段 = 白底浮起。切到「测试」会让软件更新拉取 beta 频道。</div></li>
+              <li><span class="pin">4</span><div><b>检查按钮（outline）</b>：触发 <code>checkForUpdates()</code>。检查中 → 文案「正在检查...」+ spinner + 禁用；安装中也禁用（见 S2）。</div></li>
+              <li><span class="pin">5</span><div><b>更新 / 安装按钮（primary 蓝 #0969da）</b>：有可用更新时文案「更新到 vX.Y.Z」，点击弹<b>二次确认</b>「安装桌面版更新 · 这会更新此电脑上的 Helm」→ 确认后 <code>installUpdate()</code>。无更新 / 检查中 / 安装中 → 禁用。</div></li>
+              <li><span class="pin">6</span><div><b>已连接的主机卡</b>：列 <code>useHosts()</code> 全部主机（<b>不随主机切换器</b>）；每行 = 在线点 + 主机名 + 版本值。客户端↔主机版本不一致 → 值橙色高亮 + 「版本与此设备不同」+ 不一致 badge。无任何主机时整段不渲染（空态）。</div></li>
+              <li><span class="pin">7</span><div><b>版本不一致行（高亮）</b>：normalize 后客户端版本 ≠ 主机版本即判 <code>isMismatch</code>。仅信息提示，无操作。离线行显「离线」（红），未取到版本显「—」。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>桌面优先</b>：master-detail，左导航 248 固定 + 右详情 flex。<b>紧凑 / 手机</b>：左导航折叠为顶部下拉或返回式两级，详情占满；<b>发布通道 + 软件更新两行在非桌面隐藏</b>（仅 App 版本 / 主机对比保留）。</dd>
+                <dt>默认</dt>
+                <dd>关于选中；软件更新本屏取「有可用更新·可安装」；本地主机 在线版本一致。</dd>
+                <dt>悬浮</dt>
+                <dd>导航行 / 设置行 hover 显淡灰底（sidebar-accent / accent）；按钮 hover 加深。</dd>
+                <dt>活跃</dt>
+                <dd>发布通道选中段白底浮起；导航选中 tab sidebar-accent 淡灰填充（无左条）。</dd>
+                <dt>加载</dt>
+                <dd>软件更新「检查中」= spinner +「正在检查...」+ 两按钮禁用（见 S2-③）；版本未取到的 主机行显「—」。</dd>
+                <dt>禁用</dt>
+                <dd>无可用更新 / 检查中 / 安装中 → 更新按钮 dim 禁用；检查中 / 安装中 → 检查按钮禁用。</dd>
+                <dt>错误</dt>
+                <dd>更新失败 → statusText「App 更新失败。」+ 红色 errorMessage（见 S2-⑤）；安装失败弹 Alert。</dd>
+                <dt>离线</dt>
+                <dd>主机行未连接 → 值显「离线」（红）+ 红点（见 ⑦ 第三行）。</dd>
+                <dt>空</dt>
+                <dd>无任何已连接主机 → <b>已连接的主机 整段不渲染</b>（无空卡）。非桌面 → 发布通道 + 软件更新整体缺席。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-note"><b>本页无右键菜单</b>——关于 tab 全为只读信息行 + 内联控件（分段 / 按钮 / 外链），不含可右击的列表项。版本值 / 状态文案均为纯展示。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S2 ============================================================ -->
+    <section class="screen" id="s2">
+      <div class="screen-head">
+        <span class="tag new">软件更新 · 状态变体</span>
+        <h2>软件更新行 · 5 个状态（桌面专属）</h2>
+        <p>
+          同一「软件更新」行在不同更新器状态下的呈现。状态文案取自真实 i18n（<code>desktop.updates.status.*</code> + <code>settings.about.updates.*</code>）。
+          按钮逻辑：<b>检查</b>在「检查中 / 安装中」禁用；<b>更新</b>在「无可用更新 / 检查中 / 安装中」禁用。
+        </p>
+      </div>
+      <div class="cap" id="cap-about-states">
+        <div class="frame" style="width: 880px">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title"><svg class="i sm"><use href="#download" /></svg> 软件更新 · 状态机</span>
+          </div>
+          <div style="padding: 20px 22px 24px">
+            <div class="scard statecase">
+              <!-- ① 已是最新 -->
+              <div class="staterow-wrap">
+                <div class="state-tag"><span class="n">1</span> 已是最新（up-to-date）</div>
+                <div class="srow">
+                  <div class="rl">
+                    <div class="rt">软件更新 <span class="badge suc"><svg class="i"><use href="#check-circle" /></svg>最新</span></div>
+                    <div class="rd">已是最新版本。上次检查时间：21:42。</div>
+                  </div>
+                  <div class="rc">
+                    <button class="btn outline sm"><svg class="i"><use href="#refresh" /></svg> 检查</button>
+                    <button class="btn primary sm dis"><svg class="i"><use href="#download" /></svg> 更新</button>
+                  </div>
+                </div>
+              </div>
+              <!-- ② 有可用更新 -->
+              <div class="staterow-wrap">
+                <div class="state-tag"><span class="n">2</span> 有可用更新 · 可安装（available）</div>
+                <div class="srow">
+                  <div class="rl">
+                    <div class="rt">软件更新 <span class="badge mut">有更新</span></div>
+                    <div class="rd">更新已就绪：v1.1.0</div>
+                    <div class="rd" style="color: var(--fg)">可安装：v1.1.0</div>
+                  </div>
+                  <div class="rc">
+                    <button class="btn outline sm"><svg class="i"><use href="#refresh" /></svg> 检查</button>
+                    <button class="btn primary sm"><svg class="i"><use href="#download" /></svg> 更新到 v1.1.0</button>
+                  </div>
+                </div>
+              </div>
+              <!-- ③ 检查中 -->
+              <div class="staterow-wrap">
+                <div class="state-tag"><span class="n">3</span> 检查中（checking）</div>
+                <div class="srow">
+                  <div class="rl">
+                    <div class="rt">软件更新</div>
+                    <div class="rd">正在检查 app 更新...</div>
+                  </div>
+                  <div class="rc">
+                    <button class="btn outline sm dis"><span class="mini-spin"></span> 正在检查...</button>
+                    <button class="btn primary sm dis"><svg class="i"><use href="#download" /></svg> 更新</button>
+                  </div>
+                </div>
+              </div>
+              <!-- ④ 安装中 -->
+              <div class="staterow-wrap">
+                <div class="state-tag"><span class="n">4</span> 安装中（installing）</div>
+                <div class="srow">
+                  <div class="rl">
+                    <div class="rt">软件更新 <span class="badge mut">v1.1.0</span></div>
+                    <div class="rd">正在安装 app 更新...</div>
+                  </div>
+                  <div class="rc">
+                    <button class="btn outline sm dis"><svg class="i"><use href="#refresh" /></svg> 检查</button>
+                    <button class="btn primary sm dis"><span class="mini-spin" style="border-top-color: var(--primary-fg)"></span> 正在安装...</button>
+                  </div>
+                </div>
+              </div>
+              <!-- ⑤ 错误 -->
+              <div class="staterow-wrap">
+                <div class="state-tag"><span class="n">5</span> 错误（error）</div>
+                <div class="srow">
+                  <div class="rl">
+                    <div class="rt">软件更新 <span class="badge err"><svg class="i"><use href="#alert-circle" /></svg>失败</span></div>
+                    <div class="rd">App 更新失败。</div>
+                    <div class="rd err">无法安装 desktop app 更新。请检查网络后重试。</div>
+                  </div>
+                  <div class="rc">
+                    <button class="btn outline sm"><svg class="i"><use href="#refresh" /></svg> 检查</button>
+                    <button class="btn primary sm dis"><svg class="i"><use href="#download" /></svg> 更新</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解 · 软件更新状态机</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">状态文案与按钮逻辑</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>已是最新</b>：statusText =「已是最新版本。上次检查时间：{{time}}。」检查可用；更新禁用（无 availableUpdate）。可选绿色「最新」徽标。</div></li>
+              <li><span class="pin">2</span><div><b>有可用更新</b>：statusText =「更新已就绪：v1.1.0」+ 副行「可安装：v1.1.0」；检查可用；更新 primary 可点，文案「更新到 v1.1.0」。</div></li>
+              <li><span class="pin">3</span><div><b>检查中</b>：检查按钮 spinner +「正在检查...」+ 禁用；更新禁用。statusText「正在检查 app 更新...」。</div></li>
+              <li><span class="pin">4</span><div><b>安装中</b>：更新按钮 spinner +「正在安装...」+ 禁用；检查禁用。statusText「正在安装 app 更新...」。完成后提示需重启（升级会停运行中的 agents + 关 terminal 会话）。</div></li>
+              <li><span class="pin">5</span><div><b>错误</b>：statusText「App 更新失败。」+ 红色 errorMessage；检查可重试；更新禁用。安装异常时另弹 Alert。</div></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S3 ============================================================ -->
+    <section class="screen" id="s3">
+      <div class="screen-head">
+        <span class="tag new">安装确认 · 弹窗</span>
+        <h2>点「更新」后的安装确认弹窗（桌面专属）+ 弹窗打开失败兜底</h2>
+        <p>
+          在「有可用更新」态点 <b>更新到 vX.Y.Z</b> 不直接安装，先弹<b>二次确认</b>：标题<b>安装桌面版更新</b> / 正文<b>这会更新此电脑上的 Helm</b>（含「升级会停掉运行中 agents、关闭终端会话」提醒）/ <b>取消</b> + <b>安装更新</b>（primary）。确认才 <code>installUpdate()</code>，取消无副作用。若<b>确认弹窗无法打开</b>，给红色兜底提示，<b>不静默吞掉</b>。
+        </p>
+      </div>
+      <div class="cap" id="cap-about-confirm">
+        <div class="frame" style="width: 860px">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title"><svg class="i sm"><use href="#download" /></svg> 设置 · 关于</span>
+          </div>
+          <div class="modal-stage">
+            <!-- 被压暗的上下文（软件更新行） -->
+            <div class="stage-dim">
+              <div class="group">
+                <div class="grouph">应用版本</div>
+                <div class="scard">
+                  <div class="srow">
+                    <div class="rl"><div class="rt">App 版本</div><div class="rd">本设备</div></div>
+                    <div class="rc"><span class="about-val cur">v1.0.0</span></div>
+                  </div>
+                  <div class="srow">
+                    <div class="rl">
+                      <div class="rt">软件更新 <span class="badge mut"><svg class="i"><use href="#laptop" /></svg>桌面专属</span></div>
+                      <div class="rd">更新已就绪：v1.1.0</div>
+                      <div class="rd" style="color: var(--fg)">可安装：v1.1.0</div>
+                    </div>
+                    <div class="rc">
+                      <button class="btn outline sm"><svg class="i"><use href="#refresh" /></svg> 检查</button>
+                      <button class="btn primary sm"><svg class="i"><use href="#download" /></svg> 更新到 v1.1.0</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- 遮罩 + 弹窗 -->
+            <div class="scrim">
+              <div class="modal">
+                <div class="modal-h">
+                  <span class="mh-ic"><svg class="i lg"><use href="#download" /></svg></span>
+                  <span class="mh-t">安装桌面版更新</span>
+                </div>
+                <div class="modal-b">
+                  这会更新<b>此电脑上的 Helm</b>（v1.0.0 → <b>v1.1.0</b>）。
+                  <div class="modal-warn"><svg class="i"><use href="#alert-tri" /></svg><div>更新会<b>停掉正在运行的 agents</b> 并关闭终端会话，请先妥善保存。</div></div>
+                </div>
+                <div class="modal-f">
+                  <button class="btn outline sm" style="position: relative">取消<span class="pinb">2</span></button>
+                  <button class="btn primary sm" style="position: relative"><svg class="i"><use href="#download" /></svg> 安装更新<span class="pinb">1</span></button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cap" id="cap-about-confirm-fail" style="margin-top: -8px">
+        <div class="frame" style="width: 600px">
+          <div class="titlebar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <span class="tb-title"><svg class="i sm"><use href="#alert-circle" /></svg> 兜底 · 确认框无法打开</span>
+          </div>
+          <div style="padding: 22px; background: var(--bg)">
+            <div class="toast"><svg class="i"><use href="#alert-circle" /></svg><div style="position: relative"><div class="tt">错误<span class="pinb">3</span></div><div class="td">无法打开更新确认对话框。请重试，或前往发布页手动下载更新。</div></div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解 · 安装确认弹窗</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>安装更新（primary 蓝）</b>：确认安装 → <code>installUpdate()</code>。弹窗关闭、软件更新行转「安装中（正在安装...）」（见 S2-④）；完成后由桌面 App 完成更新流程（需重启）。</div></li>
+              <li><span class="pin">2</span><div><b>取消（outline）</b>：关闭弹窗、<b>不产生任何更新动作</b>，回到「有可用更新·可安装」态。点遮罩空白处 / Esc 等同取消。</div></li>
+              <li><span class="pin">3</span><div><b>兜底错误</b>：当确认弹窗<b>无法打开</b>（异常）时显红色 toast（标题「错误」+「无法打开更新确认对话框」），<b>不静默吞掉</b>；用户可重试或去发布页手动下载。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>居中 modal</b> + 半透遮罩压暗背后「关于」内容；<b>紧凑 / 手机</b>同样居中弹窗（宽度收至屏宽 - 边距）。桌面专属：仅桌面 App 有自更新能力，弹窗只在桌面出现。</dd>
+                <dt>默认</dt>
+                <dd>弹窗聚焦在「安装更新」primary；正文标明目标版本 + agents/终端会话影响。</dd>
+                <dt>悬浮</dt>
+                <dd>两按钮 hover 加深（primary 提亮 / outline 显淡灰底）。</dd>
+                <dt>加载</dt>
+                <dd>确认后弹窗关闭、转入「安装中」（按钮 spinner +「正在安装...」），不在弹窗内转圈。</dd>
+                <dt>错误</dt>
+                <dd>弹窗本身打不开 → 红色兜底 toast（见 ③）；安装过程出错回「错误」态（S2-⑤）。</dd>
+                <dt>空 / 离线</dt>
+                <dd>无可用更新时根本到不了本弹窗（「更新」按钮禁用）；离线检查不到更新同理，不会误弹。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist"><div class="ml-note"><b>本弹窗无右键菜单</b>——仅「取消 / 安装更新」两个动作按钮 + 遮罩点击取消。</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S4 ============================================================ -->
+    <section class="screen" id="s4">
+      <div class="screen-head">
+        <span class="tag new">平台 / 布局变体</span>
+        <h2>非桌面（Web / 手机）单栏 = 仅 2 块 · 与「已连接主机」空态</h2>
+        <p>
+          左 = <b>非桌面平台</b>（Web 浏览器 / 手机）的「关于」：单栏堆叠，<b>仅 App 版本 + 已连接主机</b>，<b>无发布通道、无软件更新</b>（这两块仅桌面 App 渲染）——此为该平台<b>完整正常态</b>，不是缺失、不报错。
+          右 = <b>已连接主机 空态</b>：当前没有任何已连接主机 时，<b>「已连接的主机」整块（含段标题）不渲染</b>，不留空卡片。
+        </p>
+      </div>
+      <div class="cap" id="cap-about-variants">
+        <div style="display: flex; gap: 30px; align-items: flex-start">
+          <!-- 手机单栏（非桌面） -->
+          <div>
+            <div style="font-size: 12px; font-weight: 600; color: #59636e; margin: 0 0 9px 6px; text-transform: uppercase; letter-spacing: 0.4px">非桌面 · 单栏（仅 2 块）</div>
+            <div class="phone">
+              <div class="phone-screen">
+                <div class="phone-status"><span>9:41</span><span class="dots"><span></span><span></span><span></span></span></div>
+                <div class="mtopbar"><span class="mback"><svg class="i sm"><use href="#chev-l" /></svg> 设置</span><span class="mtitle">关于</span><span style="width: 44px"></span></div>
+                <div class="mbody">
+                  <!-- App 版本 -->
+                  <div class="group">
+                    <div class="grouph">应用版本</div>
+                    <div class="scard">
+                      <div class="srow">
+                        <div class="rl"><div class="rt">App 版本</div><div class="rd">本设备</div></div>
+                        <div class="rc"><span class="about-val cur">v1.0.0</span></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="absent"><svg class="i"><use href="#smartphone" /></svg><div><b>发布通道 · 软件更新</b>仅桌面 App 提供，本平台不显示<span class="pinb" style="position: static; margin-left: 4px">1</span></div></div>
+                  <!-- 已连接主机 -->
+                  <div class="group">
+                    <div class="grouph">已连接的主机</div>
+                    <div class="scard">
+                      <div class="srow">
+                        <div class="rl"><div class="rt hostname"><span class="dot on"></span><svg class="i sm"><use href="#server" /></svg> 本地 daemon</div></div>
+                        <div class="rc"><span class="about-val">v1.0.0</span></div>
+                      </div>
+                      <div class="srow">
+                        <div class="rl"><div class="rt hostname"><span class="dot on"></span><svg class="i sm"><use href="#laptop" /></svg> MacBook Pro</div><div class="rd" style="color: var(--warning)">版本与此设备不同</div></div>
+                        <div class="rc"><span class="about-val mismatch">v0.9.4</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 桌面 · 主机空态 -->
+          <div>
+            <div style="font-size: 12px; font-weight: 600; color: #59636e; margin: 0 0 9px 6px; text-transform: uppercase; letter-spacing: 0.4px">桌面 · 无已连接主机（空态）</div>
+            <div class="frame" style="width: 560px">
+              <div class="titlebar">
+                <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                <span class="tb-title"><svg class="i sm"><use href="#info" /></svg> 设置 · 关于</span>
+              </div>
+              <div class="detail" style="border: none; border-radius: 0; box-shadow: none">
+                <div class="dhead">
+                  <div class="dh-ic"><svg class="i lg"><use href="#info" /></svg></div>
+                  <div class="dh-main">
+                    <div class="dtitle">关于</div>
+                    <div class="dsub">应用版本、发布通道、软件更新。</div>
+                  </div>
+                </div>
+                <div class="dbody">
+                  <div class="group">
+                    <div class="grouph">应用版本</div>
+                    <div class="scard">
+                      <div class="srow">
+                        <div class="rl"><div class="rt">App 版本</div><div class="rd">本设备</div></div>
+                        <div class="rc"><span class="about-val cur">v1.0.0</span></div>
+                      </div>
+                      <div class="srow">
+                        <div class="rl"><div class="rt">发布通道 <span class="badge mut"><svg class="i"><use href="#laptop" /></svg>桌面专属</span></div></div>
+                        <div class="rc"><div class="seg"><span class="on">稳定</span><span>测试</span></div></div>
+                      </div>
+                      <div class="srow">
+                        <div class="rl"><div class="rt">软件更新 <span class="badge suc"><svg class="i"><use href="#check-circle" /></svg>最新</span></div><div class="rd">已是最新版本。</div></div>
+                        <div class="rc"><button class="btn outline sm"><svg class="i"><use href="#refresh" /></svg> 检查</button></div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="absent"><svg class="i"><use href="#server" /></svg><div><b>没有已连接的主机</b> →「已连接的主机」整块（含段标题）<b>不渲染</b>，不留空卡片<span class="pinb" style="position: static; margin-left: 4px">2</span></div></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解 · 平台 / 布局变体</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果 + 平台逻辑</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>非桌面单栏</b>：Web 浏览器 / 手机进入「关于」只显 <b>App 版本 + 已连接主机</b> 两块；<code>isDesktopApp</code> 为假 → <b>发布通道 + 软件更新整体不渲染</b>（这里用一条灰提示标明缘由，实际产品里可不显该提示、直接缺席）。</div></li>
+              <li><span class="pin">2</span><div><b>主机空态</b>：<code>useHosts()</code> 为空 → <b>「已连接的主机」整段（含段标题）不渲染</b>，不留空卡片、不显占位文字；版本 / 通道 / 更新照常。一旦连上任意主机即恢复 S1 的主机对比块。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>紧凑 / 手机</b>：左导航折叠为返回式两级（顶部「‹ 设置」+ 标题），详情<b>单栏占满</b>纵向堆叠；<b>桌面</b>：master-detail（见 S1）。两端共用同一组块与文案。</dd>
+                <dt>默认</dt>
+                <dd>非桌面：版本 + 主机对比；桌面空态：版本 + 通道 + 更新（无主机块）。</dd>
+                <dt>空</dt>
+                <dd>无已连接主机 → 主机块整段隐藏（②）；非桌面 → 通道 + 更新整体缺席（①）。<b>均非错误态</b>。</dd>
+                <dt>悬浮 / 离线</dt>
+                <dd>检查按钮 hover 加深；非桌面无更新按钮故无加载态；主机离线行仍显「离线」（同 S1-⑦）。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist"><div class="ml-note"><b>本页无右键菜单</b>——同 S1，全为只读信息行 + 内联控件 + 外链按钮。</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>

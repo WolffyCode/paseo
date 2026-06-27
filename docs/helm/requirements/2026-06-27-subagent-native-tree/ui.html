@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>UI · Claude 主子孙 subagent 对话树（原生树）</title>
+<style>
+  :root{
+    --bg:#0e0f12; --panel:#16181d; --panel2:#1c1f26; --line:#262a33; --line2:#30353f;
+    --text:#e7e9ee; --muted:#9aa1ad; --faint:#646b78; --accent:#6ea8fe; --accent2:#3f6fd1;
+    --run:#3fce7c; --idle:#646b78; --err:#ff6b6b; --readonly:#c9a227; --radius:10px;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,system-ui,sans-serif;padding:32px}
+  h1{font-size:20px;margin:0 0 4px}
+  .sub{color:var(--muted);margin:0 0 24px;max-width:980px}
+  .legend{display:flex;gap:16px;flex-wrap:wrap;color:var(--muted);font-size:12px;margin:0 0 28px}
+  .legend b{color:var(--text)}
+  .screen{border:1px solid var(--line);border-radius:14px;background:var(--panel);margin:0 0 28px;overflow:hidden}
+  .screen>h2{font-size:15px;margin:0;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--panel2);display:flex;gap:10px;align-items:center}
+  .tag{font:11px/1 var(--mono);color:var(--accent);border:1px solid var(--line2);border-radius:999px;padding:4px 9px}
+  .body{display:grid;grid-template-columns:minmax(360px,520px) 1fr;gap:0}
+  @media(max-width:920px){.body{grid-template-columns:1fr}}
+  .frame{padding:18px;border-right:1px solid var(--line)}
+  @media(max-width:920px){.frame{border-right:none;border-bottom:1px solid var(--line)}}
+  .annot{padding:18px}
+  .annot h3{font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint);margin:0 0 6px}
+  .annot h3:not(:first-child){margin-top:16px}
+  .annot ul{margin:0;padding-left:18px} .annot li{margin:3px 0}
+  .annot code,.frame code{font:12px/1 var(--mono);background:var(--panel2);border:1px solid var(--line2);border-radius:5px;padding:2px 5px;color:#cfe0ff}
+  .k{color:var(--muted)}
+  /* sidebar tree mock */
+  .side{background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);padding:8px;font-size:13px}
+  .row{display:flex;align-items:center;gap:7px;padding:5px 8px;border-radius:7px;white-space:nowrap}
+  .row .chev{color:var(--faint);width:12px;display:inline-block;text-align:center}
+  .row .bot{opacity:.85}
+  .row.sel{background:#23314e}
+  .row.hov{background:#1f242d}
+  .dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+  .dot.run{background:var(--run);box-shadow:0 0 0 3px rgba(63,206,124,.18)}
+  .dot.idle{background:var(--idle)} .dot.err{background:var(--err)}
+  .badge{margin-left:auto;font:11px/1 var(--mono);color:var(--muted);background:#202531;border:1px solid var(--line2);border-radius:999px;padding:2px 7px}
+  .lock{color:var(--readonly);font-size:11px}
+  .ind1{padding-left:8px}.ind2{padding-left:24px}.ind3{padding-left:40px}.ind4{padding-left:56px}
+  .muted{color:var(--muted)} .faint{color:var(--faint)}
+  /* read-only convo mock */
+  .convo{background:var(--panel2);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .convo .hd{padding:9px 12px;border-bottom:1px solid var(--line);display:flex;gap:8px;align-items:center;font-size:12px;color:var(--muted)}
+  .convo .msg{padding:10px 12px;border-bottom:1px solid var(--line)}
+  .convo .who{font-size:11px;color:var(--faint);margin-bottom:3px}
+  .convo .tool{font:12px/1.4 var(--mono);color:#cfe0ff;background:#141821;border:1px solid var(--line2);border-radius:6px;padding:6px 8px;margin:6px 0}
+  .robar{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#211d10;border-top:1px solid #3a3214;color:#e7d089;font-size:12px}
+  .skeleton{height:10px;border-radius:5px;background:linear-gradient(90deg,#1d2129,#262c37,#1d2129);margin:7px 0}
+  .pill{display:inline-flex;gap:6px;align-items:center;font-size:12px;border:1px solid var(--line2);border-radius:999px;padding:4px 10px;color:var(--muted)}
+  .note{margin:0 0 22px;padding:12px 16px;border:1px dashed var(--line2);border-radius:10px;color:var(--muted);background:#13151a;max-width:980px}
+  .err-box{padding:12px;color:#ffb3b3;background:#241416;border:1px solid #4a2326;border-radius:8px;margin:8px 0;font-size:12px}
+</style>
+</head>
+<body>
+
+<h1>UI · Claude 主子孙 subagent 对话树（原生树）</h1>
+<p class="sub">日期 2026-06-27 · 配套 <a href="./requirement.md" style="color:var(--accent)">requirement.md</a> / <a href="./architecture.md" style="color:var(--accent)">architecture.md</a>。
+本需求 UI <b>以复用为主</b>：树外观复用 home-shell <code>requirements/2026-06-25-home-shell/ui.html</code> 的对话树（s1–s13），只读对话视图复用既有 <code>ObservedAgentReadOnlyBar</code>。下列各屏的<b>视觉为示意</b>，权威视觉以 home-shell + canonical 为准；<b>本文件的真正载荷是每屏的「交互注解块」</b>，专写本需求<b>新增 / 改动</b>的态。canonical 回写在 gate-1 批准后进行（README §每个需求工作流 第 3 步）。</p>
+
+<div class="legend">
+  <span><span class="dot run" style="display:inline-block"></span> <b>运行</b> 脉冲绿</span>
+  <span><span class="dot idle" style="display:inline-block"></span> <b>完成</b> idle 灰</span>
+  <span><span class="dot err" style="display:inline-block"></span> <b>出错</b> 红</span>
+  <span><span class="lock">🔒</span> <b>只读</b>（provider 内部子）</span>
+  <span><span class="badge">3</span> <b>后代计数</b>角标</span>
+</div>
+
+<div class="note"><b>与现状的关系（务必读）：</b>客户端对话树<b>当前已支持深层渲染</b>（<code>conversation-tree/render.tsx</code> <code>MAX_RENDER_DEPTH=64</code>，数据层 <code>buildConversationTree</code> 已无限递归）。本需求<b>不新增树组件、不解除护栏</b>——视觉上「深层节点可见」本就具备；新增的是<b>服务端把孙及更深 subagent 也作为只读 agent 喂进来</b>，于是这些深层节点<b>自然出现</b>。因此下面 s1 的「深层节点」不是新组件，而是<b>同一棵树被喂入更多层数据后的表现态</b>。</div>
+
+<!-- ========================= S1 ========================= -->
+<section class="screen" id="s1">
+  <h2>S1 · 对话树：主子孙任意层嵌套（深层节点表现态）<span class="tag">#tree · 复用 home-shell 树</span></h2>
+  <div class="body">
+    <div class="frame">
+      <div class="side">
+        <div class="row faint" style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding-bottom:2px">项目 · paseo-main</div>
+        <div class="row sel ind1"><span class="chev">▾</span><span class="bot">💬</span> 重构 checkout 子系统 <span class="dot run"></span><span class="badge">5</span></div>
+        <div class="row ind2"><span class="chev">▾</span><span class="bot">🤖</span> <span class="muted">Explore</span> 扫描 server <span class="lock">🔒</span><span class="dot idle"></span><span class="badge">2</span></div>
+        <div class="row ind3"><span class="chev">▾</span><span class="bot">🤖</span> <span class="muted">general-purpose</span> 读 protocol <span class="lock">🔒</span><span class="dot run"></span></div>
+        <div class="row ind4"><span class="chev faint">·</span><span class="bot">🤖</span> <span class="muted">Explore</span> 查 schema <span class="lock">🔒</span><span class="dot run"></span></div>
+        <div class="row ind2 hov"><span class="chev">▸</span><span class="bot">🤖</span> <span class="muted">helm-ui</span> 画设计稿 <span class="lock">🔒</span><span class="dot err"></span><span class="badge">1</span></div>
+        <div class="row ind2"><span class="chev faint">·</span><span class="bot">⚙️</span> build:server <span class="muted">（paseo-run 子）</span><span class="dot run"></span></div>
+      </div>
+      <p class="faint" style="font-size:11px;margin:10px 2px 0">缩进随层数增长（≤ 8 层后停止增长，复用 <code>MAX_INDENT_DEPTH</code>）；🔒 = provider 内部子（只读）；最后一行 <code>build:server</code> 是 paseo-run 真实子（无 🔒、可控），与只读子<b>同树共存</b>。</p>
+    </div>
+    <div class="annot">
+      <h3>布局</h3>
+      <ul>
+        <li><b>桌面</b>：左栏全高树，节点按层缩进；深层超 8 层后缩进封顶，仅靠 chevron/图标区分。</li>
+        <li><b>紧凑 / 手机</b>：同结构，左栏为覆盖式抽屉；缩进步长更小。</li>
+      </ul>
+      <h3>状态</h3>
+      <ul>
+        <li><b>默认</b>：节点 = 图标 + 标题（任务描述，缺则 agent 类型，再缺则「Sub-agent」）+ 状态点。</li>
+        <li><b>hover</b>：行底色变亮（web only；native/紧凑常显操作）。</li>
+        <li><b>active / 选中</b>：蓝底；选中态由<b>路由派生</b>（不另存）。</li>
+        <li><b>运行</b>：脉冲绿点（节点出现即 running）。</li>
+        <li><b>完成</b>：idle 灰点。<b>出错</b>：红点。</li>
+        <li><b>可展开</b>：有后代 → chevron <code>▾/▸</code> + 后代计数角标；无后代 → 无 chevron。</li>
+        <li><b>加载（树重建中）</b>：daemon 重启 / 首次扫描时，节点逐个补入（近实时，非整屏 spinner）。</li>
+        <li><b>空</b>：无 subagent 的对话不显任何子行（不占位）。</li>
+        <li><b>只读标记</b>：provider 内部子带 🔒；paseo-run 子<b>无</b> 🔒。</li>
+        <li><b>能力门关</b>：旧主机 → 只显直接子层，更深不出现，树尾给升级提示（见 S3）。</li>
+      </ul>
+      <h3>右键菜单</h3>
+      <ul>
+        <li><b>provider 内部子（🔒 只读）</b>：① 展开/收起 ② 复制目录 ③ 在树中定位父；<b>禁用/不显</b>：发消息、独立重命名、独立归档、派生到本地（与现有 observed 一致）。</li>
+        <li><b>paseo-run 子</b>：保持现有可控右键（重命名 / 归档(级联) / 拆分 / 关页签 / 打开位置…），不变。</li>
+        <li><b>主对话（根）</b>：归档时<b>级联</b>把整 observed 子树标归档（复用 <code>archive-subagent</code>），其子树转为只读历史。</li>
+      </ul>
+      <h3>点击效果</h3>
+      <ul>
+        <li><b>点 chevron</b>：仅展开/收起该节点子树（复用折叠 store）。</li>
+        <li><b>点节点行</b>：导航到该 subagent（<code>navigateToAgent</code>）→ 打开其对话（S2）。</li>
+        <li><b>点状态点 / 角标</b>：无独立动作（纯指示）。</li>
+        <li><b>新节点出现</b>：任务跑动中，子/孙近实时（秒级）插入到<b>正确父</b>之下；状态点随生命周期变化——<b>不闪、不挂错父</b>（架构 §4·1/§4·2 保证）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= S2 ========================= -->
+<section class="screen" id="s2">
+  <h2>S2 · 任意层 subagent 只读对话视图<span class="tag">#readonly-convo · 复用 ObservedAgentReadOnlyBar</span></h2>
+  <div class="body">
+    <div class="frame">
+      <div class="convo">
+        <div class="hd"><span class="bot">🤖</span> <span>Explore · 查 schema</span> <span class="lock" style="margin-left:auto">🔒 只读</span> <span class="dot run" style="margin-left:6px"></span></div>
+        <div class="msg"><div class="who">user（派生提示）</div>查 protocol 里 subagent 相关 schema…</div>
+        <div class="msg"><div class="who">assistant · thinking</div><span class="muted">先定位 messages.ts 的 sub_agent detail…</span></div>
+        <div class="msg"><div class="who">assistant · tool</div><div class="tool">Grep  "sub_agent"  packages/protocol/src/</div>… <span class="muted">近实时追加中</span></div>
+        <div class="skeleton" style="width:60%;margin:10px 12px"></div>
+      </div>
+      <div class="robar">🔒 这是 Claude 内部子任务，<b>只读</b>——由 provider 编排，不能发送 / 中断。</div>
+    </div>
+    <div class="annot">
+      <h3>布局</h3>
+      <ul>
+        <li><b>桌面</b>：可在右面板 tab 或中区打开（复用既有对话承载）；顶部节点标题 + 🔒 + 状态点。</li>
+        <li><b>紧凑 / 手机</b>：全屏对话；底部为<b>只读提示条</b>替代输入框。</li>
+      </ul>
+      <h3>状态</h3>
+      <ul>
+        <li><b>加载</b>：拉取该节点完整 timeline 中（骨架占位）。</li>
+        <li><b>正常（只读时间线）</b>：消息 / 工具调用 / 思考，与 provider 原生记录一致、无缺漏、<b>无重复</b>（架构单一 writer + handoff replace 保证）。</li>
+        <li><b>增长中</b>：节点仍 running → 内容近实时（~200ms 级）向下追加；handoff（父 turn 完成）时做一次权威 REPLACE（经 timeline epoch 重置，不闪/不并列重复）。</li>
+        <li><b>空</b>：节点刚出现、尚无消息 → 占位「等待该子任务输出…」。</li>
+        <li><b>错误</b>：仅该节点落盘读失败 → 视图内错误态（见下框），<b>不连累整棵树</b>。</li>
+        <li><b>离线</b>：主机断连 → 复用既有离线态；重连后恢复。</li>
+        <li><b>只读提示条</b>：始终替代输入框（provider 内部子）。</li>
+      </ul>
+      <div class="err-box">错误态示意：⚠ 无法读取该子任务对话（落盘缺失或损坏）。其它节点不受影响；可重试。</div>
+      <h3>右键 / 顶部菜单</h3>
+      <ul>
+        <li>只读视图<b>无</b>发送框、<b>无</b>中断按钮；顶部「···」仅：复制深链接 / 在树中定位 / 复制目录（写操作项禁用）。</li>
+      </ul>
+      <h3>点击效果</h3>
+      <ul>
+        <li><b>滚动到底</b>：running 节点保持贴底跟随新内容；用户上滚则停跟随（复用既有 timeline 行为）。</li>
+        <li><b>点工具调用</b>：展开/收起其详情（复用既有 timeline item 交互）。</li>
+        <li><b>paseo-run 子（对照）</b>：同一视图但<b>有</b>输入框、可中断（<code>observed=false</code>），无 🔒、无只读条。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ========================= S3 ========================= -->
+<section class="screen" id="s3">
+  <h2>S3 · 能力门：旧主机「升级以查看深层 subagent」<span class="tag">#upgrade-hint · 单点检测</span></h2>
+  <div class="body">
+    <div class="frame">
+      <div class="side">
+        <div class="row sel ind1"><span class="chev">▾</span><span class="bot">💬</span> 重构 checkout 子系统 <span class="dot run"></span><span class="badge">1</span></div>
+        <div class="row ind2"><span class="chev faint">·</span><span class="bot">🤖</span> <span class="muted">Explore</span> 扫描 server <span class="lock">🔒</span><span class="dot run"></span></div>
+        <div class="row ind2" style="margin-top:6px">
+          <span class="pill">⤴ 升级主机以查看更深层 subagent</span>
+        </div>
+      </div>
+      <p class="faint" style="font-size:11px;margin:10px 2px 0">旧 daemon 无「原生 subagent 树」能力 → 仅直接子（live）可见，更深层不拉取；提示挂在该处。</p>
+    </div>
+    <div class="annot">
+      <h3>布局</h3>
+      <ul><li>提示为轻量 inline pill，挂在「能拿到的最深层」之下，不弹模态、不打断。</li></ul>
+      <h3>状态</h3>
+      <ul>
+        <li><b>能力门开（新主机）</b>：无此提示；深层节点正常出现（S1）。</li>
+        <li><b>能力门关（旧主机）</b>：只显直接子层 + 此提示。<b>不降级模拟</b>（不在客户端拼造深层）、<b>不崩溃</b>、<b>不假装显示</b>。</li>
+        <li><b>检测来源</b>：单点纯 selector 读主机能力 flag（架构 §4·10）；下游读一个干净布尔，无散落兼容分支。</li>
+      </ul>
+      <h3>右键菜单</h3>
+      <ul><li>无（pill 仅一个动作）。</li></ul>
+      <h3>点击效果</h3>
+      <ul><li><b>点 pill</b>：打开主机升级指引（复用既有「升级主机」入口）；不改树本身。</li></ul>
+    </div>
+  </div>
+</section>
+
+<p class="faint" style="font-size:12px;max-width:980px">闭合性：S1（树发现/状态）↔ S2（点开只读对话）↔ S3（旧主机降级）三屏的进入/退出在 requirement §3 流程 + architecture §4 闭合点逐条对齐；本文件不重复流程文字（README：流程逻辑进注解块，不画进框）。</p>
+
+</body>
+</html>

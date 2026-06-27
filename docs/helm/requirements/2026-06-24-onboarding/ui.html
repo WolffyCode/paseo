@@ -1,121 +1,217 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Helm · 首次启动 onboarding · UI 设计稿（需求 2026-06-24）</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Helm · 首次启动 onboarding · UI 设计稿（codePilot 浅色 · 需求 2026-06-24）</title>
 <style>
+/* =========================================================================
+   主题令牌 = CodePilot「github」浅色主题（themes/github.json 原值 · 内部命名 codePilot）
+   —— GitHub Primer 浅色：白底 + 冷灰中性 + GitHub 蓝 #0969da 仅点缀（按钮/链接/focus/品牌）。
+   onboarding 是「连上主机之前」的首跑 → 没有主壳 4 卡片布局，只复用 codePilot 的视觉语言：
+   磨砂窗体材质 + 居中白色「欢迎卡」（扁平 1px 边框 + 轻投影）+ 蓝点缀。
+   .dark 仅作令牌登记 + 注解「深色变体」引用，本稿不渲染深屏。
+   ========================================================================= */
 :root{
-  --surface0:#ffffff; --surface1:#fafafa; --surface2:#f4f4f5; --surface3:#e4e4e7; --surface4:#d4d4d8;
-  --surfaceSidebar:#f4f4f5; --surfaceWorkspace:#ffffff;
-  --fg:#1a1a1e; --fgMuted:#71717a;
-  --border:#e4e4e7; --borderAccent:#ececf1;
-  --accent:#20744A; --accentBright:#239956; --accentFg:#ffffff;
-  --success:#15803d; --warning:#d97706; --danger:#b91c1c;
-  --xs:12px; --sm:14px; --base:16px; --lg:18px; --xl:20px; --xxl:22px; --xxxl:26px;
-  --r-sm:2px; --r-base:4px; --r-md:6px; --r-lg:8px; --r-xl:12px; --r-2xl:16px;
-  --ui:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
-  --mono:'SFMono-Regular',Menlo,Monaco,Consolas,monospace;
+  --bg: oklch(1 0 0);                        /* #ffffff 卡片/画布白底 */
+  --fg: oklch(0.254 0.011 254);             /* #1f2328 主文字·近黑 */
+  --card: oklch(1 0 0);                      /* #ffffff */
+  --primary: oklch(0.540 0.191 257.5);      /* #0969da GitHub 蓝 · 仅按钮/链接/focus/品牌 */
+  --primary-fg: oklch(1 0 0);               /* #ffffff 蓝底白字 */
+  --secondary: oklch(0.947 0.007 247.9);    /* #eaeef2 次级浅灰底 */
+  --secondary-fg: oklch(0.338 0.015 252.3); /* #3d444d */
+  --muted: oklch(0.947 0.007 247.9);        /* #eaeef2 */
+  --muted-fg: oklch(0.531 0.017 251.3);     /* #59636e 次要文字灰 */
+  --accent: oklch(0.978 0.003 247.9);       /* #f6f8fa 极淡冷灰·hover 底 */
+  --accent-fg: oklch(0.338 0.015 252.3);    /* #3d444d */
+  --border: oklch(0.876 0.012 248);         /* #d1d9e0 边框浅灰 */
+  --input: oklch(0.876 0.012 248);
+  --ring: oklch(0.540 0.191 257.5);         /* #0969da focus 蓝环 */
+  --sidebar: oklch(0.978 0.003 247.9);      /* #f6f8fa */
+  --sidebar-accent: oklch(0.947 0.007 247.9);    /* #eaeef2 */
+  --sidebar-accent-fg: oklch(0.338 0.015 252.3); /* #3d444d */
+  --destructive: oklch(0.552 0.205 24.5);   /* #cf222e 危险红 */
+  --success: oklch(0.503 0.137 152);        /* ≈#1a7f37 成功绿 */
+  --warning: oklch(0.555 0.118 75);         /* ≈#9a6700 警告橙 */
+  --info: oklch(0.540 0.191 257.5);         /* #0969da 信息蓝 */
+  /* 几何 —— GitHub 偏扁平：靠 1px 边框分隔，圆角克制 */
+  --r-card: 12px;       /* 卡片圆角 */
+  --r-ctrl: 6px;        /* 控件圆角 */
+  --r-sm: 6px;
+  /* 卡片质感 = GitHub 扁平：清晰 1px 边框 + 轻投影 */
+  --card-drop: 0 1px 0 rgba(31,35,40,.04), 0 1px 3px rgba(31,35,40,.08);
+  /* 浮动「欢迎卡」投影：磨砂背景上需更托得起（GitHub overlay/dialog floating-shadow） */
+  --ocard-shadow: 0 10px 30px -14px rgba(31,35,40,.22), 0 1px 3px rgba(31,35,40,.08);
+  /* 窗口背景层 = macOS 'sidebar' vibrancy 磨砂材质（半透磨砂，露桌面冷调）。静态 HTML 用磨砂浅冷灰 + 一丝冷调渐变模拟。 */
+  --win-backdrop:
+    radial-gradient(135% 90% at 12% -10%, rgba(255,255,255,.66), rgba(255,255,255,0) 55%),
+    radial-gradient(120% 120% at 108% 115%, rgba(174,192,214,.40), rgba(174,192,214,0) 50%),
+    linear-gradient(152deg, #edf0f4 0%, #e4e9ef 48%, #e9edf1 100%);
+  --win-shadow: 0 12px 30px -16px rgba(31,35,40,.16), 0 2px 6px -3px rgba(31,35,40,.10);
+  --ui: system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:"SFMono-Regular",Menlo,Monaco,Consolas,"Liberation Mono","Courier New",monospace;
+}
+.dark{
+  --bg: oklch(0.176 0.014 258.4);           /* #0d1117 */
+  --fg: oklch(0.943 0.011 243.7);           /* #e6edf3 近白 */
+  --card: oklch(0.220 0.016 256.8);         /* #161b22 */
+  --primary: oklch(0.569 0.202 259.7);      /* #1f6feb GitHub 蓝(深) */
+  --primary-fg: oklch(1 0 0);
+  --secondary: oklch(0.267 0.015 256.8);    /* #21262d */
+  --secondary-fg: oklch(0.857 0.014 248);
+  --muted: oklch(0.267 0.015 256.8);
+  --muted-fg: oklch(0.662 0.018 250.9);     /* ≈#8b949e */
+  --accent: oklch(0.246 0.015 256.8);       /* #1c2128 */
+  --accent-fg: oklch(0.943 0.011 243.7);
+  --border: oklch(0.330 0.015 252.3);       /* #30363d */
+  --input: oklch(0.330 0.015 252.3);
+  --ring: oklch(0.569 0.202 259.7);
+  --destructive: oklch(0.665 0.205 27.0);   /* #f85149 */
+  --card-drop: 0 1px 0 rgba(1,4,9,.30), 0 1px 3px rgba(1,4,9,.40);
+  --ocard-shadow: 0 10px 30px -14px rgba(1,4,9,.55), 0 1px 3px rgba(1,4,9,.45);
+  --win-backdrop:
+    radial-gradient(135% 90% at 12% -10%, rgba(60,72,92,.50), rgba(60,72,92,0) 55%),
+    radial-gradient(120% 120% at 108% 115%, rgba(20,28,44,.70), rgba(20,28,44,0) 50%),
+    linear-gradient(152deg, #11151c 0%, #0b0e14 55%, #0d1117 100%);
+  --win-shadow: 0 12px 30px -16px rgba(0,0,0,.60), 0 2px 6px -3px rgba(0,0,0,.50);
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:#e8e8eb;color:var(--fg);font-family:var(--ui);-webkit-font-smoothing:antialiased;font-size:var(--base);line-height:1.45}
+html,body{background:#eaeef2;color:#1f2328;font-family:var(--ui);-webkit-font-smoothing:antialiased;font-size:16px;line-height:1.45}
 body{padding:40px 32px 120px}
 svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none;display:block}
 .i.xs{width:12px;height:12px} .i.sm{width:14px;height:14px} .i.md{width:16px;height:16px} .i.lg{width:20px;height:20px}
+
+/* ===== board chrome（设计板外壳·恒浅色） ===== */
 .board-h{max-width:1180px;margin:0 auto 24px}
-.board-h h1{font-size:30px;font-weight:600;letter-spacing:-.5px;display:flex;align-items:center;gap:12px}
-.board-h h1 .logo{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--accent),#15583a);display:flex;align-items:center;justify-content:center;color:#fff}
-.board-h .sub{color:var(--fgMuted);font-size:var(--sm);margin-top:8px;max-width:860px}
-.req-log{max-width:1180px;margin:0 auto 18px;border:1px solid var(--border);border-radius:var(--r-xl);background:var(--surface1);overflow:hidden}
-.req-log .rl-h{padding:10px 16px;background:var(--surface2);font-size:var(--xs);font-weight:600;color:var(--fgMuted);letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border)}
-.req-log table{width:100%;border-collapse:collapse;font-size:var(--sm)}
-.req-log td,.req-log th{padding:8px 16px;text-align:left;border-top:1px solid var(--border);vertical-align:top}
-.req-log th{color:var(--fgMuted);font-weight:500;font-size:var(--xs)}
-.req-log td:first-child{color:var(--fgMuted);white-space:nowrap}
+.board-h h1{font-size:30px;font-weight:600;letter-spacing:-.5px;display:flex;align-items:center;gap:12px;color:#1f2328}
+.board-h h1 .logo{width:34px;height:34px;border-radius:9px;background:#0969da;display:flex;align-items:center;justify-content:center;color:#fff}
+.board-h .sub{color:#59636e;font-size:14px;margin-top:8px;max-width:920px}
+.board-h .sub b{color:#1f2328;font-weight:600}
+.req-log{max-width:1180px;margin:0 auto 18px;border:1px solid #d1d9e0;border-radius:12px;background:#f6f8fa;overflow:hidden}
+.req-log .rl-h{padding:10px 16px;background:#eaeef2;font-size:12px;font-weight:600;color:#59636e;letter-spacing:.4px;text-transform:uppercase;display:flex;align-items:center;gap:8px;border-bottom:1px solid #d1d9e0}
+.req-log table{width:100%;border-collapse:collapse;font-size:14px}
+.req-log td,.req-log th{padding:8px 16px;text-align:left;border-top:1px solid #d1d9e0;vertical-align:top}
+.req-log th{color:#59636e;font-weight:500;font-size:12px}
+.req-log td:first-child{color:#59636e;white-space:nowrap;font-variant-numeric:tabular-nums}
 .pill{display:inline-flex;align-items:center;gap:5px;padding:1px 8px;border-radius:9999px;font-size:11px;font-weight:500}
-.pill.done{color:#15803d;background:rgba(34,197,94,.12)}
-.pill.p0{color:var(--accentBright);background:rgba(32,116,74,.16)}
+.pill.p0{color:#3d444d;background:rgba(120,113,108,.16)}
+.pill.new{color:#0969da;background:rgba(9,105,218,.12)}
 .nav-idx{max-width:1180px;margin:0 auto 30px;display:flex;flex-wrap:wrap;gap:8px}
-.nav-idx a{font-size:var(--xs);color:var(--fgMuted);text-decoration:none;padding:5px 11px;border:1px solid var(--border);border-radius:9999px;background:var(--surface1)}
-.nav-idx a:hover{color:var(--fg);background:var(--surface2)}
-.screen{max-width:1180px;margin:0 auto 52px;scroll-margin-top:20px}
+.nav-idx a{font-size:12px;color:#59636e;text-decoration:none;padding:5px 11px;border:1px solid #d1d9e0;border-radius:9999px;background:#f6f8fa}
+.nav-idx a:hover{color:#1f2328;background:#eaeef2}
+.note{max-width:1180px;margin:0 auto 30px;font-size:13px;color:#59636e;display:flex;align-items:flex-start;gap:8px;padding:12px 14px;border:1px dashed #d1d9e0;border-radius:10px;background:#f6f8fa}
+.note b{color:#1f2328}
+
+/* ===== screen scaffold ===== */
+.screen{max-width:1180px;margin:0 auto 56px;scroll-margin-top:20px}
 .screen-head{margin-bottom:14px}
-.screen-head .tag{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--accentBright);background:rgba(32,116,74,.16);padding:2px 9px;border-radius:9999px;margin-bottom:8px}
-.screen-head h2{font-size:var(--xl);font-weight:600;letter-spacing:-.2px}
-.screen-head p{color:var(--fgMuted);font-size:var(--sm);margin-top:5px;max-width:900px}
+.screen-head .tag{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.5px;color:#3d444d;background:rgba(120,113,108,.16);padding:2px 9px;border-radius:9999px;margin-bottom:8px}
+.screen-head .tag.new{color:#0969da;background:rgba(9,105,218,.12)}
+.screen-head h2{font-size:20px;font-weight:600;letter-spacing:-.2px;color:#1f2328}
+.screen-head p{color:#59636e;font-size:14px;margin-top:5px;max-width:920px}
+.screen-head p b{color:#1f2328;font-weight:600}
 .screen-body{display:grid;grid-template-columns:1fr 330px;gap:20px;align-items:start}
 .screen-body.wide{grid-template-columns:1fr}
-.anno{border:1px solid var(--border);border-radius:var(--r-xl);background:var(--surface1);overflow:hidden}
-.anno .anno-h{font-size:var(--xs);font-weight:600;color:var(--fgMuted);text-transform:uppercase;letter-spacing:.4px;padding:9px 12px 6px}
+
+/* ===== 交互注解块 ===== */
+.anno{border:1px solid #d1d9e0;border-radius:12px;background:#f6f8fa;overflow:hidden}
+.anno .anno-h{font-size:12px;font-weight:600;color:#59636e;text-transform:uppercase;letter-spacing:.4px;padding:10px 12px 6px}
 .anno ol{list-style:none;display:flex;flex-direction:column}
-.anno li{display:flex;gap:9px;padding:9px 12px;border-top:1px solid var(--border);font-size:13px;line-height:1.5;color:var(--fgMuted)}
-.anno li b{color:var(--fg);font-weight:500}
-.pin{flex:none;width:18px;height:18px;border-radius:9999px;background:var(--accent);color:#fff;font-size:11px;font-weight:600;display:inline-flex;align-items:center;justify-content:center}
-.anno li .pin{margin-top:1px}
-.pinb{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:9999px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;vertical-align:super;margin-left:3px}
-.states{border-top:1px solid var(--border);padding:9px 12px;background:var(--surface0)}
-.states .sh{font-size:11px;font-weight:600;color:var(--fgMuted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px}
-.states dl{display:grid;grid-template-columns:64px 1fr;gap:5px 8px;font-size:12px;line-height:1.45}
-.states dt{color:var(--accentBright);font-weight:600}
-.states dd{margin:0;color:var(--fgMuted)}
-.states dd b{color:var(--fg);font-weight:500}
-.frame{border:1px solid var(--border);border-radius:var(--r-xl);overflow:hidden;background:var(--surface0);box-shadow:0 20px 50px -20px rgba(0,0,0,.13)}
-.titlebar{height:38px;background:var(--surfaceSidebar);display:flex;align-items:center;padding:0 14px;gap:8px;border-bottom:1px solid var(--border)}
+.anno li{display:flex;gap:9px;padding:9px 12px;border-top:1px solid #d1d9e0;font-size:13px;line-height:1.5;color:#59636e}
+.anno li b{color:#1f2328;font-weight:600}
+.anno li code{font-family:var(--mono);font-size:11.5px;background:#eaeef2;border:1px solid #d1d9e0;border-radius:5px;padding:0 4px;color:#3d444d}
+.pin{flex:none;width:18px;height:18px;border-radius:9999px;background:#0969da;color:#fff;font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-top:1px}
+.states{border-top:1px solid #d1d9e0;padding:10px 12px;background:#fff}
+.states .sh{font-size:11px;font-weight:600;color:#59636e;text-transform:uppercase;letter-spacing:.4px;margin-bottom:7px}
+.states dl{display:grid;grid-template-columns:74px 1fr;gap:6px 8px;font-size:12px;line-height:1.5}
+.states dt{color:#3d444d;font-weight:600}
+.states dd{margin:0;color:#59636e}
+.states dd b{color:#1f2328;font-weight:600}
+.states code{font-family:var(--mono);font-size:11px;background:#eaeef2;border:1px solid #d1d9e0;border-radius:4px;padding:0 4px;color:#3d444d}
+
+/* =========================================================================
+   FRAME = macOS 浮窗（磨砂窗体材质 + 整窗投影 + 圆角）。onboarding 自有布局：
+   窗体内居中一张白色「欢迎卡」（codePilot card 原语：1px 边框 + 浮投影）。
+   ========================================================================= */
+.frame{border-radius:16px;overflow:hidden;background:var(--win-backdrop);box-shadow:var(--win-shadow);position:relative}
+.win{display:flex;flex-direction:column;padding:8px 14px 16px;height:548px}
+.topbar{height:40px;flex:none;display:flex;align-items:center;gap:8px;padding:0 4px}
 .lights{display:flex;gap:8px}
-.lights span{width:11px;height:11px;border-radius:9999px}
+.lights span{width:12px;height:12px;border-radius:9999px}
 .lights .r{background:#ff5f57}.lights .y{background:#febc2e}.lights .g{background:#28c840}
-.tb-title{margin-left:10px;font-size:13px;color:var(--fgMuted)}
-.stage{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:32px 24px;text-align:center;background:var(--surfaceWorkspace)}
-.logo-lg{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,var(--accent),#15583a);display:flex;align-items:center;justify-content:center;color:#fff}
-.logo-lg .i{width:32px;height:32px}
-.h-title{font-size:24px;font-weight:300;letter-spacing:-.3px}
-.h-sub{color:var(--fgMuted);font-size:var(--sm);max-width:430px;margin-top:8px;line-height:1.55}
-.actions{width:100%;max-width:360px;display:flex;flex-direction:column;gap:10px;margin-top:4px}
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:var(--sm);font-weight:500;padding:11px 16px;border-radius:var(--r-xl);border:1px solid transparent;white-space:nowrap;width:100%}
-.btn.df{background:var(--accent);color:#fff;border-color:var(--accent)}
-.btn.df.hover{background:#1b6340}
-.btn.df.press{background:#16512f;transform:scale(.985)}
-.btn.df.focus{box-shadow:0 0 0 3px rgba(32,116,74,.3)}
-.btn.out{background:var(--surface2);border-color:var(--border);color:var(--fg)}
-.btn.out.hover{background:var(--surface3)}
-.btn.ghost{background:transparent;color:var(--fgMuted);border-color:transparent;width:auto;padding:8px 12px;font-weight:400}
-.btn.ghost.hover{background:var(--surface2);color:var(--fg)}
-.btn.sm{padding:7px 12px;font-size:var(--xs);width:auto}
+.tb-title{margin-left:6px;font-size:13px;color:var(--muted-fg)}
+.stage{flex:1;min-height:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px}
+
+/* 居中欢迎卡 = codePilot 白色卡片原语 */
+.ocard{width:100%;max-width:434px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-card);box-shadow:var(--ocard-shadow);padding:34px 32px 26px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:18px}
+.logo-lg{width:60px;height:60px;border-radius:15px;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;box-shadow:0 4px 12px -3px rgba(9,105,218,.5)}
+.logo-lg .i{width:30px;height:30px}
+.logo-md{width:48px;height:48px;border-radius:12px}
+.logo-md .i{width:24px;height:24px}
+.h-title{font-size:22px;font-weight:600;letter-spacing:-.3px;color:var(--fg)}
+.h-sub{color:var(--muted-fg);font-size:14px;max-width:344px;margin-top:8px;line-height:1.55}
+.actions{width:100%;max-width:344px;display:flex;flex-direction:column;gap:10px;margin-top:2px}
+.ver{color:var(--muted-fg);font-size:12px;margin-top:2px}
+
+/* 控件 —— GitHub/Primer 按钮（6px 圆角·扁平） */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;font-size:14px;font-weight:500;padding:10px 16px;border-radius:var(--r-ctrl);border:1px solid transparent;white-space:nowrap;width:100%;line-height:1.2;position:relative}
+.btn.df{background:var(--primary);color:var(--primary-fg);border-color:rgba(31,35,40,.15)}
+.btn.df.hover{background:#0860ca}
+.btn.df.press{background:#0757ba;transform:scale(.99)}
+.btn.df.focus{box-shadow:0 0 0 3px rgba(9,105,218,.3)}
+.btn.out{background:var(--accent);border-color:var(--border);color:var(--fg)}
+.btn.out.hover{background:var(--secondary)}
+.btn.ghost{background:transparent;color:var(--muted-fg);border-color:transparent;width:auto;padding:8px 12px;font-weight:500}
+.btn.ghost.hover{background:var(--accent);color:var(--fg)}
 .btn .i{width:16px;height:16px}
-.link{display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-size:var(--sm);font-weight:500}
+.link{display:inline-flex;align-items:center;gap:6px;color:var(--primary);font-size:14px;font-weight:500;cursor:pointer}
 .link.hover{text-decoration:underline}
-.ver{color:var(--fgMuted);font-size:var(--xs);margin-top:10px}
-.card{border:1px solid var(--border);border-radius:var(--r-xl);background:var(--surface1);overflow:hidden;width:100%;max-width:400px;text-align:left}
-.row{display:flex;align-items:center;gap:12px;padding:14px 15px;border-top:1px solid var(--border)}
+.pinb{display:inline-flex;align-items:center;justify-content:center;min-width:15px;height:15px;padding:0 3px;border-radius:9999px;background:var(--primary);color:var(--primary-fg);font-size:10px;font-weight:700;vertical-align:super;margin-left:4px;font-variant-numeric:tabular-nums}
+
+/* 连接方式列表（GitHub Box·1px 边框分隔行） */
+.methods{width:100%;border:1px solid var(--border);border-radius:var(--r-card);overflow:hidden;background:var(--bg);text-align:left}
+.row{display:flex;align-items:center;gap:12px;padding:13px 14px;border-top:1px solid var(--border)}
 .row:first-child{border-top:none}
-.row.hover{background:var(--surface2)}
+.row.hover{background:var(--accent)}
 .row .rc{flex:1;min-width:0}
-.row .rt{font-size:var(--sm);color:var(--fg)}
-.row .rd{font-size:var(--xs);color:var(--fgMuted);margin-top:3px;line-height:1.5}
-.row .chev{color:var(--fgMuted)}
-.badge-ic{width:32px;height:32px;border-radius:var(--r-lg);background:var(--surface2);display:flex;align-items:center;justify-content:center;color:var(--accentBright);flex:none}
-.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 9px;border-radius:9999px;font-size:11px;font-weight:500}
-.badge.suc{color:#15803d;background:rgba(34,197,94,.12)}
-.badge.mut{color:var(--fgMuted);background:var(--surface2)}
-.dot{width:7px;height:7px;border-radius:9999px;flex:none}
-.dot.run{background:var(--success)}
-.spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--surface3);border-top-color:var(--accent);animation:spin 1s linear infinite}
+.row .rt{font-size:14px;color:var(--fg);display:flex;align-items:center;gap:8px}
+.row .rd{font-size:12px;color:var(--muted-fg);margin-top:3px;line-height:1.5}
+.row .rd code{font-family:var(--mono);font-size:11px;background:var(--secondary);border-radius:4px;padding:0 4px;color:var(--secondary-fg)}
+.row .chev{color:var(--muted-fg)}
+.badge-ic{width:32px;height:32px;border-radius:8px;background:var(--secondary);display:flex;align-items:center;justify-content:center;color:var(--muted-fg);flex:none}
+.badge{display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:500}
+.badge.mut{color:var(--muted-fg);background:var(--secondary)}
+
+/* spinner（GitHub 蓝顶环） */
+.spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--secondary);border-top-color:var(--primary);animation:spin 1s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.alertbox{display:flex;align-items:flex-start;gap:10px;padding:13px 15px;border:1px solid;border-radius:var(--r-lg);font-size:13px;width:100%;max-width:400px;text-align:left;background:var(--surface0)}
-.alertbox.err{border-color:rgba(220,38,38,.4)} .alertbox.err .i,.alertbox.err .at{color:#b91c1c}
-.alertbox .at{font-weight:600} .alertbox .ad{color:var(--fgMuted);margin-top:3px;line-height:1.5}
-.statehd{font-size:var(--xs);color:var(--fgMuted);margin:0 auto 8px;font-weight:500;display:flex;align-items:center;gap:7px;justify-content:center}
-.statebox{border:1px dashed var(--border);border-radius:var(--r-lg);padding:18px;background:var(--surface0);display:flex;flex-direction:column;align-items:center;gap:8px}
+
+/* 错误 Alert（GitHub flash-error） */
+.alertbox{display:flex;align-items:flex-start;gap:10px;padding:13px 14px;border:1px solid;border-radius:var(--r-ctrl);font-size:13px;width:100%;text-align:left}
+.alertbox.err{background:rgba(207,34,46,.06);border-color:rgba(207,34,46,.35)}
+.alertbox.err .i{color:var(--destructive)}
+.alertbox .at{font-weight:600;color:var(--fg)}
+.alertbox .ad{color:var(--muted-fg);margin-top:3px;line-height:1.5}
+.alertbox .ad code{font-family:var(--mono);font-size:11px;background:var(--secondary);border-radius:4px;padding:0 4px;color:var(--secondary-fg)}
+
+/* 状态目录板（S1·态） */
+.panel{border:1px solid var(--border);border-radius:14px;background:var(--bg);box-shadow:var(--card-drop);padding:22px}
 .statestrip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
 @media(max-width:760px){.statestrip{grid-template-columns:repeat(2,1fr)}}
-.phone{width:300px;border:1px solid var(--border);border-radius:30px;overflow:hidden;background:var(--surface0);box-shadow:0 20px 50px -20px rgba(0,0,0,.13);flex:none}
-.pstatus{height:30px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--fgMuted)}
+.statebox{border:1px dashed var(--border);border-radius:var(--r-ctrl);padding:18px 16px;background:var(--accent);display:flex;flex-direction:column;align-items:center;gap:12px}
+.statehd{font-size:11px;color:var(--muted-fg);font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+
+/* 平台变体：phone + 平台分栏 */
 .platforms{display:flex;gap:22px;flex-wrap:wrap;align-items:flex-start}
-.kbdkey{font-family:var(--mono);font-size:11px;color:var(--fgMuted);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px}
-*::-webkit-scrollbar{width:7px;height:7px}
-*::-webkit-scrollbar-thumb{background:#c7c7cc;border-radius:9999px;border:2px solid transparent;background-clip:padding-box}
-*{scrollbar-width:thin;scrollbar-color:#c7c7cc transparent}
-.note{max-width:1180px;margin:0 auto 10px;color:var(--fgMuted);font-size:var(--xs);display:flex;gap:8px;align-items:center}
+.plat-label{font-size:13px;font-weight:600;color:#1f2328;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+.plat-label .i{color:#59636e}
+.phone{width:300px;border:1px solid var(--border);border-radius:30px;overflow:hidden;background:var(--bg);box-shadow:var(--win-shadow);flex:none}
+.pstatus{height:30px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--muted-fg);background:var(--sidebar);border-bottom:1px solid var(--border)}
+.pscreen{background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:26px 20px;text-align:center}
+
+*::-webkit-scrollbar{width:8px;height:8px}
+*::-webkit-scrollbar-thumb{background:#c2cad3;border-radius:9999px;border:2px solid transparent;background-clip:padding-box}
+*{scrollbar-width:thin;scrollbar-color:#c2cad3 transparent}
 </style>
 </head>
 <body>
@@ -125,13 +221,11 @@ svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke
 <symbol id="qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v3M14 20h7"/></symbol>
 <symbol id="link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></symbol>
 <symbol id="clipboard" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></symbol>
-<symbol id="settings" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
 <symbol id="refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.7 9.7 0 0 1 6.7 2.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.7 9.7 0 0 1-6.7-2.7L3 16"/><path d="M8 16H3v5"/></symbol>
 <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
 <symbol id="alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></symbol>
 <symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
 <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
-<symbol id="settings2" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4"/><line x1="10" x2="3" y1="4" y2="4"/><line x1="21" x2="12" y1="12" y2="12"/><line x1="8" x2="3" y1="12" y2="12"/><line x1="21" x2="16" y1="20" y2="20"/><line x1="12" x2="3" y1="20" y2="20"/></symbol>
 <symbol id="smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2"/><path d="M12 18h.01"/></symbol>
 <symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></symbol>
 <symbol id="stethoscope" viewBox="0 0 24 24"><path d="M4 3v6a5 5 0 0 0 10 0V3"/><path d="M8 3H4M14 3h-4"/><circle cx="20" cy="14" r="2"/><path d="M18 14v2a6 6 0 0 1-12 0v-2"/></symbol>
@@ -139,15 +233,21 @@ svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke
 
 <div class="board-h">
   <h1><span class="logo"><svg class="i lg"><use href="#gauge"/></svg></span> Helm · 首次启动 onboarding · UI 设计稿</h1>
-  <p class="sub">需求 <b>2026-06-24-onboarding</b>（连主机部分）。本地一对中的 UI 设计稿；通过评审后同步回写 canonical <code>docs/helm/ui.html</code> + <code>product.md</code>。每屏含完整交互注解（布局/默认/hover/活跃/运行/禁用/空/加载/错误/离线/右键/点击效果）。</p>
+  <p class="sub">需求 <b>2026-06-24-onboarding</b>（连主机部分）。本轮<b>只换主题</b>：把整套首跑流程重出为 <b>codePilot「github」浅色</b>（GitHub Primer 冷灰中性 + 蓝 #0969da 仅点缀），<b>各屏与全状态不变、只换观感</b>。onboarding 是「连上主机之前」的首跑 —— 没有主机/对话树/主壳 4 卡片，只把 codePilot 浅色视觉语言（磨砂窗体 + 居中白色欢迎卡 + 扁平 1px 卡片 + 蓝点缀 + 蓝聚焦环）套到 onboarding 自己的独立布局上。每屏含完整交互注解 + 深色变体说明。</p>
 </div>
 
 <div class="req-log">
   <div class="rl-h">需求日志</div>
   <table>
-    <tr><th style="width:110px">日期</th><th>需求</th><th style="width:300px">关键决策</th></tr>
+    <tr><th style="width:110px">日期</th><th>需求</th><th style="width:320px">关键决策</th></tr>
     <tr><td>2026-06-24</td><td>定义「软件首次打开的首页」= 首次启动 onboarding（连主机）</td><td><span class="pill p0">混合·本地自动连</span> <span class="pill p0">一次性品牌欢迎</span> 提供方配置延后到下个需求</td></tr>
+    <tr><td>2026-06-28</td><td>换肤：onboarding 全屏重出为 codePilot 浅色默认主体风格</td><td><span class="pill new">codePilot 浅色</span> <span class="pill new">蓝 #0969da 点缀</span> 仅换观感·屏/态/流程不动·不碰连接逻辑代码</td></tr>
   </table>
+</div>
+
+<div class="note">
+  <svg class="i sm" style="margin-top:2px;flex:none;color:#0969da"><use href="#check"/></svg>
+  <div><b>换肤要点：</b>绿 #20744A → GitHub 蓝 #0969da；窗体改 codePilot 磨砂材质，品牌内容收进<b>居中白色欢迎卡</b>（1px 边框 + 浮投影）；CTA = 蓝实心主按钮 + 蓝聚焦环，次操作 = 灰描边/ghost，链接 = 蓝文字；spinner 蓝顶环；错误用 GitHub flash-error 浅红。<b>蓝只作点缀</b>（主按钮/链接/focus/品牌/热点编号），列表行 hover = 极淡灰 #f6f8fa，绝不黑底白字。结构、文案、流程、状态<b>一律照 gate-1 已批需求，不动</b>。</div>
 </div>
 
 <div class="nav-idx">
@@ -161,43 +261,48 @@ svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke
 
 <!-- ============ S1 · WELCOME ============ -->
 <section class="screen" id="s1">
-  <div class="screen-head"><span class="tag">onboarding · 1</span><h2>欢迎页 — 桌面（一次性）</h2><p>真·第一次安装时显示一次。logo + slogan + 主 CTA「开始使用」（触发自动连本地 daemon）+ 次要「连接远程主机」。看过即置 <code>hasSeenWelcome</code>，之后启动静默自动连、不再显示本屏。</p></div>
+  <div class="screen-head"><span class="tag new">onboarding · 1</span><h2>欢迎页 — 桌面（一次性）</h2><p>真·第一次安装时显示一次。codePilot 磨砂窗体上居中一张白色欢迎卡：蓝色品牌 logo + 「欢迎使用 Helm」+ slogan + 主 CTA「开始使用」（触发自动连本地 daemon）+ 次要链接「连接远程主机」+ 版本号。看过即置 <code>hasSeenWelcome</code>，之后启动静默自动连、不再显示本屏。<b>无设置入口</b>。</p></div>
   <div class="screen-body">
     <div class="frame">
-      <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
-      <div class="stage" style="min-height:480px">
-        <div class="logo-lg"><svg class="i"><use href="#gauge"/></svg></div>
-        <div>
-          <div class="h-title">欢迎使用 Helm</div>
-          <div class="h-sub">连接你本机/远程的 AI 编码代理，一处统管。你的代码留在你机器上。</div>
+      <div class="win">
+        <div class="topbar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+        <div class="stage">
+          <div class="ocard">
+            <div class="logo-lg"><svg class="i"><use href="#gauge"/></svg></div>
+            <div>
+              <div class="h-title">欢迎使用 Helm</div>
+              <div class="h-sub">连接你本机/远程的 AI 编码代理，一处统管。你的代码留在你机器上。</div>
+            </div>
+            <div class="actions">
+              <span class="btn df">开始使用<span class="pinb">1</span></span>
+              <span class="link" style="justify-content:center;margin-top:2px">连接远程主机<span class="pinb">2</span></span>
+            </div>
+            <div class="ver">Helm v1.0.0</div>
+          </div>
         </div>
-        <div class="actions">
-          <span class="btn df">开始使用<span class="pinb">1</span></span>
-          <span class="link" style="justify-content:center;margin-top:2px">连接远程主机<span class="pinb">2</span></span>
-        </div>
-        <div class="ver">Helm v1.0.0</div>
       </div>
     </div>
     <div class="anno">
       <div class="anno-h">点击效果</div>
       <ol>
-        <li><span class="pin">1</span><div><b>开始使用</b>（主 CTA）：检测并连接本地 daemon（directPipe）→ 进 <b>S2 连接中</b>；成功落主页，失败转 <b>S4</b>。桌面默认路径。</div></li>
-        <li><span class="pin">2</span><div><b>连接远程主机</b>（次要链接）：跳 <b>S3 连接方式选择器</b>（直连/粘链/扫码），不自动连本地。</div></li>
+        <li><span class="pin">1</span><div><b>开始使用</b>（蓝主 CTA）：检测并连接本地 daemon（directPipe）→ 进 <b>S2 连接中</b>；成功落主页空态，失败转 <b>S4</b>。桌面默认路径。</div></li>
+        <li><span class="pin">2</span><div><b>连接远程主机</b>（蓝文字链接）：跳 <b>S3 连接方式选择器</b>（直连/粘链/扫码），不自动连本地。</div></li>
       </ol>
       <div class="states">
         <div class="sh">状态</div>
         <dl>
-          <dt>布局</dt><dd>居中单列；桌面态。紧凑/手机态见 <b>S5</b>。</dd>
-          <dt>默认</dt><dd>logo + 标题 + slogan + 开始使用 + 连接远程主机 + 版本号（<b>无设置入口</b>）。</dd>
-          <dt>hover</dt><dd>开始使用→加深底色；连接远程主机→下划线。全态见 <b>S1·态</b>。</dd>
-          <dt>活跃</dt><dd>开始使用 pressed→更深 + 轻微缩小(.985)。</dd>
-          <dt>运行</dt><dd>点开始使用后立即转 <b>S2</b>（按钮不进入 loading，整屏切过场）。</dd>
+          <dt>布局</dt><dd>磨砂窗体 + 居中白色欢迎卡（max 434）；桌面态。紧凑/手机态见 <b>S5</b>。</dd>
+          <dt>默认</dt><dd>蓝 logo + 标题 + slogan + 开始使用 + 连接远程主机 + 版本号（<b>无设置入口</b>）。</dd>
+          <dt>hover</dt><dd>开始使用→蓝加深 <code>#0860ca</code>；连接远程主机→蓝字下划线。全态见 <b>S1·态</b>。</dd>
+          <dt>活跃</dt><dd>开始使用 pressed→更深 <code>#0757ba</code> + 轻微缩小(.99)。</dd>
+          <dt>运行</dt><dd>点开始使用后立即转 <b>S2</b>（按钮不进 loading，整屏切过场）。</dd>
           <dt>禁用</dt><dd>无（开始使用 恒可点）。</dd>
           <dt>空</dt><dd>本屏即首跑空态（无任何主机/对话）。</dd>
           <dt>加载</dt><dd>见 <b>S2</b> 连接中。</dd>
           <dt>错误</dt><dd>本地连不上 → <b>S4</b>。</dd>
           <dt>离线</dt><dd>N/A（尚未建立连接）。</dd>
           <dt>右键</dt><dd>无右键菜单。</dd>
+          <dt>深色变体</dt><dd>切 <code>.dark</code>：窗体 #0d1117、卡片 #161b22、文字 #e6edf3、主蓝 #1f6feb、边框 #30363d；布局/层级不变（本稿不渲染深屏）。</dd>
         </dl>
       </div>
     </div>
@@ -206,18 +311,20 @@ svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke
 
 <!-- ============ S1b · BUTTON STATES ============ -->
 <section class="screen" id="s1b">
-  <div class="screen-head"><span class="tag">onboarding · 1 · 全态</span><h2>S1·态 — 开始使用 / 连接远程链接 的全交互态</h2><p>逐元素列出 默认 / hover / pressed(活跃) / focus 键盘聚焦 四态（董事长要求「包裹点击悬浮活跃」描述清楚）。</p></div>
+  <div class="screen-head"><span class="tag">onboarding · 1 · 全态</span><h2>S1·态 — 开始使用 / 连接远程链接 的全交互态</h2><p>逐元素列出 默认 / hover / pressed(活跃) / focus 键盘聚焦 四态。codePilot 规则：主按钮蓝实心，hover 加深、pressed 更深 + 缩、focus 蓝环 <code>0 0 0 3px rgba(9,105,218,.3)</code>；链接蓝字 hover 下划线。</p></div>
   <div class="screen-body wide">
-    <div class="frame" style="padding:22px">
+    <div class="panel">
       <div class="statestrip">
         <div class="statebox"><div class="statehd">默认</div><span class="btn df">开始使用</span></div>
         <div class="statebox"><div class="statehd">hover 悬浮</div><span class="btn df hover">开始使用</span></div>
         <div class="statebox"><div class="statehd">pressed 活跃</div><span class="btn df press">开始使用</span></div>
         <div class="statebox"><div class="statehd">focus 键盘聚焦</div><span class="btn df focus">开始使用</span></div>
       </div>
-      <div class="statestrip" style="margin-top:16px">
+      <div class="statestrip" style="margin-top:16px;grid-template-columns:repeat(4,1fr)">
         <div class="statebox"><div class="statehd">连接远程·默认</div><span class="link">连接远程主机</span></div>
         <div class="statebox"><div class="statehd">连接远程·hover</div><span class="link hover">连接远程主机</span></div>
+        <div class="statebox"><div class="statehd">次按钮·默认</div><span class="btn out" style="width:auto">重试本地</span></div>
+        <div class="statebox"><div class="statehd">次按钮·hover</div><span class="btn out hover" style="width:auto">重试本地</span></div>
       </div>
     </div>
   </div>
@@ -225,17 +332,21 @@ svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke
 
 <!-- ============ S2 · CONNECTING ============ -->
 <section class="screen" id="s2">
-  <div class="screen-head"><span class="tag">onboarding · 2</span><h2>连接中（过场）</h2><p>点「开始使用」后短暂过场：连接本地 daemon。连上 → <code>router.replace</code> 主页空态；连不上/超时 → S4。</p></div>
+  <div class="screen-head"><span class="tag new">onboarding · 2</span><h2>连接中（过场）</h2><p>点「开始使用」后短暂过场：连接本地 daemon。spinner 用 codePilot 蓝顶环。连上 → <code>router.replace</code> 主页空态；连不上/超时 → S4。</p></div>
   <div class="screen-body">
     <div class="frame">
-      <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
-      <div class="stage" style="min-height:480px">
-        <div class="spinner"></div>
-        <div>
-          <div class="h-title" style="font-size:18px">正在连接本地 daemon…</div>
-          <div class="h-sub">localhost:7070</div>
+      <div class="win">
+        <div class="topbar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+        <div class="stage">
+          <div class="ocard">
+            <div class="spinner"></div>
+            <div>
+              <div class="h-title" style="font-size:18px">正在连接本地 daemon…</div>
+              <div class="h-sub" style="font-family:var(--mono);font-size:13px">localhost:7070</div>
+            </div>
+            <span class="btn ghost">取消<span class="pinb">1</span></span>
+          </div>
         </div>
-        <span class="btn ghost">取消<span class="pinb">1</span></span>
       </div>
     </div>
     <div class="anno">
@@ -246,13 +357,14 @@ svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke
       <div class="states">
         <div class="sh">状态</div>
         <dl>
-          <dt>布局</dt><dd>居中：spinner + 文案 + 取消。</dd>
-          <dt>加载</dt><dd><b>本态即加载态</b>：旋转 spinner（accent）。</dd>
+          <dt>布局</dt><dd>居中白卡：spinner + 文案 + 取消。</dd>
+          <dt>加载</dt><dd><b>本态即加载态</b>：旋转 spinner（轨道 #eaeef2 + 蓝顶环 #0969da）。</dd>
           <dt>运行</dt><dd>握手中；典型 &lt;1s（本地 pipe）。</dd>
           <dt>成功</dt><dd>连上 → 自动 replace 主页空态（不停留）。</dd>
           <dt>错误</dt><dd>失败/超时 → <b>S4</b>（带原因 + 重试）。</dd>
-          <dt>hover</dt><dd>取消→surface2 底。</dd>
+          <dt>hover</dt><dd>取消（ghost）→ 浮极淡灰底 #f6f8fa + 字变深。</dd>
           <dt>右键/禁用/离线</dt><dd>无。</dd>
+          <dt>深色变体</dt><dd><code>.dark</code>：轨道 #21262d + 蓝顶环 #1f6feb；其余同 S1 深色令牌。</dd>
         </dl>
       </div>
     </div>
@@ -261,23 +373,27 @@ svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke
 
 <!-- ============ S3 · CONNECTION METHODS ============ -->
 <section class="screen" id="s3">
-  <div class="screen-head"><span class="tag">onboarding · 3</span><h2>连接方式选择器（本地不可用 / 连远程）</h2><p>当没检测到本地 daemon，或用户点「连接远程主机」时显示。复用真实 app 三方式：直连主机 / 粘贴配对链接 /（手机）扫码。</p></div>
+  <div class="screen-head"><span class="tag new">onboarding · 3</span><h2>连接方式选择器（本地不可用 / 连远程）</h2><p>当没检测到本地 daemon，或用户点「连接远程主机」时显示。复用真实 app 三方式：直连主机 / 粘贴配对链接 /（手机）扫码 —— 排成 GitHub Box 列表（1px 边框分隔行，hover 极淡灰）。<b>无设置入口</b>。</p></div>
   <div class="screen-body">
     <div class="frame">
-      <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
-      <div class="stage" style="min-height:480px;gap:14px">
-        <div class="logo-lg" style="width:48px;height:48px;border-radius:12px"><svg class="i lg"><use href="#network"/></svg></div>
-        <div>
-          <div class="h-title" style="font-size:20px">选择连接方式</div>
-          <div class="h-sub">没检测到本地 daemon，或连接到其它主机。</div>
+      <div class="win">
+        <div class="topbar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+        <div class="stage">
+          <div class="ocard" style="max-width:444px;gap:16px">
+            <div class="logo-lg logo-md"><svg class="i lg"><use href="#network"/></svg></div>
+            <div>
+              <div class="h-title" style="font-size:20px">选择连接方式</div>
+              <div class="h-sub">没检测到本地 daemon，或连接到其它主机。</div>
+            </div>
+            <div class="methods">
+              <div class="row"><div class="badge-ic"><svg class="i sm"><use href="#link"/></svg></div><div class="rc"><div class="rt">直连主机</div><div class="rd">输入 host:port 直接连接</div></div><svg class="i sm chev"><use href="#chev-r"/></svg><span class="pinb">1</span></div>
+              <div class="row hover"><div class="badge-ic"><svg class="i sm"><use href="#clipboard"/></svg></div><div class="rc"><div class="rt">粘贴配对链接</div><div class="rd">粘贴 <code>#offer=</code> 配对链接（relay E2E）</div></div><svg class="i sm chev"><use href="#chev-r"/></svg><span class="pinb">2</span></div>
+              <div class="row"><div class="badge-ic"><svg class="i sm"><use href="#qr"/></svg></div><div class="rc"><div class="rt">扫码连接 <span class="badge mut">手机优先</span></div><div class="rd">用手机 Helm 扫码配对</div></div><svg class="i sm chev"><use href="#chev-r"/></svg><span class="pinb">3</span></div>
+            </div>
+            <span class="btn out"><svg class="i sm"><use href="#refresh"/></svg> 重试本地<span class="pinb">4</span></span>
+            <div class="ver">Helm v1.0.0</div>
+          </div>
         </div>
-        <div class="card">
-          <div class="row"><div class="badge-ic"><svg class="i sm"><use href="#link"/></svg></div><div class="rc"><div class="rt">直连主机</div><div class="rd">输入 host:port 直接连接</div></div><svg class="i sm chev"><use href="#chev-r"/></svg><span class="pinb">1</span></div>
-          <div class="row hover"><div class="badge-ic"><svg class="i sm"><use href="#clipboard"/></svg></div><div class="rc"><div class="rt">粘贴配对链接</div><div class="rd">粘贴 <code>#offer=</code> 配对链接（relay E2E）</div></div><svg class="i sm chev"><use href="#chev-r"/></svg><span class="pinb">2</span></div>
-          <div class="row"><div class="badge-ic"><svg class="i sm"><use href="#qr"/></svg></div><div class="rc"><div class="rt">扫码连接 <span class="badge mut">手机优先</span></div><div class="rd">用手机 Helm 扫码配对</div></div><svg class="i sm chev"><use href="#chev-r"/></svg><span class="pinb">3</span></div>
-        </div>
-        <span class="btn out" style="max-width:400px"><svg class="i sm"><use href="#refresh"/></svg> 重试本地<span class="pinb">4</span></span>
-        <div class="ver">Helm v1.0.0</div>
       </div>
     </div>
     <div class="anno">
@@ -286,19 +402,20 @@ svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke
         <li><span class="pin">1</span><div><b>直连主机</b>：打开 <code>AddHostModal</code>（host:port + 测试连接 → 保存即连）。</div></li>
         <li><span class="pin">2</span><div><b>粘贴配对链接</b>：打开 <code>PairLinkModal</code>（粘 <code>#offer=</code> → relay 协商 E2E）。</div></li>
         <li><span class="pin">3</span><div><b>扫码连接</b>：桌面=显示二维码待手机扫；手机=进 <code>/pair-scan</code> 相机。手机端此项置顶为主 CTA（S5）。</div></li>
-        <li><span class="pin">4</span><div><b>重试本地</b>：重新检测本地 daemon → 命中则转 <b>S2</b>。</div></li>
+        <li><span class="pin">4</span><div><b>重试本地</b>（灰描边）：重新检测本地 daemon → 命中则转 <b>S2</b>。</div></li>
       </ol>
       <div class="states">
         <div class="sh">状态</div>
         <dl>
-          <dt>布局</dt><dd>居中：标题 + 三方式卡 + 重试本地 + 版本号。</dd>
-          <dt>默认</dt><dd>三行方式（图标 + 标题 + 说明 + ›）。</dd>
-          <dt>hover</dt><dd>方式行→surface2 底（图示第 2 行）。</dd>
+          <dt>布局</dt><dd>居中白卡：标题 + 三方式 Box + 重试本地 + 版本号。</dd>
+          <dt>默认</dt><dd>三行方式（灰 badge 图标 + 标题 + 说明 + ›）。</dd>
+          <dt>hover</dt><dd>方式行→极淡灰底 #f6f8fa（图示第 2 行）。</dd>
           <dt>活跃</dt><dd>点击行短暂按下底色，随即弹出对应弹窗/流程。</dd>
           <dt>加载</dt><dd>「重试本地」点击中→inline spinner；保存主机连接中→各弹窗自身 loading。</dd>
-          <dt>错误</dt><dd>直连/粘链/扫码失败的错误在各自弹窗内提示；本地重试失败留本屏。</dd>
+          <dt>错误</dt><dd>直连/粘链/扫码失败在各自弹窗内提示；本地重试失败留本屏。</dd>
           <dt>空</dt><dd>本屏即「无主机」空态的可操作版。</dd>
           <dt>禁用/离线/右键</dt><dd>无。</dd>
+          <dt>深色变体</dt><dd><code>.dark</code>：方式 Box 边框 #30363d、行 hover #1c2128、badge 底 #21262d；蓝点缀转 #1f6feb。</dd>
         </dl>
       </div>
     </div>
@@ -307,37 +424,42 @@ svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke
 
 <!-- ============ S4 · ERROR ============ -->
 <section class="screen" id="s4">
-  <div class="screen-head"><span class="tag">onboarding · 4</span><h2>错误态 — 本地连接失败</h2><p>「开始使用」连本地失败时显示。给出原因 + 主操作「重试」+ 备选「改用其它连接方式」+「查看诊断」。</p></div>
+  <div class="screen-head"><span class="tag new">onboarding · 4</span><h2>错误态 — 本地连接失败</h2><p>「开始使用」连本地失败时显示。GitHub flash-error 浅红 Alert 给出原因 + 蓝主操作「重试」+ 灰描边「改用其它连接方式」+ ghost「查看诊断」。</p></div>
   <div class="screen-body">
     <div class="frame">
-      <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
-      <div class="stage" style="min-height:480px;gap:16px">
-        <div class="alertbox err">
-          <svg class="i"><use href="#alert"/></svg>
-          <div><div class="at">无法连接本地 daemon</div><div class="ad">可能原因：daemon 未运行 · 端口 7070 被占用 · 连接超时。</div></div>
+      <div class="win">
+        <div class="topbar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div></div>
+        <div class="stage">
+          <div class="ocard" style="gap:16px">
+            <div class="alertbox err">
+              <svg class="i"><use href="#alert"/></svg>
+              <div><div class="at">无法连接本地 daemon</div><div class="ad">可能原因：daemon 未运行 · 端口 <code>7070</code> 被占用 · 连接超时。</div></div>
+            </div>
+            <div class="actions">
+              <span class="btn df"><svg class="i sm"><use href="#refresh"/></svg> 重试<span class="pinb">1</span></span>
+              <span class="btn out">改用其它连接方式<span class="pinb">2</span></span>
+            </div>
+            <span class="btn ghost"><svg class="i sm"><use href="#stethoscope"/></svg> 查看诊断<span class="pinb">3</span></span>
+          </div>
         </div>
-        <div class="actions">
-          <span class="btn df"><svg class="i sm"><use href="#refresh"/></svg> 重试<span class="pinb">1</span></span>
-          <span class="btn out">改用其它连接方式<span class="pinb">2</span></span>
-        </div>
-        <span class="btn ghost"><svg class="i sm"><use href="#stethoscope"/></svg> 查看诊断<span class="pinb">3</span></span>
       </div>
     </div>
     <div class="anno">
       <div class="anno-h">点击效果</div>
       <ol>
-        <li><span class="pin">1</span><div><b>重试</b>：重新连本地 → 转 <b>S2</b>。</div></li>
-        <li><span class="pin">2</span><div><b>改用其它连接方式</b>：转 <b>S3</b> 选择器（直连/粘链/扫码）。</div></li>
-        <li><span class="pin">3</span><div><b>查看诊断</b>：打开 <code>/settings</code> › 诊断（daemon 日志/端口/版本）。</div></li>
+        <li><span class="pin">1</span><div><b>重试</b>（蓝主）：重新连本地 → 转 <b>S2</b>。</div></li>
+        <li><span class="pin">2</span><div><b>改用其它连接方式</b>（灰描边）：转 <b>S3</b> 选择器（直连/粘链/扫码）。</div></li>
+        <li><span class="pin">3</span><div><b>查看诊断</b>（ghost）：打开 <code>/settings</code> › 诊断（daemon 日志/端口/版本）。</div></li>
       </ol>
       <div class="states">
         <div class="sh">状态</div>
         <dl>
-          <dt>错误</dt><dd>三类原因合并文案（<b>daemon 未运行 / 端口被占 / 超时</b>），用 Alert（err 边框）。</dd>
-          <dt>布局</dt><dd>居中：Alert + 重试(主) + 其它方式 + 诊断。</dd>
-          <dt>hover/活跃</dt><dd>同 S1 按钮规则。</dd>
+          <dt>错误</dt><dd>三类原因合并文案（<b>daemon 未运行 / 端口被占 / 超时</b>），用 GitHub flash-error（浅红底 + 红边 + 红 alert 图标）。</dd>
+          <dt>布局</dt><dd>居中白卡：Alert + 重试(蓝主) + 其它方式(描边) + 诊断(ghost)。</dd>
+          <dt>hover/活跃</dt><dd>同 S1 按钮规则（蓝加深 / 描边浮灰 / ghost 浮灰）。</dd>
           <dt>加载</dt><dd>重试点击→转 S2 加载。</dd>
           <dt>默认/空/禁用/离线/右键</dt><dd>无额外。</dd>
+          <dt>深色变体</dt><dd><code>.dark</code>：Alert 浅红→ <code>rgba(248,81,73,.12)</code> 底 + #f85149 图标；按钮主蓝 #1f6feb。</dd>
         </dl>
       </div>
     </div>
@@ -346,31 +468,35 @@ svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke
 
 <!-- ============ S5 · PLATFORM VARIANTS ============ -->
 <section class="screen" id="s5">
-  <div class="screen-head"><span class="tag">onboarding · 5 · 平台</span><h2>平台变体 — Web 浏览器 / 手机 native</h2><p>同一套设计，平台差异：Web 浏览器无本地 daemon → 直接进选择器；手机无本地 → 扫码优先。</p></div>
+  <div class="screen-head"><span class="tag new">onboarding · 5 · 平台</span><h2>平台变体 — Web 浏览器 / 手机 native</h2><p>同一套 codePilot 浅色设计，平台差异：Web 浏览器无本地 daemon → 直接进选择器（无扫码）；手机无本地 → 扫码优先（蓝主 CTA）。</p></div>
   <div class="screen-body wide">
     <div class="platforms">
-      <div style="flex:1;min-width:320px">
-        <div style="font-size:13px;font-weight:500;margin-bottom:8px;display:flex;align-items:center;gap:7px"><svg class="i sm" style="color:var(--fgMuted)"><use href="#globe"/></svg> Web（浏览器）— 无本地 daemon</div>
+      <div style="flex:1;min-width:340px">
+        <div class="plat-label"><svg class="i sm"><use href="#globe"/></svg> Web（浏览器）— 无本地 daemon</div>
         <div class="frame">
-          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">app.helm — 浏览器标签</span></div>
-          <div class="stage" style="min-height:340px;gap:12px">
-            <div class="logo-lg" style="width:52px;height:52px"><svg class="i lg"><use href="#gauge"/></svg></div>
-            <div><div class="h-title" style="font-size:20px">欢迎使用 Helm</div><div class="h-sub">浏览器端没有本地 daemon，请选择连接方式。</div></div>
-            <div class="card" style="max-width:360px">
-              <div class="row"><div class="badge-ic"><svg class="i sm"><use href="#link"/></svg></div><div class="rc"><div class="rt">直连主机</div></div><svg class="i sm chev"><use href="#chev-r"/></svg></div>
-              <div class="row"><div class="badge-ic"><svg class="i sm"><use href="#clipboard"/></svg></div><div class="rc"><div class="rt">粘贴配对链接</div></div><svg class="i sm chev"><use href="#chev-r"/></svg></div>
+          <div class="win" style="height:404px">
+            <div class="topbar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">app.helm — 浏览器标签</span></div>
+            <div class="stage">
+              <div class="ocard" style="max-width:388px;gap:14px;padding:28px 28px 22px">
+                <div class="logo-lg logo-md"><svg class="i lg"><use href="#gauge"/></svg></div>
+                <div><div class="h-title" style="font-size:20px">欢迎使用 Helm</div><div class="h-sub">浏览器端没有本地 daemon，请选择连接方式。</div></div>
+                <div class="methods">
+                  <div class="row"><div class="badge-ic"><svg class="i sm"><use href="#link"/></svg></div><div class="rc"><div class="rt">直连主机</div></div><svg class="i sm chev"><use href="#chev-r"/></svg></div>
+                  <div class="row"><div class="badge-ic"><svg class="i sm"><use href="#clipboard"/></svg></div><div class="rc"><div class="rt">粘贴配对链接</div></div><svg class="i sm chev"><use href="#chev-r"/></svg></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
       <div>
-        <div style="font-size:13px;font-weight:500;margin-bottom:8px;display:flex;align-items:center;gap:7px"><svg class="i sm" style="color:var(--fgMuted)"><use href="#smartphone"/></svg> 手机（native）— 扫码优先</div>
+        <div class="plat-label"><svg class="i sm"><use href="#smartphone"/></svg> 手机（native）— 扫码优先</div>
         <div class="phone">
           <div class="pstatus">9:41 · Helm</div>
-          <div class="stage" style="min-height:430px;border-top:1px solid var(--border);gap:14px">
+          <div class="pscreen" style="min-height:434px">
             <div class="logo-lg"><svg class="i"><use href="#gauge"/></svg></div>
             <div><div class="h-title" style="font-size:21px">欢迎使用 Helm</div><div class="h-sub" style="font-size:13px">扫码连接你电脑上的 Helm，随身遥控本机代理。</div></div>
-            <div class="actions" style="max-width:240px">
+            <div class="actions" style="max-width:240px;margin-top:6px">
               <span class="btn df"><svg class="i sm"><use href="#qr"/></svg> 扫码连接</span>
               <span class="btn out">粘贴配对链接</span>
               <span class="link" style="justify-content:center">直连主机</span>
@@ -382,14 +508,23 @@ svg.i{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none;stroke
     <div class="anno" style="margin-top:18px">
       <div class="anno-h">平台差异</div>
       <ol>
-        <li><span class="pin">W</span><div><b>Web 浏览器</b>：无 directPipe 本地 daemon → 「开始使用」直接进选择器；无扫码（用直连/粘链）。一次性品牌欢迎仍保留（首次访问）。</div></li>
-        <li><span class="pin">M</span><div><b>手机 native</b>：无本地 daemon → 扫码连电脑主机为主 CTA；粘链/直连为次。连上后即远程遥控本机代理（relay E2E）。</div></li>
+        <li><span class="pin">W</span><div><b>Web 浏览器</b>：无 directPipe 本地 daemon → 「开始使用」直接进选择器；<b>无扫码</b>（用直连/粘链）。一次性品牌欢迎仍保留（首次访问）。</div></li>
+        <li><span class="pin">M</span><div><b>手机 native</b>：无本地 daemon → <b>扫码连电脑主机为蓝主 CTA</b>；粘链(描边)/直连(链接)为次。连上后即远程遥控本机代理（relay E2E）。</div></li>
         <li><span class="pin">D</span><div><b>桌面 Electron</b>：唯一有本地 daemon 的平台 → 走 S1→S2 自动连主路径。</div></li>
       </ol>
+      <div class="states">
+        <div class="sh">状态</div>
+        <dl>
+          <dt>布局</dt><dd>Web=磨砂窗体 + 居中白卡（浏览器顶栏带标签标题）；手机=圆角设备 + 白屏全幅居中（状态栏 9:41）。</dd>
+          <dt>hover/活跃</dt><dd>同桌面按钮/方式行规则（蓝加深 / 行浮淡灰）。手机 native 无 hover，热区即点。</dd>
+          <dt>加载/错误</dt><dd>各平台连接中=蓝顶环 spinner；失败走各自错误提示（手机为底部 toast/卡内 Alert）。</dd>
+          <dt>深色变体</dt><dd>跟随系统：<code>.dark</code> 令牌（窗体 #0d1117 / 卡片 #161b22 / 主蓝 #1f6feb），结构不变。</dd>
+        </dl>
+      </div>
     </div>
   </div>
 </section>
 
-<div class="note">Helm · onboarding UI 设计稿 · 2026-06-24 · 浅色主题 · accent #20744A — 评审通过后同步回写 docs/helm/ui.html + product.md</div>
+<div class="note" style="margin-top:8px">Helm · onboarding UI 设计稿 · 2026-06-24（换肤 2026-06-28）· <b>codePilot「github」浅色主题</b> · 主蓝 #0969da 仅点缀 — 评审通过后同步回写 docs/helm/ui.html + product.md</div>
 </body>
 </html>
