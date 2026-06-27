@@ -28,6 +28,8 @@ import { DownloadToast } from "@/components/download-toast";
 import { QuittingOverlay } from "@/components/quitting-overlay";
 import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
 import { LeftSidebar } from "@/components/left-sidebar";
+import { HomeShell } from "@/screens/home-shell/home-shell";
+import { useShellLayoutStore } from "@/stores/shell-layout-store";
 import { ProjectPickerModal } from "@/components/project-picker-modal";
 import { ProviderSettingsHost } from "@/components/provider-settings-host";
 import { WorkspaceSetupDialog } from "@/components/workspace-setup-dialog";
@@ -88,7 +90,6 @@ import { usePanelStore } from "@/stores/panel-store";
 import { THEME_TO_UNISTYLES, type ThemeName } from "@/styles/theme";
 import type { HostProfile } from "@/types/host-connection";
 import { resolveActiveHost } from "@/utils/active-host";
-import { toggleDesktopSidebarsWithCheckoutIntent } from "@/utils/desktop-sidebar-toggle";
 import { canOpenLeftSidebarGesture } from "@/utils/sidebar-animation-state";
 import {
   buildHostRootRoute,
@@ -431,11 +432,9 @@ function AppContainer({
   const daemons = useHosts();
   const { settings, updateSettings } = useAppSettings();
   const toggleMobileAgentList = usePanelStore((state) => state.toggleMobileAgentList);
-  const toggleDesktopAgentList = usePanelStore((state) => state.toggleDesktopAgentList);
-  const openDesktopAgentList = usePanelStore((state) => state.openDesktopAgentList);
-  const closeDesktopAgentList = usePanelStore((state) => state.closeDesktopAgentList);
   const toggleFocusMode = usePanelStore((state) => state.toggleFocusMode);
   const isFocusModeEnabled = usePanelStore((state) => state.desktop.focusModeEnabled);
+  const toggleShellRegion = useShellLayoutStore((state) => state.toggleRegion);
 
   const cycleTheme = useCallback(() => {
     const currentIndex = THEME_CYCLE_ORDER.indexOf(settings.theme as ThemeName);
@@ -451,15 +450,11 @@ function AppContainer({
     () => resolveActiveHost({ hosts: daemons, pathname })?.serverId ?? null,
     [daemons, pathname],
   );
-  const toggleAgentList = isCompactLayout ? toggleMobileAgentList : toggleDesktopAgentList;
-  const toggleDesktopSidebars = useCallback(() => {
-    const { desktop } = usePanelStore.getState();
-    toggleDesktopSidebarsWithCheckoutIntent({
-      isAgentListOpen: desktop.agentListOpen,
-      openAgentList: openDesktopAgentList,
-      closeAgentList: closeDesktopAgentList,
-    });
-  }, [closeDesktopAgentList, openDesktopAgentList]);
+  // On desktop the left card's open/close truth lives in shell-layout-store, so the
+  // left-sidebar and "both sidebars" shortcuts toggle it; mobile keeps panel-store.
+  const toggleShellLeft = useCallback(() => toggleShellRegion("left"), [toggleShellRegion]);
+  const toggleAgentList = isCompactLayout ? toggleMobileAgentList : toggleShellLeft;
+  const toggleDesktopSidebars = toggleShellLeft;
   // TODO: stop matching pathname here as a branch. `chromeEnabled` should not
   // conflate workspace/project-specific chrome (sidebar, mobile gesture) with
   // global concerns like keyboard shortcuts. Split those out so settings (and
@@ -480,12 +475,18 @@ function AppContainer({
 
   const content = (
     <View style={layoutStyles.surfaceFill}>
-      <View style={rowStyle}>
-        {!isCompactLayout && chromeEnabled && !isFocusModeEnabled && (
-          <LeftSidebar selectedAgentId={selectedAgentId} />
-        )}
-        <View style={flexStyle}>{children}</View>
-      </View>
+      {isCompactLayout ? (
+        <View style={rowStyle}>
+          <View style={flexStyle}>{children}</View>
+        </View>
+      ) : (
+        <HomeShell
+          selectedAgentId={selectedAgentId}
+          chromeEnabled={chromeEnabled && !isFocusModeEnabled}
+        >
+          {children}
+        </HomeShell>
+      )}
       <FloatingPanelPortalHost />
       {isCompactLayout && chromeEnabled && <LeftSidebar selectedAgentId={selectedAgentId} />}
       <DownloadToast />

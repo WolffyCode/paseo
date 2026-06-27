@@ -1,8 +1,8 @@
 import { router, usePathname } from "expo-router";
 import { Search, Settings, SquarePen, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, StyleSheet as RNStyleSheet, useWindowDimensions, View } from "react-native";
+import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { Pressable, StyleSheet as RNStyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
@@ -13,7 +13,6 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
-import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isWeb } from "@/constants/platform";
@@ -29,22 +28,14 @@ import { useSidebarViewStore, type SidebarGroupMode } from "@/stores/sidebar-vie
 import { useSidebarPinsStore } from "@/stores/sidebar-pins-store";
 import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
 import { useHosts } from "@/runtime/host-runtime";
-import {
-  MAX_SIDEBAR_WIDTH,
-  MIN_SIDEBAR_WIDTH,
-  selectIsAgentListOpen,
-  usePanelStore,
-} from "@/stores/panel-store";
+import { usePanelStore } from "@/stores/panel-store";
 import { resolveActiveHost } from "@/utils/active-host";
-import { useWindowControlsPadding } from "@/utils/desktop-window";
 import { canCloseLeftSidebarGesture } from "@/utils/sidebar-animation-state";
 import { buildHostNewWorkspaceRoute, buildSettingsRoute } from "@/utils/host-routes";
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import { SidebarAgentListSkeleton } from "./sidebar-agent-list-skeleton";
 import { SidebarCalloutSlot } from "./sidebar-callout-slot";
 import { SidebarWorkspaceList } from "./sidebar-workspace-list";
-
-const MIN_CHAT_WIDTH = 400;
 
 type SidebarShortcutModel = ReturnType<typeof useSidebarShortcutModel>;
 type SidebarTheme = ReturnType<typeof useUnistyles>["theme"];
@@ -97,10 +88,9 @@ interface MobileSidebarProps extends SidebarSharedProps {
   closeSidebar: () => void;
 }
 
-interface DesktopSidebarProps extends SidebarSharedProps {
-  insetsTop: number;
-  isOpen: boolean;
-}
+// The home shell owns the left card's frame, width, visibility and window chrome,
+// so the desktop sidebar only needs the shared content props.
+type DesktopSidebarProps = SidebarSharedProps;
 
 export const LeftSidebar = memo(function LeftSidebar({
   selectedAgentId: _selectedAgentId,
@@ -111,9 +101,11 @@ export const LeftSidebar = memo(function LeftSidebar({
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const isCompactLayout = useIsCompactFormFactor();
-  const isOpen = usePanelStore((state) =>
-    selectIsAgentListOpen(state, { isCompact: isCompactLayout }),
-  );
+  // Desktop visibility is owned by the home shell — the left card only mounts when
+  // open, so the desktop sidebar always renders its content. Mobile keeps its drawer
+  // open/closed truth in panel-store (mobileView).
+  const mobileAgentListOpen = usePanelStore((state) => state.mobileView === "agent-list");
+  const isOpen = isCompactLayout ? mobileAgentListOpen : true;
   const showMobileAgent = usePanelStore((state) => state.showMobileAgent);
   const pathname = usePathname();
   const daemons = useHosts();
@@ -272,8 +264,6 @@ export const LeftSidebar = memo(function LeftSidebar({
   return (
     <DesktopSidebar
       {...sharedProps}
-      insetsTop={insets.top}
-      isOpen={isOpen}
       handleNewWorkspaceNavigate={handleNewWorkspaceNavigate}
       handleOpenCommandCenter={handleOpenCommandCenter}
       handleOpenProject={handleOpenProjectDesktop}
@@ -601,63 +591,7 @@ function DesktopSidebar({
   handleOpenProject,
   handleSettings,
   labels,
-  insetsTop,
-  isOpen,
 }: DesktopSidebarProps) {
-  const padding = useWindowControlsPadding("sidebar");
-  const sidebarWidth = usePanelStore((state) => state.sidebarWidth);
-  const setSidebarWidth = usePanelStore((state) => state.setSidebarWidth);
-  const { width: viewportWidth } = useWindowDimensions();
-
-  const startWidthRef = useRef(sidebarWidth);
-  const resizeWidth = useSharedValue(sidebarWidth);
-
-  useEffect(() => {
-    resizeWidth.value = sidebarWidth;
-  }, [sidebarWidth, resizeWidth]);
-
-  const resizeGesture = useMemo(
-    () =>
-      Gesture.Pan()
-        .hitSlop({ left: 8, right: 8, top: 0, bottom: 0 })
-        .onStart(() => {
-          startWidthRef.current = sidebarWidth;
-          resizeWidth.value = sidebarWidth;
-        })
-        .onUpdate((event) => {
-          // Dragging right (positive translationX) increases width
-          const newWidth = startWidthRef.current + event.translationX;
-          const maxWidth = Math.max(
-            MIN_SIDEBAR_WIDTH,
-            Math.min(MAX_SIDEBAR_WIDTH, viewportWidth - MIN_CHAT_WIDTH),
-          );
-          const clampedWidth = Math.max(MIN_SIDEBAR_WIDTH, Math.min(maxWidth, newWidth));
-          resizeWidth.value = clampedWidth;
-        })
-        .onEnd(() => {
-          runOnJS(setSidebarWidth)(resizeWidth.value);
-        }),
-    [sidebarWidth, resizeWidth, setSidebarWidth, viewportWidth],
-  );
-
-  const resizeAnimatedStyle = useAnimatedStyle(() => ({
-    width: resizeWidth.value,
-  }));
-
-  const paddingTopSpacerStyle = useMemo(() => ({ height: padding.top }), [padding.top]);
-  const desktopSidebarStyle = useMemo(
-    () => [staticStyles.desktopSidebar, resizeAnimatedStyle],
-    [resizeAnimatedStyle],
-  );
-  const desktopSidebarBorderStyle = useMemo(
-    () => [styles.desktopSidebarBorder, { flex: 1, paddingTop: insetsTop }],
-    [insetsTop],
-  );
-  const resizeHandleStyle = useMemo(
-    () => [styles.resizeHandle, isWeb && ({ cursor: "col-resize" } as object)],
-    [],
-  );
-
   const projectsHeader = useMemo(
     (): ProjectsHeaderModel => ({
       allCollapsed: allProjectsCollapsed,
@@ -667,64 +601,52 @@ function DesktopSidebar({
     [allProjectsCollapsed, handleToggleCollapseAll, handleOpenProject],
   );
 
-  if (!isOpen) {
-    return null;
-  }
-
+  // Inner content only — the home shell owns the left card's frame, width, show/hide
+  // and the window chrome (traffic lights moved to the unified top bar; the resize
+  // handle is the shell's gutter). This renders straight into the left card.
   return (
-    <Animated.View style={desktopSidebarStyle}>
-      <View style={desktopSidebarBorderStyle}>
-        <View style={styles.sidebarDragArea}>
-          <TitlebarDragRegion />
-          {padding.top > 0 ? <View style={paddingTopSpacerStyle} /> : null}
-          <View style={styles.sidebarHeaderGroup}>
-            <SidebarHeaderRow
-              icon={SquarePen}
-              label={labels.newConversation}
-              onPress={handleNewWorkspaceNavigate}
-              testID="sidebar-global-new-workspace"
-              variant="compact"
-              shortcutKeys={newWorkspaceKeys}
-            />
-            <SidebarHeaderRow
-              icon={Search}
-              label={labels.search}
-              onPress={handleOpenCommandCenter}
-              testID="sidebar-search"
-              variant="compact"
-              shortcutKeys={commandCenterKeys}
-            />
-          </View>
-        </View>
-
-        {isInitialLoad ? (
-          <SidebarAgentListSkeleton />
-        ) : (
-          <SidebarWorkspaceList
-            serverId={activeServerId}
-            collapsedProjectKeys={collapsedProjectKeys}
-            onToggleProjectCollapsed={toggleProjectCollapsed}
-            shortcutIndexByWorkspaceKey={shortcutIndexByWorkspaceKey}
-            groupMode={groupMode}
-            pinnedProjects={pinnedProjects}
-            unpinnedProjects={unpinnedProjects}
-            projectsHeader={projectsHeader}
-            isRefreshing={isManualRefresh && isRevalidating}
-            onRefresh={handleRefresh}
-            onAddProject={handleOpenProject}
-          />
-        )}
-
-        <SidebarCalloutSlot />
-
-        <SidebarFooter settingsLabel={labels.settings} onSettings={handleSettings} />
-
-        {/* Resize handle - absolutely positioned over right border */}
-        <GestureDetector gesture={resizeGesture}>
-          <View style={resizeHandleStyle} />
-        </GestureDetector>
+    <View style={styles.sidebarContent}>
+      <View style={styles.sidebarHeaderGroup}>
+        <SidebarHeaderRow
+          icon={SquarePen}
+          label={labels.newConversation}
+          onPress={handleNewWorkspaceNavigate}
+          testID="sidebar-global-new-workspace"
+          variant="compact"
+          shortcutKeys={newWorkspaceKeys}
+        />
+        <SidebarHeaderRow
+          icon={Search}
+          label={labels.search}
+          onPress={handleOpenCommandCenter}
+          testID="sidebar-search"
+          variant="compact"
+          shortcutKeys={commandCenterKeys}
+        />
       </View>
-    </Animated.View>
+
+      {isInitialLoad ? (
+        <SidebarAgentListSkeleton />
+      ) : (
+        <SidebarWorkspaceList
+          serverId={activeServerId}
+          collapsedProjectKeys={collapsedProjectKeys}
+          onToggleProjectCollapsed={toggleProjectCollapsed}
+          shortcutIndexByWorkspaceKey={shortcutIndexByWorkspaceKey}
+          groupMode={groupMode}
+          pinnedProjects={pinnedProjects}
+          unpinnedProjects={unpinnedProjects}
+          projectsHeader={projectsHeader}
+          isRefreshing={isManualRefresh && isRevalidating}
+          onRefresh={handleRefresh}
+          onAddProject={handleOpenProject}
+        />
+      )}
+
+      <SidebarCalloutSlot />
+
+      <SidebarFooter settingsLabel={labels.settings} onSettings={handleSettings} />
+    </View>
   );
 }
 
@@ -742,9 +664,6 @@ const staticStyles = RNStyleSheet.create({
     left: 0,
     bottom: 0,
     overflow: "hidden" as const,
-  },
-  desktopSidebar: {
-    position: "relative" as const,
   },
 });
 
@@ -769,22 +688,6 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     borderRadius: theme.borderRadius.lg,
     backgroundColor: theme.colors.surfaceSidebar,
-  },
-  desktopSidebarBorder: {
-    borderRightWidth: 1,
-    borderRightColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceSidebar,
-  },
-  resizeHandle: {
-    position: "absolute",
-    right: -5,
-    top: 0,
-    bottom: 0,
-    width: 10,
-    zIndex: 10,
-  },
-  sidebarDragArea: {
-    position: "relative",
   },
   sidebarFooter: {
     paddingVertical: theme.spacing[1.5],
