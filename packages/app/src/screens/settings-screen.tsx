@@ -139,14 +139,23 @@ interface SidebarSectionItem {
   id: SettingsSectionSlug;
   labelKey: string;
   icon: ComponentType<{ size: number; color: string }>;
+  // Requires the Electron desktop app (local daemon control, integrations, permissions).
   desktopOnly?: boolean;
+  // Requires a hardware-keyboard surface — visible on desktop app + browser web, hidden on
+  // mobile native (which has no keyboard). Keep in sync with the section's own !isNative render gate.
+  hiddenOnNative?: boolean;
 }
 
 const SIDEBAR_SECTION_ITEMS: SidebarSectionItem[] = [
   { id: "general", labelKey: "settings.sections.general", icon: Settings },
   { id: "daemon", labelKey: "settings.sections.daemon", icon: Server, desktopOnly: true },
   { id: "appearance", labelKey: "settings.sections.appearance", icon: Palette },
-  { id: "shortcuts", labelKey: "settings.sections.shortcuts", icon: Keyboard, desktopOnly: true },
+  {
+    id: "shortcuts",
+    labelKey: "settings.sections.shortcuts",
+    icon: Keyboard,
+    hiddenOnNative: true,
+  },
   {
     id: "integrations",
     labelKey: "settings.sections.integrations",
@@ -1127,7 +1136,15 @@ function SettingsSidebar({
   const sortedHosts = useSortedHosts(hosts, localServerId);
   const hasHosts = sortedHosts.length > 0;
   const isDesktopApp = isElectronRuntime();
-  const items = SIDEBAR_SECTION_ITEMS.filter((item) => !item.desktopOnly || isDesktopApp);
+  const items = SIDEBAR_SECTION_ITEMS.filter((item) => {
+    if (item.desktopOnly && !isDesktopApp) {
+      return false;
+    }
+    if (item.hiddenOnNative && isNative) {
+      return false;
+    }
+    return true;
+  });
   const insets = useSafeAreaInsets();
   const padding = useWindowControlsPadding("sidebar");
   const isDesktop = layout === "desktop";

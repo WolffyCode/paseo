@@ -662,7 +662,11 @@ function DesktopSidebar({
 
       <SidebarCalloutSlot />
 
-      <SidebarFooter settingsLabel={labels.settings} onSettings={handleSettings} hostSlot={hostSlot} />
+      <SidebarFooter
+        settingsLabel={labels.settings}
+        onSettings={handleSettings}
+        hostSlot={hostSlot}
+      />
     </View>
   );
 }

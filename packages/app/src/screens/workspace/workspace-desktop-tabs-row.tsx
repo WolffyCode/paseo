@@ -336,6 +336,39 @@ export function useWorkspaceToolMenuItems({
   ]);
 }
 
+// Right-panel empty-state tool picker — the card shown when the right tool pane has no
+// tabs (workspace-screen renderSplitPaneEmptyState). A thin presentation over the shared
+// useWorkspaceToolMenuItems hook; the launcher dropdown consumes the same hook.
+export function WorkspaceToolPicker({
+  handlers,
+  showCreateBrowserTab,
+}: {
+  handlers: WorkspaceToolsAddHandlers;
+  showCreateBrowserTab: boolean;
+}) {
+  const items = useWorkspaceToolMenuItems({ handlers, showCreateBrowserTab });
+  return (
+    <View style={styles.toolPickerContainer}>
+      <View style={styles.toolPickerCard}>
+        {items.map((item) => (
+          <Pressable
+            key={item.key}
+            testID={item.testID}
+            onPress={item.onSelect}
+            style={styles.toolPickerRow}
+          >
+            {item.leading}
+            <Text style={styles.toolPickerLabel}>{item.label}</Text>
+            {item.shortcutKeys ? (
+              <Shortcut chord={item.shortcutKeys} style={styles.menuItemShortcut} />
+            ) : null}
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export function WorkspaceToolsAddMenuItems({
   handlers,
   showCreateBrowserTab,
@@ -1584,6 +1617,34 @@ const styles = StyleSheet.create((theme) => ({
   },
   menuItemShortcut: {
     backgroundColor: "transparent",
+  },
+  toolPickerContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: theme.spacing[4],
+  },
+  toolPickerCard: {
+    width: 320,
+    maxWidth: "100%",
+    borderWidth: theme.borderWidth[1],
+    borderColor: theme.colors.border,
+    borderRadius: theme.borderRadius.xl,
+    backgroundColor: theme.colors.surface0,
+    padding: theme.spacing[1],
+  },
+  toolPickerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[3],
+    paddingVertical: theme.spacing[2],
+    paddingHorizontal: theme.spacing[3],
+    borderRadius: theme.borderRadius.lg,
+  },
+  toolPickerLabel: {
+    flex: 1,
+    fontSize: theme.fontSize.base,
+    color: theme.colors.foreground,
   },
   terminalProfileIconWrapper: {
     width: 14,
