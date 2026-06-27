@@ -3,6 +3,17 @@ import type { DaemonServerInfo } from "@/stores/session-store";
 
 export type VoiceReadinessMode = "dictation" | "voice";
 
+/**
+ * Whether the daemon emits the normalized nested-subagent tree, gating native-tree rendering.
+ * Missing/false/null all mean the host predates the capability, so the client shows "Update the
+ * host" instead of degrading — no fallback rendering path.
+ */
+export function selectObservedTreeCapability(
+  serverInfo: DaemonServerInfo | null | undefined,
+): boolean {
+  return serverInfo?.features?.observedSubagentTree === true;
+}
+
 export function getServerCapabilities(params: {
   serverInfo: DaemonServerInfo | null | undefined;
 }): DaemonServerInfo["capabilities"] | null {

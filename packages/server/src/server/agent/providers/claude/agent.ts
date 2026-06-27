@@ -47,6 +47,10 @@ import { claudeQuery, type ClaudeOptions, type ClaudeQueryFactory } from "./quer
 import { realClaudeRewindSdk, revertClaudeConversation, revertClaudeFiles } from "./rewind.js";
 import { normalizeProviderReplayTimestamp } from "../../provider-history-timestamps.js";
 import { claudeProjectDirSync } from "./project-dir.js";
+import {
+  loadObservedSubAgentTree as scanObservedSubtree,
+  watchObservedSubAgentTree as watchObservedSubtree,
+} from "./observed-tree-watcher.js";
 import { SETTING_APPLIES_NEXT_TURN_NOTICE } from "../../provider-notices.js";
 
 import {
@@ -82,6 +86,12 @@ import {
   type ListImportableSessionsOptions,
   type ListModelsOptions,
   type McpServerConfig,
+  type ObservedNativeRef,
+  type ObservedNodeSnapshot,
+  type ObservedSubAgentHistoryParams,
+  type ObservedSubtreeRef,
+  type ObservedTreeEvent,
+  type ObservedTreeUnsubscribe,
 } from "../../agent-sdk-types.js";
 import { importSessionFromPersistence } from "../../provider-session-import.js";
 import {
@@ -1391,6 +1401,67 @@ export class ClaudeAgentClient implements AgentClient {
       queryFactory: this.queryFactory,
       resolveBinary: this.resolveBinary,
     });
+  }
+
+  // Read-only timeline of ONE observed sub-agent, sourced solely from its own
+  // native transcript (agent-<agentId>.jsonl) — the single source for that node
+  // (TIMELINE channel). Builds a throwaway session purely to reuse the transcript->
+  // timeline converter; it never runs, so no process is spawned.
+  async loadObservedSubAgentHistory(
+    params: ObservedSubAgentHistoryParams,
+  ): Promise<AgentTimelineItem[]> {
+    const session = this.buildObservedReaderSession(params.cwd);
+    return session.loadObservedNodeHistory(
+      this.observedNodeTranscript(params.nativeRef, params.cwd),
+    );
+  }
+
+  // One-shot scan of a root session's observed subtree into flat node snapshots
+  // (initial attach / restart / history open). Pure disk read via the fs compat layer.
+  loadObservedSubAgentTree(ref: ObservedSubtreeRef): Promise<ObservedNodeSnapshot[]> {
+    return scanObservedSubtree({ ref, resolveProjectDir: (cwd) => this.resolveProjectDir(cwd) });
+  }
+
+  // Watches a root session's subagents/ for node/status/timeline growth, reusing
+  // the session converter (never re-implemented) for timeline items. Returns an
+  // unsubscribe; the session is throwaway and never connects.
+  watchObservedSubAgentTree(
+    ref: ObservedSubtreeRef,
+    onEvent: (event: ObservedTreeEvent) => void,
+  ): ObservedTreeUnsubscribe {
+    const session = this.buildObservedReaderSession(ref.cwd);
+    return watchObservedSubtree({
+      ref,
+      onEvent,
+      resolveProjectDir: (cwd) => this.resolveProjectDir(cwd),
+      convertEntry: (entry) => session.convertObservedEntry(entry),
+    });
+  }
+
+  // A non-running session used only to reuse the transcript->timeline converter for
+  // observed reads. Never connects or spawns a process.
+  private buildObservedReaderSession(cwd: string): ClaudeAgentSession {
+    return new ClaudeAgentSession(this.assertConfig({ provider: "claude", cwd }), {
+      defaults: this.defaults,
+      runtimeSettings: this.runtimeSettings,
+      logger: this.logger,
+      queryFactory: this.queryFactory,
+      resolveBinary: this.resolveBinary,
+    });
+  }
+
+  private resolveProjectDir(cwd: string): string {
+    return claudeProjectDirSync(cwd, { configDir: this.configDir });
+  }
+
+  // Locates one observed node's own transcript under the root session dir.
+  private observedNodeTranscript(nativeRef: ObservedNativeRef, cwd: string): string {
+    return path.join(
+      this.resolveProjectDir(cwd),
+      nativeRef.rootSessionId,
+      "subagents",
+      `agent-${nativeRef.agentId}.jsonl`,
+    );
   }
 
   async resumeSession(
@@ -4164,6 +4235,39 @@ class ClaudeAgentSession implements AgentSession {
     } catch {
       // ignore history load failures
     }
+  }
+
+  // Read-only load of one observed sub-agent's FULL timeline from its own native
+  // transcript (agent-<agentId>.jsonl). Single source for that node — the whole
+  // file is this child's own conversation, so it is read verbatim (no isSidechain
+  // filtering) through the same converter as the main timeline. Pure disk read —
+  // never connects, spawns, or mutates.
+  loadObservedNodeHistory(transcriptFile: string): AgentTimelineItem[] {
+    if (!fs.existsSync(transcriptFile)) {
+      return [];
+    }
+    const timeline: AgentTimelineItem[] = [];
+    for (const line of fs.readFileSync(transcriptFile, "utf8").split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      try {
+        const record = toObjectRecord(JSON.parse(trimmed));
+        if (record) {
+          timeline.push(...this.convertHistoryEntry(record));
+        }
+      } catch {
+        // skip a corrupt / partially-written line
+      }
+    }
+    return timeline;
+  }
+
+  // Public reuse of the transcript->timeline converter for the observed-tree
+  // watcher (it must not re-implement parsing). `entry` is one raw jsonl record.
+  convertObservedEntry(entry: Record<string, unknown>): AgentTimelineItem[] {
+    return this.convertHistoryEntry(entry);
   }
 
   private ingestPersistedHistory(content: string): void {

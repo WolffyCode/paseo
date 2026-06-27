@@ -12,6 +12,7 @@ import { shallow, useShallow } from "zustand/shallow";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 import { AgentStreamView, type AgentStreamViewHandle } from "@/agent-stream/view";
 import { ArchivedAgentCallout } from "@/components/archived-agent-callout";
+import { ObservedAgentReadOnlyBar } from "@/components/observed-agent-read-only-bar";
 import { Composer } from "@/composer";
 import { AgentModeControl } from "@/composer/agent-controls/mode-control";
 import { FileDropZone } from "@/components/file-drop-zone";
@@ -111,6 +112,8 @@ interface ChatAgentSelectedState extends ChatAgentStateShape {
   archivedAt: Date | null;
   requiresAttention: boolean;
   attentionReason: Agent["attentionReason"] | null;
+  observed: boolean;
+  provider: Agent["provider"] | null;
 }
 
 function resolveChatAgentFromSession(
@@ -132,6 +135,8 @@ const EMPTY_CHAT_AGENT_STATE: ChatAgentSelectedState = {
   archivedAt: null,
   requiresAttention: false,
   attentionReason: null,
+  observed: false,
+  provider: null,
 };
 
 function selectChatAgentState(
@@ -152,6 +157,8 @@ function selectChatAgentState(
     archivedAt: agent.archivedAt ?? null,
     requiresAttention: agent.requiresAttention ?? false,
     attentionReason: agent.attentionReason ?? null,
+    observed: agent.observed ?? false,
+    provider: agent.provider,
   };
 }
 
@@ -1237,6 +1244,8 @@ const ChatAgentReadyContent = memo(function ChatAgentReadyContent({
         isPaneFocused={isPaneFocused}
         isArchivingCurrentAgent={isArchivingCurrentAgent}
         archivedAt={agentState.archivedAt}
+        observed={agentState.observed}
+        observedProvider={agentState.provider}
         cwd={cwd}
         isSubmitLoading={false}
         agentInputDraft={agentInputDraft}
@@ -1372,6 +1381,8 @@ const AgentComposerSection = memo(function AgentComposerSection({
   isPaneFocused,
   isArchivingCurrentAgent,
   archivedAt,
+  observed,
+  observedProvider,
   cwd,
   isSubmitLoading,
   agentInputDraft,
@@ -1387,6 +1398,8 @@ const AgentComposerSection = memo(function AgentComposerSection({
   isPaneFocused: boolean;
   isArchivingCurrentAgent: boolean;
   archivedAt: Date | null;
+  observed: boolean;
+  observedProvider: Agent["provider"] | null;
   cwd: string;
   isSubmitLoading: boolean;
   agentInputDraft: AgentInputDraft;
@@ -1402,6 +1415,11 @@ const AgentComposerSection = memo(function AgentComposerSection({
   }
   if (archivedAt) {
     return <ArchivedAgentCallout serverId={serverId} agentId={agentId} />;
+  }
+  // Provider-internal subagents are observed read-only: swap the composer for a
+  // banner so the user can read but never send or interrupt them.
+  if (observed) {
+    return <ObservedAgentReadOnlyBar provider={observedProvider} />;
   }
   if (isArchivingCurrentAgent) {
     return null;

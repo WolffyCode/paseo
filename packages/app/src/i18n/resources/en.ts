@@ -15,6 +15,7 @@ export const en = {
     loading: "Loading...",
     actions: {
       back: "Back",
+      forward: "Forward",
       cancel: "Cancel",
       close: "Close",
       copy: "Copy",
@@ -213,6 +214,10 @@ export const en = {
     archived: {
       callout: "This agent is archived",
       unarchive: "Unarchive",
+    },
+    observed: {
+      readOnly:
+        "🔒 Read-only · {{provider}}'s own internal subagent — orchestrated by {{provider}}, you can't send or interrupt it",
     },
   },
   sessions: {
@@ -547,6 +552,8 @@ export const en = {
         newFile: "Open file",
         newSideChat: "New side chat",
         review: "Review changes",
+        openLocation: "Open location",
+        environmentInfo: "Environment",
         importSession: "Import session",
         copyPath: "Copy workspace path",
         copyBranchName: "Copy branch name",
@@ -719,6 +726,8 @@ export const en = {
   sidebar: {
     host: {
       noHost: "No host",
+      dropdownTitle: "Hosts",
+      addHost: "Add host…",
       switchTitle: "Switch host",
       searchPlaceholder: "Search hosts...",
     },
@@ -733,6 +742,24 @@ export const en = {
     sections: {
       pinned: "Pinned",
       projects: "Projects",
+      conversations: "Conversations",
+      noConversations: "No conversations yet",
+    },
+    conversation: {
+      actions: {
+        pin: "Pin conversation",
+        unpin: "Unpin conversation",
+        rename: "Rename conversation",
+        archive: "Archive conversation",
+        markUnread: "Mark as unread",
+        revealInFinder: "Reveal in Finder",
+        copyWorkingDir: "Copy working directory",
+        copyConversationId: "Copy conversation ID",
+        copyDeepLink: "Copy deep link",
+        forkToLocal: "Fork to local",
+        forkToWorktree: "Fork to new worktree",
+        openInNewWindow: "Open in new window",
+      },
     },
     worktreeSetup: {
       title: "Set up worktree scripts",
@@ -745,6 +772,10 @@ export const en = {
         menu: "Project actions",
         pin: "Pin",
         unpin: "Unpin",
+        revealInFinder: "Reveal in Finder",
+        createWorktree: "Create worktree",
+        archive: "Archive conversations",
+        renameProject: "Rename project",
         rename: "Rename",
         openSettings: "Open project settings",
         openNewWindow: "Open in new window",
@@ -1316,6 +1347,7 @@ export const en = {
     draft: {
       newAgent: "New Agent",
       creatingAgent: "Creating agent",
+      emptyTitle: "What do you want to build today?",
     },
     file: {
       directoryMissing: "Workspace directory not found.",
@@ -1335,6 +1367,8 @@ export const en = {
   },
   renameModal: {
     rename: "Rename",
+    save: "Save",
+    keepShort: "Keep it short and easy to recognize",
     saving: "Saving...",
   },
   sidebarCallout: {

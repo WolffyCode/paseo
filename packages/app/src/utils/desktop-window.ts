@@ -9,7 +9,7 @@ import {
 } from "@/constants/layout";
 import { getDesktopWindow } from "@/desktop/electron/window";
 import { usePanelStore } from "@/stores/panel-store";
-import { isNative } from "@/constants/platform";
+import { isNative, isWeb } from "@/constants/platform";
 
 interface RawWindowControlsPadding {
   left: number;
@@ -91,6 +91,7 @@ function useRawWindowControlsPadding(): RawWindowControlsPadding {
     isElectron: getIsElectronRuntime(),
     isMac: getIsElectronRuntimeMac(),
     isFullscreen,
+    isWeb,
   });
 }
 
@@ -98,12 +99,32 @@ export function resolveRawWindowControlsPadding(input: {
   isElectron: boolean;
   isMac: boolean;
   isFullscreen: boolean;
+  isWeb: boolean;
 }): RawWindowControlsPadding {
-  if (!input.isElectron || input.isFullscreen) {
+  if (input.isFullscreen) {
     return { left: 0, right: 0, top: 0 };
   }
 
-  if (input.isMac) {
+  // Electron: OS-drawn traffic lights (macOS) / window controls (win/linux).
+  if (input.isElectron) {
+    if (input.isMac) {
+      return {
+        left: DESKTOP_TRAFFIC_LIGHT_WIDTH,
+        right: 0,
+        top: DESKTOP_TRAFFIC_LIGHT_HEIGHT,
+      };
+    }
+    return {
+      left: 0,
+      right: DESKTOP_WINDOW_CONTROLS_WIDTH,
+      top: DESKTOP_WINDOW_CONTROLS_HEIGHT,
+    };
+  }
+
+  // Web browser (desktop): reserve the SAME macOS traffic-light space so the chrome layout matches the
+  // Electron client; the lights themselves are DOM-drawn (TrafficLights) since there's no OS chrome.
+  // 反馈: 浏览器顶栏要和客户端一致, 不做两套 UI。
+  if (input.isWeb) {
     return {
       left: DESKTOP_TRAFFIC_LIGHT_WIDTH,
       right: 0,
@@ -111,11 +132,8 @@ export function resolveRawWindowControlsPadding(input: {
     };
   }
 
-  return {
-    left: 0,
-    right: DESKTOP_WINDOW_CONTROLS_WIDTH,
-    top: DESKTOP_WINDOW_CONTROLS_HEIGHT,
-  };
+  // Native: no desktop window controls.
+  return { left: 0, right: 0, top: 0 };
 }
 
 export function useWindowControlsPadding(role: WindowControlsPaddingRole): {

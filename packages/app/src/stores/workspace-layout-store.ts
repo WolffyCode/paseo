@@ -41,6 +41,8 @@ import {
   reorderFocusedPaneTabsInLayout,
   reorderPaneTabsInLayout,
   retargetTabInLayout,
+  type RightPanelMode,
+  selectRightPanelMode,
   splitPaneEmptyInLayout,
   splitPaneInLayout,
   type SplitGroup,
@@ -70,8 +72,10 @@ export {
   paneShowsTabBar,
   removePaneFromTree,
   removeTabFromTree,
+  selectRightPanelMode,
 };
 export type {
+  RightPanelMode,
   SplitGroup,
   SplitNode,
   SplitPane,

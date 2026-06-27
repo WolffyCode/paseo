@@ -17,6 +17,7 @@ export const zhCN: TranslationResources = {
     loading: "加载中...",
     actions: {
       back: "返回",
+      forward: "前进",
       cancel: "取消",
       close: "关闭",
       copy: "复制",
@@ -214,6 +215,9 @@ export const zhCN: TranslationResources = {
     archived: {
       callout: "此 Agent 已归档",
       unarchive: "取消归档",
+    },
+    observed: {
+      readOnly: "🔒 只读 · 这是 {{provider}} 内部 subagent，归 {{provider}} 编排，不能发送 / 中断",
     },
   },
   sessions: {
@@ -546,6 +550,8 @@ export const zhCN: TranslationResources = {
         newFile: "打开文件",
         newSideChat: "新建侧边聊天",
         review: "审查变更",
+        openLocation: "打开位置",
+        environmentInfo: "环境信息",
         importSession: "导入会话",
         copyPath: "复制 workspace 路径",
         copyBranchName: "复制分支名称",
@@ -708,6 +714,8 @@ export const zhCN: TranslationResources = {
   sidebar: {
     host: {
       noHost: "没有 Host",
+      dropdownTitle: "Host",
+      addHost: "添加 Host…",
       switchTitle: "切换 Host",
       searchPlaceholder: "搜索 Hosts...",
     },
@@ -722,6 +730,24 @@ export const zhCN: TranslationResources = {
     sections: {
       pinned: "置顶",
       projects: "项目",
+      conversations: "对话",
+      noConversations: "暂无对话",
+    },
+    conversation: {
+      actions: {
+        pin: "置顶对话",
+        unpin: "取消置顶对话",
+        rename: "重命名对话",
+        archive: "归档对话",
+        markUnread: "标记为未读",
+        revealInFinder: "在 Finder 中显示",
+        copyWorkingDir: "复制工作目录",
+        copyConversationId: "复制会话 ID",
+        copyDeepLink: "复制深度链接",
+        forkToLocal: "派生到本地",
+        forkToWorktree: "派生到新工作树",
+        openInNewWindow: "在新窗口中打开",
+      },
     },
     worktreeSetup: {
       title: "设置 worktree scripts",
@@ -733,6 +759,10 @@ export const zhCN: TranslationResources = {
         menu: "Project 操作",
         pin: "置顶项目",
         unpin: "取消置顶",
+        revealInFinder: "在 Finder 中显示",
+        createWorktree: "创建永久工作树",
+        archive: "归档对话",
+        renameProject: "重命名项目",
         rename: "重命名",
         openSettings: "打开 project 设置",
         openNewWindow: "在新窗口中打开",
@@ -1292,6 +1322,7 @@ export const zhCN: TranslationResources = {
     draft: {
       newAgent: "新建 Agent",
       creatingAgent: "正在创建 Agent",
+      emptyTitle: "今天想构建点什么？",
     },
     file: {
       directoryMissing: "未找到 workspace 目录。",
@@ -1311,6 +1342,8 @@ export const zhCN: TranslationResources = {
   },
   renameModal: {
     rename: "重命名",
+    save: "保存",
+    keepShort: "保持简短且易于识别",
     saving: "正在保存...",
   },
   sidebarCallout: {

@@ -244,6 +244,117 @@ describe("ClaudeAgentSession sub-agent sidechain updates", () => {
     queryFactory.mockReset();
   });
 
+  test("emits node-only observations (no item mirror, no childSessionId) — timeline is file-sourced", async () => {
+    queryFactory.mockImplementation(() =>
+      buildQueryMock([
+        {
+          type: "system",
+          subtype: "init",
+          session_id: "parent-session",
+          permissionMode: "default",
+          model: "opus",
+        },
+        {
+          type: "stream_event",
+          parent_tool_use_id: null,
+          event: {
+            type: "content_block_start",
+            index: 0,
+            content_block: {
+              type: "tool_use",
+              id: "task-1",
+              name: "Task",
+              input: { subagent_type: "Explore", description: "查询北京今日天气" },
+            },
+          },
+        },
+        // Child sub-agent's own turn: prose + a tool call. GROUND TRUTH (SDK
+        // 0.3.181): the sub-agent runs inline in the PARENT stream and its
+        // messages carry the PARENT's session_id — it has no independent session.
+        {
+          type: "assistant",
+          parent_tool_use_id: "task-1",
+          session_id: "parent-session",
+          message: {
+            content: [
+              { type: "text", text: "我来查一下北京今天的天气。" },
+              {
+                type: "tool_use",
+                id: "sub-search-1",
+                name: "WebSearch",
+                input: { query: "北京 天气 今天" },
+              },
+            ],
+          },
+        },
+        // Child's tool result — also carries the parent's session_id.
+        {
+          type: "user",
+          parent_tool_use_id: "task-1",
+          session_id: "parent-session",
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "sub-search-1",
+                tool_name: "WebSearch",
+                content: "晴，24–31°C",
+                is_error: false,
+              },
+            ],
+          },
+        },
+        {
+          type: "assistant",
+          parent_tool_use_id: null,
+          message: {
+            content: [
+              {
+                type: "tool_result",
+                tool_use_id: "task-1",
+                tool_name: "Task",
+                content: "done",
+                is_error: false,
+              },
+            ],
+          },
+        },
+        {
+          type: "result",
+          subtype: "success",
+          usage: { input_tokens: 1, cache_read_input_tokens: 0, output_tokens: 1 },
+          total_cost_usd: 0,
+        },
+      ]),
+    );
+
+    const session = await new ClaudeAgentClient({
+      logger,
+      queryFactory,
+      resolveBinary: async () => "/test/claude/bin",
+    }).createSession({
+      provider: "claude",
+      cwd: process.cwd(),
+    });
+
+    const events = await collectUntilTerminal(streamSession(session, "delegate work"));
+    await session.close();
+
+    const observations = events.filter((event) => event.type === "sub_agent_observation");
+    expect(observations.length).toBeGreaterThan(0);
+
+    // A Claude sub-agent has NO independent session — its messages carry the
+    // PARENT's session_id. The observation must NEVER report a childSessionId
+    // (Claude locates each node's timeline by file nativeRef, not a session id).
+    expect(observations.every((event) => event.childSessionId === undefined)).toBe(true);
+
+    // NODE-only: the live observation no longer mirrors child timeline items. Each
+    // node's read-only conversation is sourced solely from its own agent-<id>.jsonl
+    // (file single-source, tailed by the watcher), so there is no second writer here.
+    expect(observations.every((event) => event.item === undefined)).toBe(true);
+    expect(observations.every((event) => event.status === "running")).toBe(true);
+  });
+
   test("accumulates lightweight sub_agent detail and preserves callId lifecycle collapse", async () => {
     const session = await new ClaudeAgentClient({
       logger,

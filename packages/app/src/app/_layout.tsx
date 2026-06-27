@@ -30,6 +30,8 @@ import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog"
 import { LeftSidebar } from "@/components/left-sidebar";
 import { HomeShell } from "@/screens/home-shell/home-shell";
 import { useShellLayoutStore } from "@/stores/shell-layout-store";
+import { TrafficLights } from "@/components/desktop/traffic-lights";
+import { useSuppressBrowserContextMenu } from "@/hooks/use-suppress-browser-context-menu";
 import { ProjectPickerModal } from "@/components/project-picker-modal";
 import { ProviderSettingsHost } from "@/components/provider-settings-host";
 import { WorkspaceSetupDialog } from "@/components/workspace-setup-dialog";
@@ -436,6 +438,9 @@ function AppContainer({
   const isFocusModeEnabled = usePanelStore((state) => state.desktop.focusModeEnabled);
   const toggleShellRegion = useShellLayoutStore((state) => state.toggleRegion);
 
+  // 抑制非自定义区域的浏览器默认右键菜单(反馈: 空白区域右键 Copy/Paste 删掉)。web only, native noop。
+  useSuppressBrowserContextMenu();
+
   const cycleTheme = useCallback(() => {
     const currentIndex = THEME_CYCLE_ORDER.indexOf(settings.theme as ThemeName);
     const nextIndex = (currentIndex + 1) % THEME_CYCLE_ORDER.length;
@@ -475,6 +480,10 @@ function AppContainer({
 
   const content = (
     <View style={layoutStyles.surfaceFill}>
+      {/* Web-only DOM traffic lights (Electron uses OS-native ones) — keeps browser chrome identical
+          to the desktop app, 反馈: 不做两套 UI。Renders null on Electron/native internally. The unified
+          top bar reserves the left footprint; these draw the actual browser window buttons into it. */}
+      <TrafficLights />
       {isCompactLayout ? (
         <View style={rowStyle}>
           <View style={flexStyle}>{children}</View>

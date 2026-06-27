@@ -119,6 +119,7 @@ describe("buildSidebarProjectsFromStructure", () => {
     });
 
     expect(projects).toHaveLength(1);
+    // view-model 直接透传 workspace-structure 算好的 projectName(此处 test 直接给 "Project 1")。
     expect(projects[0]?.projectName).toBe("Project 1");
     expect(projects[0]?.workspaces[0]).toMatchObject({
       workspaceKey: "srv:ws-main",

@@ -13,6 +13,7 @@ import type {
   AgentSessionConfig,
   AgentSlashCommand,
   AgentStreamEvent,
+  AgentTimelineItem,
 } from "../agent-sdk-types.js";
 import {
   buildCodexAppServerEnv,
@@ -48,6 +49,7 @@ interface CodexSessionTestAccess {
   handleToolApprovalRequest(params: unknown): Promise<unknown>;
   handleNotification(method: string, params: unknown): void;
   loadPersistedHistory(): Promise<void>;
+  loadObservedThreadHistory(threadId: string): Promise<AgentTimelineItem[]>;
   refreshResolvedCollaborationMode(): void;
   serviceTier: "fast" | null;
   planModeEnabled: boolean;
@@ -1446,7 +1448,10 @@ describe("Codex app-server provider", () => {
       },
     });
 
-    expect(events).toEqual([
+    // The parent stream still carries the sub-agent tool call unchanged; the
+    // read-only observation rides a separate event (asserted in its own test).
+    const timelineEvents = events.filter((event) => event.type === "timeline");
+    expect(timelineEvents).toEqual([
       {
         type: "timeline",
         provider: "codex",
@@ -1523,6 +1528,56 @@ describe("Codex app-server provider", () => {
         actions: [],
       },
     });
+  });
+
+  test("emits sub_agent_observation events mirroring the child sub-agent timeline", () => {
+    const session = createSession();
+    const events: AgentStreamEvent[] = [];
+    session.subscribe((event) => events.push(event));
+
+    asInternals(session).handleNotification("item/started", {
+      threadId: "test-thread",
+      item: {
+        type: "collabAgentToolCall",
+        id: "call-observe-child",
+        tool: "spawnAgent",
+        status: "inProgress",
+        prompt: "查询北京今日天气",
+        receiverThreadIds: ["child-thread-weather"],
+        agentsStates: {},
+      },
+    });
+    asInternals(session).handleNotification("item/completed", {
+      threadId: "child-thread-weather",
+      item: {
+        type: "agentMessage",
+        id: "child-weather-msg",
+        text: "晴，气温 24–31°C。",
+      },
+    });
+
+    const observations = events.filter((event) => event.type === "sub_agent_observation");
+
+    // The parent's sub-agent tool-call surfaces the observed node, carrying the
+    // call id + description so the daemon can nest + title the read-only record,
+    // and the child thread id as the sub-agent's real (resumable) session id.
+    expect(observations.length).toBeGreaterThan(0);
+    expect(observations[0]).toMatchObject({
+      type: "sub_agent_observation",
+      provider: "codex",
+      callId: "call-observe-child",
+      childSessionId: "child-thread-weather",
+      description: "查询北京今日天气",
+      status: "running",
+    });
+
+    // The child's own message is mirrored as a read-only timeline item.
+    const withItem = observations.find((event) => event.item !== undefined);
+    expect(withItem?.item).toMatchObject({
+      type: "assistant_message",
+      text: "晴，气温 24–31°C。",
+    });
+    expect(withItem?.callId).toBe("call-observe-child");
   });
 
   test("keeps the parent sub-agent running when a child command fails during the child turn", () => {
@@ -1669,6 +1724,49 @@ describe("Codex app-server provider", () => {
         },
       },
     ]);
+  });
+
+  test("loads an observed sub-agent's thread history read-only (full timeline, no turn)", async () => {
+    const session = createSession();
+    const requests: Array<{ method: string; params: unknown }> = [];
+    session.client = {
+      request: vi.fn(async (method: string, params: unknown) => {
+        requests.push({ method, params });
+        if (method !== "thread/read") {
+          return {};
+        }
+        return {
+          thread: {
+            turns: [
+              {
+                items: [
+                  { type: "reasoning", id: "r1", summary: ["先查北京今天的天气"] },
+                  { type: "agentMessage", id: "m1", text: "北京今天晴，24–31°C。" },
+                ],
+              },
+            ],
+          },
+        };
+      }),
+    };
+
+    const timeline = await asInternals(session).loadObservedThreadHistory("child-thread-id");
+
+    // Read the child thread's rollout (read-only) — no turn started.
+    expect(requests).toContainEqual({
+      method: "thread/read",
+      params: { threadId: "child-thread-id", includeTurns: true },
+    });
+
+    // Full timeline in the same shape as the live path: reasoning + prose.
+    const reasoning = timeline.find(
+      (item) => item.type === "reasoning" && item.text.includes("北京今天的天气"),
+    );
+    expect(reasoning).toBeDefined();
+    const prose = timeline.find(
+      (item) => item.type === "assistant_message" && item.text.includes("北京今天晴"),
+    );
+    expect(prose).toBeDefined();
   });
 
   test("uses Codex turn timestamps for timestamp-less persisted history items", async () => {

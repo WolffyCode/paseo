@@ -13,7 +13,12 @@ const rawPadding = {
 describe("resolveWindowControlsPadding", () => {
   it("keeps mac traffic-light padding available when the app window is not fullscreen", () => {
     expect(
-      resolveRawWindowControlsPadding({ isElectron: true, isMac: true, isFullscreen: false }),
+      resolveRawWindowControlsPadding({
+        isElectron: true,
+        isMac: true,
+        isFullscreen: false,
+        isWeb: true,
+      }),
     ).toEqual({
       left: 78,
       right: 0,
@@ -21,9 +26,44 @@ describe("resolveWindowControlsPadding", () => {
     });
   });
 
+  it("reserves the same mac traffic-light padding in the web browser (DOM lights match the app)", () => {
+    expect(
+      resolveRawWindowControlsPadding({
+        isElectron: false,
+        isMac: false,
+        isFullscreen: false,
+        isWeb: true,
+      }),
+    ).toEqual({
+      left: 78,
+      right: 0,
+      top: 45,
+    });
+  });
+
+  it("does not reserve window-control padding on native", () => {
+    expect(
+      resolveRawWindowControlsPadding({
+        isElectron: false,
+        isMac: false,
+        isFullscreen: false,
+        isWeb: false,
+      }),
+    ).toEqual({
+      left: 0,
+      right: 0,
+      top: 0,
+    });
+  });
+
   it("keeps Windows and Linux window-control padding available when the app window is not fullscreen", () => {
     expect(
-      resolveRawWindowControlsPadding({ isElectron: true, isMac: false, isFullscreen: false }),
+      resolveRawWindowControlsPadding({
+        isElectron: true,
+        isMac: false,
+        isFullscreen: false,
+        isWeb: true,
+      }),
     ).toEqual({
       left: 0,
       right: 140,
@@ -33,7 +73,12 @@ describe("resolveWindowControlsPadding", () => {
 
   it("does not reserve window-control padding when the app window is fullscreen", () => {
     expect(
-      resolveRawWindowControlsPadding({ isElectron: true, isMac: true, isFullscreen: true }),
+      resolveRawWindowControlsPadding({
+        isElectron: true,
+        isMac: true,
+        isFullscreen: true,
+        isWeb: true,
+      }),
     ).toEqual({
       left: 0,
       right: 0,

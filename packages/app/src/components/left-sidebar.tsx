@@ -1,7 +1,7 @@
 import { router, usePathname } from "expo-router";
 import { Search, Settings, SquarePen, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { memo, useCallback, useEffect, useMemo, useState } from "react";
+import { memo, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Pressable, StyleSheet as RNStyleSheet, View } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -13,7 +13,9 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
+import { HostSwitcherPill } from "@/components/sidebar/host-switcher-pill";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
+import { ConversationTree } from "@/conversation-tree/render";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isWeb } from "@/constants/platform";
 import { useSidebarAnimation } from "@/contexts/sidebar-animation-context";
@@ -275,19 +277,34 @@ export const LeftSidebar = memo(function LeftSidebar({
 function SidebarFooter({
   settingsLabel,
   onSettings,
+  hostSlot,
 }: {
   settingsLabel: string;
   onSettings: () => void;
+  hostSlot?: ReactNode;
 }) {
+  const settings = (
+    <SidebarHeaderRow
+      icon={Settings}
+      label={settingsLabel}
+      onPress={onSettings}
+      testID="sidebar-settings"
+      variant="compact"
+    />
+  );
+  // Desktop: 设置在左、主机切换 pill 在右, 同一行 (反馈: 主机切换放设置右边)。Mobile: 仅设置。
+  // The unified top bar doesn't host a switcher yet, so the footer pill stays the desktop
+  // host switch entry until the shell grows its own.
   return (
     <View style={styles.sidebarFooter}>
-      <SidebarHeaderRow
-        icon={Settings}
-        label={settingsLabel}
-        onPress={onSettings}
-        testID="sidebar-settings"
-        variant="compact"
-      />
+      {hostSlot ? (
+        <View style={styles.footerRow}>
+          {settings}
+          <View style={styles.footerHostSlot}>{hostSlot}</View>
+        </View>
+      ) : (
+        settings
+      )}
     </View>
   );
 }
@@ -575,15 +592,6 @@ function DesktopSidebar({
   pinnedProjects,
   unpinnedProjects,
   isInitialLoad,
-  isRevalidating,
-  isManualRefresh,
-  groupMode,
-  collapsedProjectKeys,
-  shortcutIndexByWorkspaceKey,
-  toggleProjectCollapsed,
-  allProjectsCollapsed,
-  handleToggleCollapseAll,
-  handleRefresh,
   newWorkspaceKeys,
   commandCenterKeys,
   handleNewWorkspaceNavigate,
@@ -592,13 +600,29 @@ function DesktopSidebar({
   handleSettings,
   labels,
 }: DesktopSidebarProps) {
-  const projectsHeader = useMemo(
-    (): ProjectsHeaderModel => ({
-      allCollapsed: allProjectsCollapsed,
-      onToggleCollapseAll: handleToggleCollapseAll,
-      onSelectFolder: handleOpenProject,
-    }),
-    [allProjectsCollapsed, handleToggleCollapseAll, handleOpenProject],
+  // 置顶项目在前 + 其余,喂给对话树(项目分组复用 use-sidebar-workspaces-list)。
+  const treeProjects = useMemo(
+    () => [...pinnedProjects, ...unpinnedProjects],
+    [pinnedProjects, unpinnedProjects],
+  );
+  // Project-row "new conversation" hover action: open New Workspace scoped to that project's dir.
+  const handleNewConversationInProject = useCallback(
+    (project: SidebarProjectEntry) => {
+      if (!activeServerId) return;
+      router.navigate(
+        buildHostNewWorkspaceRoute(activeServerId, project.iconWorkingDir, {
+          projectId: project.projectKey,
+          displayName: project.projectName,
+        }),
+      );
+    },
+    [activeServerId],
+  );
+  // The unified top bar has no host switcher yet, so the footer keeps the desktop host
+  // switch entry. Memoized so the footer slot isn't a fresh JSX value each render.
+  const hostSlot = useMemo(
+    () => <HostSwitcherPill activeServerId={activeServerId} dropUp />,
+    [activeServerId],
   );
 
   // Inner content only — the home shell owns the left card's frame, width, show/hide
@@ -628,24 +652,17 @@ function DesktopSidebar({
       {isInitialLoad ? (
         <SidebarAgentListSkeleton />
       ) : (
-        <SidebarWorkspaceList
+        <ConversationTree
           serverId={activeServerId}
-          collapsedProjectKeys={collapsedProjectKeys}
-          onToggleProjectCollapsed={toggleProjectCollapsed}
-          shortcutIndexByWorkspaceKey={shortcutIndexByWorkspaceKey}
-          groupMode={groupMode}
-          pinnedProjects={pinnedProjects}
-          unpinnedProjects={unpinnedProjects}
-          projectsHeader={projectsHeader}
-          isRefreshing={isManualRefresh && isRevalidating}
-          onRefresh={handleRefresh}
+          projects={treeProjects}
           onAddProject={handleOpenProject}
+          onNewConversation={handleNewConversationInProject}
         />
       )}
 
       <SidebarCalloutSlot />
 
-      <SidebarFooter settingsLabel={labels.settings} onSettings={handleSettings} />
+      <SidebarFooter settingsLabel={labels.settings} onSettings={handleSettings} hostSlot={hostSlot} />
     </View>
   );
 }
@@ -691,5 +708,15 @@ const styles = StyleSheet.create((theme) => ({
   },
   sidebarFooter: {
     paddingVertical: theme.spacing[1.5],
+  },
+  footerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[1],
+  },
+  footerHostSlot: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: theme.spacing[2],
   },
 }));

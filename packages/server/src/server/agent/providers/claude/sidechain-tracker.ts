@@ -48,6 +48,13 @@ function isClaudeContentChunk(value: unknown): value is ClaudeContentChunk {
   );
 }
 
+// Tracks a Claude Task sidechain from the parent stream to produce TWO read-only
+// outputs: (1) the parent's `sub_agent` tool-call summary (the action log shown on
+// the Task card) and (2) a NODE observation so the daemon surfaces the child as an
+// observed node. It deliberately does NOT mirror the child's timeline items —
+// every observed node's read-only conversation is sourced solely from its own
+// agent-<id>.jsonl (TIMELINE channel, file-single-source), so there is no second
+// writer and no item-level dedup to do.
 export class ClaudeSidechainTracker {
   private readonly activeSidechains = new Map<string, SubAgentActivityState>();
   private readonly getToolInput: (toolUseId: string) => AgentMetadata | null | undefined;
@@ -68,6 +75,9 @@ export class ClaudeSidechainTracker {
     this.activeSidechains.set(parentToolUseId, state);
 
     const contextUpdated = this.updateSubAgentContextFromTaskInput(state, parentToolUseId);
+
+    // Parent-stream summary (the sub_agent tool-call log) — feeds the parent's Task
+    // card with the child's running actions (brief B5), not the child timeline.
     const actionCandidates = this.extractSubAgentActionCandidates(message);
     let actionUpdated = false;
     for (const action of actionCandidates) {
@@ -80,38 +90,49 @@ export class ClaudeSidechainTracker {
       return [];
     }
 
+    const events: AgentStreamEvent[] = [];
+
     const toolCall = mapClaudeRunningToolCall({
       name: "Task",
       callId: parentToolUseId,
       input: null,
       output: null,
     });
-    if (!toolCall) {
-      return [];
+    if (toolCall) {
+      const detail: Extract<AgentTimelineItem, { type: "tool_call" }>["detail"] = {
+        type: "sub_agent",
+        ...(state.subAgentType ? { subAgentType: state.subAgentType } : {}),
+        ...(state.description ? { description: state.description } : {}),
+        log: state.actions
+          .map((action) =>
+            action.summary ? `[${action.toolName}] ${action.summary}` : `[${action.toolName}]`,
+          )
+          .join("\n"),
+        actions: [],
+      };
+      events.push({ type: "timeline", item: { ...toolCall, detail }, provider: "claude" });
     }
 
-    const detail: Extract<AgentTimelineItem, { type: "tool_call" }>["detail"] = {
-      type: "sub_agent",
+    // NODE observation only: makes the observed node appear/refresh near-instantly.
+    // Status stays "running"; the real terminal is derived from the file signals
+    // (owner tool_result / task_notification), never from this live event.
+    events.push(this.buildSubAgentObservation(parentToolUseId, state));
+
+    return events;
+  }
+
+  private buildSubAgentObservation(
+    callId: string,
+    state: SubAgentActivityState,
+  ): Extract<AgentStreamEvent, { type: "sub_agent_observation" }> {
+    return {
+      type: "sub_agent_observation",
+      provider: "claude",
+      callId,
       ...(state.subAgentType ? { subAgentType: state.subAgentType } : {}),
       ...(state.description ? { description: state.description } : {}),
-      log: state.actions
-        .map((action) =>
-          action.summary ? `[${action.toolName}] ${action.summary}` : `[${action.toolName}]`,
-        )
-        .join("\n"),
-      actions: [],
+      status: "running",
     };
-
-    return [
-      {
-        type: "timeline",
-        item: {
-          ...toolCall,
-          detail,
-        },
-        provider: "claude",
-      },
-    ];
   }
 
   delete(toolUseId: string): void {

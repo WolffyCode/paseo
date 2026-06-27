@@ -17,6 +17,7 @@ export const ar: TranslationResources = {
     loading: "تحميل...",
     actions: {
       back: "خلف",
+      forward: "إلى الأمام",
       cancel: "يلغي",
       close: "يغلق",
       copy: "ينسخ",
@@ -214,6 +215,10 @@ export const ar: TranslationResources = {
     archived: {
       callout: "تمت أرشفة هذا الوكيل",
       unarchive: "إلغاء الأرشفة",
+    },
+    observed: {
+      readOnly:
+        "🔒 للقراءة فقط · وكيل فرعي داخلي خاص بـ {{provider}} — يديره {{provider}}، ولا يمكنك الإرسال إليه أو مقاطعته",
     },
   },
   sessions: {
@@ -548,6 +553,8 @@ export const ar: TranslationResources = {
         newFile: "فتح ملف",
         newSideChat: "محادثة جانبية جديدة",
         review: "مراجعة التغييرات",
+        openLocation: "فتح الموقع",
+        environmentInfo: "البيئة",
         importSession: "جلسة الاستيراد",
         copyPath: "نسخ مسار مساحة العمل",
         copyBranchName: "انسخ اسم الفرع",
@@ -713,6 +720,8 @@ export const ar: TranslationResources = {
   sidebar: {
     host: {
       noHost: "لا مضيف",
+      dropdownTitle: "المضيفون",
+      addHost: "إضافة مضيف…",
       switchTitle: "تبديل المضيف",
       searchPlaceholder: "بحث عن المضيفين...",
     },
@@ -727,6 +736,24 @@ export const ar: TranslationResources = {
     sections: {
       pinned: "المثبتة",
       projects: "المشاريع",
+      conversations: "المحادثات",
+      noConversations: "لا محادثات بعد",
+    },
+    conversation: {
+      actions: {
+        pin: "تثبيت المحادثة",
+        unpin: "إلغاء تثبيت المحادثة",
+        rename: "إعادة تسمية المحادثة",
+        archive: "أرشفة المحادثة",
+        markUnread: "وضع علامة كغير مقروءة",
+        revealInFinder: "إظهار في Finder",
+        copyWorkingDir: "نسخ دليل العمل",
+        copyConversationId: "نسخ معرّف المحادثة",
+        copyDeepLink: "نسخ الرابط العميق",
+        forkToLocal: "تفريع إلى محلي",
+        forkToWorktree: "تفريع إلى شجرة عمل جديدة",
+        openInNewWindow: "فتح في نافذة جديدة",
+      },
     },
     worktreeSetup: {
       title: "إعداد البرامج النصية لشجرة العمل",
@@ -739,6 +766,10 @@ export const ar: TranslationResources = {
         menu: "إجراءات المشروع",
         pin: "تثبيت المشروع",
         unpin: "إلغاء التثبيت",
+        revealInFinder: "إظهار في Finder",
+        createWorktree: "إنشاء worktree",
+        archive: "أرشفة المحادثات",
+        renameProject: "إعادة تسمية المشروع",
         rename: "إعادة تسمية",
         openSettings: "افتح إعدادات المشروع",
         openNewWindow: "Open in new window",
@@ -1310,6 +1341,7 @@ export const ar: TranslationResources = {
     draft: {
       newAgent: "وكيل جديد",
       creatingAgent: "وكيل الخلق",
+      emptyTitle: "ماذا تريد أن تبني اليوم؟",
     },
     file: {
       directoryMissing: "لم يتم العثور على دليل Workspace.",
@@ -1329,6 +1361,8 @@ export const ar: TranslationResources = {
   },
   renameModal: {
     rename: "إعادة تسمية",
+    save: "حفظ",
+    keepShort: "اجعله قصيرًا وسهل التمييز",
     saving: "جارٍ الحفظ...",
   },
   sidebarCallout: {

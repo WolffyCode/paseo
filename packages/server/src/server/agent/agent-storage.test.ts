@@ -192,6 +192,24 @@ describe("AgentStorage", () => {
     expect(persisted.config?.extra?.claude).toMatchObject({ maxThinkingTokens: 1024 });
   });
 
+  test("applySnapshot persists and reloads the observed flag + real child session id", async () => {
+    await storage.applySnapshot(
+      createManagedAgent({
+        id: "observed:parent-1:call-1",
+        cwd: "/tmp/project",
+        lifecycle: "closed",
+        persistence: { provider: "claude", sessionId: "child-session-real" },
+      }),
+      { observed: true },
+    );
+
+    // A fresh AgentStorage over the same path simulates a daemon restart.
+    const reloaded = new AgentStorage(storagePath, logger);
+    const record = await reloaded.get("observed:parent-1:call-1");
+    expect(record?.observed).toBe(true);
+    expect(record?.persistence?.sessionId).toBe("child-session-real");
+  });
+
   test("applySnapshot stores and reloads featureValues when present", async () => {
     await storage.applySnapshot(
       createManagedAgent({

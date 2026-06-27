@@ -406,6 +406,26 @@ export type AgentStreamEvent =
       timestamp?: string;
     }
   | {
+      // Emitted by a provider that runs its own internal subagent (Claude Task /
+      // Codex sub-agent) so the daemon surfaces it as a read-only observed NODE.
+      // `callId` is the parent's `sub_agent` tool-call id (stable per child; equals
+      // the Claude file meta.toolUseId). `childSessionId` + `item` are the LIVE-
+      // MIRROR path for providers WITHOUT a native per-child transcript (Codex):
+      // childSessionId locates the child thread, item is one mirrored timeline item.
+      // Claude carries NEITHER — each Claude node's timeline is sourced solely from
+      // its own agent-<id>.jsonl (file single-source), so there is no second writer
+      // and its node's nativeRef is filled by the file scan instead. The manager
+      // consumes this event and never forwards it to the parent stream.
+      type: "sub_agent_observation";
+      provider: AgentProvider;
+      callId: string;
+      childSessionId?: string;
+      subAgentType?: string;
+      description?: string;
+      status: "running" | "completed" | "failed" | "canceled";
+      item?: AgentTimelineItem;
+    }
+  | {
       type: "permission_requested";
       provider: AgentProvider;
       request: AgentPermissionRequest;
@@ -646,6 +666,61 @@ export interface ListModesOptions {
   force: boolean;
 }
 
+// File-locating coordinates for a Claude root session's observed subtree. Passed
+// to the provider compat layer so it can find <projectDir>/<rootSessionId>/subagents/.
+export interface ObservedSubtreeRef {
+  rootSessionId: string;
+  cwd: string;
+  rootAgentId: string;
+  // seam B §4·4 ④: whether the root is active / resuming — known at scan time, the
+  // input to status's "no terminal -> running | idle" branch. A live watcher
+  // implies true; a one-shot history scan of a closed root passes false.
+  rootIsActive?: boolean;
+}
+
+// Locates ONE observed node's native transcript (agent-<agentId>.jsonl). Lives in
+// the node's labels, never in persistence — a Claude sub-agent shares the root's
+// sessionId, so persisting it would collide with the root agent handle.
+export interface ObservedNativeRef {
+  rootSessionId: string;
+  agentId: string;
+}
+
+// One node in the read-only observed subagent tree (existence + title + status +
+// parent pointer). The TIMELINE for a node is a SEPARATE channel (its own file);
+// this snapshot only carries scalar node state, upserted idempotently by id so
+// the live and file sources can never produce two nodes for one sub-agent.
+export interface ObservedNodeSnapshot {
+  // observedSubAgentId(toolUseId) = "observed:<toolUseId>".
+  id: string;
+  // Real root agent id for a direct child; "observed:<ownerToolUseId>" for deeper.
+  parentAgentId: string;
+  title: string;
+  status: "running" | "idle" | "error";
+  // seam A: a live "half node" appears ~200ms before the file is written, so the
+  // ref is absent until the file watcher fills it; a node without it shows
+  // "loading" on timeline-open instead of reading an empty/missing file.
+  nativeRef?: ObservedNativeRef;
+}
+
+// Events a provider's observed-tree watcher streams to the manager. `node` upserts
+// existence/title/status/parent; `status` revises one node; `timeline_item` appends
+// to an ALREADY-OPEN node's read-only timeline (near-real-time growth).
+export type ObservedTreeEvent =
+  | { kind: "node"; node: ObservedNodeSnapshot }
+  | { kind: "status"; nodeId: string; status: "running" | "idle" | "error" }
+  | { kind: "timeline_item"; nodeId: string; item: AgentTimelineItem };
+
+export type ObservedTreeUnsubscribe = () => void;
+
+export interface ObservedSubAgentHistoryParams {
+  // Locates the sub-agent's own native transcript (agent-<agentId>.jsonl). Only
+  // valid once that file exists (seam A) — the manager gates on nativeRef presence.
+  nativeRef: ObservedNativeRef;
+  // Working directory of the root, used to resolve the on-disk project dir.
+  cwd: string;
+}
+
 export interface AgentClient {
   readonly provider: AgentProvider;
   readonly capabilities: AgentCapabilityFlags;
@@ -672,6 +747,30 @@ export interface AgentClient {
     input: ImportProviderSessionInput,
     context: ImportProviderSessionContext,
   ): Promise<ImportedProviderSession>;
+  /**
+   * Read-only load of one observed sub-agent's full timeline from its own native
+   * transcript (agent-<agentId>.jsonl), in the same shape as the live stream
+   * (prose, reasoning, tool calls + results). Single source for that node — never
+   * resumes, spawns, or mutates. Only valid once the file exists (seam A).
+   * Providers that don't run internal sub-agents leave this undefined.
+   */
+  loadObservedSubAgentHistory?(params: ObservedSubAgentHistoryParams): Promise<AgentTimelineItem[]>;
+  /**
+   * One-shot scan of a root session's observed subtree (all subagents/agent-*.jsonl
+   * + meta) into flat node snapshots. Used on first attach, restart, and history
+   * open. Providers without internal subagents leave this undefined.
+   */
+  loadObservedSubAgentTree?(ref: ObservedSubtreeRef): Promise<ObservedNodeSnapshot[]>;
+  /**
+   * Watch a root session's subagents/ directory: emits node/status/timeline_item
+   * events near-real-time (structural tail over all active files for parent/status,
+   * timeline tail for opened nodes). Returns an unsubscribe. Providers without
+   * internal sub-agents leave this undefined.
+   */
+  watchObservedSubAgentTree?(
+    ref: ObservedSubtreeRef,
+    onEvent: (event: ObservedTreeEvent) => void,
+  ): ObservedTreeUnsubscribe;
   /**
    * Check if this provider is available (CLI binary is installed).
    * Returns true if available, false otherwise.

@@ -1,6 +1,7 @@
 import { Command, Option } from "commander";
 import { getStructuredAgentResponse, StructuredAgentResponseError } from "@getpaseo/server";
 import type { AgentSnapshotPayload } from "@getpaseo/protocol/messages";
+import { PARENT_AGENT_ID_LABEL } from "@getpaseo/protocol/agent-labels";
 import { connectToDaemon, getDaemonHost } from "../../utils/client.js";
 import type {
   CommandOptions,
@@ -389,6 +390,24 @@ function parseKeyValueFlags(
   return labels;
 }
 
+/**
+ * When an agent invokes `paseo run`, its process carries `PASEO_AGENT_ID` (the daemon stamps it on
+ * every agent process). The spawned agent then defaults to a **subagent of that caller** so it nests
+ * under it in the conversation tree (阶段2: paseo run 调起的 agent 原则上都算子 agent —— 包括用 paseo
+ * 调起其他 CLI 的 agent)。A human running `paseo run` in their own shell has no PASEO_AGENT_ID, so this
+ * is a no-op there; an explicit `--label paseo.parent-agent-id=…` always wins. Pure for unit testing.
+ */
+export function applyCallerParentLabel(
+  labels: Record<string, string>,
+  callerAgentId: string | undefined,
+): Record<string, string> {
+  const caller = callerAgentId?.trim();
+  if (!caller || labels[PARENT_AGENT_ID_LABEL]) {
+    return labels;
+  }
+  return { ...labels, [PARENT_AGENT_ID_LABEL]: caller };
+}
+
 async function connectToDaemonOrThrow(
   hostOption: string | undefined,
   host: string,
@@ -497,7 +516,10 @@ export async function runRunCommand(
 
     const images = loadRunImages(options.image);
 
-    const labels = parseRunLabels(options.label);
+    const labels = applyCallerParentLabel(
+      parseRunLabels(options.label),
+      process.env.PASEO_AGENT_ID,
+    );
     const env = parseRunEnv(options.env);
     const requestEnv = Object.keys(env).length > 0 ? env : undefined;
 

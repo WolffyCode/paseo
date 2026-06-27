@@ -1137,14 +1137,31 @@ export function closeTabInLayout(input: CloseTabInLayoutInput): WorkspaceLayout 
     parentTabIdByTabId: input.layout.parentTabIdByTabId,
   });
   const fallbackPaneId = findNearestSiblingPaneId(internalLayout.root, pane.id);
-  const nextRoot = removeTabFromTree(internalLayout.root, input.tabId) as SplitNodeInternal;
+  // Keep the right tool pane alive when its last tab closes so it falls back to the launcher
+  // (反馈②「关掉全部 tab → 回启动器默认态」) instead of tearing the panel down. Every other pane
+  // still collapses when emptied.
+  const nextRoot = detachTabFromTree(internalLayout.root, {
+    tabId: input.tabId,
+    preserveEmptyPaneId: RIGHT_PANEL_PANE_ID,
+  }).root;
   const parentTabIdByTabId = normalizeParentTabMap({
     raw: input.layout.parentTabIdByTabId,
     openTabIds: new Set(collectAllTabs(nextRoot).map((tab) => tab.tabId)),
   });
+  // When the closed tab's pane survives but is now empty (the preserved right launcher), don't
+  // leave focus parked on the empty launcher — hand it to the nearest sibling (the conversation).
+  // Only when a sibling exists: a lone empty root pane keeps its own focus.
+  const sourcePaneAfterClose = findPaneById(nextRoot, pane.id);
+  const focusedPaneIdForResolve =
+    fallbackPaneId !== null &&
+    sourcePaneAfterClose !== null &&
+    sourcePaneAfterClose.tabIds.length === 0 &&
+    internalLayout.focusedPaneId === pane.id
+      ? fallbackPaneId
+      : internalLayout.focusedPaneId;
   const nextFocusedPaneId = getFocusedPaneIdAfterTabClose({
     root: nextRoot,
-    focusedPaneId: internalLayout.focusedPaneId,
+    focusedPaneId: focusedPaneIdForResolve,
     fallbackPaneId,
   });
 
@@ -1487,6 +1504,20 @@ export function getRightToolPane(layout: WorkspaceLayout | null | undefined): Sp
 
 export function isRightToolPanelOpen(layout: WorkspaceLayout | null | undefined): boolean {
   return getRightToolPane(layout) !== null;
+}
+
+/** Whether the right panel shows its tool launcher (反馈②) or its open tabs. */
+export type RightPanelMode = "launcher" | "tabs";
+
+/**
+ * Derives the right panel's content mode from the layout. The panel shows the launcher (审查/终端/
+ * 浏览器/文件 竖排) until a tool tab exists; opening one flips it to "tabs", and closing the last one
+ * lands back on the launcher (the tools pane is kept empty rather than torn down — see
+ * `closeTabInLayout`). An absent pane is treated as "launcher" (no tabs yet).
+ */
+export function selectRightPanelMode(layout: WorkspaceLayout | null | undefined): RightPanelMode {
+  const pane = getRightToolPane(layout);
+  return pane && pane.tabIds.length > 0 ? "tabs" : "launcher";
 }
 
 export function paneShowsTabBar(pane: SplitPane): boolean {

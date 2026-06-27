@@ -17,6 +17,7 @@ export const ru: TranslationResources = {
     loading: "Загрузка...",
     actions: {
       back: "Назад",
+      forward: "Вперед",
       cancel: "Отмена",
       close: "Закрывать",
       copy: "Копировать",
@@ -216,6 +217,10 @@ export const ru: TranslationResources = {
     archived: {
       callout: "Этот агент находится в архиве",
       unarchive: "Разархивировать",
+    },
+    observed: {
+      readOnly:
+        "🔒 Только чтение · внутренний субагент {{provider}} — управляется {{provider}}, вы не можете отправлять сообщения или прерывать его",
     },
   },
   sessions: {
@@ -553,6 +558,8 @@ export const ru: TranslationResources = {
         newFile: "Открыть файл",
         newSideChat: "Новый боковой чат",
         review: "Обзор изменений",
+        openLocation: "Открыть расположение",
+        environmentInfo: "Окружение",
         importSession: "Импортировать сеанс",
         copyPath: "Копировать путь к рабочей области",
         copyBranchName: "Скопировать название ветки",
@@ -726,6 +733,8 @@ export const ru: TranslationResources = {
   sidebar: {
     host: {
       noHost: "Нет хоста",
+      dropdownTitle: "Хосты",
+      addHost: "Добавить хост…",
       switchTitle: "Сменить хост",
       searchPlaceholder: "Поиск хостов...",
     },
@@ -740,6 +749,24 @@ export const ru: TranslationResources = {
     sections: {
       pinned: "Закреплённые",
       projects: "Проекты",
+      conversations: "Беседы",
+      noConversations: "Пока нет бесед",
+    },
+    conversation: {
+      actions: {
+        pin: "Закрепить беседу",
+        unpin: "Открепить беседу",
+        rename: "Переименовать беседу",
+        archive: "Архивировать беседу",
+        markUnread: "Отметить как непрочитанное",
+        revealInFinder: "Показать в Finder",
+        copyWorkingDir: "Копировать рабочий каталог",
+        copyConversationId: "Копировать ID беседы",
+        copyDeepLink: "Копировать глубокую ссылку",
+        forkToLocal: "Ответвить локально",
+        forkToWorktree: "Ответвить в новое рабочее дерево",
+        openInNewWindow: "Открыть в новом окне",
+      },
     },
     worktreeSetup: {
       title: "Настройка сценариев рабочего дерева",
@@ -752,6 +779,10 @@ export const ru: TranslationResources = {
         menu: "Действия проекта",
         pin: "Закрепить проект",
         unpin: "Открепить",
+        revealInFinder: "Показать в Finder",
+        createWorktree: "Создать worktree",
+        archive: "Архивировать беседы",
+        renameProject: "Переименовать проект",
         rename: "Переименовать",
         openSettings: "Открыть настройки проекта",
         openNewWindow: "Open in new window",
@@ -1332,6 +1363,7 @@ export const ru: TranslationResources = {
     draft: {
       newAgent: "Новый агент",
       creatingAgent: "Создание агента",
+      emptyTitle: "Что вы хотите создать сегодня?",
     },
     file: {
       directoryMissing: "Каталог Workspace не найден.",
@@ -1351,6 +1383,8 @@ export const ru: TranslationResources = {
   },
   renameModal: {
     rename: "Переименовать",
+    save: "Сохранить",
+    keepShort: "Сделайте его коротким и легко узнаваемым",
     saving: "Сохранение...",
   },
   sidebarCallout: {

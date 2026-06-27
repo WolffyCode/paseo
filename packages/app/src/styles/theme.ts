@@ -442,6 +442,7 @@ export const SPACING = {
 export const FONT_SIZE = {
   xs: 12,
   code: 12,
+  // 默认界面字体 14(反馈: 字体就是 14 号)。代码 code 12 不变。
   sm: 14,
   base: 16,
   lg: 18,

@@ -8,7 +8,7 @@ import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { createNameId } from "mnemonic-id";
 import { useQuery } from "@tanstack/react-query";
-import { Check, Folder, GitBranch, GitPullRequest, X } from "lucide-react-native";
+import { Check, Folder, GitBranch, GitPullRequest, PanelRight, X } from "lucide-react-native";
 import { Composer } from "@/composer";
 import { DraftAgentModeControl } from "@/composer/agent-controls/mode-control";
 import { splitComposerAttachmentsForSubmit } from "@/composer/attachments/submit";
@@ -20,6 +20,9 @@ import { ComboboxTrigger } from "@/components/ui/combobox-trigger";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { SidebarMenuToggle } from "@/components/headers/menu-header";
+import { selectIsAgentListOpen, usePanelStore } from "@/stores/panel-store";
+import { RightPanelLauncher } from "@/screens/workspace/right-panel-launcher";
+import type { WorkspaceToolsAddHandlers } from "@/screens/workspace/workspace-desktop-tabs-row";
 import { ScreenHeader } from "@/components/headers/screen-header";
 import { HEADER_INNER_HEIGHT, MAX_CONTENT_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
 import { useToast } from "@/contexts/toast-context";
@@ -994,6 +997,81 @@ function submitWorkspaceDraft(input: SubmitDraftInput): void {
   useDraftStore.getState().clearDraftInput({ draftKey, lifecycle: "sent" });
 }
 
+// 反馈6(简化版): owns the empty-state right-panel — the □ toggle (gated on a chosen dir, so a
+// project exists to create the workspace from) + tool launcher whose tools create the workspace
+// from the chosen directory then enter it. The temp-dir/no-project case is deferred per 董事长.
+function useNewWorkspaceRightPanel({
+  isCompact,
+  selectedSourceDirectory,
+  ensureWorkspace,
+  serverId,
+  toast,
+  mutedColor,
+}: {
+  isCompact: boolean;
+  selectedSourceDirectory: string | null;
+  ensureWorkspace: (input: {
+    cwd: string;
+    prompt: string;
+    attachments: AgentAttachment[];
+    withInitialAgent: boolean;
+  }) => Promise<ReturnType<typeof normalizeWorkspaceDescriptor>>;
+  serverId: string;
+  toast: ReturnType<typeof useToast>;
+  mutedColor: string;
+}) {
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const showRightPanelToggle = !isCompact && selectedSourceDirectory !== null;
+  const toggleRightPanel = useCallback(() => setRightPanelOpen((open) => !open), []);
+  const handleCreateAndEnterWorkspace = useCallback(async () => {
+    try {
+      const created = await ensureWorkspace({
+        cwd: selectedSourceDirectory ?? "",
+        prompt: "",
+        attachments: [],
+        withInitialAgent: false,
+      });
+      navigateToWorkspace(serverId, created.id);
+    } catch (error) {
+      toast.error(toErrorMessage(error));
+    }
+  }, [ensureWorkspace, selectedSourceDirectory, serverId, toast]);
+  const rightPanelHandlers = useMemo<WorkspaceToolsAddHandlers>(
+    () => ({
+      onCreateReview: handleCreateAndEnterWorkspace,
+      onCreateTerminal: handleCreateAndEnterWorkspace,
+      onCreateBrowser: handleCreateAndEnterWorkspace,
+      onCreateFile: handleCreateAndEnterWorkspace,
+      onCreateSideChat: handleCreateAndEnterWorkspace,
+    }),
+    [handleCreateAndEnterWorkspace],
+  );
+  const screenHeaderRight = useMemo(
+    () =>
+      showRightPanelToggle ? (
+        <Pressable
+          onPress={toggleRightPanel}
+          style={styles.rightPanelToggle}
+          accessibilityRole="button"
+          accessibilityLabel="Toggle tools panel"
+        >
+          <PanelRight size={20} color={mutedColor} />
+        </Pressable>
+      ) : null,
+    [showRightPanelToggle, toggleRightPanel, mutedColor],
+  );
+  const rightPanelBody = useMemo(
+    () =>
+      showRightPanelToggle && rightPanelOpen ? (
+        <View style={styles.rightPanel}>
+          <RightPanelLauncher handlers={rightPanelHandlers} showCreateBrowserTab={false} />
+        </View>
+      ) : null,
+    [showRightPanelToggle, rightPanelOpen, rightPanelHandlers],
+  );
+  return { screenHeaderRight, rightPanelBody };
+}
+
 export function NewWorkspaceScreen({
   serverId,
   sourceDirectory: sourceDirectoryProp,
@@ -1731,46 +1809,81 @@ export function NewWorkspaceScreen({
       theme.iconSize.sm,
     ],
   );
-  const screenHeaderLeft = useMemo(() => <SidebarMenuToggle />, []);
+  // 反馈2: the sidebar toggle (□) only belongs in the canvas top bar while the sidebar is
+  // collapsed — when it's open the left column already owns the toggle, so the empty draft's
+  // top bar stays clean (matches workspace-screen's headerLeft gating).
+  const isAgentListOpen = usePanelStore((state) => selectIsAgentListOpen(state, { isCompact }));
+  const screenHeaderLeft = useMemo(
+    () => (!isCompact && isAgentListOpen ? null : <SidebarMenuToggle />),
+    [isCompact, isAgentListOpen],
+  );
+  // 反馈: 收起态 □ 对齐到展开态 □ 位置(贴交通灯, left80/cy21)。空态 ScreenHeader 48 高、□ 落在
+  // baseHorizontalPadding(spacing[2]=8) + 交通灯宽 处, 所以左移 6(= 8 − TOGGLE_LEFT_NUDGE 2)、
+  // 上移 3(= 48/2 − 21) 让 □ 贴交通灯线。展开态(无 □)不偏移。
+  const collapsedToggleStyle = useMemo(
+    () =>
+      !isCompact && !isAgentListOpen
+        ? { transform: [{ translateX: -6 }, { translateY: -3 }] }
+        : undefined,
+    [isCompact, isAgentListOpen],
+  );
+
+  // 反馈6(简化版): the right-panel toggle (□) only appears once a project/dir is chosen.
+  const { screenHeaderRight, rightPanelBody } = useNewWorkspaceRightPanel({
+    isCompact,
+    selectedSourceDirectory,
+    ensureWorkspace,
+    serverId,
+    toast,
+    mutedColor: theme.colors.foregroundMuted,
+  });
 
   return (
     <FileDropZone onFilesDropped={handleFilesDropped}>
       <View style={styles.container}>
-        <ScreenHeader left={screenHeaderLeft} borderless />
-        <View style={contentStyle}>
-          <TitlebarDragRegion />
-          <ReanimatedAnimated.View style={centeredStyle}>
-            <View style={styles.composerTitleContainer}>
-              <Text style={styles.composerTitle}>{t("newWorkspace.title")}</Text>
-            </View>
-            {formStack}
-            <Composer
-              externalKeyboardShift
-              agentId={draftKey}
-              serverId={serverId}
-              isPaneFocused={true}
-              onSubmitMessage={handleSubmitNewWorkspace}
-              allowEmptySubmit={true}
-              submitButtonAccessibilityLabel={t("newWorkspace.create")}
-              submitButtonTestID="workspace-create-submit"
-              submitIcon="return"
-              isSubmitLoading={pendingAction !== null}
-              submitBehavior="preserve-and-lock"
-              blurOnSubmit={true}
-              value={chatDraft.text}
-              onChangeText={chatDraft.setText}
-              attachments={chatDraft.attachments}
-              onChangeAttachments={chatDraft.setAttachments}
-              cwd={selectedSourceDirectory ?? ""}
-              clearDraft={handleClearDraft}
-              autoFocus
-              commandDraftConfig={composerState?.commandDraftConfig}
-              agentControls={agentControlsWithDisabled}
-              onAddImages={handleAddImagesCallback}
-              footer={composerFooter}
-            />
-            {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
-          </ReanimatedAnimated.View>
+        <ScreenHeader
+          left={screenHeaderLeft}
+          leftStyle={collapsedToggleStyle}
+          right={screenHeaderRight}
+          borderless
+        />
+        <View style={styles.bodyRow}>
+          <View style={contentStyle}>
+            <TitlebarDragRegion />
+            <ReanimatedAnimated.View style={centeredStyle}>
+              <View style={styles.composerTitleContainer}>
+                <Text style={styles.composerTitle}>{t("newWorkspace.title")}</Text>
+              </View>
+              {formStack}
+              <Composer
+                externalKeyboardShift
+                agentId={draftKey}
+                serverId={serverId}
+                isPaneFocused={true}
+                onSubmitMessage={handleSubmitNewWorkspace}
+                allowEmptySubmit={true}
+                submitButtonAccessibilityLabel={t("newWorkspace.create")}
+                submitButtonTestID="workspace-create-submit"
+                submitIcon="return"
+                isSubmitLoading={pendingAction !== null}
+                submitBehavior="preserve-and-lock"
+                blurOnSubmit={true}
+                value={chatDraft.text}
+                onChangeText={chatDraft.setText}
+                attachments={chatDraft.attachments}
+                onChangeAttachments={chatDraft.setAttachments}
+                cwd={selectedSourceDirectory ?? ""}
+                clearDraft={handleClearDraft}
+                autoFocus
+                commandDraftConfig={composerState?.commandDraftConfig}
+                agentControls={agentControlsWithDisabled}
+                onAddImages={handleAddImagesCallback}
+                footer={composerFooter}
+              />
+              {errorMessage ? <Text style={styles.errorText}>{errorMessage}</Text> : null}
+            </ReanimatedAnimated.View>
+          </View>
+          {rightPanelBody}
         </View>
       </View>
     </FileDropZone>
@@ -1782,6 +1895,20 @@ const styles = StyleSheet.create((theme) => ({
     flex: 1,
     backgroundColor: theme.colors.surface0,
     userSelect: "none",
+  },
+  bodyRow: {
+    flex: 1,
+    flexDirection: "row",
+    minHeight: 0,
+  },
+  rightPanel: {
+    width: 320,
+    borderLeftWidth: 1,
+    borderLeftColor: theme.colors.border,
+  },
+  rightPanelToggle: {
+    padding: theme.spacing[2],
+    borderRadius: theme.borderRadius.lg,
   },
   content: {
     position: "relative",

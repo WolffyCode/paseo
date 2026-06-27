@@ -31,6 +31,7 @@ import {
   type ImportProviderSessionInput,
   type ListImportableSessionsOptions,
   type ListModelsOptions,
+  type ObservedSubAgentHistoryParams,
 } from "../agent-sdk-types.js";
 import { importSessionFromPersistence } from "../provider-session-import.js";
 import type { Logger } from "pino";
@@ -2894,6 +2895,9 @@ interface CodexSubAgentCallState {
   toolCall: ToolCallTimelineItem;
   childItemOrder: string[];
   childItems: Map<string, AgentTimelineItem>;
+  // The sub-agent's real thread id (its persisted rollout). Bound to the
+  // observed agent as its real identity + future "continue conversation" handle.
+  childThreadId?: string;
 }
 
 export class CodexAppServerAgentSession implements AgentSession {
@@ -3288,6 +3292,24 @@ export class CodexAppServerAgentSession implements AgentSession {
       this.persistedHistory = timeline;
       this.historyPending = true;
     }
+  }
+
+  // Read-only load of an observed sub-agent's thread history (after restart, when
+  // the sub-agent has ended). Reuses the SAME thread->timeline conversion as the
+  // live history path, so rendering matches. Connects only to read the rollout;
+  // never starts a turn or mutates the thread.
+  async loadObservedThreadHistory(threadId: string): Promise<AgentTimelineItem[]> {
+    await this.connect();
+    const client = this.client;
+    if (!client) {
+      return [];
+    }
+    const timeline = await loadCodexThreadHistoryTimeline({
+      threadId,
+      cwd: this.config.cwd ?? null,
+      requestThread: (threadIdToRead) => readCodexThread(client, threadIdToRead),
+    });
+    return timeline.map((entry) => entry.item);
   }
 
   private async ensureThreadLoaded(): Promise<void> {
@@ -4404,6 +4426,11 @@ export class CodexAppServerAgentSession implements AgentSession {
     for (const receiverThreadId of receiverThreadIds) {
       this.subAgentCallIdByChildThreadId.set(receiverThreadId, timelineItem.callId);
     }
+    if (!state.childThreadId && receiverThreadIds.length > 0) {
+      state.childThreadId = receiverThreadIds[0];
+    }
+
+    this.emitSubAgentObservation(timelineItem.callId, timelineItem.status);
   }
 
   private upsertSubAgentChildItem(callId: string, itemId: string, item: AgentTimelineItem): void {
@@ -4415,12 +4442,39 @@ export class CodexAppServerAgentSession implements AgentSession {
       state.childItemOrder.push(itemId);
     }
     state.childItems.set(itemId, item);
+    this.emitSubAgentObservation(callId, "running", item);
   }
 
   private getSubAgentChildTimeline(state: CodexSubAgentCallState): AgentTimelineItem[] {
     return state.childItemOrder
       .map((itemId) => state.childItems.get(itemId))
       .filter((item): item is AgentTimelineItem => Boolean(item));
+  }
+
+  // Mirrors a sub-agent observation to the daemon so it can surface the child as
+  // a read-only observed agent. Purely additive to the existing sub_agent tool
+  // call — it never changes how Codex orchestrates the sub-agent. `item`, when
+  // present, is one child timeline item to append to the observed timeline.
+  private emitSubAgentObservation(
+    callId: string,
+    status: ToolCallTimelineItem["status"],
+    item?: AgentTimelineItem,
+  ): void {
+    const state = this.subAgentCallsByCallId.get(callId);
+    if (!state || state.toolCall.detail.type !== "sub_agent") {
+      return;
+    }
+    const detail = state.toolCall.detail;
+    this.emitEvent({
+      type: "sub_agent_observation",
+      provider: CODEX_PROVIDER,
+      callId,
+      ...(state.childThreadId ? { childSessionId: state.childThreadId } : {}),
+      ...(detail.subAgentType ? { subAgentType: detail.subAgentType } : {}),
+      ...(detail.description ? { description: detail.description } : {}),
+      status,
+      ...(item ? { item } : {}),
+    });
   }
 
   private emitSubAgentActivityUpdate(
@@ -4458,6 +4512,11 @@ export class CodexAppServerAgentSession implements AgentSession {
           };
     state.toolCall = nextToolCall;
     this.emitEvent({ type: "timeline", provider: CODEX_PROVIDER, item: nextToolCall });
+    // Running activity is already mirrored per child item; only forward the
+    // terminal transition so the observed node settles to idle/error.
+    if (resolvedStatus !== "running") {
+      this.emitSubAgentObservation(callId, resolvedStatus);
+    }
   }
 
   private handleSubAgentChildItemCompleted(
@@ -5471,6 +5530,31 @@ export class CodexAppServerAgentClient implements AgentClient {
     );
     await session.connect();
     return session;
+  }
+
+  // Read-only history of an observed sub-agent (a child thread) from its rollout.
+  // Builds a session purely to reuse the app-server thread read + the same
+  // thread->timeline conversion as the live path; it never starts a turn.
+  async loadObservedSubAgentHistory(
+    params: ObservedSubAgentHistoryParams,
+  ): Promise<AgentTimelineItem[]> {
+    const goalsEnabled = await this.resolveGoalsEnabled();
+    const autoReviewEnabled = await this.resolveAutoReviewEnabled();
+    const session = new CodexAppServerAgentSession(
+      { provider: CODEX_PROVIDER, cwd: params.cwd },
+      null,
+      this.logger,
+      () => this.spawnAppServer(undefined, { goalsEnabled }),
+      this.sessionDeps(),
+      false,
+      goalsEnabled,
+      autoReviewEnabled,
+    );
+    try {
+      return await session.loadObservedThreadHistory(params.nativeRef.agentId);
+    } finally {
+      await session.close().catch(() => undefined);
+    }
   }
 
   async resumeSession(

@@ -17,6 +17,7 @@ export const fr: TranslationResources = {
     loading: "Chargement...",
     actions: {
       back: "Dos",
+      forward: "Avant",
       cancel: "Annuler",
       close: "Fermer",
       copy: "Copie",
@@ -217,6 +218,10 @@ export const fr: TranslationResources = {
     archived: {
       callout: "Cet agent est archivé",
       unarchive: "Désarchiver",
+    },
+    observed: {
+      readOnly:
+        "🔒 Lecture seule · sous-agent interne de {{provider}} — orchestré par {{provider}}, vous ne pouvez ni lui envoyer de message ni l'interrompre",
     },
   },
   sessions: {
@@ -553,6 +558,8 @@ export const fr: TranslationResources = {
         newFile: "Ouvrir un fichier",
         newSideChat: "Nouveau chat latéral",
         review: "Réviser les modifications",
+        openLocation: "Ouvrir l'emplacement",
+        environmentInfo: "Environnement",
         importSession: "Session d'importation",
         copyPath: "Copier le chemin de l'espace de travail",
         copyBranchName: "Copier le nom de la branche",
@@ -730,6 +737,8 @@ export const fr: TranslationResources = {
   sidebar: {
     host: {
       noHost: "Aucun hôte",
+      dropdownTitle: "Hôtes",
+      addHost: "Ajouter un hôte…",
       switchTitle: "Changer d'hôte",
       searchPlaceholder: "Rechercher des hôtes...",
     },
@@ -744,6 +753,24 @@ export const fr: TranslationResources = {
     sections: {
       pinned: "Épinglés",
       projects: "Projets",
+      conversations: "Conversations",
+      noConversations: "Aucune conversation",
+    },
+    conversation: {
+      actions: {
+        pin: "Épingler la conversation",
+        unpin: "Désépingler la conversation",
+        rename: "Renommer la conversation",
+        archive: "Archiver la conversation",
+        markUnread: "Marquer comme non lue",
+        revealInFinder: "Afficher dans le Finder",
+        copyWorkingDir: "Copier le répertoire de travail",
+        copyConversationId: "Copier l'ID de conversation",
+        copyDeepLink: "Copier le lien profond",
+        forkToLocal: "Dériver en local",
+        forkToWorktree: "Dériver vers un nouvel arbre de travail",
+        openInNewWindow: "Ouvrir dans une nouvelle fenêtre",
+      },
     },
     worktreeSetup: {
       title: "Configurer les scripts d'arbre de travail",
@@ -756,6 +783,10 @@ export const fr: TranslationResources = {
         menu: "Actions du projet",
         pin: "Épingler le projet",
         unpin: "Désépingler",
+        revealInFinder: "Afficher dans le Finder",
+        createWorktree: "Créer un worktree",
+        archive: "Archiver les conversations",
+        renameProject: "Renommer le projet",
         rename: "Renommer",
         openSettings: "Ouvrir les paramètres du projet",
         openNewWindow: "Open in new window",
@@ -1340,6 +1371,7 @@ export const fr: TranslationResources = {
     draft: {
       newAgent: "Nouvel agent",
       creatingAgent: "Agent créateur",
+      emptyTitle: "Que voulez-vous construire aujourd'hui ?",
     },
     file: {
       directoryMissing: "Répertoire Workspace introuvable.",
@@ -1359,6 +1391,8 @@ export const fr: TranslationResources = {
   },
   renameModal: {
     rename: "Rebaptiser",
+    save: "Enregistrer",
+    keepShort: "Restez bref et facile à reconnaître",
     saving: "Sauvegarde...",
   },
   sidebarCallout: {

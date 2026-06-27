@@ -26,6 +26,7 @@ interface ProjectionOptions {
   title?: string | null;
   createdAt?: string;
   internal?: boolean;
+  observed?: boolean;
 }
 
 interface RecentProviderSessionProjectionOptions {
@@ -93,6 +94,7 @@ export function toStoredAgentRecord(
       ? agent.attention.attentionTimestamp.toISOString()
       : null,
     internal: options?.internal,
+    observed: options?.observed,
   } satisfies StoredAgentRecord;
 }
 
@@ -119,15 +121,20 @@ export function toAgentPayload(
     createdAt: agent.createdAt.toISOString(),
     updatedAt: agent.updatedAt.toISOString(),
     lastUserMessageAt: agent.lastUserMessageAt ? agent.lastUserMessageAt.toISOString() : null,
-    status: agent.lifecycle,
+    // Observed agents are carried as sessionless (closed) records; their tree
+    // status rides on observedStatus instead of the pinned "closed" lifecycle.
+    status: agent.observed ? (agent.observedStatus ?? agent.lifecycle) : agent.lifecycle,
     capabilities: cloneCapabilities(agent.capabilities),
     currentModeId: agent.currentModeId,
     availableModes: cloneAvailableModes(agent.availableModes),
     features: normalizeFeatures(agent.features),
     pendingPermissions: sanitizePendingPermissions(agent.pendingPermissions),
     persistence: sanitizePersistenceHandle(agent.persistence),
-    title: options?.title ?? null,
+    // Observed agents aren't persisted, so their title rides on the live record
+    // rather than coming from storage via options.title.
+    title: options?.title ?? agent.title ?? null,
     labels: agent.labels,
+    ...(agent.observed ? { observed: true } : {}),
   };
 
   const usage = sanitizeUsage(agent.lastUsage);
@@ -223,7 +230,9 @@ export function buildStoredAgentPayload(
     createdAt: createdAt.toISOString(),
     updatedAt: updatedAt.toISOString(),
     lastUserMessageAt: lastUserMessageAt ? lastUserMessageAt.toISOString() : null,
-    status: record.lastStatus,
+    // A restored observed sub-agent is historical (its parent turn ended before
+    // the restart), so it shows the idle dot, not the stored "closed" lifecycle.
+    status: record.observed ? "idle" : record.lastStatus,
     capabilities: defaultCapabilities,
     currentModeId: record.lastModeId ?? null,
     availableModes: [],
@@ -234,6 +243,8 @@ export function buildStoredAgentPayload(
     attentionReason: record.attentionReason ?? null,
     attentionTimestamp: record.attentionTimestamp ?? null,
     archivedAt: record.archivedAt ?? null,
+    // A restored observed subagent stays read-only after restart.
+    ...(record.observed ? { observed: true } : {}),
     labels: normalizeLabels(record.labels),
     ...(providerAvailable ? {} : { providerUnavailable: true }),
   };

@@ -106,6 +106,8 @@ export function buildSidebarProjectsFromHostProjects(input: {
 
   return input.projects.map((project) => ({
     projectKey: project.projectKey,
+    // 项目名已由 workspace-structure 经 resolveProjectTreeName 算好(用户 rename 优先, 否则目录 basename);
+    // 这里直接透传, 不再用 basename 覆盖 —— 否则会盖掉重命名(反馈: 重命名确定后名称不变)。
     projectName: project.projectName,
     projectKind: project.projectKind,
     iconWorkingDir: project.iconWorkingDir,

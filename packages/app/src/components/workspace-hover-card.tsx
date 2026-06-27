@@ -17,6 +17,7 @@ import {
   CircleCheck,
   CircleDot,
   CircleX,
+  Clock,
   Copy,
   ExternalLink,
   Folder,
@@ -33,6 +34,7 @@ import type { SidebarWorkspaceEntry } from "@/hooks/use-sidebar-workspaces-list"
 import type { PrHint } from "@/git/use-pr-status-query";
 import { openExternalUrl } from "@/utils/open-external-url";
 import { shortenPath } from "@/utils/shorten-path";
+import { formatTimeAgoShort } from "@/utils/time";
 import { copyToClipboard } from "@/utils/copy-to-clipboard";
 import { PrBadge } from "@/components/sidebar-workspace-list";
 import { useHoverSafeZone } from "@/hooks/use-hover-safe-zone";
@@ -281,7 +283,7 @@ function WorkspaceHoverCardContent({
         >
           <View style={styles.cardHeader}>
             <Text style={styles.cardTitle} testID="hover-card-workspace-name">
-              {workspace.name}
+              {workspace.title?.trim() || workspace.name}
             </Text>
           </View>
           {workspace.currentBranch ? (
@@ -301,6 +303,19 @@ function WorkspaceHoverCardContent({
               copyLabel={t("workspace.hoverCard.copyPath")}
               testID="hover-card-workspace-cwd"
             />
+          ) : null}
+          {/* 最后一次更改时间(反馈 #48: 对话 hover 卡片显示标题/目录/分支/最后更改时间)。非可复制行。*/}
+          {workspace.statusEnteredAt ? (
+            <View style={styles.cardInfoRow}>
+              <ThemedClock size={12} uniProps={foregroundMutedColorMapping} />
+              <Text
+                style={styles.cardInfoText}
+                numberOfLines={1}
+                testID="hover-card-workspace-updated"
+              >
+                {formatTimeAgoShort(workspace.statusEnteredAt, t)}
+              </Text>
+            </View>
           ) : null}
           {prHint || workspace.diffStat ? (
             <View style={styles.cardMetaRow}>
@@ -327,6 +342,7 @@ function WorkspaceHoverCardContent({
 
 const ThemedGitBranch = withUnistyles(GitBranch);
 const ThemedFolder = withUnistyles(Folder);
+const ThemedClock = withUnistyles(Clock);
 const ThemedExternalLink = withUnistyles(ExternalLink);
 const ThemedGitHubIcon = withUnistyles(GitHubIcon);
 const ThemedCircleCheck = withUnistyles(CircleCheck);

@@ -72,6 +72,7 @@ import {
   type WorkspaceTabPresentation,
 } from "@/screens/workspace/workspace-tab-presentation";
 import { buildDeterministicWorkspaceTabId } from "@/workspace-tabs/identity";
+import { canCloseRightPanelTab } from "@/workspace-tabs/tab-surface";
 import {
   buildWorkspaceDesktopTabActions,
   type WorkspaceDesktopTabActions,
@@ -226,7 +227,7 @@ export interface WorkspaceToolsAddHandlers {
   onCreateSideChat: () => void;
 }
 
-interface ToolMenuItemModel {
+export interface ToolMenuItemModel {
   key: string;
   testID: string;
   label: string;
@@ -255,12 +256,19 @@ function ToolMenuItem({ item }: { item: ToolMenuItemModel }) {
   );
 }
 
-function useWorkspaceToolMenuItems({
+/**
+ * The right panel's tool entries (审查/终端/浏览器/文件 + optional 侧聊), shared by the「新选项卡」
+ * dropdown and the launcher default state. `includeSideChat` is false for the launcher, which lists
+ * only the four dockable tools (反馈②); the dropdown keeps side-chat.
+ */
+export function useWorkspaceToolMenuItems({
   handlers,
   showCreateBrowserTab,
+  includeSideChat = true,
 }: {
   handlers: WorkspaceToolsAddHandlers;
   showCreateBrowserTab: boolean;
+  includeSideChat?: boolean;
 }): ToolMenuItemModel[] {
   const { t } = useTranslation();
   const reviewKeys = useShortcutKeys("workspace-review-open");
@@ -297,26 +305,35 @@ function useWorkspaceToolMenuItems({
         onSelect: handlers.onCreateBrowser,
       });
     }
-    next.push(
-      {
-        key: "file",
-        testID: "workspace-tools-add-file",
-        label: t("workspace.tabs.toolsMenu.file"),
-        leading: FILE_ICON,
-        shortcutKeys: fileKeys,
-        onSelect: handlers.onCreateFile,
-      },
-      {
+    next.push({
+      key: "file",
+      testID: "workspace-tools-add-file",
+      label: t("workspace.tabs.toolsMenu.file"),
+      leading: FILE_ICON,
+      shortcutKeys: fileKeys,
+      onSelect: handlers.onCreateFile,
+    });
+    if (includeSideChat) {
+      next.push({
         key: "side-chat",
         testID: "workspace-tools-add-side-chat",
         label: t("workspace.tabs.toolsMenu.sideChat"),
         leading: SIDE_CHAT_ICON,
         shortcutKeys: sideChatKeys,
         onSelect: handlers.onCreateSideChat,
-      },
-    );
+      });
+    }
     return next;
-  }, [browserKeys, fileKeys, handlers, reviewKeys, showCreateBrowserTab, sideChatKeys, t]);
+  }, [
+    browserKeys,
+    fileKeys,
+    handlers,
+    includeSideChat,
+    reviewKeys,
+    showCreateBrowserTab,
+    sideChatKeys,
+    t,
+  ]);
 }
 
 export function WorkspaceToolsAddMenuItems({
@@ -333,36 +350,6 @@ export function WorkspaceToolsAddMenuItems({
         <ToolMenuItem key={item.key} item={item} />
       ))}
     </>
-  );
-}
-
-export function WorkspaceToolPicker({
-  handlers,
-  showCreateBrowserTab,
-}: {
-  handlers: WorkspaceToolsAddHandlers;
-  showCreateBrowserTab: boolean;
-}) {
-  const items = useWorkspaceToolMenuItems({ handlers, showCreateBrowserTab });
-  return (
-    <View style={styles.toolPickerContainer}>
-      <View style={styles.toolPickerCard}>
-        {items.map((item) => (
-          <Pressable
-            key={item.key}
-            testID={item.testID}
-            onPress={item.onSelect}
-            style={styles.toolPickerRow}
-          >
-            {item.leading}
-            <Text style={styles.toolPickerLabel}>{item.label}</Text>
-            {item.shortcutKeys ? (
-              <Shortcut chord={item.shortcutKeys} style={styles.menuItemShortcut} />
-            ) : null}
-          </Pressable>
-        ))}
-      </View>
-    </View>
   );
 }
 
@@ -646,6 +633,11 @@ interface WorkspaceDesktopTabsRowProps {
   activeDragTabId?: string | null;
   tabDropPreviewIndex?: number | null;
   showPaneSplitActions?: boolean;
+  /**
+   * Whether the tools「新选项卡 +」menu shows. False in the right panel's launcher default state
+   * (no tabs yet), where the launcher itself is the tool picker (反馈②). Ignored by the main pane.
+   */
+  showToolsAddMenu?: boolean;
 }
 
 function getFallbackTabLabel(
@@ -831,8 +823,8 @@ function TabChip({
   );
 
   const tabAccessibilityState = useMemo(() => ({ selected: isActive }), [isActive]);
-  const tabFocusIndicatorStyle = useMemo(
-    () => [styles.tabFocusIndicator, !isFocused && styles.tabFocusIndicatorUnfocused],
+  const tabActivePillStyle = useMemo(
+    () => [styles.tabActivePill, !isFocused && styles.tabActivePillUnfocused],
     [isFocused],
   );
   const tabLabelSkeletonStyle = useMemo(
@@ -869,7 +861,7 @@ function TabChip({
               accessibilityState={tabAccessibilityState}
               aria-selected={isActive}
             >
-              {isActive && <View style={tabFocusIndicatorStyle} />}
+              {isActive && <View pointerEvents="none" style={tabActivePillStyle} />}
               <TabHandleContent
                 presentation={presentation}
                 isHighlighted={isHighlighted}
@@ -969,6 +961,7 @@ export function WorkspaceDesktopTabsRow({
   activeDragTabId = null,
   tabDropPreviewIndex = null,
   showPaneSplitActions = true,
+  showToolsAddMenu = true,
 }: WorkspaceDesktopTabsRowProps) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -1098,7 +1091,11 @@ export function WorkspaceDesktopTabsRow({
       dragHandleProps,
       isActive,
     }: DraggableRenderItemInfo<WorkspaceDesktopTabRowItem>) => {
-      const shouldShowCloseButton = layout.closeButtonPolicy === "all";
+      // Right-panel tabs read the R6 close policy (every tool tab — 审查 included — is closeable);
+      // main-pane tabs keep their own width-driven policy.
+      const shouldShowCloseButton =
+        layout.closeButtonPolicy === "all" &&
+        (addMenuVariant !== "tools" || canCloseRightPanelTab(item.tab.kind));
       const layoutItem = layout.items[index] ?? null;
       const resolvedTabWidth = layoutItem?.width ?? 150;
       const showLabel = layoutItem?.showLabel ?? true;
@@ -1107,10 +1104,13 @@ export function WorkspaceDesktopTabsRow({
         activeDragTabId !== null &&
         tabDropPreviewIndex === tabs.length &&
         index === tabs.length - 1;
+      const nextTabActive = tabs[index + 1]?.isActive ?? false;
+      const showRightDivider = index < tabs.length - 1 && !item.isActive && !nextTabActive;
 
       return (
         <ResolvedDesktopTabChip
           key={`${item.tab.key}:${item.tab.kind}`}
+          showRightDivider={showRightDivider}
           item={item}
           isFocused={isFocused}
           isDragging={isActive}
@@ -1141,6 +1141,7 @@ export function WorkspaceDesktopTabsRow({
     },
     [
       activeDragTabId,
+      addMenuVariant,
       isFocused,
       layout.closeButtonPolicy,
       layout.items,
@@ -1159,7 +1160,7 @@ export function WorkspaceDesktopTabsRow({
       setHoveredCloseTabKey,
       tabMenuLabels,
       tabDropPreviewIndex,
-      tabs.length,
+      tabs,
     ],
   );
 
@@ -1174,6 +1175,38 @@ export function WorkspaceDesktopTabsRow({
   );
 
   const isToolsVariant = addMenuVariant === "tools" && toolsAddHandlers !== undefined;
+  // Trailing「+」after the tabs: the tools「新选项卡」menu (right panel) or the inline add-agent
+  // button (main pane). Hidden in the right panel's launcher default state (反馈②), where the
+  // launcher list is the tool picker.
+  const inlineAddControl = useMemo<ReactNode>(() => {
+    if (!isToolsVariant) {
+      return (
+        <WorkspaceInlineAddTabButton
+          shortcutKeys={newTabKeys}
+          onCreateAgentTab={handleCreateAgentTab}
+          onLayout={handleInlineAddButtonLayout}
+        />
+      );
+    }
+    if (showToolsAddMenu && toolsAddHandlers) {
+      return (
+        <WorkspaceToolsAddMenu
+          handlers={toolsAddHandlers}
+          showCreateBrowserTab={showCreateBrowserTab}
+          onLayout={handleInlineAddButtonLayout}
+        />
+      );
+    }
+    return null;
+  }, [
+    handleCreateAgentTab,
+    handleInlineAddButtonLayout,
+    isToolsVariant,
+    newTabKeys,
+    showCreateBrowserTab,
+    showToolsAddMenu,
+    toolsAddHandlers,
+  ]);
 
   const row = (
     <View
@@ -1200,19 +1233,7 @@ export function WorkspaceDesktopTabsRow({
           getItemData={getTabDragData}
           renderItem={renderTab}
         />
-        {isToolsVariant && toolsAddHandlers ? (
-          <WorkspaceToolsAddMenu
-            handlers={toolsAddHandlers}
-            showCreateBrowserTab={showCreateBrowserTab}
-            onLayout={handleInlineAddButtonLayout}
-          />
-        ) : (
-          <WorkspaceInlineAddTabButton
-            shortcutKeys={newTabKeys}
-            onCreateAgentTab={handleCreateAgentTab}
-            onLayout={handleInlineAddButtonLayout}
-          />
-        )}
+        {inlineAddControl}
       </ScrollView>
       <View style={styles.tabsActions} onLayout={handleTabsActionsLayout}>
         {isToolsVariant ? null : (
@@ -1274,6 +1295,7 @@ function ResolvedDesktopTabChip({
   onCloseTab,
   labels,
   dragHandleProps,
+  showRightDivider,
   showDropIndicatorBefore,
   showDropIndicatorAfter,
 }: {
@@ -1300,6 +1322,7 @@ function ResolvedDesktopTabChip({
   onCloseTab: (tabId: string) => Promise<void> | void;
   labels: WorkspaceTabMenuLabels;
   dragHandleProps: DraggableListDragHandleProps | undefined;
+  showRightDivider: boolean;
   showDropIndicatorBefore: boolean;
   showDropIndicatorAfter: boolean;
 }) {
@@ -1351,7 +1374,7 @@ function ResolvedDesktopTabChip({
             : presentation.label;
 
         return (
-          <View style={styles.tabSlot}>
+          <View style={showRightDivider ? TAB_SLOT_DIVIDER_STYLE : styles.tabSlot}>
             {showDropIndicatorBefore ? <View style={TAB_DROP_INDICATOR_BEFORE_STYLE} /> : null}
             <TabChip
               tab={item.tab}
@@ -1416,8 +1439,7 @@ const styles = StyleSheet.create((theme) => ({
   tab: {
     paddingHorizontal: theme.spacing[2],
     paddingVertical: theme.spacing[1],
-    borderRightWidth: 1,
-    borderRightColor: theme.colors.border,
+    borderRadius: theme.borderRadius.md,
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[1],
@@ -1426,6 +1448,12 @@ const styles = StyleSheet.create((theme) => ({
   tabSlot: {
     position: "relative",
     overflow: "visible",
+  },
+  // Codex-style separator: a thin divider between adjacent inactive tabs. Suppressed next to the
+  // active tab so its highlight pill stands alone, and never drawn after the last tab.
+  tabSlotDivider: {
+    borderRightWidth: 1,
+    borderRightColor: theme.colors.border,
   },
   tabHandle: {
     flexDirection: "row",
@@ -1438,16 +1466,20 @@ const styles = StyleSheet.create((theme) => ({
   tabIcon: {
     flexShrink: 0,
   },
-  tabFocusIndicator: {
+  // Codex-style active highlight: a neutral rounded pill behind the tab content (inset from the bar
+  // edges), not a colored top bar. Focused pane uses a stronger surface; an unfocused pane's active
+  // tab dims to surface1 so split focus stays legible.
+  tabActivePill: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 2,
-    backgroundColor: theme.colors.accent,
+    top: 4,
+    bottom: 4,
+    left: 2,
+    right: 2,
+    borderRadius: theme.borderRadius.md,
+    backgroundColor: theme.colors.surface2,
   },
-  tabFocusIndicatorUnfocused: {
-    backgroundColor: theme.colors.borderAccent,
+  tabActivePillUnfocused: {
+    backgroundColor: theme.colors.surface1,
   },
   tabDropIndicator: {
     position: "absolute",
@@ -1491,6 +1523,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   tabLabelActive: {
     color: theme.colors.foreground,
+    fontWeight: theme.fontWeight.medium,
   },
   tabCloseButton: {
     width: 18,
@@ -1552,34 +1585,6 @@ const styles = StyleSheet.create((theme) => ({
   menuItemShortcut: {
     backgroundColor: "transparent",
   },
-  toolPickerContainer: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: theme.spacing[4],
-  },
-  toolPickerCard: {
-    width: 320,
-    maxWidth: "100%",
-    borderWidth: theme.borderWidth[1],
-    borderColor: theme.colors.border,
-    borderRadius: theme.borderRadius.xl,
-    backgroundColor: theme.colors.surface0,
-    padding: theme.spacing[1],
-  },
-  toolPickerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[3],
-    paddingVertical: theme.spacing[2],
-    paddingHorizontal: theme.spacing[3],
-    borderRadius: theme.borderRadius.lg,
-  },
-  toolPickerLabel: {
-    flex: 1,
-    fontSize: theme.fontSize.base,
-    color: theme.colors.foreground,
-  },
   terminalProfileIconWrapper: {
     width: 14,
     height: 14,
@@ -1588,3 +1593,4 @@ const styles = StyleSheet.create((theme) => ({
 
 const TAB_DROP_INDICATOR_BEFORE_STYLE = [styles.tabDropIndicator, styles.tabDropIndicatorBefore];
 const TAB_DROP_INDICATOR_AFTER_STYLE = [styles.tabDropIndicator, styles.tabDropIndicatorAfter];
+const TAB_SLOT_DIVIDER_STYLE = [styles.tabSlot, styles.tabSlotDivider];

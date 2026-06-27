@@ -17,6 +17,7 @@ export const es: TranslationResources = {
     loading: "Cargando...",
     actions: {
       back: "Atrás",
+      forward: "Adelante",
       cancel: "Cancelar",
       close: "Cerca",
       copy: "Copiar",
@@ -217,6 +218,10 @@ export const es: TranslationResources = {
     archived: {
       callout: "Este agente está archivado.",
       unarchive: "Desarchivar",
+    },
+    observed: {
+      readOnly:
+        "🔒 Solo lectura · subagente interno de {{provider}} — orquestado por {{provider}}, no puedes enviarle ni interrumpirlo",
     },
   },
   sessions: {
@@ -553,6 +558,8 @@ export const es: TranslationResources = {
         newFile: "Abrir archivo",
         newSideChat: "Nuevo chat lateral",
         review: "Revisar cambios",
+        openLocation: "Abrir ubicación",
+        environmentInfo: "Entorno",
         importSession: "Importar sesión",
         copyPath: "Copiar ruta del espacio de trabajo",
         copyBranchName: "Copiar nombre de sucursal",
@@ -730,6 +737,8 @@ export const es: TranslationResources = {
   sidebar: {
     host: {
       noHost: "Sin anfitrión",
+      dropdownTitle: "Anfitriones",
+      addHost: "Añadir host…",
       switchTitle: "Cambiar de anfitrión",
       searchPlaceholder: "Buscar hosts...",
     },
@@ -744,6 +753,24 @@ export const es: TranslationResources = {
     sections: {
       pinned: "Fijados",
       projects: "Proyectos",
+      conversations: "Conversaciones",
+      noConversations: "Aún no hay conversaciones",
+    },
+    conversation: {
+      actions: {
+        pin: "Fijar conversación",
+        unpin: "Dejar de fijar conversación",
+        rename: "Renombrar conversación",
+        archive: "Archivar conversación",
+        markUnread: "Marcar como no leída",
+        revealInFinder: "Mostrar en Finder",
+        copyWorkingDir: "Copiar directorio de trabajo",
+        copyConversationId: "Copiar ID de conversación",
+        copyDeepLink: "Copiar enlace profundo",
+        forkToLocal: "Bifurcar a local",
+        forkToWorktree: "Bifurcar a nuevo árbol de trabajo",
+        openInNewWindow: "Abrir en nueva ventana",
+      },
     },
     worktreeSetup: {
       title: "Configurar secuencias de comandos del árbol de trabajo",
@@ -756,6 +783,10 @@ export const es: TranslationResources = {
         menu: "Acciones del proyecto",
         pin: "Fijar proyecto",
         unpin: "Dejar de fijar",
+        revealInFinder: "Mostrar en Finder",
+        createWorktree: "Crear worktree",
+        archive: "Archivar conversaciones",
+        renameProject: "Renombrar proyecto",
         rename: "Cambiar nombre",
         openSettings: "Abrir la configuración del proyecto",
         openNewWindow: "Open in new window",
@@ -1336,6 +1367,7 @@ export const es: TranslationResources = {
     draft: {
       newAgent: "Nuevo agente",
       creatingAgent: "Agente creador",
+      emptyTitle: "¿Qué quieres construir hoy?",
     },
     file: {
       directoryMissing: "No se encontró el directorio de Workspace.",
@@ -1355,6 +1387,8 @@ export const es: TranslationResources = {
   },
   renameModal: {
     rename: "Rebautizar",
+    save: "Guardar",
+    keepShort: "Manténlo corto y fácil de reconocer",
     saving: "Guardando...",
   },
   sidebarCallout: {

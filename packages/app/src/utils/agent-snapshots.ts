@@ -56,6 +56,10 @@ export function normalizeAgentSnapshot(snapshot: AgentSnapshotPayload, serverId:
     attentionTimestamp,
     archivedAt,
     parentAgentId,
+    // Provider-internal subagents (Claude Task / Codex sub-agent) the daemon
+    // surfaces read-only. Renders the same in the tree; the conversation view
+    // swaps the composer for a read-only banner.
+    observed: snapshot.observed ?? false,
     labels: snapshot.labels,
   };
 }

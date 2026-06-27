@@ -30,6 +30,7 @@ function createSnapshot(
     pendingPermissions: input.pendingPermissions ?? [],
     persistence: input.persistence ?? null,
     title: input.title ?? null,
+    observed: input.observed,
     labels: (input.labels ?? {}) as AgentSnapshotPayload["labels"],
   };
 }
@@ -54,6 +55,13 @@ describe("normalizeAgentSnapshot", () => {
     );
 
     expect(agent.parentAgentId).toBe("parent-1");
+  });
+
+  it("maps the observed flag, defaulting to false when omitted", () => {
+    expect(normalizeAgentSnapshot(createSnapshot(), "server-1").observed).toBe(false);
+    expect(normalizeAgentSnapshot(createSnapshot({ observed: true }), "server-1").observed).toBe(
+      true,
+    );
   });
 
   it("maps missing, empty, and non-string parent labels to null", () => {
