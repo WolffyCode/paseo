@@ -46,6 +46,8 @@ import {
   useHosts,
 } from "@/runtime/host-runtime";
 import { ProvidersSection } from "@/screens/settings/providers-section";
+import { VendorCascadeSection } from "@/screens/settings/vendor-cascade-section";
+import { HostConfigEditorSection } from "@/screens/settings/host-config-editor-section";
 import { ProviderUsageSettingsSection } from "@/provider-usage/settings-section";
 import { useProviderUsage } from "@/provider-usage/use-provider-usage";
 import { SettingsSection } from "@/screens/settings/settings-section";
@@ -302,8 +304,10 @@ export function HostProvidersPage({ serverId }: { serverId: string }) {
   }
 
   return (
-    <View>
+    <View style={styles.providersStack}>
       <ProvidersSection serverId={serverId} />
+      <VendorCascadeSection serverId={serverId} />
+      <HostConfigEditorSection serverId={serverId} />
     </View>
   );
 }
@@ -1544,6 +1548,9 @@ const terminalProfileStyles = StyleSheet.create((theme) => ({
 }));
 
 const styles = StyleSheet.create((theme) => ({
+  providersStack: {
+    gap: theme.spacing[6],
+  },
   identityEditButton: {
     padding: theme.spacing[1],
     borderRadius: theme.borderRadius.md,
