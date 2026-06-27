@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, type ReactNode } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { FileExplorerPane } from "@/components/file-explorer-pane";
@@ -9,7 +9,13 @@ import {
 } from "@/stores/navigation-active-workspace-store";
 import { useWorkspaceDirectory } from "@/stores/session-store-hooks";
 import { useShellLayoutStore } from "@/stores/shell-layout-store";
-import { selectTopBarModel, selectVisibleRegions, type ShellRoute } from "@/stores/shell-regions";
+import {
+  selectTopBarModel,
+  selectVisibleRegions,
+  type ShellRegion,
+  type ShellRoute,
+} from "@/stores/shell-regions";
+import { isRightToolPanelOpen, useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 import { RegionFrame } from "./region-frame";
 import { RegionGutter } from "./region-gutter";
 import { UnifiedTopBar } from "./unified-top-bar";
@@ -46,6 +52,41 @@ export function HomeShell({ children, selectedAgentId, chromeEnabled }: HomeShel
   const widthByRegion = useShellLayoutStore((state) => state.widthByRegion);
   const toggleRegion = useShellLayoutStore((state) => state.toggleRegion);
 
+  // The right toggle drives the workspace's existing tool-panel subsystem in place
+  // (its standalone right card is the deferred full split). Reading + dispatching one
+  // truth (workspace-layout-store) keeps the top-bar toggle, keyboard shortcut and the
+  // panel's own controls in sync without fighting each other.
+  const rightToolOpen = useWorkspaceLayoutStore((state) => {
+    if (!workspaceKey) {
+      return false;
+    }
+    const layout = state.layoutByWorkspace[workspaceKey];
+    if (!layout) {
+      return false;
+    }
+    const collapsed = state.rightToolPanelCollapsedByWorkspace[workspaceKey] ?? false;
+    return isRightToolPanelOpen(layout) && !collapsed;
+  });
+  const openRightTool = useWorkspaceLayoutStore((state) => state.openRightToolPanel);
+  const closeRightTool = useWorkspaceLayoutStore((state) => state.closeRightToolPanel);
+  const handleToggleRegion = useCallback(
+    (region: ShellRegion) => {
+      if (region !== "right") {
+        toggleRegion(region);
+        return;
+      }
+      if (!workspaceKey) {
+        return;
+      }
+      if (rightToolOpen) {
+        closeRightTool(workspaceKey);
+      } else {
+        openRightTool(workspaceKey);
+      }
+    },
+    [toggleRegion, workspaceKey, rightToolOpen, closeRightTool, openRightTool],
+  );
+
   const route = useMemo<ShellRoute>(
     () => ({ showsShell: chromeEnabled, workspaceKey }),
     [chromeEnabled, workspaceKey],
@@ -69,9 +110,10 @@ export function HomeShell({ children, selectedAgentId, chromeEnabled }: HomeShel
         conversationTitle: null,
         projectName,
         branch: null,
-        layout: { leftOpen, rightOpen, fileTreeOpen },
+        // The right toggle reflects the workspace tool panel's real open state.
+        layout: { leftOpen, rightOpen: rightToolOpen, fileTreeOpen },
       }),
-    [route, projectName, leftOpen, rightOpen, fileTreeOpen],
+    [route, projectName, leftOpen, rightToolOpen, fileTreeOpen],
   );
 
   if (!chromeEnabled) {
@@ -80,7 +122,7 @@ export function HomeShell({ children, selectedAgentId, chromeEnabled }: HomeShel
 
   return (
     <View style={styles.window}>
-      <UnifiedTopBar model={topBarModel} onToggleRegion={toggleRegion} />
+      <UnifiedTopBar model={topBarModel} onToggleRegion={handleToggleRegion} />
       <View style={styles.row}>
         {visible.left != null ? (
           <RegionFrame kind="left" width={visible.left}>
