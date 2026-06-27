@@ -2325,6 +2325,8 @@ export const ServerInfoStatusPayloadSchema = z
         providerUsageList: z.boolean().optional(),
         // COMPAT(agentDetach): added in v0.1.98, remove gate after 2026-12-19 once daemon floor >= v0.1.98.
         agentDetach: z.boolean().optional(),
+        // COMPAT(observedSubagentTree): added in v0.1.X, drop the gate when floor >= v0.1.X
+        observedSubagentTree: z.boolean().optional(),
       })
       .optional(),
   })

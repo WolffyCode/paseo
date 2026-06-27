@@ -244,7 +244,7 @@ describe("ClaudeAgentSession sub-agent sidechain updates", () => {
     queryFactory.mockReset();
   });
 
-  test("mirrors the full child conversation (prose + tools + results) bound to its real session id", async () => {
+  test("emits node-only observations (no item mirror, no childSessionId) — timeline is file-sourced", async () => {
     queryFactory.mockImplementation(() =>
       buildQueryMock([
         {
@@ -268,11 +268,13 @@ describe("ClaudeAgentSession sub-agent sidechain updates", () => {
             },
           },
         },
-        // Child sub-agent's own turn: prose + a tool call, carrying its real session id.
+        // Child sub-agent's own turn: prose + a tool call. GROUND TRUTH (SDK
+        // 0.3.181): the sub-agent runs inline in the PARENT stream and its
+        // messages carry the PARENT's session_id — it has no independent session.
         {
           type: "assistant",
           parent_tool_use_id: "task-1",
-          session_id: "child-session-abc",
+          session_id: "parent-session",
           message: {
             content: [
               { type: "text", text: "我来查一下北京今天的天气。" },
@@ -285,11 +287,11 @@ describe("ClaudeAgentSession sub-agent sidechain updates", () => {
             ],
           },
         },
-        // Child's tool result.
+        // Child's tool result — also carries the parent's session_id.
         {
           type: "user",
           parent_tool_use_id: "task-1",
-          session_id: "child-session-abc",
+          session_id: "parent-session",
           message: {
             content: [
               {
@@ -341,31 +343,16 @@ describe("ClaudeAgentSession sub-agent sidechain updates", () => {
     const observations = events.filter((event) => event.type === "sub_agent_observation");
     expect(observations.length).toBeGreaterThan(0);
 
-    // Bound to the sub-agent's real session id (a real, resumable identity).
-    const bound = observations.find((event) => event.childSessionId !== undefined);
-    expect(bound?.childSessionId).toBe("child-session-abc");
+    // A Claude sub-agent has NO independent session — its messages carry the
+    // PARENT's session_id. The observation must NEVER report a childSessionId
+    // (Claude locates each node's timeline by file nativeRef, not a session id).
+    expect(observations.every((event) => event.childSessionId === undefined)).toBe(true);
 
-    const childItems = observations
-      .map((event) => event.item)
-      .filter((item): item is NonNullable<typeof item> => item !== undefined);
-
-    // Prose (assistant reasoning text) is mirrored — same timeline shape as the
-    // main agent, not a tool-only summary.
-    const prose = childItems.find(
-      (item) => item.type === "assistant_message" && item.text.includes("北京今天的天气"),
-    );
-    expect(prose).toBeDefined();
-
-    // The child's tool call and its result are both mirrored.
-    const runningSearch = childItems.find(
-      (item) => item.type === "tool_call" && item.name === "WebSearch" && item.status === "running",
-    );
-    expect(runningSearch).toBeDefined();
-    const completedSearch = childItems.find(
-      (item) =>
-        item.type === "tool_call" && item.name === "WebSearch" && item.status === "completed",
-    );
-    expect(completedSearch).toBeDefined();
+    // NODE-only: the live observation no longer mirrors child timeline items. Each
+    // node's read-only conversation is sourced solely from its own agent-<id>.jsonl
+    // (file single-source, tailed by the watcher), so there is no second writer here.
+    expect(observations.every((event) => event.item === undefined)).toBe(true);
+    expect(observations.every((event) => event.status === "running")).toBe(true);
   });
 
   test("accumulates lightweight sub_agent detail and preserves callId lifecycle collapse", async () => {

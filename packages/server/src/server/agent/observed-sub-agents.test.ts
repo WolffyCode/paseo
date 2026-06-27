@@ -7,12 +7,16 @@ import {
 } from "./observed-sub-agents.js";
 
 describe("observedSubAgentId", () => {
-  it("derives a stable id from the parent agent id and the sub-agent tool-call id", () => {
-    expect(observedSubAgentId("parent-1", "call-9")).toBe("observed:parent-1:call-9");
+  it("derives a flat single-key id from the sub-agent tool-use id", () => {
+    expect(observedSubAgentId("toolu_abc")).toBe("observed:toolu_abc");
   });
 
-  it("is deterministic so repeated observations of one call resolve to one record", () => {
-    expect(observedSubAgentId("p", "c")).toBe(observedSubAgentId("p", "c"));
+  it("is deterministic so the live callId and file meta.toolUseId resolve to one id", () => {
+    expect(observedSubAgentId("toolu_x")).toBe(observedSubAgentId("toolu_x"));
+  });
+
+  it("prefixes with observed: so it never collides with a real (UUID) agent id", () => {
+    expect(observedSubAgentId("toolu_x").startsWith("observed:")).toBe(true);
   });
 });
 

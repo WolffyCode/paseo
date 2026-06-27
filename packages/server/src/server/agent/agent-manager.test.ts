@@ -6324,7 +6324,7 @@ test("surfaces a provider-internal subagent as a read-only observed agent", asyn
 
   try {
     const parent = await manager.createAgent({ provider: "codex", cwd: workdir });
-    const observedId = observedSubAgentId(parent.id, "task-call-1");
+    const observedId = observedSubAgentId("task-call-1");
     const childItem: AgentTimelineItem = {
       type: "reasoning",
       text: "我来查一下北京今天的天气",
@@ -6360,9 +6360,10 @@ test("surfaces a provider-internal subagent as a read-only observed agent", asyn
     expect(observed.observedStatus).toBe("running");
     expect(observed.provider).toBe("codex");
 
-    // It binds the sub-agent's REAL session id (a real, resumable identity), not
-    // a synthetic stub — this is the extension point for "continue conversation".
-    expect(observed.persistence?.sessionId).toBe("child-thread-real-id");
+    // persistence stays null (a sessionless mirror); the child's locating ref lives
+    // in labels (the live-mirror path carried it via childSessionId).
+    expect(observed.persistence).toBeNull();
+    expect(observed.labels["paseo.observed.agent-id"]).toBe("child-thread-real-id");
 
     // It projects to a read-only snapshot whose wire status is the running dot.
     const payload = toAgentPayload(observed);
@@ -6405,7 +6406,7 @@ test("drops observed subagents when their parent agent closes", async () => {
 
   try {
     const parent = await manager.createAgent({ provider: "codex", cwd: workdir });
-    const observedId = observedSubAgentId(parent.id, "task-call-1");
+    const observedId = observedSubAgentId("task-call-1");
 
     await new Promise<void>((resolve) => {
       const unsubscribe = manager.subscribe(
@@ -6437,163 +6438,6 @@ test("drops observed subagents when their parent agent closes", async () => {
   }
 });
 
-test("settles running observed subagents to idle when the parent turn completes", async () => {
-  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-test-"));
-  const storagePath = join(workdir, "agents");
-  const storage = new AgentStorage(storagePath, logger);
-
-  class ObservationClient extends TestAgentClient {
-    session: TestAgentSession | null = null;
-
-    override async createSession(config: AgentSessionConfig): Promise<AgentSession> {
-      this.session = new TestAgentSession(config);
-      return this.session;
-    }
-  }
-
-  const client = new ObservationClient();
-  const manager = new AgentManager({
-    clients: { codex: client },
-    registry: storage,
-    logger,
-    idFactory: () => "00000000-0000-4000-8000-0000000004c3",
-  });
-
-  try {
-    const parent = await manager.createAgent({ provider: "codex", cwd: workdir });
-    const observedId = observedSubAgentId(parent.id, "task-call-1");
-
-    await new Promise<void>((resolve) => {
-      const unsubscribe = manager.subscribe(
-        (event) => {
-          if (event.type === "agent_state" && event.agent.id === observedId) {
-            unsubscribe();
-            resolve();
-          }
-        },
-        { replayState: false },
-      );
-      client.session?.pushEvent({
-        type: "sub_agent_observation",
-        provider: "codex",
-        callId: "task-call-1",
-        status: "running",
-        subAgentType: "general-purpose",
-      });
-    });
-
-    expect(manager.getAgent(observedId)?.observedStatus).toBe("running");
-
-    const settled = new Promise<ManagedAgent>((resolve) => {
-      const unsubscribe = manager.subscribe(
-        (event) => {
-          if (
-            event.type === "agent_state" &&
-            event.agent.id === observedId &&
-            event.agent.observedStatus === "idle"
-          ) {
-            unsubscribe();
-            resolve(event.agent);
-          }
-        },
-        { replayState: false },
-      );
-      client.session?.pushEvent({ type: "turn_completed", provider: "codex", turnId: "turn-x" });
-    });
-
-    const agent = await settled;
-    expect(agent.observedStatus).toBe("idle");
-  } finally {
-    rmSync(workdir, { recursive: true, force: true });
-  }
-});
-
-test("refuses to resume an observed sub-agent after restart and never spawns its session", async () => {
-  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-test-"));
-  const storagePath = join(workdir, "agents");
-  const storage = new AgentStorage(storagePath, logger);
-
-  class ObservationClient extends TestAgentClient {
-    session: TestAgentSession | null = null;
-
-    override async createSession(config: AgentSessionConfig): Promise<AgentSession> {
-      this.session = new TestAgentSession(config);
-      return this.session;
-    }
-  }
-
-  const liveClient = new ObservationClient();
-  const liveManager = new AgentManager({
-    clients: { codex: liveClient },
-    registry: storage,
-    logger,
-    idFactory: () => "00000000-0000-4000-8000-0000000005d4",
-  });
-
-  try {
-    const parent = await liveManager.createAgent({ provider: "codex", cwd: workdir });
-    const observedId = observedSubAgentId(parent.id, "task-call-1");
-
-    await new Promise<void>((resolve) => {
-      const unsubscribe = liveManager.subscribe(
-        (event) => {
-          if (event.type === "agent_state" && event.agent.id === observedId) {
-            unsubscribe();
-            resolve();
-          }
-        },
-        { replayState: false },
-      );
-      liveClient.session?.pushEvent({
-        type: "sub_agent_observation",
-        provider: "codex",
-        callId: "task-call-1",
-        childSessionId: "child-real-id",
-        subAgentType: "general-purpose",
-        status: "running",
-      });
-    });
-
-    // Wait for the fire-and-forget persistence to land on disk.
-    let persistedObserved = false;
-    for (let attempt = 0; attempt < 50 && !persistedObserved; attempt += 1) {
-      await storage.flush();
-      const stored = await storage.list();
-      persistedObserved = stored.some(
-        (record) => record.observed === true && record.persistence?.sessionId === "child-real-id",
-      );
-      if (!persistedObserved) {
-        await new Promise((resolve) => setTimeout(resolve, 10));
-      }
-    }
-    expect(persistedObserved).toBe(true);
-
-    // Simulate a daemon restart: a fresh manager over the same storage, with an
-    // empty live observed map. The observed record is now only in storage.
-    const restartClient = new ObservationClient();
-    const restartManager = new AgentManager({
-      clients: { codex: restartClient },
-      registry: storage,
-      logger,
-    });
-
-    // Resuming the observed sub-session is refused — continuing it would mean
-    // deriving a new agent, never resuming this read-only mirror.
-    await expect(
-      restartManager.resumeAgentFromPersistence({
-        provider: "codex",
-        sessionId: "child-real-id",
-      }),
-    ).rejects.toThrow(/observed/i);
-
-    // The critical guarantee: no provider session was ever spawned.
-    expect(restartClient.resumeOverrides).toHaveLength(0);
-    expect(restartClient.session).toBeNull();
-  } finally {
-    rmSync(workdir, { recursive: true, force: true });
-  }
-});
-
 test("loads observed sub-agent history read-only on restart, without resuming or spawning", async () => {
   const workdir = mkdtempSync(join(tmpdir(), "agent-manager-test-"));
   const storagePath = join(workdir, "agents");
@@ -6606,7 +6450,10 @@ test("loads observed sub-agent history read-only on restart, without resuming or
 
   class ObservationClient extends TestAgentClient {
     session: TestAgentSession | null = null;
-    readonly historyRequests: Array<{ sessionId: string; cwd: string }> = [];
+    readonly historyRequests: Array<{
+      nativeRef: { rootSessionId: string; agentId: string };
+      cwd: string;
+    }> = [];
 
     override async createSession(config: AgentSessionConfig): Promise<AgentSession> {
       this.session = new TestAgentSession(config);
@@ -6614,7 +6461,7 @@ test("loads observed sub-agent history read-only on restart, without resuming or
     }
 
     async loadObservedSubAgentHistory(params: {
-      sessionId: string;
+      nativeRef: { rootSessionId: string; agentId: string };
       cwd: string;
     }): Promise<AgentTimelineItem[]> {
       this.historyRequests.push(params);
@@ -6631,8 +6478,8 @@ test("loads observed sub-agent history read-only on restart, without resuming or
   });
 
   try {
-    const parent = await liveManager.createAgent({ provider: "codex", cwd: workdir });
-    const observedId = observedSubAgentId(parent.id, "task-call-1");
+    await liveManager.createAgent({ provider: "codex", cwd: workdir });
+    const observedId = observedSubAgentId("task-call-1");
 
     await new Promise<void>((resolve) => {
       const unsubscribe = liveManager.subscribe(
@@ -6679,13 +6526,16 @@ test("loads observed sub-agent history read-only on restart, without resuming or
       logger,
     });
 
-    // Reloaded read-only, bound to the real child session id.
+    // Reloaded read-only and sessionless; the child's locating ref is in labels.
     expect(loaded.observed).toBe(true);
-    expect(loaded.persistence?.sessionId).toBe("child-real-id");
+    expect(loaded.persistence).toBeNull();
+    expect(loaded.labels["paseo.observed.agent-id"]).toBe("child-real-id");
 
-    // Its history was read read-only from the real child session and rendered as
-    // a full timeline (prose + reasoning), identical to the live shape.
-    expect(restartClient.historyRequests).toEqual([{ sessionId: "child-real-id", cwd: workdir }]);
+    // Its history was read read-only from the child's own transcript (located by
+    // nativeRef.agentId) and rendered as a full timeline, identical to live.
+    expect(restartClient.historyRequests).toHaveLength(1);
+    expect(restartClient.historyRequests[0]?.nativeRef.agentId).toBe("child-real-id");
+    expect(restartClient.historyRequests[0]?.cwd).toBe(workdir);
     expect(restartManager.getTimeline(observedId)).toEqual(childHistory);
 
     // Pure read-only: the child session was never resumed or spawned.

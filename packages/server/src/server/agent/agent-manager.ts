@@ -15,6 +15,10 @@ import {
   observedSubAgentStatus,
   observedSubAgentTitle,
 } from "./observed-sub-agents.js";
+import {
+  collectObservedDescendants,
+  mergeObservedNodeRecord,
+} from "./providers/claude/observed-tree.js";
 import type { Logger } from "pino";
 import { z } from "zod";
 import type { TerminalManager } from "../../terminal/terminal-manager.js";
@@ -46,6 +50,11 @@ import {
   type ImportedTimelineEntry,
   type ImportableProviderSession,
   type ListImportableSessionsOptions,
+  type ObservedNativeRef,
+  type ObservedNodeSnapshot,
+  type ObservedSubtreeRef,
+  type ObservedTreeEvent,
+  type ObservedTreeUnsubscribe,
 } from "./agent-sdk-types.js";
 import { buildArchivedAgentRecord, type ArchivedStoredAgentRecord } from "./agent-archive.js";
 import type { StoredAgentRecord, AgentStorage } from "./agent-storage.js";
@@ -83,6 +92,26 @@ const STORED_AGENT_CAPABILITIES: AgentCapabilityFlags = {
   supportsRewindFiles: false,
   supportsRewindBoth: false,
 };
+
+// Labels carrying an observed node's nativeRef (which native transcript locates
+// its timeline). Server-only; never collides with the root session because an
+// observed node has persistence=null (a Claude sub-agent shares the root sessionId).
+const OBSERVED_ROOT_SESSION_ID_LABEL = "paseo.observed.root-session-id";
+const OBSERVED_AGENT_ID_LABEL = "paseo.observed.agent-id";
+
+// Narrows a stored lifecycle status to the three observed-node states (an observed
+// record only ever holds running/idle/error; closed/initializing never apply).
+function toObservedNodeStatus(
+  status: AgentLifecycleStatus | undefined,
+): "running" | "idle" | "error" {
+  if (status === "error") {
+    return "error";
+  }
+  if (status === "idle") {
+    return "idle";
+  }
+  return "running";
+}
 
 // Observed subagents are pure mirrors of a provider's internal subagent: the
 // user can read their timeline but can never send, interrupt, or rewind them.
@@ -538,16 +567,6 @@ function getFirstUserMessageTextFromRows(rows: readonly AgentTimelineRow[]): str
   return null;
 }
 
-// Thrown when something tries to resume an observed sub-agent. They are
-// read-only mirrors of a provider's internal sub-agent and must never be
-// resumed; continuing one is a separate "derive a new agent" flow.
-export class ObservedAgentNotResumableError extends Error {
-  constructor(readonly sessionId: string) {
-    super(`Observed sub-agent session ${sessionId} is read-only and cannot be resumed`);
-    this.name = "ObservedAgentNotResumableError";
-  }
-}
-
 export class AgentManager {
   private readonly clients = new Map<AgentProvider, AgentClient>();
   private readonly providerEnabled = new Map<AgentProvider, boolean>();
@@ -556,6 +575,9 @@ export class AgentManager {
   // Kept out of `agents` (sessionless, never persisted) and unioned into the
   // client-facing read paths so the tree + conversation view reuse them.
   private readonly observedAgents = new Map<string, ManagedAgentClosed>();
+  // Per active root: unsubscribe for its observed-subtree watcher. One watcher
+  // covers the whole flat subagents/ tree; torn down on runtime-gone / archive.
+  private readonly observedWatchers = new Map<string, ObservedTreeUnsubscribe>();
   private readonly timelineStore = new InMemoryAgentTimelineStore();
   private readonly agentsAwaitingInitialSnapshotPersist = new Set<string>();
   private readonly sessionEventTails = new Map<string, Promise<void>>();
@@ -998,15 +1020,6 @@ export class AgentManager {
       workspaceId?: string;
     },
   ): Promise<ManagedAgent> {
-    // Observed sub-agents are read-only mirrors and are NEVER resumed — resuming
-    // would spawn a session on the provider's own sub-agent and break its native
-    // orchestration. Continuing one means deriving a NEW agent (separate flow).
-    // This guard holds across restart: the observed record lives in storage even
-    // when the live map is empty.
-    if (handle.sessionId && (await this.isObservedSession(handle.sessionId))) {
-      throw new ObservedAgentNotResumableError(handle.sessionId);
-    }
-
     const resolvedAgentId = validateAgentId(
       agentId ?? this.idFactory(),
       "resumeAgentFromPersistence",
@@ -3182,6 +3195,9 @@ export class AgentManager {
         this.emitState(agent);
       }
     }
+    // Restart recovery (#7/#8): once the root's session id is known, rebuild any
+    // already-on-disk observed subtree from the file scan and attach the watcher.
+    void this.rehydrateObservedSubtree(agent);
     void this.refreshRuntimeInfo(agent);
   }
 
@@ -3244,7 +3260,6 @@ export class AgentManager {
       (agent as ActiveManagedAgent).lifecycle = "idle";
       this.emitState(agent);
     }
-    this.settleObservedSubAgents(agent.id);
     void this.refreshRuntimeInfo(agent);
   }
 
@@ -3425,95 +3440,126 @@ export class AgentManager {
     return event;
   }
 
-  // Surfaces a provider's internal subagent as a read-only observed agent. Each
-  // observation upserts a sessionless record nested under the parent, broadcasts
-  // it via agent_state so it appears in the tree, and streams any observed child
-  // timeline item so the read-only view updates live. Purely a mirror of what the
-  // provider already emits — it never touches how the provider runs its subagent.
+  // Surfaces a Claude Task sub-agent as a read-only observed NODE from the live
+  // stream. Live's role is narrow (architecture §0.3): make the direct-child node
+  // appear near-instantly as a "half node" (no nativeRef yet, status running) and
+  // bootstrap the file watcher. The node's timeline + real terminal status come
+  // from the file channel, never from this event.
   private applyObservedSubAgent(
     parent: ActiveManagedAgent,
     event: Extract<AgentStreamEvent, { type: "sub_agent_observation" }>,
   ): void {
-    const id = observedSubAgentId(parent.id, event.callId);
-    const status = observedSubAgentStatus(event.status);
-    const title = observedSubAgentTitle({
-      description: event.description,
-      subAgentType: event.subAgentType,
-    });
-    const now = new Date();
-    const existing = this.observedAgents.get(id);
-    // Bind the sub-agent's REAL session id once the provider reports it. This is
-    // the observed agent's real identity (a real on-disk session) and the
-    // extension point for a future "continue conversation" (resume this handle).
-    const persistence =
-      existing?.persistence ?? this.buildObservedPersistence(parent, event.childSessionId);
-    const record: ManagedAgentClosed = existing
-      ? { ...existing, observedStatus: status, title, persistence, updatedAt: now }
-      : this.buildObservedSubAgentRecord({
-          id,
-          parent,
-          title,
-          status,
-          persistence,
-          createdAt: now,
-        });
-    this.observedAgents.set(id, record);
+    // childSessionId marks the live-mirror path (Codex): it locates the child
+    // thread, so the node carries a nativeRef immediately. Claude omits it — its
+    // nativeRef is filled by the file scan (seam A).
+    const nativeRef: ObservedNativeRef | undefined = event.childSessionId
+      ? {
+          rootSessionId: parent.persistence?.sessionId ?? event.childSessionId,
+          agentId: event.childSessionId,
+        }
+      : undefined;
+    const halfNode: ObservedNodeSnapshot = {
+      id: observedSubAgentId(event.callId),
+      parentAgentId: parent.id,
+      title: observedSubAgentTitle({
+        description: event.description,
+        subAgentType: event.subAgentType,
+      }),
+      status: observedSubAgentStatus(event.status),
+      ...(nativeRef ? { nativeRef } : {}),
+    };
+    this.upsertObservedNodeRecord(parent, halfNode);
 
-    // Persist the record (not the live timeline) so the read-only node survives
-    // restart. Only on create / status change / first id binding — the per-item
-    // stream below never writes storage.
-    const boundIdentity = !existing?.persistence && persistence !== null;
-    if (!existing || existing.observedStatus !== status || boundIdentity) {
+    // Live-mirror timeline item: Codex sustains its read-only direct child this
+    // way. Claude never carries one (file single-source, tailed by the watcher).
+    // Initialize on first item so the node has a timeline to grow.
+    if (event.item) {
+      if (!this.timelineStore.has(halfNode.id)) {
+        this.timelineStore.initialize(halfNode.id, { timestamp: new Date().toISOString() });
+      }
+      this.recordAndDispatchTimelineItem(halfNode.id, event.item, event.provider);
+    }
+
+    this.ensureObservedWatcher(parent);
+  }
+
+  // Idempotent upsert of one observed node (a live half-node OR a file scan/watch
+  // snapshot), converged by id via mergeObservedNodeRecord (nativeRef defined-wins,
+  // status adopted from the recomputed file source). Persists a node-only record
+  // (no session) so the tree survives restart; never initializes the timeline —
+  // that happens on open, so the watcher's timeline_item only lands on opened
+  // nodes (seam E). Broadcasts agent_state.
+  private upsertObservedNodeRecord(root: ActiveManagedAgent, node: ObservedNodeSnapshot): void {
+    const existing = this.observedAgents.get(node.id);
+    const merged = mergeObservedNodeRecord(
+      existing ? this.toObservedNodeSnapshot(existing) : null,
+      node,
+    );
+    const now = new Date();
+    const record: ManagedAgentClosed = existing
+      ? {
+          ...existing,
+          observedStatus: merged.status,
+          title: merged.title,
+          labels: this.buildObservedLabels(merged),
+          updatedAt: now,
+        }
+      : this.buildObservedNodeRecord(root, merged, now);
+    this.observedAgents.set(node.id, record);
+
+    const statusChanged = !existing || existing.observedStatus !== merged.status;
+    const refBound = !existing || !existing.labels[OBSERVED_AGENT_ID_LABEL];
+    if (statusChanged || refBound) {
       void this.persistObservedSubAgent(record);
     }
-
-    if (!this.timelineStore.has(id)) {
-      this.timelineStore.initialize(id, { timestamp: now.toISOString() });
-    }
-    if (event.item) {
-      this.recordAndDispatchTimelineItem(id, event.item, event.provider);
-    }
-
     this.dispatch({ type: "agent_state", agent: { ...record } });
   }
 
-  // Real persistence handle for an observed sub-agent bound to its real session
-  // id. Null until the provider reports the id. Carrying it (not a synthetic
-  // stub) is what makes the observed agent a real, resumable identity rather
-  // than a throwaway summary.
-  private buildObservedPersistence(
-    parent: ActiveManagedAgent,
-    childSessionId: string | undefined,
-  ): AgentPersistenceHandle | null {
-    if (!childSessionId) {
-      return null;
-    }
-    return attachPersistenceCwd(
-      { provider: parent.provider, sessionId: childSessionId },
-      parent.cwd,
-    );
+  // Reconstructs the flat snapshot from a stored observed record so merge can run
+  // against the previous state (nativeRef lives in labels, never persistence).
+  private toObservedNodeSnapshot(record: ManagedAgentClosed): ObservedNodeSnapshot {
+    const nativeRef = this.readObservedNativeRef(record);
+    return {
+      id: record.id,
+      parentAgentId: record.labels[PARENT_AGENT_ID_LABEL] ?? "",
+      title: record.title ?? "",
+      status: toObservedNodeStatus(record.observedStatus),
+      ...(nativeRef ? { nativeRef } : {}),
+    };
   }
 
-  private buildObservedSubAgentRecord(input: {
-    id: string;
-    parent: ActiveManagedAgent;
-    title: string;
-    status: AgentLifecycleStatus;
-    persistence: AgentPersistenceHandle | null;
-    createdAt: Date;
-  }): ManagedAgentClosed {
-    const { id, parent, title, status, persistence, createdAt } = input;
+  // Labels carried on an observed record: parent pointer + nativeRef (when known).
+  private buildObservedLabels(node: ObservedNodeSnapshot): Record<string, string> {
     return {
-      id,
-      provider: parent.provider,
-      cwd: parent.cwd,
-      ...(parent.workspaceId ? { workspaceId: parent.workspaceId } : {}),
+      [PARENT_AGENT_ID_LABEL]: node.parentAgentId,
+      ...(node.nativeRef
+        ? {
+            [OBSERVED_ROOT_SESSION_ID_LABEL]: node.nativeRef.rootSessionId,
+            [OBSERVED_AGENT_ID_LABEL]: node.nativeRef.agentId,
+          }
+        : {}),
+    };
+  }
+
+  // Builds a fresh sessionless observed record. persistence is null by design: a
+  // Claude sub-agent shares the root sessionId, so a handle would collide with the
+  // root — the nativeRef that locates its transcript lives in labels instead.
+  private buildObservedNodeRecord(
+    root: ActiveManagedAgent,
+    node: ObservedNodeSnapshot,
+    now: Date,
+  ): ManagedAgentClosed {
+    return {
+      id: node.id,
+      provider: root.provider,
+      cwd: root.cwd,
+      ...(root.workspaceId ? { workspaceId: root.workspaceId } : {}),
       capabilities: OBSERVED_AGENT_CAPABILITIES,
-      config: { provider: parent.provider, cwd: parent.cwd },
+      config: { provider: root.provider, cwd: root.cwd },
       lifecycle: "closed",
       session: null,
-      createdAt,
-      updatedAt: createdAt,
+      createdAt: now,
+      updatedAt: now,
       availableModes: [],
       currentModeId: null,
       pendingPermissions: new Map(),
@@ -3524,40 +3570,120 @@ export class AgentManager {
       foregroundTurnWaiters: new Set(),
       finalizedForegroundTurnIds: new Set(),
       unsubscribeSession: null,
-      persistence,
+      persistence: null,
       historyPrimed: true,
       lastUserMessageAt: null,
       attention: { requiresAttention: false },
       observed: true,
-      observedStatus: status,
-      title,
-      labels: { [PARENT_AGENT_ID_LABEL]: parent.id },
+      observedStatus: node.status,
+      title: node.title,
+      labels: this.buildObservedLabels(node),
     };
   }
 
-  // Re-materializes a persisted observed sub-agent after restart as a read-only
-  // record, then loads its history from the real child session — read-only,
-  // never resuming or spawning. This is the ONLY place we read the on-disk
-  // session; the child has ended, so reading the full record is accurate (not
-  // the live path, which mirrors the stream). Provider dispatch is generic.
-  async loadObservedSubAgentFromStorage(record: StoredAgentRecord): Promise<ManagedAgent> {
-    const cached = this.observedAgents.get(record.id);
-    if (cached) {
-      return { ...cached };
+  // Attaches the observed-subtree watcher for an active root. Lazy bootstrap on the
+  // first sub_agent_observation, by which point the SDK has already created
+  // subagents/ (seam C). Idempotent — one watcher per root.
+  private ensureObservedWatcher(root: ActiveManagedAgent): void {
+    if (this.observedWatchers.has(root.id)) {
+      return;
     }
+    const client = this.clients.get(root.provider);
+    if (!client?.watchObservedSubAgentTree) {
+      return;
+    }
+    const ref = this.buildObservedSubtreeRef(root);
+    if (!ref) {
+      return;
+    }
+    const unsubscribe = client.watchObservedSubAgentTree(ref, (treeEvent) =>
+      this.onObservedTreeEvent(root, treeEvent),
+    );
+    this.observedWatchers.set(root.id, unsubscribe);
+  }
 
-    const observed = this.buildObservedSubAgentFromRecord(record);
+  // The file-locating coordinates for a root's observed subtree, or null until the
+  // root's session id is known (the watcher retries on the next observation).
+  private buildObservedSubtreeRef(root: ActiveManagedAgent): ObservedSubtreeRef | null {
+    const rootSessionId = root.persistence?.sessionId;
+    if (!rootSessionId) {
+      return null;
+    }
+    return { rootSessionId, cwd: root.cwd, rootAgentId: root.id, rootIsActive: true };
+  }
+
+  // Routes one watcher event into the model: node upsert, single-node status
+  // revise, or a timeline append for an ALREADY-OPEN node (seam E — unopened nodes
+  // still get structural node/status updates, just not timeline items).
+  private onObservedTreeEvent(root: ActiveManagedAgent, treeEvent: ObservedTreeEvent): void {
+    switch (treeEvent.kind) {
+      case "node":
+        this.upsertObservedNodeRecord(root, treeEvent.node);
+        return;
+      case "status": {
+        const record = this.observedAgents.get(treeEvent.nodeId);
+        if (record && record.observedStatus !== treeEvent.status) {
+          const updated: ManagedAgentClosed = {
+            ...record,
+            observedStatus: treeEvent.status,
+            updatedAt: new Date(),
+          };
+          this.observedAgents.set(treeEvent.nodeId, updated);
+          void this.persistObservedSubAgent(updated);
+          this.dispatch({ type: "agent_state", agent: { ...updated } });
+        }
+        return;
+      }
+      case "timeline_item":
+        if (this.timelineStore.has(treeEvent.nodeId)) {
+          this.recordAndDispatchTimelineItem(treeEvent.nodeId, treeEvent.item, root.provider);
+        }
+        return;
+    }
+  }
+
+  // On root thread/resume start, rebuild any already-on-disk observed subtree from
+  // the file scan (restart recovery, #7/#8) and attach the watcher to keep tailing.
+  // A brand-new root with no subtree does nothing here — its first child bootstraps
+  // the watcher live.
+  private async rehydrateObservedSubtree(root: ActiveManagedAgent): Promise<void> {
+    if (this.observedWatchers.has(root.id)) {
+      return;
+    }
+    const client = this.clients.get(root.provider);
+    if (!client?.loadObservedSubAgentTree) {
+      return;
+    }
+    const ref = this.buildObservedSubtreeRef(root);
+    if (!ref) {
+      return;
+    }
+    const nodes = await client.loadObservedSubAgentTree(ref);
+    if (nodes.length === 0) {
+      return;
+    }
+    for (const node of nodes) {
+      this.upsertObservedNodeRecord(root, node);
+    }
+    this.ensureObservedWatcher(root);
+  }
+
+  // Re-materializes an observed sub-agent for the read-only view: takes the live/
+  // scanned record (or rebuilds it from storage) and loads its timeline from its
+  // OWN native transcript via nativeRef — read-only, never resuming or spawning.
+  // seam A: a live half-node without a nativeRef yet loads empty (NOT an error);
+  // the client shows "loading" and the node reopens once the file scan fills the ref.
+  async loadObservedSubAgentFromStorage(record: StoredAgentRecord): Promise<ManagedAgent> {
+    const observed =
+      this.observedAgents.get(record.id) ?? this.buildObservedSubAgentFromRecord(record);
     this.observedAgents.set(record.id, observed);
 
-    const childSessionId = observed.persistence?.sessionId;
+    const nativeRef = this.readObservedNativeRef(observed);
     const client = this.clients.get(record.provider);
     let history: AgentTimelineItem[] = [];
-    if (childSessionId && client?.loadObservedSubAgentHistory) {
+    if (nativeRef && client?.loadObservedSubAgentHistory) {
       try {
-        history = await client.loadObservedSubAgentHistory({
-          sessionId: childSessionId,
-          cwd: record.cwd,
-        });
+        history = await client.loadObservedSubAgentHistory({ nativeRef, cwd: record.cwd });
       } catch (error) {
         this.logger.warn(
           { err: error, agentId: record.id },
@@ -3576,13 +3702,18 @@ export class AgentManager {
     return { ...observed };
   }
 
+  // Reads the nativeRef carried in an observed record's labels (seam A: absent on a
+  // live half-node until the file scan fills it).
+  private readObservedNativeRef(record: ManagedAgentClosed): ObservedNativeRef | null {
+    const rootSessionId = record.labels[OBSERVED_ROOT_SESSION_ID_LABEL];
+    const agentId = record.labels[OBSERVED_AGENT_ID_LABEL];
+    return rootSessionId && agentId ? { rootSessionId, agentId } : null;
+  }
+
+  // Rebuilds a sessionless observed record from its stored snapshot (registry is a
+  // node-prewarm cache; the file scan is the authority). persistence stays null;
+  // the nativeRef that locates its transcript lives in labels.
   private buildObservedSubAgentFromRecord(record: StoredAgentRecord): ManagedAgentClosed {
-    const persistence = record.persistence
-      ? attachPersistenceCwd(
-          { provider: record.provider, sessionId: record.persistence.sessionId },
-          record.cwd,
-        )
-      : null;
     return {
       id: record.id,
       provider: record.provider,
@@ -3604,35 +3735,18 @@ export class AgentManager {
       foregroundTurnWaiters: new Set(),
       finalizedForegroundTurnIds: new Set(),
       unsubscribeSession: null,
-      persistence,
+      persistence: null,
       historyPrimed: true,
       lastUserMessageAt: null,
       attention: { requiresAttention: false },
       observed: true,
-      // A restored observed sub-agent is historical: its parent turn ended
-      // before the restart, so it settles to idle.
+      // Static load: no terminal file signal yet means idle until the scan/watch
+      // revises it (seam B: static idle is non-sticky, revised back to running if
+      // the root resumes while the node is still active).
       observedStatus: "idle",
       title: record.title ?? null,
       labels: record.labels,
     };
-  }
-
-  // True when a session id is owned by an observed sub-agent — live (in-memory)
-  // or persisted (across restart). Used to refuse resume so an observed mirror
-  // never spawns a provider session.
-  private async isObservedSession(sessionId: string): Promise<boolean> {
-    for (const record of this.observedAgents.values()) {
-      if (record.persistence?.sessionId === sessionId) {
-        return true;
-      }
-    }
-    if (!this.registry) {
-      return false;
-    }
-    const records = await this.registry.list();
-    return records.some(
-      (record) => record.observed === true && record.persistence?.sessionId === sessionId,
-    );
   }
 
   // Writes the observed record (identity + relationship + observed flag), never
@@ -3649,35 +3763,25 @@ export class AgentManager {
     }
   }
 
-  // Settles a parent's still-running observed subagents to idle. A provider's
-  // internal subagent always finishes within the parent's turn, so once that
-  // turn completes any observed node that never received a terminal update can
-  // safely stop pulsing. Generic across providers — no provider branching.
-  private settleObservedSubAgents(parentAgentId: string): void {
-    for (const [id, record] of this.observedAgents) {
-      if (record.labels[PARENT_AGENT_ID_LABEL] !== parentAgentId) {
-        continue;
-      }
-      if (record.observedStatus !== "running") {
-        continue;
-      }
-      const settled: ManagedAgentClosed = {
-        ...record,
-        observedStatus: "idle",
-        updatedAt: new Date(),
-      };
-      this.observedAgents.set(id, settled);
-      void this.persistObservedSubAgent(settled);
-      this.dispatch({ type: "agent_state", agent: { ...settled } });
-    }
-  }
-
-  // Drops the observed subagents nested under a parent and tells clients to
-  // remove them. Called when the parent's runtime goes away, since observed
-  // records live only as long as the parent session is observed.
-  private dropObservedSubAgents(parentAgentId: string): void {
-    for (const [id, record] of this.observedAgents) {
-      if (record.labels[PARENT_AGENT_ID_LABEL] !== parentAgentId) {
+  // Drops a root's observed subtree (all depths) from memory, tells clients to
+  // remove them, and tears down the root's watcher. Recursive via
+  // collectObservedDescendants along the observed parent chain — single-layer
+  // filtering leaked deep nodes (PM correction). Safe because the File is the
+  // truth (invariant 0.3-2): a later load rescans and rebuilds. settle is retired:
+  // status now comes from per-node file signals via the watcher, not a turn sweep.
+  private dropObservedSubAgents(rootAgentId: string): void {
+    this.observedWatchers.get(rootAgentId)?.();
+    this.observedWatchers.delete(rootAgentId);
+    const descendants = collectObservedDescendants(
+      rootAgentId,
+      Array.from(this.observedAgents.values(), (record) => ({
+        id: record.id,
+        parentAgentId: record.labels[PARENT_AGENT_ID_LABEL] ?? "",
+      })),
+    );
+    for (const id of descendants) {
+      const record = this.observedAgents.get(id);
+      if (!record) {
         continue;
       }
       this.observedAgents.delete(id);

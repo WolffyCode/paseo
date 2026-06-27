@@ -9,11 +9,14 @@ type ObservedSubAgentToolCallStatus = "running" | "completed" | "failed" | "canc
 
 type ObservedSubAgentLifecycle = "running" | "idle" | "error";
 
-// Stable id for the observed child surfaced from one parent sub-agent tool-call.
-// Deterministic so every update for the same call resolves to one record, and
-// prefixed so it can never collide with a real (UUID) agent id.
-export function observedSubAgentId(parentAgentId: string, callId: string): string {
-  return `observed:${parentAgentId}:${callId}`;
+// Flat single-key id for an observed sub-agent node, derived from the Task
+// tool-use id that spawned it. toolUseId is globally unique (`toolu_*`) and is
+// carried identically by both the live callId and the file meta.toolUseId, so
+// every update for one sub-agent — from either source, at any depth — resolves to
+// exactly one record (node-level dedup by id space). The `observed:` prefix
+// guarantees it never collides with a real (UUID / paseo) agent id.
+export function observedSubAgentId(toolUseId: string): string {
+  return `observed:${toolUseId}`;
 }
 
 // Maps the sub-agent tool-call status to the lifecycle status the tree renders:

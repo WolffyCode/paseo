@@ -7,15 +7,18 @@ import { createTestLogger } from "../../../../test-utils/test-logger.js";
 import { ClaudeAgentClient } from "./agent.js";
 import { claudeProjectDirSync } from "./project-dir.js";
 
-// After restart, an observed Claude sub-agent loads its history read-only from
-// the parent transcript: only the sidechain (sub-agent) entries, converted
-// through the same path as the main timeline (prose + tool calls + results).
+// An observed Claude sub-agent loads its read-only timeline from its OWN native
+// transcript (subagents/agent-<id>.jsonl) — the whole file is this child's
+// conversation, read verbatim through the same converter as the main timeline.
+// This is the TIMELINE channel's single source (no isSidechain filtering, no
+// second writer).
 describe("Claude observed sub-agent history", () => {
   let tempRoot: string;
   let cwd: string;
   let configDir: string;
   let previousConfigDir: string | undefined;
-  const childSessionId = "child-session-abc";
+  const rootSessionId = "root-session-abc";
+  const agentId = "a09f860045e052924";
 
   beforeEach(() => {
     tempRoot = mkdtempSync(path.join(os.tmpdir(), "claude-observed-history-"));
@@ -23,24 +26,17 @@ describe("Claude observed sub-agent history", () => {
     configDir = path.join(tempRoot, "claude-config");
     mkdirSync(cwd, { recursive: true });
 
-    const historyDir = claudeProjectDirSync(cwd, { configDir });
-    mkdirSync(historyDir, { recursive: true });
+    const projectDir = claudeProjectDirSync(cwd, { configDir });
+    const subagentsDir = path.join(projectDir, rootSessionId, "subagents");
+    mkdirSync(subagentsDir, { recursive: true });
     writeFileSync(
-      path.join(historyDir, `${childSessionId}.jsonl`),
+      path.join(subagentsDir, `agent-${agentId}.jsonl`),
       [
-        // Parent (non-sidechain) noise — must be skipped by the observed reader.
-        JSON.stringify({
-          type: "assistant",
-          sessionId: childSessionId,
-          cwd,
-          message: { role: "assistant", content: "PARENT_NOISE_SHOULD_BE_SKIPPED" },
-        }),
         // The child sub-agent's own turn: prose + a tool call.
         JSON.stringify({
           type: "assistant",
           isSidechain: true,
-          sessionId: childSessionId,
-          cwd,
+          agentId,
           message: {
             role: "assistant",
             content: [
@@ -58,8 +54,7 @@ describe("Claude observed sub-agent history", () => {
         JSON.stringify({
           type: "user",
           isSidechain: true,
-          sessionId: childSessionId,
-          cwd,
+          agentId,
           message: {
             role: "user",
             content: [
@@ -89,13 +84,16 @@ describe("Claude observed sub-agent history", () => {
     rmSync(tempRoot, { recursive: true, force: true });
   });
 
-  test("loads only the sidechain entries as a full timeline (prose + tool call + result)", async () => {
+  test("loads the sub-agent's own transcript as a full timeline (prose + tool call + result)", async () => {
     const client = new ClaudeAgentClient({
       logger: createTestLogger(),
       resolveBinary: async () => "/test/claude/bin",
     });
 
-    const timeline = await client.loadObservedSubAgentHistory({ sessionId: childSessionId, cwd });
+    const timeline = await client.loadObservedSubAgentHistory({
+      nativeRef: { rootSessionId, agentId },
+      cwd,
+    });
 
     // Prose mirrored as assistant_message (same shape as the main timeline).
     const prose = timeline.find(
@@ -113,11 +111,19 @@ describe("Claude observed sub-agent history", () => {
         item.type === "tool_call" && item.name === "WebSearch" && item.status === "completed",
     );
     expect(completed).toBeDefined();
+  });
 
-    // Parent (non-sidechain) entries are excluded.
-    const leakedParent = timeline.some(
-      (item) => item.type === "assistant_message" && item.text.includes("PARENT_NOISE"),
-    );
-    expect(leakedParent).toBe(false);
+  test("returns [] when the sub-agent transcript is not on disk yet (seam A: ref filled before file)", async () => {
+    const client = new ClaudeAgentClient({
+      logger: createTestLogger(),
+      resolveBinary: async () => "/test/claude/bin",
+    });
+
+    const timeline = await client.loadObservedSubAgentHistory({
+      nativeRef: { rootSessionId, agentId: "agent-not-written-yet" },
+      cwd,
+    });
+
+    expect(timeline).toEqual([]);
   });
 });

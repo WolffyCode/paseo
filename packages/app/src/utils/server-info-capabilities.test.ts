@@ -5,14 +5,19 @@ import {
   getServerCapabilities,
   getVoiceReadinessState,
   resolveVoiceUnavailableMessage,
+  selectObservedTreeCapability,
 } from "./server-info-capabilities";
 
-function buildServerInfo(capabilities?: ServerCapabilities): DaemonServerInfo {
+function buildServerInfo(
+  capabilities?: ServerCapabilities,
+  features?: DaemonServerInfo["features"],
+): DaemonServerInfo {
   return {
     serverId: "srv-1",
     hostname: "test-host",
     version: "0.1.0",
     ...(capabilities ? { capabilities } : {}),
+    ...(features ? { features } : {}),
   };
 }
 
@@ -115,5 +120,27 @@ describe("server-info-capabilities", () => {
         mode: "dictation",
       }),
     ).toBeNull();
+  });
+});
+
+describe("selectObservedTreeCapability", () => {
+  it("enables the native subagent tree when the daemon advertises observedSubagentTree", () => {
+    expect(
+      selectObservedTreeCapability(buildServerInfo(undefined, { observedSubagentTree: true })),
+    ).toBe(true);
+  });
+
+  it("stays disabled when the daemon reports observedSubagentTree as false", () => {
+    expect(
+      selectObservedTreeCapability(buildServerInfo(undefined, { observedSubagentTree: false })),
+    ).toBe(false);
+  });
+
+  it("stays disabled when server_info omits the features block", () => {
+    expect(selectObservedTreeCapability(buildServerInfo())).toBe(false);
+  });
+
+  it("stays disabled when server_info is null (host predates the capability)", () => {
+    expect(selectObservedTreeCapability(null)).toBe(false);
   });
 });

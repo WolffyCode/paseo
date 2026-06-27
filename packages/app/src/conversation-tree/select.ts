@@ -162,8 +162,9 @@ export interface FlattenConversationTreeOptions {
 
 /**
  * Flatten the tree into render-ready rows. A node renders its children only when the next
- * depth is within maxDepth (本轮卡单层) and the node isn't collapsed. A node with children
- * below the cap reports canExpand=false (no chevron; the badge shows the count instead).
+ * depth is within maxDepth (nextDepth = depth + 1 <= maxDepth) and the node isn't collapsed.
+ * A node with children below the cap reports canExpand=false (no chevron; the badge shows the
+ * count instead).
  */
 export function flattenConversationTreeRows(
   nodes: ConversationTreeNode[],

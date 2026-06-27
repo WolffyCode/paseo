@@ -5551,7 +5551,7 @@ export class CodexAppServerAgentClient implements AgentClient {
       autoReviewEnabled,
     );
     try {
-      return await session.loadObservedThreadHistory(params.sessionId);
+      return await session.loadObservedThreadHistory(params.nativeRef.agentId);
     } finally {
       await session.close().catch(() => undefined);
     }
