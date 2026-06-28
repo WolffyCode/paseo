@@ -16,11 +16,15 @@ const WEB_RESIZE_CURSOR = isWeb ? ({ cursor: "col-resize", touchAction: "none" }
 // the affordance and brightens only while dragging (hover styling is deferred).
 interface RegionGutterProps {
   region: ShellRegion;
-  workspaceKey: string;
+  // The left rail's width is global, so its gutter needs no workspaceKey. The two
+  // workspace tools (right + fileTree) pass their workspace so the drag persists
+  // per workspace.
+  workspaceKey?: string;
   currentWidth: number;
 }
 
 export function RegionGutter({ region, workspaceKey, currentWidth }: RegionGutterProps) {
+  const setLeftWidth = useShellLayoutStore((state) => state.setLeftWidth);
   const setRegionWidth = useShellLayoutStore((state) => state.setRegionWidth);
   const [dragging, setDragging] = useState(false);
   const dragStart = useRef({ x: 0, width: currentWidth });
@@ -41,11 +45,18 @@ export function RegionGutter({ region, workspaceKey, currentWidth }: RegionGutte
 
       const onMove = (moveEvent: PointerEvent) => {
         const deltaPx = (moveEvent.clientX - dragStart.current.x) * sign;
-        setRegionWidth(
-          workspaceKey,
+        const next = resolveRegionWidthFromDrag({
           region,
-          resolveRegionWidthFromDrag({ region, startWidth: dragStart.current.width, deltaPx }),
-        );
+          startWidth: dragStart.current.width,
+          deltaPx,
+        });
+        // The left rail persists to the single global width; the two workspace
+        // tools persist their width per workspace.
+        if (region === "left") {
+          setLeftWidth(next);
+        } else if (workspaceKey != null) {
+          setRegionWidth(workspaceKey, region, next);
+        }
       };
       const onUp = () => {
         setDragging(false);
@@ -58,7 +69,7 @@ export function RegionGutter({ region, workspaceKey, currentWidth }: RegionGutte
       window.addEventListener("pointerup", onUp);
       window.addEventListener("pointercancel", onUp);
     },
-    [currentWidth, region, sign, setRegionWidth, workspaceKey],
+    [currentWidth, region, sign, setLeftWidth, setRegionWidth, workspaceKey],
   );
 
   styles.useVariants({ dragging });

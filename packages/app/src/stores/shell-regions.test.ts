@@ -16,6 +16,7 @@ function makeSnapshot(overrides: Partial<ShellLayoutSnapshot> = {}): ShellLayout
     leftOpen: true,
     rightOpen: false,
     fileTreeOpen: false,
+    leftWidth: 240,
     widthByRegion: {},
     ...overrides,
   };
@@ -128,15 +129,16 @@ describe("selectVisibleRegions", () => {
   });
 
   it("reads remembered widths for the active workspace and clamps them", () => {
+    // Only the two workspace tools (right + fileTree) remember per-workspace
+    // widths. The left rail is global and is asserted separately below.
     const snapshot = makeSnapshot({
       rightOpen: true,
       fileTreeOpen: true,
       widthByRegion: {
-        "ws-a": { left: 200, right: 700, fileTree: 999 },
+        "ws-a": { right: 700, fileTree: 999 },
       },
     });
     const regions = selectVisibleRegions(snapshot, workspaceRoute("ws-a"));
-    expect(regions.left).toBe(200);
     expect(regions.right).toBe(700);
     expect(regions.fileTree).toBe(500); // 999 clamped to fileTree max
   });
@@ -162,6 +164,41 @@ describe("selectVisibleRegions", () => {
     const snapshot = makeSnapshot({ leftOpen: true, rightOpen: true, fileTreeOpen: true });
     const regions = selectVisibleRegions(snapshot, { showsShell: false, workspaceKey: "ws-a" });
     expect(regions).toEqual({ main: true });
+  });
+});
+
+describe("selectVisibleRegions — left rail is one global width (problem ①)", () => {
+  // The left rail is the app's global navigation, not a workspace tool, so its
+  // width is a single value that must NOT change when you enter/leave a
+  // conversation. Right + fileTree stay per-workspace; left does not.
+  it("reads the left width from the global leftWidth, identical with or without a workspace", () => {
+    const snapshot = makeSnapshot({ leftWidth: 280 });
+    const emptyState = selectVisibleRegions(snapshot, { showsShell: true, workspaceKey: null });
+    const inConversation = selectVisibleRegions(snapshot, workspaceRoute("ws-a"));
+    expect(emptyState.left).toBe(280);
+    expect(inConversation.left).toBe(280);
+    // The whole point: entering a conversation must not move the left rail.
+    expect(emptyState.left).toBe(inConversation.left);
+  });
+
+  it("clamps the global left width to the left region's min/max", () => {
+    expect(selectVisibleRegions(makeSnapshot({ leftWidth: 999 }), workspaceRoute()).left).toBe(300);
+    expect(selectVisibleRegions(makeSnapshot({ leftWidth: 50 }), workspaceRoute()).left).toBe(180);
+  });
+
+  it("ignores any per-workspace remembered width for the left region (single truth)", () => {
+    const snapshot = makeSnapshot({
+      leftWidth: 240,
+      rightOpen: true,
+      fileTreeOpen: true,
+      // A workspace that happened to remember right/fileTree widths must not
+      // pull the left rail off its single global value.
+      widthByRegion: { "ws-a": { right: 700, fileTree: 300 } },
+    });
+    const regions = selectVisibleRegions(snapshot, workspaceRoute("ws-a"));
+    expect(regions.left).toBe(240);
+    expect(regions.right).toBe(700);
+    expect(regions.fileTree).toBe(300);
   });
 });
 

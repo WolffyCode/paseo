@@ -49,6 +49,7 @@ export function HomeShell({ children, selectedAgentId, chromeEnabled }: HomeShel
   const leftOpen = useShellLayoutStore((state) => state.leftOpen);
   const rightOpen = useShellLayoutStore((state) => state.rightOpen);
   const fileTreeOpen = useShellLayoutStore((state) => state.fileTreeOpen);
+  const leftWidth = useShellLayoutStore((state) => state.leftWidth);
   const widthByRegion = useShellLayoutStore((state) => state.widthByRegion);
   const toggleRegion = useShellLayoutStore((state) => state.toggleRegion);
 
@@ -92,8 +93,9 @@ export function HomeShell({ children, selectedAgentId, chromeEnabled }: HomeShel
     [chromeEnabled, workspaceKey],
   );
   const visible = useMemo(
-    () => selectVisibleRegions({ leftOpen, rightOpen, fileTreeOpen, widthByRegion }, route),
-    [leftOpen, rightOpen, fileTreeOpen, widthByRegion, route],
+    () =>
+      selectVisibleRegions({ leftOpen, rightOpen, fileTreeOpen, leftWidth, widthByRegion }, route),
+    [leftOpen, rightOpen, fileTreeOpen, leftWidth, widthByRegion, route],
   );
   const projectName = useMemo(() => {
     if (!directory) {
@@ -129,9 +131,7 @@ export function HomeShell({ children, selectedAgentId, chromeEnabled }: HomeShel
             <LeftSidebar selectedAgentId={selectedAgentId} />
           </RegionFrame>
         ) : null}
-        {visible.left != null && workspaceKey != null ? (
-          <RegionGutter region="left" workspaceKey={workspaceKey} currentWidth={visible.left} />
-        ) : null}
+        {visible.left != null ? <RegionGutter region="left" currentWidth={visible.left} /> : null}
         <RegionFrame kind="main">{children}</RegionFrame>
         {visible.fileTree != null && workspaceKey != null ? (
           <RegionGutter

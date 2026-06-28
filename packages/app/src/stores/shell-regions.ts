@@ -7,6 +7,11 @@
 // no independent width, so it is deliberately not a ShellRegion.
 export type ShellRegion = "left" | "right" | "fileTree";
 
+// The two workspace tools whose width is remembered per workspace. The left rail
+// is deliberately excluded: it is the app's global navigation, so it carries one
+// app-wide width that must not move when the active workspace changes.
+export type WorkspaceRegion = "right" | "fileTree";
+
 export interface ShellRegionConstraints {
   min: number;
   max: number;
@@ -36,7 +41,11 @@ export interface ShellLayoutSnapshot {
   leftOpen: boolean;
   rightOpen: boolean;
   fileTreeOpen: boolean;
-  widthByRegion: Record<string, Partial<Record<ShellRegion, number>>>;
+  // The left rail's single app-wide width (px). Global on purpose — it is not
+  // keyed by workspace, so entering or leaving a conversation cannot move it.
+  leftWidth: number;
+  // Per-workspace remembered widths for the two workspace tools only.
+  widthByRegion: Record<string, Partial<Record<WorkspaceRegion, number>>>;
 }
 
 // Output of selectVisibleRegions: presence of a side key means "render it", and
@@ -88,20 +97,22 @@ export function resolveRegionWidthFromDrag(input: {
   return clampRegionWidth(input.region, input.startWidth + input.deltaPx);
 }
 
-// Resolve a side region's width: remembered width for the active workspace if
-// present (re-clamped defensively), otherwise the region default.
-function resolveRegionWidth(
+// Resolve a workspace tool's width: the remembered width for the active workspace
+// if present (re-clamped defensively), otherwise the region default. The left rail
+// is global navigation, not a workspace tool, and never flows through here.
+function resolveWorkspaceRegionWidth(
   state: ShellLayoutSnapshot,
-  workspaceKey: string | null,
-  region: ShellRegion,
+  workspaceKey: string,
+  region: WorkspaceRegion,
 ): number {
-  const stored = workspaceKey != null ? state.widthByRegion[workspaceKey]?.[region] : undefined;
+  const stored = state.widthByRegion[workspaceKey]?.[region];
   return clampRegionWidth(region, stored ?? REGION_CONSTRAINTS[region].default);
 }
 
 // Decide which cards render and how wide each side card is. The center is always
-// present; left follows its toggle whenever the shell is shown; right and
-// fileTree are workspace tools, so they additionally require a workspaceKey.
+// present; the left rail follows its toggle whenever the shell is shown and uses
+// the single global leftWidth; right and fileTree are workspace tools, so they
+// additionally require a workspaceKey and read their per-workspace width.
 export function selectVisibleRegions(
   state: ShellLayoutSnapshot,
   route: ShellRoute,
@@ -111,14 +122,14 @@ export function selectVisibleRegions(
     return regions;
   }
   if (state.leftOpen) {
-    regions.left = resolveRegionWidth(state, route.workspaceKey, "left");
+    regions.left = clampRegionWidth("left", state.leftWidth);
   }
   if (route.workspaceKey != null) {
     if (state.rightOpen) {
-      regions.right = resolveRegionWidth(state, route.workspaceKey, "right");
+      regions.right = resolveWorkspaceRegionWidth(state, route.workspaceKey, "right");
     }
     if (state.fileTreeOpen) {
-      regions.fileTree = resolveRegionWidth(state, route.workspaceKey, "fileTree");
+      regions.fileTree = resolveWorkspaceRegionWidth(state, route.workspaceKey, "fileTree");
     }
   }
   return regions;

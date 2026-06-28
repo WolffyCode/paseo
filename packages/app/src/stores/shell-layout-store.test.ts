@@ -23,6 +23,7 @@ describe("shell-layout-store", () => {
       leftOpen: true,
       rightOpen: false,
       fileTreeOpen: false,
+      leftWidth: 240,
       widthByRegion: {},
     });
   });
@@ -82,9 +83,18 @@ describe("shell-layout-store", () => {
     expect(state.fileTreeOpen).toBe(false);
   });
 
-  it("remembers a region width per workspace", () => {
-    useShellLayoutStore.getState().setRegionWidth("ws-a", "left", 200);
-    expect(useShellLayoutStore.getState().widthByRegion["ws-a"]?.left).toBe(200);
+  it("remembers a workspace tool's width per workspace", () => {
+    useShellLayoutStore.getState().setRegionWidth("ws-a", "right", 360);
+    expect(useShellLayoutStore.getState().widthByRegion["ws-a"]?.right).toBe(360);
+  });
+
+  it("setLeftWidth stores one global left width (clamped), never keyed by workspace", () => {
+    useShellLayoutStore.getState().setLeftWidth(280);
+    expect(useShellLayoutStore.getState().leftWidth).toBe(280);
+    useShellLayoutStore.getState().setLeftWidth(999); // above the left max of 300
+    expect(useShellLayoutStore.getState().leftWidth).toBe(300);
+    // The left width never lands in a per-workspace bucket — it is global.
+    expect(useShellLayoutStore.getState().widthByRegion).toEqual({});
   });
 
   it("keeps each workspace's remembered widths isolated", () => {
@@ -105,12 +115,12 @@ describe("shell-layout-store", () => {
     expect(widths?.fileTree).toBe(500);
   });
 
-  it("setting one region width preserves other remembered widths for the same workspace", () => {
+  it("setting one tool's width preserves other remembered widths for the same workspace", () => {
     const store = useShellLayoutStore.getState();
-    store.setRegionWidth("ws-a", "left", 200);
+    store.setRegionWidth("ws-a", "fileTree", 300);
     store.setRegionWidth("ws-a", "right", 600);
     const widths = useShellLayoutStore.getState().widthByRegion["ws-a"];
-    expect(widths?.left).toBe(200);
+    expect(widths?.fileTree).toBe(300);
     expect(widths?.right).toBe(600);
   });
 });
