@@ -173,12 +173,13 @@ describe("selectVisibleRegions", () => {
     expect(regions).toEqual({ main: true });
   });
 
-  it("on a settings route keeps the left region at the carried workspace's remembered width (no jump)", () => {
-    // Entering settings from ws-a (whose left was dragged to 200) must keep left at 200,
-    // not snap to the default — the left card width is a shared constant across content.
+  it("on a settings route keeps the left region at its global width (no jump on enter)", () => {
+    // The left card width is one global constant. Entering settings (left dragged to
+    // 200) must keep left at 200, not snap to the default — the layout is shared, so
+    // the left width never depends on whether the content is a workspace or settings.
     const snapshot = makeSnapshot({
       leftOpen: true,
-      widthByRegion: { "ws-a": { left: 200 } },
+      leftWidth: 200,
     });
     const regions = selectVisibleRegions(snapshot, settingsRoute("ws-a"));
     expect(regions.left).toBe(200);
