@@ -29,6 +29,7 @@ import {
   getTreeDepth,
   insertSplit,
   isRightToolPanelOpen,
+  MAX_PANE_TREE_DEPTH,
   moveTabToPaneInLayout,
   normalizeLayout,
   openTabOnSurface,
@@ -156,8 +157,6 @@ interface WorkspaceFocusRestorationState {
   tokens: string[];
 }
 
-const MAX_TREE_DEPTH = 4;
-
 function trimNonEmpty(value: string | null | undefined): string | null {
   if (typeof value !== "string") {
     return null;
@@ -278,7 +277,7 @@ export function createWorkspaceLayoutStore(
             now: Date.now(),
             focus: true,
             surface,
-            maxTreeDepth: MAX_TREE_DEPTH,
+            maxTreeDepth: MAX_PANE_TREE_DEPTH,
             createNodeId: ids.createNodeId,
           });
 
@@ -321,7 +320,7 @@ export function createWorkspaceLayoutStore(
             target: normalizedTarget,
             now: Date.now(),
             focus: true,
-            maxTreeDepth: MAX_TREE_DEPTH,
+            maxTreeDepth: MAX_PANE_TREE_DEPTH,
             createNodeId: ids.createNodeId,
           });
 
@@ -362,7 +361,7 @@ export function createWorkspaceLayoutStore(
             target: normalizedTarget,
             now: Date.now(),
             focus: false,
-            maxTreeDepth: MAX_TREE_DEPTH,
+            maxTreeDepth: MAX_PANE_TREE_DEPTH,
             createNodeId: ids.createNodeId,
           });
 
@@ -393,7 +392,7 @@ export function createWorkspaceLayoutStore(
             const current = getWorkspaceLayout(state.layoutByWorkspace, normalizedWorkspaceKey);
             const nextLayout = ensureRightToolPaneInLayout({
               layout: current,
-              maxTreeDepth: MAX_TREE_DEPTH,
+              maxTreeDepth: MAX_PANE_TREE_DEPTH,
             });
             return {
               ...withoutFocusRestoration(state, normalizedWorkspaceKey),
@@ -673,7 +672,7 @@ export function createWorkspaceLayoutStore(
             tabId: normalizedTabId,
             targetPaneId: normalizedTargetPaneId,
             position: input.position,
-            maxTreeDepth: MAX_TREE_DEPTH,
+            maxTreeDepth: MAX_PANE_TREE_DEPTH,
             createNodeId: ids.createNodeId,
           });
           if (!result) {
@@ -701,7 +700,7 @@ export function createWorkspaceLayoutStore(
             layout: getWorkspaceLayout(get().layoutByWorkspace, normalizedWorkspaceKey),
             targetPaneId: normalizedTargetPaneId,
             position: input.position,
-            maxTreeDepth: MAX_TREE_DEPTH,
+            maxTreeDepth: MAX_PANE_TREE_DEPTH,
             createNodeId: ids.createNodeId,
           });
           if (!result) {

@@ -209,12 +209,20 @@ export interface WorkspaceTabSnapshot {
   activeAgentIds: Iterable<string>;
   autoOpenAgentIds: Iterable<string>;
   knownAgentIds: Iterable<string>;
+  // Active child agents (observed + subconversations) that must live on the right
+  // tool panel. Reconcile relocates any of these that ended up in the main pane.
+  subagentIds?: Iterable<string>;
   knownTerminalIds?: Iterable<string>;
   standaloneTerminalIds: Iterable<string>;
   hasActivePendingDraftCreate?: boolean;
 }
 
 const DEFAULT_PANE_ID = MAIN_PANE_ID;
+
+// Max split-tree depth. The canonical layout is at most [main, tools] (depth 1), but
+// users can nest manual splits up to this cap. Single source shared with the layout
+// store so the limit is never spelled out twice.
+export const MAX_PANE_TREE_DEPTH = 4;
 
 function trimNonEmpty(value: string | null | undefined): string | null {
   if (typeof value !== "string") {
@@ -1989,6 +1997,42 @@ function addMissingEntityTabs(input: {
   return nextLayout;
 }
 
+// Heals a layout where a subagent (observed mirror / child conversation) ended up
+// in the single main conversation pane — relocating it to the right tool panel,
+// where every child belongs. Idempotent: a child already on the right (or absent) is
+// untouched. The right pane is created on demand so the tab is never silently
+// dropped; this is a correction of a misplaced tab, not an auto-open of a new tool.
+function relocateSubagentTabsToRight(input: {
+  layout: WorkspaceLayout;
+  subagentIds: ReadonlySet<string>;
+}): WorkspaceLayout {
+  if (input.subagentIds.size === 0) {
+    return input.layout;
+  }
+  const mainPaneId = getMainPaneId(input.layout);
+  if (!mainPaneId) {
+    return input.layout;
+  }
+  const misplaced = collectAllTabs(input.layout.root).filter(
+    (tab) =>
+      isAgentTab(tab) &&
+      input.subagentIds.has(tab.target.agentId) &&
+      findPaneContainingTab(input.layout.root, tab.tabId)?.id === mainPaneId,
+  );
+  if (misplaced.length === 0) {
+    return input.layout;
+  }
+  let layout = ensureRightToolPaneInLayout({
+    layout: input.layout,
+    maxTreeDepth: MAX_PANE_TREE_DEPTH,
+  });
+  for (const tab of misplaced) {
+    layout =
+      moveTabToPaneInLayout({ layout, tabId: tab.tabId, toPaneId: RIGHT_PANEL_PANE_ID }) ?? layout;
+  }
+  return layout;
+}
+
 export function reconcileWorkspaceTabs(
   state: WorkspaceTabReconcileState,
   snapshot: WorkspaceTabSnapshot,
@@ -2070,6 +2114,11 @@ export function reconcileWorkspaceTabs(
     representedAgentIds,
     standaloneTerminalIds,
     hasActivePendingDraftCreate: snapshot.hasActivePendingDraftCreate ?? false,
+  });
+
+  nextLayout = relocateSubagentTabsToRight({
+    layout: nextLayout,
+    subagentIds: normalizeStringSet(snapshot.subagentIds ?? []),
   });
 
   if (reconciledFocusedTabId) {

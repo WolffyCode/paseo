@@ -6,7 +6,12 @@ import {
   type WorkspaceAgentVisibility,
 } from "@/workspace-tabs/agent-visibility";
 import { selectSubagentsForParent } from "@/subagents/select";
-import { buildWorkspaceTabPersistenceKey, useWorkspaceLayoutStore } from "./workspace-layout-store";
+import { MAIN_PANE_ID, RIGHT_PANEL_PANE_ID } from "@/workspace-tabs/tab-surface";
+import {
+  buildWorkspaceTabPersistenceKey,
+  findPaneContainingTab,
+  useWorkspaceLayoutStore,
+} from "./workspace-layout-store";
 import { useSessionStore, type Agent } from "./session-store";
 
 vi.mock("@react-native-async-storage/async-storage", () => {
@@ -214,5 +219,38 @@ describe("workspace subagents integration", () => {
         new Set(),
       ),
     ).toEqual([]);
+  });
+
+  it("relocates a subagent tab that drifted into the main pane onto the right tool panel", () => {
+    const workspaceKey = buildWorkspaceTabPersistenceKey({
+      serverId: SERVER_ID,
+      workspaceId: WORKSPACE_ID,
+    });
+    expect(workspaceKey).toBeTruthy();
+
+    const parent = makeAgent({ id: "parent-agent", title: "Parent agent" });
+    const child = makeAgent({
+      id: "child-agent",
+      parentAgentId: "parent-agent",
+      title: "Child agent",
+    });
+    initializeAgents([parent, child]);
+
+    // The root parent auto-opens into main. Simulate the legacy bug where clicking
+    // the child also dropped it into the main pane (before navigation routed it right).
+    reconcileWorkspaceTabs(workspaceKey!, deriveVisibilityFromSession());
+    useWorkspaceLayoutStore
+      .getState()
+      .openTabFocused(workspaceKey!, { kind: "agent", agentId: "child-agent" }, "main");
+
+    const before = useWorkspaceLayoutStore.getState().layoutByWorkspace[workspaceKey!]!;
+    expect(findPaneContainingTab(before.root, "agent_child-agent")?.id).toBe(MAIN_PANE_ID);
+
+    // Reconcile heals it: subagents belong on the right tool panel, never main.
+    reconcileWorkspaceTabs(workspaceKey!, deriveVisibilityFromSession());
+
+    const after = useWorkspaceLayoutStore.getState().layoutByWorkspace[workspaceKey!]!;
+    expect(findPaneContainingTab(after.root, "agent_child-agent")?.id).toBe(RIGHT_PANEL_PANE_ID);
+    expect(findPaneContainingTab(after.root, "agent_parent-agent")?.id).toBe(MAIN_PANE_ID);
   });
 });
