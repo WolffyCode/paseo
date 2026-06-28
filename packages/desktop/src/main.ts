@@ -27,7 +27,8 @@ import { closeAllTransportSessions } from "./daemon/local-transport.js";
 import {
   registerWindowManager,
   getMainWindowChromeOptions,
-  getWindowBackgroundColor,
+  getWindowSurfaceOptions,
+  reapplyDarwinWindowSurface,
   resolveSystemWindowTheme,
   resolveWindowBounds,
   setupWindowResizeEvents,
@@ -407,7 +408,10 @@ async function createWindow(
     title,
     ...resolveWindowBounds(restoredWindowState),
     show: false,
-    backgroundColor: getWindowBackgroundColor(systemTheme),
+    // On mac this spreads transparent + vibrancy:'menu' + alpha-0 backgroundColor
+    // + visualEffectState so the NSVisualEffectView shows through the shell gutters;
+    // off mac it's a solid opaque backdrop. Mirrors CodePilot's window.
+    ...getWindowSurfaceOptions(process.platform, systemTheme),
     ...(iconPath ? { icon: iconPath } : {}),
     ...getMainWindowChromeOptions({
       platform: process.platform,
@@ -526,10 +530,14 @@ async function createWindow(
     const { loadReactDevTools } = await import("./features/react-devtools.js");
     await loadReactDevTools();
     await mainWindow.loadURL(DEV_SERVER_URL);
+    // loadURL resets the chromium compositor's backing colour to opaque, so the
+    // mac vibrancy surface must be re-attached after every load (no-op off mac).
+    reapplyDarwinWindowSurface(mainWindow, systemTheme);
     return mainWindow;
   }
 
   await mainWindow.loadURL(`${APP_SCHEME}://app/`);
+  reapplyDarwinWindowSurface(mainWindow, systemTheme);
   return mainWindow;
 }
 

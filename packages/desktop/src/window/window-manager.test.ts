@@ -7,6 +7,7 @@ import {
   DEFAULT_WINDOW_WIDTH,
   getMainWindowChromeOptions,
   getTitleBarOverlayOptions,
+  getWindowSurfaceOptions,
   readBadgeCount,
   readWindowControlsOverlayUpdate,
   readWindowTheme,
@@ -176,17 +177,40 @@ describe("window-manager", () => {
       });
     });
 
-    it("keeps the mac traffic-light path separate", () => {
+    it("uses hiddenInset + CodePilot traffic-light position on mac (no overlay — the transparent vibrancy window draws its own chrome)", () => {
       expect(
         getMainWindowChromeOptions({
           platform: "darwin",
           theme: "dark",
         }),
       ).toEqual({
-        titleBarStyle: "hidden",
-        titleBarOverlay: true,
-        trafficLightPosition: { x: 16, y: 14 },
+        titleBarStyle: "hiddenInset",
+        trafficLightPosition: { x: 20, y: 21 },
       });
+    });
+  });
+
+  describe("getWindowSurfaceOptions", () => {
+    it("returns a transparent vibrancy surface on mac so the NSVisualEffectView shows through the gutters", () => {
+      expect(getWindowSurfaceOptions("darwin", "light")).toEqual({
+        // '#00ffffff' (white rgb, alpha 0), not '#00000000' — Electron's macOS color
+        // parser treats rgb=0/alpha=0 as opaque white (issue #20357).
+        backgroundColor: "#00ffffff",
+        vibrancy: "menu",
+        transparent: true,
+        visualEffectState: "followWindow",
+      });
+    });
+
+    it("does not vary the mac vibrancy surface by renderer theme — the OS drives the material", () => {
+      expect(getWindowSurfaceOptions("darwin", "dark")).toEqual(
+        getWindowSurfaceOptions("darwin", "light"),
+      );
+    });
+
+    it("keeps a solid opaque backdrop off mac (no vibrancy/transparency)", () => {
+      expect(getWindowSurfaceOptions("win32", "dark")).toEqual({ backgroundColor: "#181B1A" });
+      expect(getWindowSurfaceOptions("linux", "light")).toEqual({ backgroundColor: "#ffffff" });
     });
   });
 

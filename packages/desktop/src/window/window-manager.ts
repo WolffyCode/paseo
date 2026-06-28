@@ -51,6 +51,56 @@ export function getWindowBackgroundColor(theme: WindowTheme): string {
   return theme === "dark" ? "#181B1A" : "#ffffff";
 }
 
+// Window backing surface for the BrowserWindow constructor. On macOS we go
+// transparent + vibrancy so the renderer's translucent shell (gutters between the
+// floating cards) reveals the NSVisualEffectView — matching CodePilot/Codex.app's
+// `menu` material. Off mac there is no window vibrancy, so we keep a solid opaque
+// backdrop. loadURL resets the compositor's backing colour, so the mac branch must
+// be re-applied at runtime after every load — see reapplyDarwinWindowSurface.
+export function getWindowSurfaceOptions(
+  platform: NodeJS.Platform,
+  theme: WindowTheme,
+): Pick<
+  Electron.BrowserWindowConstructorOptions,
+  "backgroundColor" | "vibrancy" | "transparent" | "visualEffectState"
+> {
+  if (platform === "darwin") {
+    return {
+      // '#00ffffff' (white rgb, alpha 0), not '#00000000' — Electron's macOS color
+      // parser treats rgb=0/alpha=0 as opaque white (issue #20357); this is the
+      // documented workaround that yields a transparent backing layer.
+      backgroundColor: "#00ffffff",
+      vibrancy: "menu",
+      transparent: true,
+      visualEffectState: "followWindow",
+    };
+  }
+  return { backgroundColor: getWindowBackgroundColor(theme) };
+}
+
+// Re-attach the macOS vibrancy surface after a navigation. loadURL resets the
+// chromium compositor's backing colour to opaque (the "white window after every
+// load" bug), so we mirror the constructor options at runtime. No-op off mac.
+export function reapplyDarwinWindowSurface(win: BrowserWindow, theme: WindowTheme): void {
+  if (process.platform !== "darwin") {
+    return;
+  }
+  const surface = getWindowSurfaceOptions("darwin", theme);
+  try {
+    if (surface.backgroundColor) {
+      win.setBackgroundColor(surface.backgroundColor);
+    }
+    if (surface.vibrancy) {
+      // The constructor-option vibrancy union still carries the deprecated
+      // 'appearance-based' member, which setVibrancy() rejects; our value is always
+      // 'menu', so narrow to the method's parameter type.
+      win.setVibrancy(surface.vibrancy as Parameters<BrowserWindow["setVibrancy"]>[0]);
+    }
+  } catch (err) {
+    console.warn("[vibrancy] runtime re-apply of the macOS window surface failed:", err);
+  }
+}
+
 export function createWindowControlsOverlayState(theme: WindowTheme): WindowControlsOverlayState {
   const overlay = getTitleBarOverlayOptions(theme);
   return {
@@ -76,10 +126,14 @@ export function getMainWindowChromeOptions(input: {
   "titleBarStyle" | "trafficLightPosition" | "frame" | "titleBarOverlay" | "autoHideMenuBar"
 > {
   if (input.platform === "darwin") {
+    // hiddenInset (not hidden) is what CodePilot/Codex.app use with the transparent
+    // vibrancy window — it insets the traffic lights into the chrome instead of an
+    // overlay strip. No titleBarOverlay: macOS draws the lights natively and the
+    // renderer reserves their footprint itself (useWindowControlsPadding).
+    // trafficLightPosition {20,21} matches CodePilot electron/main.ts.
     return {
-      titleBarStyle: "hidden",
-      titleBarOverlay: true,
-      trafficLightPosition: { x: 16, y: 14 },
+      titleBarStyle: "hiddenInset",
+      trafficLightPosition: { x: 20, y: 21 },
     };
   }
 
