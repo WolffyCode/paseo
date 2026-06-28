@@ -9,8 +9,8 @@ import {
   type ShellSnapshot,
 } from "./regions";
 
-// Snapshot builder — mirrors the shell-store state shape so the pure selectors can be
-// exercised without a live store. Defaults match s1 (conversation page, left open,
+// Snapshot builder — mirrors the ShellModel state shape so the pure selectors can be
+// exercised without a live model. Defaults match s1 (conversation page, left open,
 // right/tree closed, settings nav open, left width 240).
 function snap(overrides: Partial<ShellSnapshot> = {}): ShellSnapshot {
   return {

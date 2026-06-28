@@ -7,30 +7,25 @@ import {
   Settings,
   SlidersHorizontal,
 } from "lucide-react-native";
-import { withUnistyles } from "react-native-unistyles";
-import { SHELL_COLORS, type ShellScheme } from "../theme/shell-tokens";
+import type { ComponentType } from "react";
+import type { ShellTokens } from "../theme/theme-model";
 
-// Theme-reactive lucide icons + the two color mappers the shell uses. Wrapping each icon
-// with withUnistyles lets only the icon re-render on a light/dark flip; the mappers read
-// the registered theme's colorScheme discriminant and return the shell's own token color
-// (the shell never pulls an app color token).
+// The shell's lucide icons + the two token→color mappers. Icons are plain lucide
+// components; the owning component is an `observer` that reads themeModel.tokens and passes
+// the role color via the `color` prop, so an icon repaints on a scheme flip without any
+// per-icon theme wrapper (no withUnistyles, no Unistyles theme dependency).
 
-interface SchemeTheme {
-  colorScheme: ShellScheme;
-}
+export type ShellIcon = ComponentType<{ size?: number; color?: string }>;
 
-export const iconForeground = (theme: SchemeTheme) => ({
-  color: SHELL_COLORS[theme.colorScheme].foreground,
-});
+// foreground = active/primary; muted = resting/secondary. Components pick one from the
+// active token set in render.
+export const iconForeground = (tokens: ShellTokens): string => tokens.foreground;
+export const iconMuted = (tokens: ShellTokens): string => tokens.foregroundMuted;
 
-export const iconMuted = (theme: SchemeTheme) => ({
-  color: SHELL_COLORS[theme.colorScheme].foregroundMuted,
-});
-
-export const ThemedPanelLeft = withUnistyles(PanelLeft);
-export const ThemedPanelRight = withUnistyles(PanelRight);
-export const ThemedFolderTree = withUnistyles(FolderTree);
-export const ThemedSettings = withUnistyles(Settings);
-export const ThemedChevronLeft = withUnistyles(ChevronLeft);
-export const ThemedMessageSquare = withUnistyles(MessageSquare);
-export const ThemedSliders = withUnistyles(SlidersHorizontal);
+export const ShellPanelLeft: ShellIcon = PanelLeft;
+export const ShellPanelRight: ShellIcon = PanelRight;
+export const ShellFolderTree: ShellIcon = FolderTree;
+export const ShellSettings: ShellIcon = Settings;
+export const ShellChevronLeft: ShellIcon = ChevronLeft;
+export const ShellMessageSquare: ShellIcon = MessageSquare;
+export const ShellSliders: ShellIcon = SlidersHorizontal;

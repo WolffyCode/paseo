@@ -1,8 +1,8 @@
-// Pure derivation layer for the desktop shell: from one shell-store snapshot it
+// Pure derivation layer for the desktop shell: from one ShellModel snapshot it
 // answers "which region cards render and how wide" and "what does the top bar show".
-// It owns the shell's shared types and the width math, lives apart from the store and
+// It owns the shell's shared types and the width math, lives apart from the model and
 // from React, and never touches the DOM — so every rule here is unit-testable without
-// rendering. The view layer only reads these selectors; the store only writes state.
+// rendering. The model's computeds feed these selectors; the model owns the state.
 
 // The two main body pages. They are mutually exclusive — only one shows at a time.
 // "conversation" = left rail + canvas + right tools + file tree; "settings" = left
@@ -33,8 +33,8 @@ export const REGION_CONSTRAINTS: Record<ShellRegion, ShellRegionConstraints> = {
   fileTree: { min: 220, max: 500, default: 280 },
 };
 
-// The slice of shell-store the selectors read, kept as a plain shape so tests can
-// build snapshots without a live store. Three concerns in one truth source: page
+// The slice of ShellModel the selectors read, kept as a plain shape so tests can
+// build snapshots without a live model. Three concerns in one truth source: page
 // navigation, region visibility, and region geometry.
 export interface ShellSnapshot {
   currentPage: ShellPage;
