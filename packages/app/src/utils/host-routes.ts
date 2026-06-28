@@ -397,11 +397,8 @@ export function buildHostNewWorkspaceRoute(
 
 export const SETTINGS_SECTION_SLUGS = [
   "general",
-  "daemon",
   "appearance",
   "shortcuts",
-  "integrations",
-  "permissions",
   "diagnostics",
   "about",
 ] as const;
@@ -438,6 +435,65 @@ export function normalizeHostSectionSlug(value: string): HostSectionSlug | null 
     return value;
   }
   return LEGACY_HOST_SECTION_SLUGS[value] ?? null;
+}
+
+// The structured "where am I in settings" location. Single source of truth for the
+// settings nav highlight and the shell's content-kind decision so the route, the nav
+// and the shell never disagree about the active section.
+export type SettingsLocation =
+  | { kind: "root" }
+  | { kind: "app"; section: SettingsSectionSlug }
+  | { kind: "hostRoot"; serverId: string }
+  | { kind: "host"; serverId: string; section: HostSectionSlug }
+  | { kind: "projects" }
+  | { kind: "project"; projectKey: string };
+
+// True for the settings root and any settings sub-route (query/hash ignored). Segment-
+// aware so "/settings-export" is NOT treated as settings. Drives the shell's settings
+// content mode (left nav swap + tool suppression).
+export function isSettingsPathname(pathname: string): boolean {
+  const pathOnly = stripSearchAndHash(pathname);
+  return pathOnly === "/settings" || pathOnly.startsWith("/settings/");
+}
+
+// Parse a pathname into its settings location, or null if it is not a settings route.
+// Unknown app sections collapse to root; legacy host section slugs are normalized.
+export function parseSettingsRoute(pathname: string): SettingsLocation | null {
+  const pathOnly = stripSearchAndHash(pathname);
+  if (!isSettingsPathname(pathOnly)) {
+    return null;
+  }
+  const rest = pathOnly.slice("/settings".length).replace(/^\//, "");
+  if (rest.length === 0) {
+    return { kind: "root" };
+  }
+  const segments = rest.split("/");
+  const [first, second, third] = segments;
+
+  if (first === "hosts") {
+    const serverId = second ? trimNonEmpty(decodeSegment(second)) : null;
+    if (!serverId) {
+      return { kind: "root" };
+    }
+    if (!third) {
+      return { kind: "hostRoot", serverId };
+    }
+    const section = normalizeHostSectionSlug(decodeSegment(third));
+    return section ? { kind: "host", serverId, section } : { kind: "hostRoot", serverId };
+  }
+
+  if (first === "projects") {
+    if (!second) {
+      return { kind: "projects" };
+    }
+    const projectKey = trimNonEmpty(decodeSegment(second));
+    return projectKey ? { kind: "project", projectKey } : { kind: "projects" };
+  }
+
+  const appSection = decodeSegment(first ?? "");
+  return isSettingsSectionSlug(appSection)
+    ? { kind: "app", section: appSection }
+    : { kind: "root" };
 }
 
 export function buildSettingsRoute() {

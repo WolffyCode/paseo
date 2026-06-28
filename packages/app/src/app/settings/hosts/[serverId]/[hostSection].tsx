@@ -1,19 +1,22 @@
 import { useLocalSearchParams } from "expo-router";
-import { useMemo } from "react";
 import { HostRouteBootstrapBoundary } from "@/components/host-route-bootstrap-boundary";
-import SettingsScreen from "@/screens/settings-screen";
 import { normalizeHostSectionSlug } from "@/utils/host-routes";
+import { HostSectionContent } from "@/screens/settings-codepilot/section-content";
+import { SettingsRouteFrame } from "@/screens/settings-codepilot/settings-route-frame";
 
+// Host-scope settings section, scoped to `serverId`. Same shell contract as the app
+// sections; wrapped in the bootstrap boundary so the host runtime is connected first.
 export default function SettingsHostSectionRoute() {
   const params = useLocalSearchParams<{ serverId?: string; hostSection?: string }>();
   const serverId = typeof params.serverId === "string" ? params.serverId.trim() : "";
   const rawSection = typeof params.hostSection === "string" ? params.hostSection : "";
   const section = normalizeHostSectionSlug(rawSection) ?? "connections";
-  const view = useMemo(() => ({ kind: "host" as const, serverId, section }), [serverId, section]);
 
   return (
     <HostRouteBootstrapBoundary>
-      <SettingsScreen view={view} />
+      <SettingsRouteFrame>
+        <HostSectionContent serverId={serverId} section={section} />
+      </SettingsRouteFrame>
     </HostRouteBootstrapBoundary>
   );
 }

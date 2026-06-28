@@ -26,6 +26,13 @@ function workspaceRoute(workspaceKey = "ws-a"): ShellRoute {
   return { showsShell: true, workspaceKey };
 }
 
+// A settings route: the shell is shown and the last workspace key is still carried
+// (so the left region keeps the exact remembered width — no jump on enter/exit),
+// but the content is settings, not a workspace.
+function settingsRoute(workspaceKey: string | null = "ws-a"): ShellRoute {
+  return { showsShell: true, workspaceKey, content: "settings" };
+}
+
 describe("REGION_CONSTRAINTS", () => {
   // Locks the min/max/default each side region must obey (requirement §44, s3 legend).
   it("encodes the design min/max/default for each side region", () => {
@@ -165,6 +172,34 @@ describe("selectVisibleRegions", () => {
     const regions = selectVisibleRegions(snapshot, { showsShell: false, workspaceKey: "ws-a" });
     expect(regions).toEqual({ main: true });
   });
+
+  it("on a settings route keeps the left region at the carried workspace's remembered width (no jump)", () => {
+    // Entering settings from ws-a (whose left was dragged to 200) must keep left at 200,
+    // not snap to the default — the left card width is a shared constant across content.
+    const snapshot = makeSnapshot({
+      leftOpen: true,
+      widthByRegion: { "ws-a": { left: 200 } },
+    });
+    const regions = selectVisibleRegions(snapshot, settingsRoute("ws-a"));
+    expect(regions.left).toBe(200);
+  });
+
+  it("on a settings route never renders right or fileTree even with their toggles open", () => {
+    // Settings has no workspace tools; only the nav (left) + content (main) show.
+    const snapshot = makeSnapshot({ leftOpen: true, rightOpen: true, fileTreeOpen: true });
+    const regions = selectVisibleRegions(snapshot, settingsRoute("ws-a"));
+    expect(regions.left).toBe(240);
+    expect(regions.right).toBeUndefined();
+    expect(regions.fileTree).toBeUndefined();
+    expect(regions.main).toBe(true);
+  });
+
+  it("on a settings route still honors the left toggle (the nav can be collapsed)", () => {
+    const snapshot = makeSnapshot({ leftOpen: false });
+    const regions = selectVisibleRegions(snapshot, settingsRoute("ws-a"));
+    expect(regions.left).toBeUndefined();
+    expect(regions.main).toBe(true);
+  });
 });
 
 describe("selectVisibleRegions — left rail is one global width (problem ①)", () => {
@@ -266,5 +301,20 @@ describe("selectTopBarModel", () => {
     expect(model.left.enabled).toBe(false);
     expect(model.right.enabled).toBe(false);
     expect(model.fileTree.enabled).toBe(false);
+  });
+
+  it("on a settings route disables the workspace-tool toggles but keeps the left toggle", () => {
+    // Even though the last workspace key is carried for width memory, settings exposes
+    // no right/fileTree tools — only the nav toggle stays live.
+    const model = selectTopBarModel({
+      route: settingsRoute("ws-a"),
+      conversationTitle: null,
+      projectName: null,
+      branch: null,
+      layout: { leftOpen: true, rightOpen: true, fileTreeOpen: true },
+    });
+    expect(model.left).toEqual({ active: true, enabled: true });
+    expect(model.right).toEqual({ active: false, enabled: false });
+    expect(model.fileTree).toEqual({ active: false, enabled: false });
   });
 });

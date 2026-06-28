@@ -1,8 +1,11 @@
 import { useCallback, useMemo, type ReactNode } from "react";
 import { View } from "react-native";
+import { usePathname } from "expo-router";
 import { StyleSheet } from "react-native-unistyles";
 import { FileExplorerPane } from "@/components/file-explorer-pane";
 import { LeftSidebar } from "@/components/left-sidebar";
+import { SettingsSidebar } from "@/screens/settings-codepilot/settings-sidebar";
+import { isSettingsPathname } from "@/utils/host-routes";
 import {
   type ActiveWorkspaceSelection,
   useActiveWorkspaceSelection,
@@ -88,9 +91,18 @@ export function HomeShell({ children, selectedAgentId, chromeEnabled }: HomeShel
     [toggleRegion, workspaceKey, rightToolOpen, closeRightTool, openRightTool],
   );
 
+  // Settings renders inside the same shell: the left card swaps to the settings nav and
+  // the center to the route's settings content, while the frame (top bar + left width)
+  // stays a shared constant. The carried workspaceKey keeps the left width from jumping.
+  const pathname = usePathname();
+  const isSettings = isSettingsPathname(pathname);
   const route = useMemo<ShellRoute>(
-    () => ({ showsShell: chromeEnabled, workspaceKey }),
-    [chromeEnabled, workspaceKey],
+    () => ({
+      showsShell: chromeEnabled,
+      workspaceKey,
+      content: isSettings ? "settings" : "workspace",
+    }),
+    [chromeEnabled, workspaceKey, isSettings],
   );
   const visible = useMemo(
     () =>
@@ -128,7 +140,7 @@ export function HomeShell({ children, selectedAgentId, chromeEnabled }: HomeShel
       <View style={styles.row}>
         {visible.left != null ? (
           <RegionFrame kind="left" width={visible.left}>
-            <LeftSidebar selectedAgentId={selectedAgentId} />
+            {isSettings ? <SettingsSidebar /> : <LeftSidebar selectedAgentId={selectedAgentId} />}
           </RegionFrame>
         ) : null}
         {visible.left != null ? <RegionGutter region="left" currentWidth={visible.left} /> : null}

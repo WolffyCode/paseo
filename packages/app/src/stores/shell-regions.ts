@@ -26,13 +26,21 @@ export const REGION_CONSTRAINTS: Record<ShellRegion, ShellRegionConstraints> = {
   fileTree: { min: 220, max: 500, default: 280 },
 };
 
+// What the center card is showing. "workspace" is the conversation/canvas; "settings"
+// swaps the left card to the settings nav and the center to settings content while the
+// shell frame (top bar + fixed-width left card) stays a shared constant. Settings has
+// no workspace tools, so it never opens the right/fileTree cards.
+export type ShellContentKind = "workspace" | "settings";
+
 // What the current route grants the shell. `showsShell` is false pre-connection
 // (onboarding / splash) where only the center card may render. `workspaceKey`
 // gates the workspace-scoped tools (right + fileTree) and keys width memory; it
-// is null on routes with no active workspace.
+// is null on routes with no active workspace. `content` defaults to "workspace";
+// "settings" keeps the same left width (carried `workspaceKey`) but hides the tools.
 export interface ShellRoute {
   showsShell: boolean;
   workspaceKey: string | null;
+  content?: ShellContentKind;
 }
 
 // The slice of shell-layout-store the selectors read. Kept as a plain shape so
@@ -124,7 +132,9 @@ export function selectVisibleRegions(
   if (state.leftOpen) {
     regions.left = clampRegionWidth("left", state.leftWidth);
   }
-  if (route.workspaceKey != null) {
+  // Settings reuses the carried workspaceKey only to keep the left width stable; it
+  // exposes no workspace tools, so the right/fileTree cards stay closed there.
+  if (route.content !== "settings" && route.workspaceKey != null) {
     if (state.rightOpen) {
       regions.right = resolveWorkspaceRegionWidth(state, route.workspaceKey, "right");
     }
@@ -148,7 +158,10 @@ export function selectTopBarModel(input: {
 }): TopBarModel {
   const { route, layout } = input;
   const leftEnabled = route.showsShell;
-  const toolsEnabled = route.showsShell && route.workspaceKey != null;
+  // Workspace tools (right + fileTree) require a real workspace AND workspace content;
+  // settings carries a workspaceKey for width memory but exposes no tools.
+  const toolsEnabled =
+    route.showsShell && route.workspaceKey != null && route.content !== "settings";
   return {
     title: input.conversationTitle,
     projectName: input.projectName,
