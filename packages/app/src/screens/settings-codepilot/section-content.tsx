@@ -6,6 +6,8 @@ import { useTranslation } from "react-i18next";
 import type { HostSectionSlug, SettingsSectionSlug } from "@/utils/host-routes";
 import { SettingsDetail, SettingsEmpty } from "./primitives";
 import { AboutSection } from "./sections/about-section";
+import { AppearanceSection } from "./sections/appearance-section";
+import { GeneralSection } from "./sections/general-section";
 
 // A migrated-but-empty section: shows the real header so the nav ↔ content stay honest.
 function ComingSoon({ title, subtitle }: { title: string; subtitle?: string }) {
@@ -21,9 +23,9 @@ export function AppSectionContent({ section }: { section: SettingsSectionSlug })
   const { t } = useTranslation();
   switch (section) {
     case "general":
-      return <ComingSoon title={t("settings.sections.general")} />;
+      return <GeneralSection />;
     case "appearance":
-      return <ComingSoon title={t("settings.sections.appearance")} />;
+      return <AppearanceSection />;
     case "shortcuts":
       return <ComingSoon title={t("settings.sections.shortcuts")} />;
     case "diagnostics":
