@@ -11,8 +11,10 @@ import {
   decodeWorkspaceIdFromPathSegment,
   encodeFilePathForPathSegment,
   encodeWorkspaceIdForPathSegment,
+  isSettingsPathname,
   normalizeHostSectionSlug,
   parseHostAgentRouteFromPathname,
+  parseSettingsRoute,
   parseHostWorkspaceOpenIntentFromPathname,
   parseHostWorkspaceRouteFromPathname,
   parseWorkspaceOpenIntent,
@@ -190,5 +192,77 @@ describe("host settings section slugs", () => {
   it("maps old host settings sections to their new names", () => {
     expect(normalizeHostSectionSlug("orchestration")).toBe("agents");
     expect(normalizeHostSectionSlug("daemon")).toBe("host");
+  });
+});
+
+describe("isSettingsPathname", () => {
+  it("is true for the settings root and any settings sub-route", () => {
+    expect(isSettingsPathname("/settings")).toBe(true);
+    expect(isSettingsPathname("/settings/general")).toBe(true);
+    expect(isSettingsPathname("/settings/hosts/local/providers")).toBe(true);
+    expect(isSettingsPathname("/settings/general?from=topbar")).toBe(true);
+  });
+
+  it("is false for non-settings routes and false-prefix lookalikes", () => {
+    expect(isSettingsPathname("/")).toBe(false);
+    expect(isSettingsPathname("/welcome")).toBe(false);
+    expect(isSettingsPathname("/h/local/workspace/ws-1")).toBe(false);
+    expect(isSettingsPathname("/settings-export")).toBe(false);
+  });
+});
+
+describe("parseSettingsRoute", () => {
+  it("returns null for non-settings routes", () => {
+    expect(parseSettingsRoute("/h/local/workspace/ws-1")).toBeNull();
+    expect(parseSettingsRoute("/welcome")).toBeNull();
+  });
+
+  it("parses the settings root", () => {
+    expect(parseSettingsRoute("/settings")).toEqual({ kind: "root" });
+  });
+
+  it("parses an app section", () => {
+    expect(parseSettingsRoute("/settings/general")).toEqual({ kind: "app", section: "general" });
+    expect(parseSettingsRoute("/settings/about")).toEqual({ kind: "app", section: "about" });
+  });
+
+  it("falls back to root for an unknown app section", () => {
+    expect(parseSettingsRoute("/settings/bogus")).toEqual({ kind: "root" });
+  });
+
+  it("parses a host section and decodes the server id", () => {
+    expect(parseSettingsRoute("/settings/hosts/local/providers")).toEqual({
+      kind: "host",
+      serverId: "local",
+      section: "providers",
+    });
+    expect(parseSettingsRoute("/settings/hosts/my%20mac/usage")).toEqual({
+      kind: "host",
+      serverId: "my mac",
+      section: "usage",
+    });
+  });
+
+  it("normalizes a legacy host section slug", () => {
+    expect(parseSettingsRoute("/settings/hosts/local/daemon")).toEqual({
+      kind: "host",
+      serverId: "local",
+      section: "host",
+    });
+  });
+
+  it("parses a host root (no section)", () => {
+    expect(parseSettingsRoute("/settings/hosts/local")).toEqual({
+      kind: "hostRoot",
+      serverId: "local",
+    });
+  });
+
+  it("parses the projects list and a single project", () => {
+    expect(parseSettingsRoute("/settings/projects")).toEqual({ kind: "projects" });
+    expect(parseSettingsRoute("/settings/projects/remote%3Agithub.com%2Facme")).toEqual({
+      kind: "project",
+      projectKey: "remote:github.com/acme",
+    });
   });
 });
