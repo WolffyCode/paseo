@@ -397,11 +397,8 @@ export function buildHostNewWorkspaceRoute(
 
 export const SETTINGS_SECTION_SLUGS = [
   "general",
-  "daemon",
   "appearance",
   "shortcuts",
-  "integrations",
-  "permissions",
   "diagnostics",
   "about",
 ] as const;

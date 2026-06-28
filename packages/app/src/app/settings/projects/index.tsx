@@ -1,7 +1,7 @@
-import SettingsScreen from "@/screens/settings-screen";
+import ProjectsScreen from "@/screens/projects-screen";
 
-const PROJECTS_VIEW = { kind: "projects" as const };
+const PROJECTS_VIEW = { kind: "projects" } as const;
 
 export default function SettingsProjectsIndexRoute() {
-  return <SettingsScreen view={PROJECTS_VIEW} />;
+  return <ProjectsScreen view={PROJECTS_VIEW} />;
 }
