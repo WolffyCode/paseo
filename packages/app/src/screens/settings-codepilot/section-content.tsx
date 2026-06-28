@@ -7,7 +7,10 @@ import type { HostSectionSlug, SettingsSectionSlug } from "@/utils/host-routes";
 import { SettingsDetail, SettingsEmpty } from "./primitives";
 import { AboutSection } from "./sections/about-section";
 import { AppearanceSection } from "./sections/appearance-section";
+import { DiagnosticsSection } from "./sections/diagnostics-section";
 import { GeneralSection } from "./sections/general-section";
+import { HostConnectionsSection } from "./sections/host-connections-section";
+import { HostWorkspacesSection } from "./sections/host-workspaces-section";
 
 // A migrated-but-empty section: shows the real header so the nav ↔ content stay honest.
 function ComingSoon({ title, subtitle }: { title: string; subtitle?: string }) {
@@ -29,7 +32,7 @@ export function AppSectionContent({ section }: { section: SettingsSectionSlug })
     case "shortcuts":
       return <ComingSoon title={t("settings.sections.shortcuts")} />;
     case "diagnostics":
-      return <ComingSoon title={t("settings.sections.diagnostics")} />;
+      return <DiagnosticsSection />;
     case "about":
       return <AboutSection />;
     default:
@@ -46,14 +49,13 @@ export function HostSectionContent({
   section: HostSectionSlug;
 }) {
   const { t } = useTranslation();
-  void serverId;
   switch (section) {
     case "connections":
-      return <ComingSoon title={t("settings.hostSections.connections")} />;
+      return <HostConnectionsSection serverId={serverId} />;
     case "agents":
       return <ComingSoon title={t("settings.hostSections.agents")} />;
     case "workspaces":
-      return <ComingSoon title={t("settings.hostSections.workspaces")} />;
+      return <HostWorkspacesSection serverId={serverId} />;
     case "providers":
       return <ComingSoon title={t("settings.hostSections.providers")} />;
     case "usage":
