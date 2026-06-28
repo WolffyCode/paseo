@@ -3,10 +3,6 @@ import { useEarliestOnlineHostServerId, useHostRuntimeBootstrapState } from "@/a
 import { resolveStartupRoute } from "@/app/host-runtime-bootstrap";
 import { useHostRegistryStatus, useHosts } from "@/runtime/host-runtime";
 import { OnboardingScreen } from "@/screens/onboarding/onboarding-screen";
-import {
-  useIsLastWorkspaceSelectionHydrated,
-  useLastWorkspaceSelection,
-} from "@/stores/navigation-active-workspace-store";
 
 // Hosts the onboarding route while delegating host landing decisions to startup routing policy.
 export default function WelcomeRoute() {
@@ -14,8 +10,6 @@ export default function WelcomeRoute() {
   const anyOnlineHostServerId = useEarliestOnlineHostServerId();
   const hosts = useHosts();
   const hostRegistryStatus = useHostRegistryStatus();
-  const workspaceSelection = useLastWorkspaceSelection();
-  const isWorkspaceSelectionLoaded = useIsLastWorkspaceSelectionHydrated();
 
   const startupRoute = resolveStartupRoute({
     route: { kind: "welcome" },
@@ -23,8 +17,6 @@ export default function WelcomeRoute() {
     hostRegistryStatus,
     hosts,
     anyOnlineHostServerId,
-    workspaceSelection,
-    isWorkspaceSelectionLoaded,
   });
 
   if (startupRoute.kind === "redirect") {

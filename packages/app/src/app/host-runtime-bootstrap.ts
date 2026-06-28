@@ -1,12 +1,7 @@
-import type { ActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import type { DaemonStartResult } from "@/runtime/daemon-start-service";
 import type { HostRuntimeConnectionStatus } from "@/runtime/host-runtime";
 import type { Href } from "expo-router";
-import {
-  buildHostOpenProjectRoute,
-  buildHostRootRoute,
-  buildHostWorkspaceRoute,
-} from "@/utils/host-routes";
+import { buildHostNewWorkspaceRoute } from "@/utils/host-routes";
 
 export interface HostRuntimeBootstrapStore {
   boot: () => void;
@@ -270,8 +265,7 @@ interface ResolveStartupRouteBaseInput {
 export interface ResolveIndexStartupRouteInput extends ResolveStartupRouteBaseInput {
   route: IndexStartupRouteTarget;
   anyOnlineHostServerId: string | null;
-  workspaceSelection: ActiveWorkspaceSelection | null;
-  isWorkspaceSelectionLoaded: boolean;
+  isStartupStateHydrated: boolean;
   hasGivenUpWaitingForHost: boolean;
   hasSeenWelcome: boolean;
 }
@@ -283,8 +277,6 @@ export interface ResolveHostStartupRouteInput extends ResolveStartupRouteBaseInp
 export interface ResolveWelcomeStartupRouteInput extends ResolveStartupRouteBaseInput {
   route: WelcomeStartupRouteTarget;
   anyOnlineHostServerId: string | null;
-  workspaceSelection: ActiveWorkspaceSelection | null;
-  isWorkspaceSelectionLoaded: boolean;
 }
 
 export type ResolveStartupRouteInput =
@@ -310,31 +302,20 @@ function hostExists(hosts: readonly { serverId: string }[], serverId: string | n
   return hosts.some((host) => host.serverId === serverId);
 }
 
-// Resolves root startup to saved workspaces, saved hosts, onboarding, or splash in that priority order.
+// Resolves root startup deterministically: an online host always lands on a fresh new conversation (never a
+// restored/observed agent), a genuine first run shows the one-time welcome, a failed local connect drops to
+// onboarding recovery, and an in-flight connect waits on the splash.
 function resolveReadyIndexStartupRoute(input: ResolveIndexStartupRouteInput): StartupRouteDecision {
   if (!isIndexPathname(input.route.pathname)) {
     return { kind: "render" };
   }
 
-  if (!input.isWorkspaceSelectionLoaded) {
+  if (!input.isStartupStateHydrated) {
     return { kind: "splash" };
   }
 
-  const workspaceSelection = input.workspaceSelection;
-  if (workspaceSelection && hostExists(input.hosts, workspaceSelection.serverId)) {
-    return {
-      kind: "redirect",
-      href: buildHostWorkspaceRoute(workspaceSelection.serverId, workspaceSelection.workspaceId),
-    };
-  }
-
   if (input.anyOnlineHostServerId) {
-    return { kind: "redirect", href: buildHostRootRoute(input.anyOnlineHostServerId) };
-  }
-
-  const savedHostServerId = input.hosts[0]?.serverId ?? null;
-  if (savedHostServerId) {
-    return { kind: "redirect", href: buildHostRootRoute(savedHostServerId) };
+    return { kind: "redirect", href: buildHostNewWorkspaceRoute(input.anyOnlineHostServerId) };
   }
 
   if (!input.hasSeenWelcome) {
@@ -348,7 +329,7 @@ function resolveReadyIndexStartupRoute(input: ResolveIndexStartupRouteInput): St
   return { kind: "splash" };
 }
 
-// Keeps host routes mounted when possible and otherwise falls back to a valid host or onboarding.
+// Keeps host routes mounted when possible and otherwise lands a fresh new conversation on a valid host, or onboarding.
 function resolveReadyHostStartupRoute(input: ResolveHostStartupRouteInput): StartupRouteDecision {
   if (hostExists(input.hosts, input.route.serverId)) {
     return { kind: "render" };
@@ -356,35 +337,18 @@ function resolveReadyHostStartupRoute(input: ResolveHostStartupRouteInput): Star
 
   const fallbackServerId = input.hosts[0]?.serverId ?? null;
   if (fallbackServerId) {
-    return { kind: "redirect", href: buildHostOpenProjectRoute(fallbackServerId) };
+    return { kind: "redirect", href: buildHostNewWorkspaceRoute(fallbackServerId) };
   }
 
   return { kind: "redirect", href: WELCOME_ROUTE };
 }
 
-// Lets the onboarding route yield to the same persisted host landing policy without owning it in UI.
+// Lets onboarding render its connect phases until a host is online, then hands off to the shared new-conversation landing.
 function resolveReadyWelcomeStartupRoute(
   input: ResolveWelcomeStartupRouteInput,
 ): StartupRouteDecision {
-  if (!input.isWorkspaceSelectionLoaded) {
-    return { kind: "render" };
-  }
-
-  const workspaceSelection = input.workspaceSelection;
-  if (workspaceSelection && hostExists(input.hosts, workspaceSelection.serverId)) {
-    return {
-      kind: "redirect",
-      href: buildHostWorkspaceRoute(workspaceSelection.serverId, workspaceSelection.workspaceId),
-    };
-  }
-
   if (input.anyOnlineHostServerId) {
-    return { kind: "redirect", href: buildHostRootRoute(input.anyOnlineHostServerId) };
-  }
-
-  const savedHostServerId = input.hosts[0]?.serverId ?? null;
-  if (savedHostServerId) {
-    return { kind: "redirect", href: buildHostRootRoute(savedHostServerId) };
+    return { kind: "redirect", href: buildHostNewWorkspaceRoute(input.anyOnlineHostServerId) };
   }
 
   return { kind: "render" };

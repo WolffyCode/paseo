@@ -4,10 +4,6 @@ import { StartupSplashScreen } from "@/screens/startup-splash-screen";
 import { useEarliestOnlineHostServerId, useHostRuntimeBootstrapState } from "@/app/_layout";
 import { resolveStartupRoute } from "@/app/host-runtime-bootstrap";
 import { useHostRegistryStatus, useHosts } from "@/runtime/host-runtime";
-import {
-  useIsLastWorkspaceSelectionHydrated,
-  useLastWorkspaceSelection,
-} from "@/stores/navigation-active-workspace-store";
 import { useOnboardingStore, useOnboardingStoreHydrated } from "@/stores/onboarding-store";
 import { shouldUseDesktopDaemon } from "@/desktop/daemon/desktop-daemon";
 
@@ -19,8 +15,6 @@ export default function Index() {
   const anyOnlineHostServerId = useEarliestOnlineHostServerId();
   const hosts = useHosts();
   const hostRegistryStatus = useHostRegistryStatus();
-  const workspaceSelection = useLastWorkspaceSelection();
-  const isWorkspaceSelectionLoaded = useIsLastWorkspaceSelectionHydrated();
   const hasSeenWelcome = useOnboardingStore((state) => state.hasSeenWelcome);
   const isOnboardingStoreHydrated = useOnboardingStoreHydrated();
 
@@ -30,8 +24,7 @@ export default function Index() {
     hostRegistryStatus,
     hosts,
     anyOnlineHostServerId,
-    workspaceSelection,
-    isWorkspaceSelectionLoaded: isWorkspaceSelectionLoaded && isOnboardingStoreHydrated,
+    isStartupStateHydrated: isOnboardingStoreHydrated,
     hasGivenUpWaitingForHost: bootstrapState.hasGivenUpWaitingForHost,
     hasSeenWelcome,
   });

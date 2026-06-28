@@ -477,8 +477,7 @@ describe("resolveStartupRoute", () => {
     hostRegistryStatus: "ready" as const,
     hosts: [],
     anyOnlineHostServerId: null,
-    workspaceSelection: null,
-    isWorkspaceSelectionLoaded: true,
+    isStartupStateHydrated: true,
     hasGivenUpWaitingForHost: false,
     hasSeenWelcome: true,
   };
@@ -498,26 +497,24 @@ describe("resolveStartupRoute", () => {
     ).toEqual({ kind: "render" });
   });
 
-  it("keeps startup on the splash while the persisted workspace selection is loading", () => {
+  it("keeps startup on the splash until the welcome flag has hydrated", () => {
     expect(
       resolveStartupRoute({
         ...baseIndexInput,
         anyOnlineHostServerId: "server-1",
-        isWorkspaceSelectionLoaded: false,
+        isStartupStateHydrated: false,
       }),
     ).toEqual({ kind: "splash" });
   });
 
-  it("restores a saved workspace before the one-time welcome so upgraded users are not intercepted", () => {
+  it("lands a returning user on a fresh new conversation, never a restored workspace", () => {
     expect(
       resolveStartupRoute({
         ...baseIndexInput,
         hosts: [{ serverId: "server-1" }],
         anyOnlineHostServerId: "server-1",
-        workspaceSelection: { serverId: "server-1", workspaceId: "workspace-a" },
-        hasSeenWelcome: false,
       }),
-    ).toEqual({ kind: "redirect", href: "/h/server-1/workspace/workspace-a" });
+    ).toEqual({ kind: "redirect", href: "/h/server-1/new" });
   });
 
   it("keeps startup on the splash while the host registry is loading", () => {
@@ -529,59 +526,25 @@ describe("resolveStartupRoute", () => {
     ).toEqual({ kind: "splash" });
   });
 
-  it("does not treat loading hosts as an empty registry when a workspace is already restored", () => {
-    expect(
-      resolveStartupRoute({
-        ...baseIndexInput,
-        hostRegistryStatus: "loading",
-        workspaceSelection: { serverId: "server-1", workspaceId: "workspace-a" },
-        hasGivenUpWaitingForHost: true,
-      }),
-    ).toEqual({ kind: "splash" });
-  });
-
-  it("restores the saved workspace only after the host registry proves the host exists", () => {
-    expect(
-      resolveStartupRoute({
-        ...baseIndexInput,
-        hosts: [{ serverId: "server-1" }],
-        workspaceSelection: { serverId: "server-1", workspaceId: "workspace-a" },
-      }),
-    ).toEqual({ kind: "redirect", href: "/h/server-1/workspace/workspace-a" });
-  });
-
-  it("falls back to a saved host when the restored workspace host is no longer saved", () => {
-    expect(
-      resolveStartupRoute({
-        ...baseIndexInput,
-        workspaceSelection: { serverId: "server-saved", workspaceId: "workspace-a" },
-        hosts: [{ serverId: "server-next" }],
-        hasGivenUpWaitingForHost: true,
-      }),
-    ).toEqual({ kind: "redirect", href: "/h/server-next" });
-  });
-
-  it("redirects to the online host when no saved workspace is selected", () => {
+  it("lands on a fresh new conversation as soon as a host is online", () => {
     expect(
       resolveStartupRoute({
         ...baseIndexInput,
         anyOnlineHostServerId: "srv-desktop",
       }),
-    ).toEqual({ kind: "redirect", href: "/h/srv-desktop" });
+    ).toEqual({ kind: "redirect", href: "/h/srv-desktop/new" });
   });
 
-  it("keeps a known connecting host in app-owned routing instead of showing welcome", () => {
+  it("waits on the splash while a returning user is still connecting to a saved host", () => {
     expect(
       resolveStartupRoute({
         ...baseIndexInput,
         hosts: [{ serverId: "server-saved" }],
-        hasGivenUpWaitingForHost: true,
-        hasSeenWelcome: false,
       }),
-    ).toEqual({ kind: "redirect", href: "/h/server-saved" });
+    ).toEqual({ kind: "splash" });
   });
 
-  it("routes a first-run empty root startup to onboarding only after no host can land", () => {
+  it("shows the one-time welcome on a genuine first run before any host is live", () => {
     expect(
       resolveStartupRoute({
         ...baseIndexInput,
@@ -590,7 +553,18 @@ describe("resolveStartupRoute", () => {
     ).toEqual({ kind: "redirect", href: "/welcome" });
   });
 
-  it("routes an empty root startup to onboarding after waiting for local hosts", () => {
+  it("never lets a saved-but-offline host suppress the first-run welcome", () => {
+    expect(
+      resolveStartupRoute({
+        ...baseIndexInput,
+        hosts: [{ serverId: "server-saved" }],
+        hasGivenUpWaitingForHost: true,
+        hasSeenWelcome: false,
+      }),
+    ).toEqual({ kind: "redirect", href: "/welcome" });
+  });
+
+  it("routes an empty root startup to onboarding recovery after waiting for local hosts", () => {
     expect(
       resolveStartupRoute({
         ...baseIndexInput,
@@ -644,14 +618,14 @@ describe("resolveStartupRoute", () => {
     ).toEqual({ kind: "render" });
   });
 
-  it("sends removed host routes to a saved host instead of welcome", () => {
+  it("sends removed host routes to a saved host's new conversation instead of welcome", () => {
     expect(
       resolveStartupRoute({
         ...baseHostInput,
         route: { kind: "host", serverId: "server-removed" },
         hosts: [{ serverId: "server-next" }],
       }),
-    ).toEqual({ kind: "redirect", href: "/h/server-next/open-project" });
+    ).toEqual({ kind: "redirect", href: "/h/server-next/new" });
   });
 
   it("shows welcome from a host route only after the registry proves no hosts exist", () => {
@@ -663,7 +637,7 @@ describe("resolveStartupRoute", () => {
     ).toEqual({ kind: "redirect", href: "/welcome" });
   });
 
-  it("does not let onboarding intercept the homepage when a host comes online", () => {
+  it("lets an online host land home even before the welcome flag was seen", () => {
     expect(
       resolveStartupRoute({
         ...baseIndexInput,
@@ -671,10 +645,10 @@ describe("resolveStartupRoute", () => {
         hasGivenUpWaitingForHost: true,
         hasSeenWelcome: false,
       }),
-    ).toEqual({ kind: "redirect", href: "/h/srv-online" });
+    ).toEqual({ kind: "redirect", href: "/h/srv-online/new" });
   });
 
-  it("lets the onboarding route reuse saved workspace landing without component-owned home redirects", () => {
+  it("lands the onboarding route on a fresh new conversation once a host is online", () => {
     expect(
       resolveStartupRoute({
         route: { kind: "welcome" },
@@ -682,10 +656,20 @@ describe("resolveStartupRoute", () => {
         hostRegistryStatus: "ready",
         hosts: [{ serverId: "server-1" }],
         anyOnlineHostServerId: "server-1",
-        workspaceSelection: { serverId: "server-1", workspaceId: "workspace-a" },
-        isWorkspaceSelectionLoaded: true,
       }),
-    ).toEqual({ kind: "redirect", href: "/h/server-1/workspace/workspace-a" });
+    ).toEqual({ kind: "redirect", href: "/h/server-1/new" });
+  });
+
+  it("renders the onboarding route while a saved host is still connecting", () => {
+    expect(
+      resolveStartupRoute({
+        route: { kind: "welcome" },
+        startupBlocker: { kind: "none" },
+        hostRegistryStatus: "ready",
+        hosts: [{ serverId: "server-1" }],
+        anyOnlineHostServerId: null,
+      }),
+    ).toEqual({ kind: "render" });
   });
 
   it("renders the onboarding route when startup has no host landing target", () => {
@@ -696,8 +680,6 @@ describe("resolveStartupRoute", () => {
         hostRegistryStatus: "ready",
         hosts: [],
         anyOnlineHostServerId: null,
-        workspaceSelection: null,
-        isWorkspaceSelectionLoaded: true,
       }),
     ).toEqual({ kind: "render" });
   });
