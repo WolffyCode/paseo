@@ -287,7 +287,15 @@ export function ConversationTree({
 
   const handleSelectAgent = useCallback(
     (node: ConversationTreeNode) => {
-      navigateToAgent({ serverId: node.serverId, agentId: node.id, currentPathname: pathname });
+      navigateToAgent({
+        serverId: node.serverId,
+        agentId: node.id,
+        currentPathname: pathname,
+        // Subagents (observed mirrors + child conversations) open in the right tool
+        // panel; the main pane stays the single root conversation, switched here in
+        // the tree rather than via canvas tabs.
+        surface: node.kind === "subagent" ? "right" : undefined,
+      });
       onNavigate?.();
     },
     [pathname, onNavigate],

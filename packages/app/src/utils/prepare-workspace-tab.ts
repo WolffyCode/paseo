@@ -4,11 +4,15 @@ import {
   type WorkspaceTabTarget,
 } from "@/stores/workspace-tabs-store";
 import { buildHostWorkspaceRoute } from "@/utils/host-routes";
+import type { TabSurface } from "@/workspace-tabs/tab-surface";
 
 export interface PrepareWorkspaceTabInput {
   serverId: string;
   workspaceId: string;
   target: WorkspaceTabTarget;
+  // Overrides the tab's default surface (see `tabSurfaceForKind`). Subagents pass
+  // "right" so they open in the tool panel instead of the single main pane.
+  surface?: TabSurface;
   pin?: boolean;
 }
 
@@ -17,7 +21,11 @@ export interface NavigateToPreparedWorkspaceTabInput extends PrepareWorkspaceTab
 }
 
 export interface PrepareWorkspaceTabDeps {
-  openTabFocused: (workspaceKey: string, target: WorkspaceTabTarget) => string | null;
+  openTabFocused: (
+    workspaceKey: string,
+    target: WorkspaceTabTarget,
+    surface?: TabSurface,
+  ) => string | null;
   pinAgent: (workspaceKey: string, agentId: string) => void;
 }
 
@@ -47,7 +55,7 @@ export function prepareWorkspaceTab(
       workspaceId: input.workspaceId,
     }) ?? "";
 
-  deps.openTabFocused(key, target);
+  deps.openTabFocused(key, target, input.surface);
 
   if (input.pin && target.kind === "agent") {
     deps.pinAgent(key, target.agentId);

@@ -1,6 +1,7 @@
 import { buildHostAgentDetailRoute } from "@/utils/host-routes";
 import { normalizeWorkspaceOpaqueId } from "@/utils/workspace-identity";
 import type { NavigateToPreparedWorkspaceTabInput } from "@/utils/prepare-workspace-tab";
+import type { TabSurface } from "@/workspace-tabs/tab-surface";
 
 export interface NavigateToAgentInput {
   serverId: string;
@@ -10,6 +11,10 @@ export interface NavigateToAgentInput {
   workspaceId?: string | null;
   currentPathname?: string | null;
   pin?: boolean;
+  // Forces which surface the conversation opens on. Subagents (observed mirrors +
+  // child conversations) pass "right" so they land in the right tool panel; root
+  // conversations omit it and default to the single `main` pane.
+  surface?: TabSurface;
 }
 
 export interface AgentNavTarget {
@@ -54,6 +59,7 @@ export function resolveNavigateToAgent(
     serverId: input.serverId,
     workspaceId,
     target: { kind: "agent", agentId: input.agentId },
+    surface: input.surface,
     currentPathname: input.currentPathname,
     pin: input.pin,
   });
