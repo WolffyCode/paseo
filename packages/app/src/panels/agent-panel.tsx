@@ -56,6 +56,7 @@ import { useKeyboardShiftStyle } from "@/hooks/use-keyboard-shift-style";
 import { useContainerWidthBelow } from "@/hooks/use-container-width";
 import {
   clearHistorySyncErrorAfterSuccessfulSync,
+  deriveNeedsAuthoritativeSync,
   reconcileMissingAgentStateWithPresentAgent,
 } from "@/panels/agent-panel-load-state";
 import { useIsComposerDock } from "@/panels/composer-dock-context";
@@ -927,12 +928,16 @@ function ChatAgentContent({
     const initKey = getInitKey(serverId, agentId);
     return Boolean(getInitDeferred(initKey));
   }, [agentId, isInitializing, serverId]);
-  const needsAuthoritativeSync = useMemo(() => {
-    if (!agentId) {
-      return false;
-    }
-    return agentHistorySyncGeneration < historySyncGeneration;
-  }, [agentHistorySyncGeneration, agentId, historySyncGeneration]);
+  const needsAuthoritativeSync = useMemo(
+    () =>
+      deriveNeedsAuthoritativeSync({
+        agentId,
+        observed: agentState.observed,
+        agentHistorySyncGeneration,
+        historySyncGeneration,
+      }),
+    [agentId, agentState.observed, agentHistorySyncGeneration, historySyncGeneration],
+  );
 
   const agent = useMemo<AgentScreenAgent | null>(
     () => buildChatAgentFromState(agentState, projectPlacement),

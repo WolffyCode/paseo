@@ -104,6 +104,27 @@ describe("ensureAgentIsInitialized", () => {
     );
     vi.useRealTimers();
   });
+
+  it("never fetches the timeline for an observed sub-agent", () => {
+    const client = makeClient();
+    useSessionStore.getState().initializeSession(serverId, client as never);
+    const observedId = "observed:toolu_01AJxSotfSMyzuunxiVCuuHx";
+
+    void ensureAgentIsInitialized({
+      serverId,
+      agentId: observedId,
+      client: client as never,
+      setAgentInitializing: bindSetAgentInitializing(),
+    });
+
+    // Observed sub-agents are read-only mirrors: their timeline streams in with the
+    // parent. Fetching it would resume them server-side and throw "Unknown agent".
+    expect(client.fetchAgentTimeline).not.toHaveBeenCalled();
+    expect(getInitDeferred(getInitKey(serverId, observedId))).toBeUndefined();
+    expect(useSessionStore.getState().sessions[serverId]?.initializingAgents.get(observedId)).toBe(
+      false,
+    );
+  });
 });
 
 describe("refreshAgent", () => {

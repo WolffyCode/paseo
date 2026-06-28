@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
+import { isObservedAgentId } from "@getpaseo/protocol/observed-agent-id";
 import { useSessionStore } from "@/stores/session-store";
 import {
   attachInitTimeout,
@@ -26,6 +27,14 @@ export interface EnsureAgentIsInitializedInput {
 
 export function ensureAgentIsInitialized(input: EnsureAgentIsInitializedInput): Promise<void> {
   const { serverId, agentId, client, setAgentInitializing } = input;
+  // Observed sub-agents are read-only mirrors: their timeline streams in with the
+  // parent agent and is never fetched. Treat them as already initialized so the
+  // screen renders the streamed timeline — fetching would resume them server-side
+  // and throw "Unknown agent" for these sessionless ids.
+  if (isObservedAgentId(agentId)) {
+    setAgentInitializing(agentId, false);
+    return Promise.resolve();
+  }
   const key = getInitKey(serverId, agentId);
   const existing = getInitDeferred(key);
   if (existing) {
