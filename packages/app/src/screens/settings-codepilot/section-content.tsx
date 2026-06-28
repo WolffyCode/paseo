@@ -1,32 +1,22 @@
 // Section registry — the single switch from a route slug to the codePilot content
-// component that fills the detail pane. As each section is migrated it replaces its
-// `ComingSoon` placeholder here; until then the placeholder still renders the real
-// detail scaffold (title + subtitle) so the shell reads correctly.
-import { useTranslation } from "react-i18next";
+// component that fills the detail pane. Every App + Host section is migrated, so there
+// is no placeholder: the slug maps directly to its section component.
 import type { HostSectionSlug, SettingsSectionSlug } from "@/utils/host-routes";
-import { SettingsDetail, SettingsEmpty } from "./primitives";
 import { AboutSection } from "./sections/about-section";
 import { AppearanceSection } from "./sections/appearance-section";
 import { DiagnosticsSection } from "./sections/diagnostics-section";
 import { GeneralSection } from "./sections/general-section";
 import { HostAgentsSection } from "./sections/host-agents-section";
 import { HostConnectionsSection } from "./sections/host-connections-section";
+import { HostProvidersSection } from "./sections/host-providers-section";
+import { HostSettingsSection } from "./sections/host-settings-section";
 import { HostTerminalsSection } from "./sections/host-terminals-section";
+import { HostUsageSection } from "./sections/host-usage-section";
 import { HostWorkspacesSection } from "./sections/host-workspaces-section";
 import { ShortcutsSection } from "./sections/shortcuts-section";
 
-// A migrated-but-empty section: shows the real header so the nav ↔ content stay honest.
-function ComingSoon({ title, subtitle }: { title: string; subtitle?: string }) {
-  return (
-    <SettingsDetail title={title} subtitle={subtitle}>
-      <SettingsEmpty message="该设置段正在迁移到新的 codePilot 界面。" />
-    </SettingsDetail>
-  );
-}
-
 // Render the App-scope section for `section`.
 export function AppSectionContent({ section }: { section: SettingsSectionSlug }) {
-  const { t } = useTranslation();
   switch (section) {
     case "general":
       return <GeneralSection />;
@@ -39,7 +29,7 @@ export function AppSectionContent({ section }: { section: SettingsSectionSlug })
     case "about":
       return <AboutSection />;
     default:
-      return <ComingSoon title={t("settings.sections.general")} />;
+      return <GeneralSection />;
   }
 }
 
@@ -51,7 +41,6 @@ export function HostSectionContent({
   serverId: string;
   section: HostSectionSlug;
 }) {
-  const { t } = useTranslation();
   switch (section) {
     case "connections":
       return <HostConnectionsSection serverId={serverId} />;
@@ -60,14 +49,14 @@ export function HostSectionContent({
     case "workspaces":
       return <HostWorkspacesSection serverId={serverId} />;
     case "providers":
-      return <ComingSoon title={t("settings.hostSections.providers")} />;
+      return <HostProvidersSection serverId={serverId} />;
     case "usage":
-      return <ComingSoon title={t("settings.hostSections.usage")} />;
+      return <HostUsageSection serverId={serverId} />;
     case "terminals":
       return <HostTerminalsSection serverId={serverId} />;
     case "host":
-      return <ComingSoon title={t("settings.hostSections.host")} />;
+      return <HostSettingsSection serverId={serverId} />;
     default:
-      return <ComingSoon title={t("settings.hostSections.connections")} />;
+      return <HostConnectionsSection serverId={serverId} />;
   }
 }
