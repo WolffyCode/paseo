@@ -625,7 +625,10 @@ const codePilotLightColors = {
   surfaceSidebar: "#f6f8fa",
   surfaceSidebarHover: "#eaeef2", // selection — light gray, NOT black
   surfaceWorkspace: "#ffffff",
-  surfaceShell: "#e9edf1", // window vibrancy backdrop base (matches the design body)
+  // Translucent (not solid) so the macOS window vibrancy shows through the gutters +
+  // top bar between the floating cards. Off-mac it composites over the solid white
+  // body, landing on the same cool-grey the design body (#e9edf1) used.
+  surfaceShell: "rgba(233, 237, 241, 0.72)",
   sidebarTranslucent: "rgba(255, 255, 255, 0.58)", // left card frosted surface
   foreground: "#1f2328",
   foregroundMuted: "#59636e",
