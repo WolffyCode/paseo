@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from "react";
 import { View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
-import { isWeb } from "@/constants/platform";
+import { CARD_RADIUS, WEB_CARD_SHADOW, WEB_FROSTED } from "@/styles/card-surface";
 
 export type RegionFrameKind = "left" | "main" | "right" | "fileTree";
 
@@ -16,36 +16,15 @@ export type RegionFrameKind = "left" | "main" | "right" | "fileTree";
 interface RegionFrameProps {
   kind: RegionFrameKind;
   width?: number;
-  // Pre-connection passthrough for the center frame: render children full-bleed with no card
-  // chrome while keeping this node's element type and tree position identical to the chromed
-  // card. That stability is what lets the route navigator mounted inside it survive the
-  // chrome-disabled → chrome-enabled flip without remounting. Only meaningful for kind="main".
+  // Center frame as a chrome-less, transparent gutter-host: render children full-bleed while
+  // keeping this node's element type and tree position identical to the chromed card. Used both
+  // pre-connection (splash / onboarding fill it edge to edge) and on the workspace route (the
+  // SplitContainer brings its own per-pane cards, which float on the periwinkle backdrop with
+  // real gutters between them). That node stability is what lets the route navigator mounted
+  // inside it survive the chrome ↔ bare flips without remounting. Only meaningful for kind="main".
   bare?: boolean;
   children: ReactNode;
 }
-
-// CodePilot's two-layer card shadow flattened onto Helm's single overflow:hidden
-// card. (overflow:hidden — unlike clip-path — does NOT crop an outer box-shadow, so
-// one node is enough; CodePilot split frame/surface only to dodge clip-path cropping
-// its own shadow.) Outer: three diffuse drops (rgba .06) for the lift. Inset: a 1px
-// white highlight ring (rgba 255,255,255,.18) — the visible edge, NOT a grey border.
-// Web-only; native falls back to the RN shadow object in `card`.
-const WEB_CARD_SHADOW = isWeb
-  ? ({
-      boxShadow:
-        "0 1px 1px -0.5px rgba(0,0,0,0.06), 0 3px 3px -1.5px rgba(0,0,0,0.06), 0 6px 6px -3px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.18)",
-    } as object)
-  : null;
-
-// backdrop-filter is web-only CSS (no native equivalent); the frosted left card
-// degrades to its solid translucent color on native. blur(28px) saturate(1.5)
-// matches CodePilot's --platform-surface-sidebar treatment over window vibrancy.
-const WEB_FROSTED = isWeb
-  ? ({
-      backdropFilter: "blur(28px) saturate(1.5)",
-      WebkitBackdropFilter: "blur(28px) saturate(1.5)",
-    } as object)
-  : null;
 
 export function RegionFrame({ kind, width, bare = false, children }: RegionFrameProps) {
   styles.useVariants({ kind });
@@ -67,10 +46,8 @@ export function RegionFrame({ kind, width, bare = false, children }: RegionFrame
 const styles = StyleSheet.create((theme) => ({
   card: {
     height: "100%",
-    // 14px = CodePilot's floating-card radius (globals.css darwin profile). It sits
-    // between token xl(12) and 2xl(16), so it's inlined as the card-specific value
-    // rather than bent onto a general radius step.
-    borderRadius: 14,
+    // CodePilot's floating-card radius, shared with the workspace split panes via card-surface.
+    borderRadius: CARD_RADIUS,
     overflow: "hidden",
     flexDirection: "column",
     // Native fallback lift only — on web WEB_CARD_SHADOW overrides the box-shadow.

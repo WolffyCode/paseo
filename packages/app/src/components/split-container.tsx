@@ -34,6 +34,7 @@ import { View, Text, type LayoutChangeEvent } from "react-native";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { ResizeHandle } from "@/components/resize-handle";
+import { CARD_RADIUS, WEB_CARD_SHADOW } from "@/styles/card-surface";
 import { shouldFocusPaneFromEventTarget } from "@/components/split-container-pane-focus";
 import { useWindowControlsPadding } from "@/utils/desktop-window";
 import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
@@ -1082,9 +1083,12 @@ function SplitPaneView({
     () => [styles.paneTabs, { paddingLeft: padding.left, paddingRight: padding.right }],
     [padding.left, padding.right],
   );
+  // Pane card surface = the shared radius (in styles.pane) + the web card shadow / inset ring,
+  // matching the home-shell region cards so every Helm surface reads as one floating-card model.
+  const paneCardStyle = useMemo(() => [styles.pane, WEB_CARD_SHADOW], []);
 
   const paneBody = (
-    <View ref={paneRef} collapsable={false} style={styles.pane}>
+    <View ref={paneRef} collapsable={false} style={paneCardStyle}>
       {renderPaneHeader?.(pane.id)}
       {showTabBar ? (
         <View style={paneTabsStyle}>
@@ -1226,6 +1230,10 @@ const styles = StyleSheet.create((theme) => ({
     minWidth: 0,
     minHeight: 0,
   },
+  // Each split pane is a floating card on the home-shell periwinkle backdrop (desktop): the shared
+  // 14px radius + the card shadow/inset-ring (applied as WEB_CARD_SHADOW where the pane is rendered)
+  // make adjacent panes — e.g. the conversation and the right tool panel — read as separate cards
+  // with a real gutter between them, instead of one slab split by a hairline divider.
   pane: {
     position: "relative",
     flex: 1,
@@ -1233,6 +1241,7 @@ const styles = StyleSheet.create((theme) => ({
     minHeight: 0,
     backgroundColor: theme.colors.surface0,
     overflow: "hidden",
+    borderRadius: CARD_RADIUS,
   },
   // Animated wrapper around the right tool pane so it slides in/out on expand/collapse.
   paneFill: {

@@ -54,4 +54,46 @@ describe("codePilot theme tokens", () => {
     expect(codePilotDark.colors.surfaceShell).toBeDefined();
     expect(codePilotDark.colors.sidebarTranslucent).toBeDefined();
   });
+
+  // The home-shell window backdrop (`surfaceShell`) shows through the gutters between the
+  // floating cards. The chairman's complaint: the old cool-grey (rgba 233,237,241) reads as
+  // "灰白". The CodePilot reference floats white cards on the macOS window vibrancy; Helm tints
+  // that backdrop a translucent periwinkle so it reads light-blue while still letting the
+  // vibrancy/desktop show through. These assertions make a regression back to grey impossible.
+  it("home-shell backdrop is a translucent periwinkle — blue-leaning, not the old grey", () => {
+    const light = parseRgba(codePilotLight.colors.surfaceShell);
+    expect(light).not.toBeNull();
+    if (!light) {
+      return;
+    }
+    // Periwinkle = blue clearly dominant. The old grey kept every channel within ~8 of each
+    // other; require a real blue lead so a grey value can never satisfy this again.
+    expect(light.b - light.r).toBeGreaterThanOrEqual(20);
+    // Blue sits above green too (periwinkle/violet bias), ruling out teal or neutral grey.
+    expect(light.b).toBeGreaterThan(light.g);
+    // Translucent so macOS vibrancy reads through the gutters.
+    expect(light.a).toBeLessThan(1);
+  });
+
+  it("home-shell backdrop is translucent in dark too (vibrancy shows through the gutters)", () => {
+    const dark = parseRgba(codePilotDark.colors.surfaceShell);
+    expect(dark).not.toBeNull();
+    expect(dark?.a).toBeLessThan(1);
+  });
 });
+
+// Parse an `rgb()`/`rgba()` color into channels + alpha (alpha defaults to 1 for `rgb`).
+// Returns null for any non-rgb string (e.g. hex), so a test can assert "this token is a
+// translucent rgba" simply by requiring a non-null parse with alpha < 1.
+function parseRgba(color: string): { r: number; g: number; b: number; a: number } | null {
+  const match = color.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/);
+  if (!match) {
+    return null;
+  }
+  return {
+    r: Number(match[1]),
+    g: Number(match[2]),
+    b: Number(match[3]),
+    a: match[4] != null ? Number(match[4]) : 1,
+  };
+}

@@ -152,13 +152,15 @@ export function ResizeHandle({
     setActive(false);
   }, []);
 
+  // The gutter track is transparent at rest (like the home-shell RegionGutter) so the periwinkle
+  // backdrop reads through the seam between the two floating pane cards; the accent line only
+  // surfaces on hover/drag. No rest divider — the card radius + shadow already separate the panes.
   const handleStyle = useMemo(
     () => [
       styles.handle,
       direction === "horizontal" ? styles.handleHorizontal : styles.handleVertical,
-      { backgroundColor: theme.colors.border },
     ],
-    [direction, theme.colors.border],
+    [direction],
   );
   const highlightStyle = useMemo(
     () => [
@@ -200,44 +202,48 @@ const styles = StyleSheet.create((_theme) => ({
     position: "relative",
     flexShrink: 0,
   },
+  // 8px transparent gutter between two pane cards — matches the home-shell RegionGutter track so
+  // the inter-pane seam reads as the same periwinkle gutter as the seams between the region cards.
   handleHorizontal: {
-    width: 1,
+    width: 8,
     alignSelf: "stretch",
   },
   handleVertical: {
-    height: 1,
+    height: 8,
     width: "100%",
   },
   highlight: {
     position: "absolute",
     zIndex: 5,
   },
+  // A 2px accent line centered in the 8px gutter, shown only while hovered/dragging.
   highlightHorizontal: {
     top: 0,
     bottom: 0,
-    width: 3,
-    left: -1,
+    width: 2,
+    left: 3,
   },
   highlightVertical: {
     left: 0,
     right: 0,
-    height: 3,
-    top: -1,
+    height: 2,
+    top: 3,
   },
   hitArea: {
     position: "absolute",
     zIndex: 10,
   },
+  // Hit area spans the full gutter plus a 2px grab margin each side.
   hitAreaHorizontal: {
-    left: -5,
+    left: -2,
     top: 0,
     bottom: 0,
-    width: 10,
+    width: 12,
   },
   hitAreaVertical: {
-    top: -5,
+    top: -2,
     left: 0,
     right: 0,
-    height: 10,
+    height: 12,
   },
 }));

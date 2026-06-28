@@ -4,8 +4,9 @@ import { usePathname } from "expo-router";
 import { StyleSheet } from "react-native-unistyles";
 import { FileExplorerPane } from "@/components/file-explorer-pane";
 import { LeftSidebar } from "@/components/left-sidebar";
+import { isWeb } from "@/constants/platform";
 import { SettingsSidebar } from "@/screens/settings-codepilot/settings-sidebar";
-import { isSettingsPathname } from "@/utils/host-routes";
+import { isSettingsPathname, parseHostWorkspaceRouteFromPathname } from "@/utils/host-routes";
 import {
   type ActiveWorkspaceSelection,
   useActiveWorkspaceSelection,
@@ -34,6 +35,17 @@ interface HomeShellProps {
   selectedAgentId: string | undefined;
   chromeEnabled: boolean;
 }
+
+// The window backdrop gradient: a soft periwinkle layered over the translucent surfaceShell
+// base (web only; native keeps the flat surfaceShell fill). Lightly translucent + diagonal so
+// the macOS window vibrancy still reads through the gutters between the floating cards. Same
+// isWeb-cast pattern the region cards use for box-shadow — backgroundImage is web-only CSS.
+const WEB_SHELL_GRADIENT = isWeb
+  ? ({
+      backgroundImage:
+        "linear-gradient(165deg, rgba(216, 224, 250, 0.45) 0%, rgba(199, 210, 246, 0.62) 100%)",
+    } as object)
+  : null;
 
 // The workspace identity used to key per-workspace remembered widths. Matches the
 // serverId:workspaceId pair the rest of the app scopes workspace state by.
@@ -96,6 +108,11 @@ export function HomeShell({ children, selectedAgentId, chromeEnabled }: HomeShel
   // stays a shared constant. The carried workspaceKey keeps the left width from jumping.
   const pathname = usePathname();
   const isSettings = isSettingsPathname(pathname);
+  // The workspace route is the only one whose center content (the SplitContainer) brings its own
+  // per-pane cards, so the center frame drops its card chrome there and becomes a transparent
+  // gutter-host — the panes float as cards on the periwinkle backdrop with real gutters between
+  // them. Every other route (new / sessions / settings / splash) keeps the center as one card.
+  const isWorkspaceRoute = parseHostWorkspaceRouteFromPathname(pathname) != null;
   const route = useMemo<ShellRoute>(
     () => ({
       showsShell: chromeEnabled,
@@ -137,8 +154,9 @@ export function HomeShell({ children, selectedAgentId, chromeEnabled }: HomeShel
   // splash beside the freshly-seeded host shell. So there is ONE return: the center frame is a
   // fixed node holding {children}, and the top bar + side cards toggle around it. Pre-connection
   // the center is bare (full-bleed) for splash/onboarding; connected it becomes the floating card.
+  const windowStyle = useMemo(() => [styles.window, WEB_SHELL_GRADIENT], []);
   return (
-    <View style={styles.window}>
+    <View style={windowStyle}>
       {chromeEnabled ? (
         <UnifiedTopBar model={topBarModel} onToggleRegion={handleToggleRegion} />
       ) : null}
@@ -151,7 +169,7 @@ export function HomeShell({ children, selectedAgentId, chromeEnabled }: HomeShel
         {chromeEnabled && visible.left != null ? (
           <RegionGutter region="left" currentWidth={visible.left} />
         ) : null}
-        <RegionFrame kind="main" bare={!chromeEnabled}>
+        <RegionFrame kind="main" bare={!chromeEnabled || isWorkspaceRoute}>
           {children}
         </RegionFrame>
         {chromeEnabled && visible.fileTree != null && workspaceKey != null ? (

@@ -3635,7 +3635,12 @@ function WorkspaceScreenContent({
     [handleToggleRightToolPanel, handleToggleRightToolPanelMaximized, isRightToolPanelMaximized],
   );
 
-  const containerStyle = containerWithWorkspaceBackgroundStyle;
+  // Desktop floats each split pane as its own card on the home-shell's periwinkle backdrop, so the
+  // workspace root + content layers go transparent and let that backdrop show through the gutters
+  // between the panes. Mobile (deferred) keeps its solid workspace surface.
+  const containerStyle = isMobile
+    ? containerWithWorkspaceBackgroundStyle
+    : styles.containerDesktopShell;
 
   const menuNewAgentIcon = MENU_NEW_AGENT_ICON;
   const menuNewTerminalIcon = MENU_NEW_TERMINAL_ICON;
@@ -4074,7 +4079,7 @@ function WorkspaceScreenContent({
         {isMobile ? (
           <View style={styles.content}>{content}</View>
         ) : (
-          <View style={styles.content}>{desktopContent}</View>
+          <View style={styles.contentDesktopShell}>{desktopContent}</View>
         )}
       </View>
     </View>
@@ -4122,6 +4127,11 @@ const styles = StyleSheet.create((theme) => ({
   container: {
     flex: 1,
     backgroundColor: theme.colors.surface0,
+  },
+  // Desktop workspace root — transparent so the home-shell periwinkle backdrop reads through the
+  // gutters between the floating pane cards (the panes themselves carry the solid surface).
+  containerDesktopShell: {
+    flex: 1,
   },
   // Maximized tool panel: vertical stack of the full-canvas tool over the docked composer.
   maximizedCanvas: {
@@ -4435,6 +4445,13 @@ const styles = StyleSheet.create((theme) => ({
     flex: 1,
     minHeight: 0,
     backgroundColor: theme.colors.surface0,
+    position: "relative",
+  },
+  // Desktop split host — transparent counterpart of `content` so the periwinkle gutters between
+  // the floating pane cards show through (the panes carry the solid surface).
+  contentDesktopShell: {
+    flex: 1,
+    minHeight: 0,
     position: "relative",
   },
   mobileMountedTabSlotVisible: {
