@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   buildHostAgentDetailRoute,
+  buildHostHomeRoute,
   buildHostNewWorkspaceRoute,
   buildHostRootRoute,
   buildHostWorkspaceOpenRoute,
@@ -11,6 +12,7 @@ import {
   decodeWorkspaceIdFromPathSegment,
   encodeFilePathForPathSegment,
   encodeWorkspaceIdForPathSegment,
+  isHostHomePathname,
   isSettingsPathname,
   normalizeHostSectionSlug,
   parseHostAgentRouteFromPathname,
@@ -19,6 +21,32 @@ import {
   parseHostWorkspaceRouteFromPathname,
   parseWorkspaceOpenIntent,
 } from "./host-routes";
+
+describe("buildHostHomeRoute", () => {
+  // The connected-host landing the index route redirects to; encodes the serverId.
+  it("builds /h/<serverId>/home and degrades to / for an empty id", () => {
+    expect(buildHostHomeRoute("local")).toBe("/h/local/home");
+    expect(buildHostHomeRoute("")).toBe("/");
+  });
+});
+
+describe("isHostHomePathname", () => {
+  // Drives the one layout gate that lets /home render its own shell chrome instead of the
+  // legacy home-shell wrapper. Matches exactly the home landing, ignoring query/hash, and
+  // rejects sibling/nested routes so only /home bypasses the wrapper.
+  it("matches the home landing route, ignoring query and hash", () => {
+    expect(isHostHomePathname("/h/local/home")).toBe(true);
+    expect(isHostHomePathname("/h/local/home?open=agent:1")).toBe(true);
+    expect(isHostHomePathname("/h/local/home#section")).toBe(true);
+  });
+
+  it("rejects non-home routes", () => {
+    expect(isHostHomePathname("/h/local")).toBe(false);
+    expect(isHostHomePathname("/h/local/sessions")).toBe(false);
+    expect(isHostHomePathname("/h/local/home/extra")).toBe(false);
+    expect(isHostHomePathname("/settings")).toBe(false);
+  });
+});
 
 describe("parseHostAgentRouteFromPathname", () => {
   it("continues parsing detail routes", () => {

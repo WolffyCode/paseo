@@ -95,6 +95,7 @@ import { resolveActiveHost } from "@/utils/active-host";
 import { canOpenLeftSidebarGesture } from "@/utils/sidebar-animation-state";
 import {
   buildHostRootRoute,
+  isHostHomePathname,
   parseHostAgentRouteFromPathname,
   parseServerIdFromPathname,
   parseWorkspaceOpenIntent,
@@ -451,6 +452,11 @@ function AppContainer({
   useCompactWebViewportZoomLock(isCompactLayout);
   const chromeEnabled = chromeEnabledOverride ?? daemons.length > 0;
   const pathname = usePathname();
+  // The new desktop shell route renders its own chrome (top bar + region cards), so it must
+  // bypass the legacy HomeShell wrapper here — otherwise the two stack and double-chrome.
+  // Minimal, additive gate: every other route keeps the legacy wrapper untouched. Drop this
+  // when HomeShell is retired and /home (plus future content routes) own the shell outright.
+  const isNewShellRoute = isHostHomePathname(pathname);
   const activeServerId = useMemo(
     () => resolveActiveHost({ hosts: daemons, pathname })?.serverId ?? null,
     [daemons, pathname],
@@ -484,7 +490,7 @@ function AppContainer({
           to the desktop app, 反馈: 不做两套 UI。Renders null on Electron/native internally. The unified
           top bar reserves the left footprint; these draw the actual browser window buttons into it. */}
       <TrafficLights />
-      {isCompactLayout ? (
+      {isCompactLayout || isNewShellRoute ? (
         <View style={rowStyle}>
           <View style={flexStyle}>{children}</View>
         </View>

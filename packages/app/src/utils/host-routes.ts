@@ -369,6 +369,24 @@ export function buildHostOpenProjectRoute(serverId: string) {
   return `${base}/open-project` as const;
 }
 
+// The new desktop shell's landing route for a connected host (/h/<serverId>/home). It is
+// where a connected host lands; the index route redirects here.
+export function buildHostHomeRoute(serverId: string) {
+  const base = buildHostRootRoute(serverId);
+  if (base === "/") {
+    return "/" as const;
+  }
+  return `${base}/home` as const;
+}
+
+// True for the new shell landing route (query/hash ignored). Drives the one layout gate
+// that lets /home render its own shell chrome instead of being wrapped by the legacy
+// home-shell.
+export function isHostHomePathname(pathname: string): boolean {
+  const pathOnly = stripSearchAndHash(pathname);
+  return /^\/h\/[^/]+\/home$/.test(pathOnly);
+}
+
 export function buildHostNewWorkspaceRoute(
   serverId: string,
   sourceDirectory?: string,
