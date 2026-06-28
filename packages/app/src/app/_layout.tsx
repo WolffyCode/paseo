@@ -886,10 +886,7 @@ function FaviconStatusSync() {
   return null;
 }
 
-const AGENT_SCREEN_OPTIONS = { gestureEnabled: false };
-
 function RootStack() {
-  const storeReady = useStoreReady();
   const { theme } = useUnistyles();
   const stackScreenOptions = useMemo(
     () => ({
@@ -905,7 +902,7 @@ function RootStack() {
     <Stack screenOptions={stackScreenOptions}>
       <Stack.Screen name="index" />
       <Stack.Screen name="welcome" />
-      <Stack.Protected guard={storeReady}>
+      <Stack.Protected guard={true}>
         <Stack.Screen name="settings/index" />
         <Stack.Screen name="settings/[section]" />
         <Stack.Screen name="settings/projects/index" />
@@ -913,18 +910,17 @@ function RootStack() {
         <Stack.Screen name="pair-scan" />
       </Stack.Protected>
       {/*
-        Do not add getId or dangerouslySingular back to the workspace route.
-        Expo Router maps dangerouslySingular to React Navigation getId, and
-        getId repeatedly breaks Android native-stack/Fabric by reordering an
-        already-mounted workspace screen. Keep workspace identity/retention
-        outside this route-level native-stack API.
+        Every per-host screen (new / index / sessions / workspace / agent / settings /
+        open-project) lives under app/h/[serverId]/_layout.tsx, so to the root navigator
+        they are a SINGLE route — the "h/[serverId]" group. Declaring the grandchildren
+        here instead left the group itself undeclared: the root Stack auto-injected it,
+        and the first navigation into it (the cold-start Redirect to /h/<srv>/new)
+        resolved the URL but never mounted the group's Slot, so the canvas came up blank
+        until a second navigation forced React Navigation to reconcile. The group owns its
+        own screen identity/retention (Slot + per-screen logic) — never reintroduce getId
+        or dangerouslySingular for the workspace screen, which breaks Android native-stack.
       */}
-      <Stack.Screen name="h/[serverId]/workspace/[workspaceId]" />
-      <Stack.Screen name="h/[serverId]/agent/[agentId]" options={AGENT_SCREEN_OPTIONS} />
-      <Stack.Screen name="h/[serverId]/index" />
-      <Stack.Screen name="h/[serverId]/sessions" />
-      <Stack.Screen name="h/[serverId]/open-project" />
-      <Stack.Screen name="h/[serverId]/settings" />
+      <Stack.Screen name="h/[serverId]" />
       <Stack.Screen name="settings/hosts/[serverId]/index" />
       <Stack.Screen name="settings/hosts/[serverId]/[hostSection]" />
     </Stack>

@@ -130,29 +130,38 @@ export function HomeShell({ children, selectedAgentId, chromeEnabled }: HomeShel
     [route, projectName, leftOpen, rightToolOpen, fileTreeOpen],
   );
 
-  if (!chromeEnabled) {
-    return <View style={styles.window}>{children}</View>;
-  }
-
+  // The route navigator ({children}) MUST keep one stable React tree position across the
+  // chrome-disabled → chrome-enabled flip. Relocating it (e.g. a bare wrapper pre-connection vs.
+  // the center card once a host connects) makes React remount the whole navigator the instant
+  // chrome appears, mid-redirect — which resets it to the index route and strands the cold-start
+  // splash beside the freshly-seeded host shell. So there is ONE return: the center frame is a
+  // fixed node holding {children}, and the top bar + side cards toggle around it. Pre-connection
+  // the center is bare (full-bleed) for splash/onboarding; connected it becomes the floating card.
   return (
     <View style={styles.window}>
-      <UnifiedTopBar model={topBarModel} onToggleRegion={handleToggleRegion} />
+      {chromeEnabled ? (
+        <UnifiedTopBar model={topBarModel} onToggleRegion={handleToggleRegion} />
+      ) : null}
       <View style={styles.row}>
-        {visible.left != null ? (
+        {chromeEnabled && visible.left != null ? (
           <RegionFrame kind="left" width={visible.left}>
             {isSettings ? <SettingsSidebar /> : <LeftSidebar selectedAgentId={selectedAgentId} />}
           </RegionFrame>
         ) : null}
-        {visible.left != null ? <RegionGutter region="left" currentWidth={visible.left} /> : null}
-        <RegionFrame kind="main">{children}</RegionFrame>
-        {visible.fileTree != null && workspaceKey != null ? (
+        {chromeEnabled && visible.left != null ? (
+          <RegionGutter region="left" currentWidth={visible.left} />
+        ) : null}
+        <RegionFrame kind="main" bare={!chromeEnabled}>
+          {children}
+        </RegionFrame>
+        {chromeEnabled && visible.fileTree != null && workspaceKey != null ? (
           <RegionGutter
             region="fileTree"
             workspaceKey={workspaceKey}
             currentWidth={visible.fileTree}
           />
         ) : null}
-        {visible.fileTree != null && selection != null && directory != null ? (
+        {chromeEnabled && visible.fileTree != null && selection != null && directory != null ? (
           <RegionFrame kind="fileTree" width={visible.fileTree}>
             <FileExplorerPane
               serverId={selection.serverId}

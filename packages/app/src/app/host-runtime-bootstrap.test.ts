@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   connectLocalOnBoot,
+  type ResolveIndexStartupRouteInput,
   resolveOnboardingLocalConnectState,
   resolveOnboardingPhase,
   resolveOnboardingPlatformCapability,
@@ -682,5 +683,52 @@ describe("resolveStartupRoute", () => {
         anyOnlineHostServerId: null,
       }),
     ).toEqual({ kind: "render" });
+  });
+});
+
+describe("index cold-start mount contract", () => {
+  // The root index screen renders ONLY a <Redirect> or the connecting splash — never arbitrary
+  // page content — so it can never strand a screen alongside the freshly-seeded host shell. This
+  // locks the invariant index.tsx leans on: for the root pathname resolveStartupRoute always lands
+  // on "redirect" or "splash" across the whole hydration / host / blocker matrix, never "render".
+  const rootInput: ResolveIndexStartupRouteInput = {
+    route: { kind: "index", pathname: "/" },
+    startupBlocker: { kind: "none" },
+    hostRegistryStatus: "ready",
+    hosts: [],
+    anyOnlineHostServerId: null,
+    isStartupStateHydrated: true,
+    hasGivenUpWaitingForHost: false,
+    hasSeenWelcome: true,
+  };
+
+  const matrix: Array<Partial<ResolveIndexStartupRouteInput>> = [
+    {},
+    { isStartupStateHydrated: false },
+    { hostRegistryStatus: "loading" },
+    { anyOnlineHostServerId: "srv-online" },
+    { hasSeenWelcome: false },
+    { hasGivenUpWaitingForHost: true },
+    { startupBlocker: { kind: "managed-daemon-starting" } },
+    { startupBlocker: { kind: "managed-daemon-error", message: "boom" } },
+    { hosts: [{ serverId: "srv-saved" }] },
+    { hosts: [{ serverId: "srv-saved" }], anyOnlineHostServerId: "srv-saved" },
+  ];
+
+  it.each(matrix)("never resolves the root route to a stranding render (%o)", (override) => {
+    const decision = resolveStartupRoute({ ...rootInput, ...override });
+
+    expect(decision.kind).not.toBe("render");
+    expect(["redirect", "splash"]).toContain(decision.kind);
+  });
+
+  it("waits on the splash while hydrating, then redirects in one step once a host is online", () => {
+    expect(resolveStartupRoute({ ...rootInput, isStartupStateHydrated: false })).toEqual({
+      kind: "splash",
+    });
+    expect(resolveStartupRoute({ ...rootInput, anyOnlineHostServerId: "srv-online" })).toEqual({
+      kind: "redirect",
+      href: "/h/srv-online/new",
+    });
   });
 });

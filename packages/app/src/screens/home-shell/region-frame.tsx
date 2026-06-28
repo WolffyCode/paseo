@@ -16,6 +16,11 @@ export type RegionFrameKind = "left" | "main" | "right" | "fileTree";
 interface RegionFrameProps {
   kind: RegionFrameKind;
   width?: number;
+  // Pre-connection passthrough for the center frame: render children full-bleed with no card
+  // chrome while keeping this node's element type and tree position identical to the chromed
+  // card. That stability is what lets the route navigator mounted inside it survive the
+  // chrome-disabled → chrome-enabled flip without remounting. Only meaningful for kind="main".
+  bare?: boolean;
   children: ReactNode;
 }
 
@@ -42,16 +47,19 @@ const WEB_FROSTED = isWeb
     } as object)
   : null;
 
-export function RegionFrame({ kind, width, children }: RegionFrameProps) {
+export function RegionFrame({ kind, width, bare = false, children }: RegionFrameProps) {
   styles.useVariants({ kind });
   const frameStyle = useMemo(
-    () => [
-      styles.card,
-      kind === "main" ? null : { width },
-      WEB_CARD_SHADOW,
-      kind === "left" ? WEB_FROSTED : null,
-    ],
-    [kind, width],
+    () =>
+      bare
+        ? styles.bare
+        : [
+            styles.card,
+            kind === "main" ? null : { width },
+            WEB_CARD_SHADOW,
+            kind === "left" ? WEB_FROSTED : null,
+          ],
+    [bare, kind, width],
   );
   return <View style={frameStyle}>{children}</View>;
 }
@@ -77,5 +85,12 @@ const styles = StyleSheet.create((theme) => ({
         fileTree: { backgroundColor: theme.colors.surfaceWorkspace },
       },
     },
+  },
+  // Full-bleed center passthrough (pre-connection splash / onboarding): no card radius, shadow
+  // or surface — the window's own background shows through and the route fills it edge to edge.
+  bare: {
+    flex: 1,
+    minWidth: 0,
+    height: "100%",
   },
 }));
