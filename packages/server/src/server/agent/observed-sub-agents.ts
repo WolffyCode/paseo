@@ -5,6 +5,8 @@
 // to build the read-only agent record. No provider branching lives here — the
 // `sub_agent` tool-call detail is the only abstraction both providers share.
 
+import { observedAgentId } from "@getpaseo/protocol/observed-agent-id";
+
 type ObservedSubAgentToolCallStatus = "running" | "completed" | "failed" | "canceled";
 
 type ObservedSubAgentLifecycle = "running" | "idle" | "error";
@@ -13,10 +15,11 @@ type ObservedSubAgentLifecycle = "running" | "idle" | "error";
 // tool-use id that spawned it. toolUseId is globally unique (`toolu_*`) and is
 // carried identically by both the live callId and the file meta.toolUseId, so
 // every update for one sub-agent — from either source, at any depth — resolves to
-// exactly one record (node-level dedup by id space). The `observed:` prefix
-// guarantees it never collides with a real (UUID / paseo) agent id.
+// exactly one record (node-level dedup by id space). Delegates to the shared
+// protocol minter so the `observed:` prefix (which the client recognizes via
+// `isObservedAgentId`) has a single source of truth.
 export function observedSubAgentId(toolUseId: string): string {
-  return `observed:${toolUseId}`;
+  return observedAgentId(toolUseId);
 }
 
 // Maps the sub-agent tool-call status to the lifecycle status the tree renders:
