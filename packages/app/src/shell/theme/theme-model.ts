@@ -42,7 +42,7 @@ export interface ShellTokens {
 // (codePilot "github" palette + Approach C periwinkle backdrop + translucent-white cards).
 export const SHELL_TOKENS: Record<ThemeScheme, ShellTokens> = {
   light: {
-    backdrop: "#d3deef",
+    backdrop: "rgba(190, 210, 238, 0.86)",
     surfaceSidebar: "rgba(255, 255, 255, 0.60)",
     surfaceCard: "rgba(255, 255, 255, 0.82)",
     foreground: "#1f2328",

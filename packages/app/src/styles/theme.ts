@@ -625,12 +625,10 @@ const codePilotLightColors = {
   surfaceSidebar: "#f6f8fa",
   surfaceSidebarHover: "#eaeef2", // selection — light gray, NOT black
   surfaceWorkspace: "#ffffff",
-  // Translucent periwinkle (not solid grey) so the macOS window vibrancy shows through the
-  // gutters + top bar between the floating cards, reading as a soft light-blue — the CodePilot
-  // reference floats white cards on the window vibrancy, and Helm tints that backdrop periwinkle.
-  // Blue-leaning (b≫r) so it never reads as the old cool-grey; alpha 0.62 keeps the desktop /
-  // vibrancy visible underneath. Off-mac it composites over the white body to the same periwinkle.
-  surfaceShell: "rgba(202, 212, 247, 0.62)",
+  // Solid light blue-grey backdrop behind every region. This is THE overall background color the
+  // whole shell reuses — the gutters/top bar AND the conversation + right-side regions all paint
+  // this (they are not white cards). Exact value fixed by the chairman: rgb(188, 209, 225).
+  surfaceShell: "rgb(188, 209, 225)",
   sidebarTranslucent: "rgba(255, 255, 255, 0.58)", // left card frosted surface
   foreground: "#1f2328",
   foregroundMuted: "#59636e",

@@ -64,7 +64,7 @@ describe("SHELL_TOKENS", () => {
   // The tokens carry the shell's own design values (Approach C periwinkle backdrop,
   // translucent-white cards, codePilot github palette) — self-contained, no app token pull.
   it("carries the design's backdrop and surface values", () => {
-    expect(SHELL_TOKENS.light.backdrop).toBe("#d3deef");
+    expect(SHELL_TOKENS.light.backdrop).toBe("rgba(190, 210, 238, 0.86)");
     expect(SHELL_TOKENS.dark.backdrop).toBe("#0d1117");
     expect(SHELL_TOKENS.light.surfaceCard).toContain("rgba(255, 255, 255");
   });

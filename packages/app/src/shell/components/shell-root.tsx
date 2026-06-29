@@ -7,7 +7,7 @@ import { useAppSettings } from "@/hooks/use-settings";
 import { DEFAULT_LOCALE, parseAppLanguage } from "@/i18n/locales";
 import { i18nModel } from "../i18n/i18n-model";
 import { type ShellContext, shellModel } from "../model/shell-model";
-import { SHELL_USES_VIBRANCY, WINDOW_PADDING } from "../theme/shell-tokens";
+import { WINDOW_PADDING } from "../theme/shell-tokens";
 import { resolveThemeScheme, themeModel } from "../theme/theme-model";
 import { RegionFrame } from "./region-frame";
 import { RegionGutter } from "./region-gutter";
@@ -51,7 +51,11 @@ export const ShellRoot = observer(function ShellRoot({ ctx }: { ctx: ShellContex
   const visible = shellModel.visibleRegions;
   const isSettings = shellModel.currentPage === "settings";
   const { showsShell, workspaceKey } = shellModel;
-  const backdrop = SHELL_USES_VIBRANCY ? "transparent" : themeModel.tokens.backdrop;
+  // Approach C: always paint the (semi-transparent) periwinkle backdrop so the "蓝底" is
+  // guaranteed — a white ancestor layer sits behind shell-root and would otherwise block both
+  // the fallback AND the window vibrancy, leaving the shell pure white. The alpha still lets
+  // mac vibrancy read through once that ancestor stops painting white.
+  const backdrop = themeModel.tokens.backdrop;
   const rootStyle = useMemo(() => [styles.root, { backgroundColor: backdrop }], [backdrop]);
   return (
     <View style={rootStyle} testID="shell-root">
