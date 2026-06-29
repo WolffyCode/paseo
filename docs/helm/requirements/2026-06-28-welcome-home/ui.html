@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · UI 设计稿 · 丰富首页（连上主机后的着陆态 · 套 codePilot）</title>
+    <style>
+      /* =========================================================================
+         主题令牌 = CodePilot「github」主题（themes/github.json 原值）· 内部命名 codePilot
+         —— 与 2026-06-27-codepilot-layout/ui.html 的 :root 一字不差照搬（外壳/主题唯一源）。
+         本需求只填「中区画布 · 无活跃对话」着陆态内容，不重画顶栏/卡片/主题。
+         默认浅色；.dark 令牌保留（与外壳同源），本稿不渲染深色屏（深色变体写进各屏注解）。
+         ========================================================================= */
+      :root {
+        --bg: oklch(1 0 0);                        /* #ffffff 主背景/中区/右栏/目录树 */
+        --fg: oklch(0.254 0.011 254);             /* #1f2328 主文字·近黑 */
+        --card: oklch(1 0 0);                      /* #ffffff */
+        --primary: oklch(0.540 0.191 257.5);      /* #0969da GitHub 蓝 · 仅按钮/链接/focus/品牌强调 */
+        --primary-fg: oklch(1 0 0);               /* #ffffff 蓝底白字 */
+        --secondary: oklch(0.947 0.007 247.9);    /* #eaeef2 次级浅灰底 */
+        --secondary-fg: oklch(0.338 0.015 252.3); /* #3d444d */
+        --muted: oklch(0.947 0.007 247.9);        /* #eaeef2 */
+        --muted-fg: oklch(0.531 0.017 251.3);     /* #59636e 次要文字灰 */
+        --accent: oklch(0.978 0.003 247.9);       /* #f6f8fa 极淡冷灰·hover 底 */
+        --accent-fg: oklch(0.338 0.015 252.3);    /* #3d444d */
+        --border: oklch(0.876 0.012 248);         /* #d1d9e0 边框浅灰 */
+        --input: oklch(0.876 0.012 248);
+        --ring: oklch(0.540 0.191 257.5);         /* #0969da focus 蓝环 */
+        --sidebar: oklch(0.978 0.003 247.9);      /* #f6f8fa 左栏背景·浅冷灰 */
+        --sidebar-accent: oklch(0.947 0.007 247.9);    /* #eaeef2 选中/hover 高亮·很淡的灰（不是黑！） */
+        --sidebar-accent-fg: oklch(0.338 0.015 252.3); /* #3d444d 选中态文字·深灰 */
+        --destructive: oklch(0.552 0.205 24.5);   /* #cf222e 危险红 */
+        --success: oklch(0.503 0.137 152);        /* ≈#1a7f37 成功绿 */
+        --warning: oklch(0.555 0.118 75);         /* ≈#9a6700 警告橙 */
+        --info: oklch(0.540 0.191 257.5);         /* #0969da 信息蓝 */
+        /* 几何 —— GitHub 偏扁平：靠 1px 边框分隔，圆角克制 */
+        --radius: 12px;
+        --r-card: 12px;       /* 浮动卡片圆角 */
+        --r-ctrl: 6px;        /* 控件圆角 */
+        --r-sm: 6px;
+        --card-drop: 0 1px 0 rgba(31, 35, 40, 0.04), 0 1px 3px rgba(31, 35, 40, 0.08);
+        --card-ring: 0 0 #0000;
+        --win-backdrop:
+          radial-gradient(135% 90% at 12% -10%, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0) 55%),
+          radial-gradient(120% 120% at 108% 115%, rgba(174, 192, 214, 0.40), rgba(174, 192, 214, 0) 50%),
+          linear-gradient(152deg, #edf0f4 0%, #e4e9ef 48%, #e9edf1 100%);
+        --sidebar-surface: rgba(255, 255, 255, 0.58);
+        --win-shadow: 0 12px 30px -16px rgba(31, 35, 40, 0.16), 0 2px 6px -3px rgba(31, 35, 40, 0.10);
+        --ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+      .dark {
+        --bg: oklch(0.176 0.014 258.4);           /* #0d1117 */
+        --fg: oklch(0.943 0.011 243.7);           /* #e6edf3 近白 */
+        --card: oklch(0.220 0.016 256.8);         /* #161b22 */
+        --primary: oklch(0.569 0.202 259.7);      /* #1f6feb GitHub 蓝(深) */
+        --primary-fg: oklch(1 0 0);
+        --secondary: oklch(0.267 0.015 256.8);    /* #21262d */
+        --secondary-fg: oklch(0.857 0.014 248);
+        --muted: oklch(0.267 0.015 256.8);
+        --muted-fg: oklch(0.662 0.018 250.9);     /* ≈#8b949e */
+        --accent: oklch(0.246 0.015 256.8);       /* #1c2128 */
+        --accent-fg: oklch(0.943 0.011 243.7);
+        --border: oklch(0.330 0.015 252.3);       /* #30363d */
+        --input: oklch(0.330 0.015 252.3);
+        --ring: oklch(0.569 0.202 259.7);
+        --sidebar: oklch(0.104 0.019 248.3);      /* #010409 */
+        --sidebar-accent: oklch(0.267 0.015 256.8);    /* #21262d */
+        --sidebar-accent-fg: oklch(0.943 0.011 243.7); /* #e6edf3 */
+        --destructive: oklch(0.665 0.205 27.0);
+        --success: oklch(0.65 0.15 152);
+        --warning: oklch(0.74 0.13 80);
+        --info: oklch(0.569 0.202 259.7);
+        --card-drop: 0 1px 0 rgba(1, 4, 9, 0.30), 0 1px 3px rgba(1, 4, 9, 0.40);
+        --sidebar-surface: rgba(1, 4, 9, 0.55);
+        --win-shadow: 0 12px 30px -16px rgba(0, 0, 0, 0.60), 0 2px 6px -3px rgba(0, 0, 0, 0.50);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        background: #eaeef2;
+        color: var(--fg);
+        font-family: var(--ui);
+        -webkit-font-smoothing: antialiased;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+      body { padding: 40px 32px 120px; }
+      button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+      svg.i { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+      .i.xs { width: 12px; height: 12px; }
+      .i.sm { width: 14px; height: 14px; }
+      .i.md { width: 16px; height: 16px; }
+      .i.lg { width: 20px; height: 20px; }
+
+      /* ===== board header ===== */
+      .board-h { max-width: 1480px; margin: 0 auto 24px; }
+      .board-h h1 { font-size: 30px; font-weight: 600; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px; color: #1f2328; }
+      .board-h h1 .logo { width: 34px; height: 34px; border-radius: 9px; background: #0969da; display: flex; align-items: center; justify-content: center; color: #fff; }
+      .board-h .sub { color: #59636e; font-size: 14px; margin-top: 8px; max-width: 1040px; }
+      .board-h .sub b { color: #1f2328; font-weight: 600; }
+      .req-log { max-width: 1480px; margin: 0 auto 18px; border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; overflow: hidden; }
+      .req-log .rl-h { padding: 10px 16px; background: #eaeef2; font-size: 12px; font-weight: 600; color: #59636e; letter-spacing: 0.4px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #d1d9e0; }
+      .req-log table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      .req-log td, .req-log th { padding: 8px 16px; text-align: left; border-top: 1px solid #d1d9e0; vertical-align: top; }
+      .req-log th { color: #59636e; font-weight: 500; font-size: 12px; }
+      .req-log td:first-child { color: #59636e; white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .pill { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+      .pill.p0 { color: #3d444d; background: rgba(120, 113, 108, 0.16); }
+      .pill.new { color: #0969da; background: rgba(9, 105, 218, 0.12); }
+      .nav-idx { max-width: 1480px; margin: 0 auto 30px; display: flex; flex-wrap: wrap; gap: 8px; }
+      .nav-idx a { font-size: 12px; color: #59636e; text-decoration: none; padding: 5px 11px; border: 1px solid #d1d9e0; border-radius: 9999px; background: #f6f8fa; }
+      .nav-idx a:hover { color: #1f2328; background: #eaeef2; }
+      .nav-idx a.new { color: #0969da; border-color: rgba(9, 105, 218, 0.3); }
+      .note { max-width: 1480px; margin: 0 auto 30px; font-size: 13px; color: #59636e; display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border: 1px dashed #d1d9e0; border-radius: 10px; background: #f6f8fa; }
+      .note b { color: #1f2328; }
+
+      /* ===== screen scaffold ===== */
+      .screen { max-width: 1480px; margin: 0 auto 60px; scroll-margin-top: 20px; }
+      .screen-head { margin-bottom: 14px; }
+      .screen-head .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #3d444d; background: rgba(120, 113, 108, 0.16); padding: 2px 9px; border-radius: 9999px; margin-bottom: 8px; }
+      .screen-head .tag.new { color: #0969da; background: rgba(9, 105, 218, 0.12); }
+      .screen-head h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.2px; color: #1f2328; }
+      .screen-head p { color: #59636e; font-size: 14px; margin-top: 5px; max-width: 1040px; }
+      .screen-head p b { color: #1f2328; font-weight: 600; }
+
+      /* ===== FRAME = macOS 浮窗（与外壳同源） ===== */
+      .frame { border-radius: 16px; overflow: hidden; background: var(--win-backdrop); box-shadow: var(--win-shadow); position: relative; }
+      .win { display: flex; flex-direction: column; gap: 4px; padding: 8px 16px 16px; height: 648px; }
+      .win.tall { height: 724px; }
+
+      /* ===== 统一顶栏（透明，融入 gutter 背景，横跨整宽，h40） ===== */
+      .topbar { height: 40px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 2px; }
+      .lights { display: flex; gap: 8px; padding-left: 4px; margin-right: 8px; }
+      .lights span { width: 12px; height: 12px; border-radius: 9999px; }
+      .lights .r { background: #ff5f57; }
+      .lights .y { background: #febc2e; }
+      .lights .g { background: #28c840; }
+      .tbtn { width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted-fg); position: relative; flex: none; }
+      .tbtn:hover { background: color-mix(in oklch, var(--fg) 7%, transparent); color: var(--fg); }
+      .tbtn.on { background: var(--secondary); color: var(--fg); }
+      .tb-title { font-size: 13px; font-weight: 500; color: var(--fg); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tb-proj { height: 26px; padding: 0 8px; border-radius: var(--r-ctrl); font-size: 12px; color: var(--muted-fg); display: inline-flex; align-items: center; gap: 5px; max-width: 200px; background: none; border: none; }
+      .tb-proj:hover { background: var(--accent); color: var(--fg); }
+      .tb-proj.ph { color: color-mix(in oklch, var(--muted-fg) 75%, transparent); font-style: italic; }
+      .tb-spacer { flex: 1; }
+      .tb-right { display: flex; align-items: center; gap: 4px; }
+      .tb-branch { height: 28px; padding: 0 7px; border-radius: var(--r-ctrl); font-size: 12px; color: var(--muted-fg); display: inline-flex; align-items: center; gap: 5px; background: none; border: none; }
+      .tb-branch:hover { background: var(--accent); color: var(--fg); }
+      .tb-branch .dirty { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; color: var(--warning); }
+      .tb-branch .dirty .d { width: 6px; height: 6px; border-radius: 9999px; background: var(--warning); }
+      .pinb { display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 9999px; background: #0969da; color: #fff; font-size: 10px; font-weight: 700; position: absolute; top: -5px; right: -5px; font-variant-numeric: tabular-nums; }
+      .pinb.s { position: static; margin-left: 4px; }
+
+      /* ===== 内容行 ===== */
+      .row { flex: 1; min-height: 0; display: flex; gap: 0; }
+
+      /* ===== 浮动卡片 ===== */
+      .card { height: 100%; border-radius: var(--r-card); border: 1px solid var(--border); box-shadow: var(--card-drop); background: var(--card); overflow: hidden; display: flex; flex-direction: column; flex: none; position: relative; }
+      .card.main { flex: 1; min-width: 0; background: var(--bg); }
+      .card.sidebar { width: 240px; background: var(--sidebar-surface); backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4); }
+      .card.workspace { width: 480px; background: var(--bg); }
+      .card.filetree { width: 280px; background: var(--bg); }
+
+      /* ResizeGutter */
+      .gutter { width: 8px; flex: none; align-self: stretch; display: flex; align-items: center; justify-content: center; cursor: col-resize; position: relative; }
+      .gutter::after { content: ""; width: 3px; height: 40px; border-radius: 3px; background: color-mix(in oklch, var(--fg) 13%, transparent); transition: all 0.12s; }
+      .gutter:hover::after, .gutter.hot::after { height: 120px; background: color-mix(in oklch, var(--fg) 32%, transparent); }
+      .wbub { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 11px; font-weight: 500; color: var(--fg); background: #fff; border: 1px solid var(--border); border-radius: 9999px; padding: 3px 9px; box-shadow: var(--card-drop); display: inline-flex; align-items: center; gap: 5px; z-index: 6; }
+      .wbub .ar { color: var(--muted-fg); font-size: 12px; font-weight: 700; }
+
+      /* ===== 左栏 ===== */
+      .sb-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px 8px 8px; gap: 2px; }
+      .sb-new { display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 10px; border-radius: var(--r-ctrl); background: transparent; color: var(--fg); font-size: 13px; font-weight: 400; }
+      .sb-new:hover { background: var(--sidebar-accent); }
+      .sb-new .i { color: var(--muted-fg); }
+      .sb-item { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: var(--r-ctrl); color: var(--fg); font-size: 13px; position: relative; }
+      .sb-item .i { color: var(--muted-fg); }
+      .sb-item:hover { background: var(--sidebar-accent); }
+      .sb-item.active { background: var(--sidebar-accent); color: var(--sidebar-accent-fg); font-weight: 500; }
+      .sb-item .kbd { margin-left: auto; font-size: 10px; color: var(--muted-fg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 4px; font-family: var(--mono); }
+      .sb-sec { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: 0.3px; padding: 12px 10px 5px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; }
+      .sb-sec .act { margin-left: auto; opacity: 0.4; }
+      .sb-spacer { flex: 1; min-height: 8px; }
+      .sb-foot { padding-top: 4px; margin-top: 2px; }
+
+      /* 左栏对话树 */
+      .tree { display: flex; flex-direction: column; gap: 1px; }
+      .tnode { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: var(--r-ctrl); font-size: 14px; color: var(--muted-fg); position: relative; min-height: 32px; }
+      .tnode:hover { background: var(--sidebar-accent); color: var(--sidebar-accent-fg); }
+      .tnode.on { background: var(--sidebar-accent); color: var(--sidebar-accent-fg); font-weight: 500; }
+      .tnode.proj { color: var(--fg); }
+      .twedge { flex: none; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; color: var(--muted-fg); border-radius: 3px; }
+      .twedge .chev { transition: transform 0.12s ease; }
+      .twedge.exp .chev { transform: rotate(90deg); }
+      .twedge.leaf { visibility: hidden; }
+      .tnode .ti { flex: none; color: var(--muted-fg); }
+      .tname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tnode .dot { width: 7px; height: 7px; border-radius: 9999px; flex: none; }
+      .tnode .dot.run { background: var(--success); }
+      .tnode .dot.idle { background: var(--muted-fg); }
+      .ttime { margin-left: auto; font-size: 11px; color: var(--muted-fg); }
+      .tree-empty { padding: 9px 8px 9px 12px; color: var(--muted-fg); font-size: 13px; opacity: 0.9; line-height: 1.5; }
+      .host-switch { position: relative; margin: 0 0 2px; }
+      .host-pill { display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 10px; border-radius: var(--r-ctrl); background: transparent; font-size: 13px; color: var(--fg); }
+      .host-pill:hover { background: var(--sidebar-accent); }
+      .host-pill .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .host-pill .i { color: var(--muted-fg); }
+      .host-pill .hdot { width: 14px; height: 14px; flex: none; border-radius: 9999px; background: radial-gradient(circle, var(--success) 0 3.5px, transparent 4px); }
+
+      /* ===== 中区画布壳 ===== */
+      .main-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+
+      /* Composer（沿用外壳） */
+      .composer { width: 100%; max-width: 680px; }
+      .cbox { border: 1px solid var(--border); border-radius: 16px; background: var(--bg); box-shadow: 0 6px 20px -10px rgba(0, 0, 0, 0.1); padding: 14px 14px 10px; }
+      .cbox.focus { border-color: color-mix(in oklch, var(--primary) 55%, var(--border)); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 14%, transparent); }
+      .cbox.dis { opacity: 0.55; }
+      .cph { font-size: 14px; color: var(--muted-fg); min-height: 40px; }
+      .cph.typed { color: var(--fg); }
+      .caret { display: inline-block; width: 2px; height: 16px; background: var(--primary); margin-left: 1px; vertical-align: -3px; }
+      .crow { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+      .ctool { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 9px; border-radius: 9px; font-size: 12px; color: var(--muted-fg); border: 1px solid transparent; }
+      .ctool .i { color: var(--muted-fg); }
+      .ctool:hover { background: var(--secondary); }
+      .ctool.icon { padding: 0 7px; }
+      .ctool.on { background: var(--secondary); color: var(--fg); border-color: var(--border); }
+      .cspacer { flex: 1; }
+      .cmodel { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 9px; border-radius: 9px; font-size: 12px; color: var(--fg); border: 1px solid var(--border); position: relative; }
+      .cmodel .lock { color: var(--muted-fg); }
+      .cmodel .sep { color: var(--muted-fg); }
+      .cmodel.warn { border-color: color-mix(in oklch, var(--warning) 55%, var(--border)); color: var(--warning); background: color-mix(in oklch, var(--warning) 8%, transparent); }
+      .cmodel.warn .i { color: var(--warning); }
+      .csend { position: relative; width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; }
+      .csend.dim { background: var(--secondary); color: var(--muted-fg); }
+      .csend.go { background: var(--primary); color: var(--primary-fg); }
+      .chips { display: flex; gap: 7px; margin-top: 12px; justify-content: center; flex-wrap: wrap; }
+      .chip { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 9999px; font-size: 12px; color: var(--muted-fg); border: 1px solid var(--border); background: var(--bg); }
+      .chip.ph { border-style: dashed; }
+      .chip .i { color: var(--muted-fg); }
+
+      /* =========================================================================
+         中区 · 丰富首页（welcome-home · 本需求新增内容；外壳/主题/顶栏/卡片照搬）
+         ========================================================================= */
+      .home { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; align-items: center; padding: 38px 24px 34px; }
+      .home-inner { width: 100%; max-width: 768px; display: flex; flex-direction: column; }
+
+      /* 时段问候 hero */
+      .hero { display: flex; flex-direction: column; align-items: center; gap: 12px; margin-bottom: 22px; text-align: center; transition: all 0.18s ease; }
+      .hero .brand { position: relative; width: 52px; height: 52px; border-radius: 15px; background: var(--primary); color: var(--primary-fg); display: flex; align-items: center; justify-content: center; box-shadow: 0 8px 20px -8px color-mix(in oklch, var(--primary) 65%, transparent); }
+      .hero .brand .i { width: 26px; height: 26px; }
+      .hero .gt { font-size: 30px; font-weight: 600; letter-spacing: -0.5px; color: var(--fg); display: inline-flex; align-items: center; }
+      .hero .gsub { font-size: 14px; color: var(--muted-fg); max-width: 500px; line-height: 1.55; }
+      .hero .gsub b { color: var(--fg); font-weight: 600; }
+
+      /* 中央 Composer 包层 */
+      .home-cmp { width: 100%; }
+      .home-cmp .composer { max-width: none; }
+      .home-cmp .chips { margin-top: 10px; }
+
+      /* 无模型引导条（s4） */
+      .needcfg { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 13px; border-radius: 12px; border: 1px solid color-mix(in oklch, var(--warning) 42%, var(--border)); background: color-mix(in oklch, var(--warning) 9%, var(--card)); margin-bottom: 16px; position: relative; }
+      .needcfg .wic { width: 30px; height: 30px; border-radius: 9px; flex: none; display: flex; align-items: center; justify-content: center; color: var(--warning); background: color-mix(in oklch, var(--warning) 16%, transparent); }
+      .needcfg .wt { flex: 1; min-width: 0; }
+      .needcfg .wt b { font-size: 13px; color: var(--fg); font-weight: 600; display: block; }
+      .needcfg .wt .s { font-size: 12px; color: var(--muted-fg); margin-top: 1px; }
+      .cfgbtn { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 13px; border-radius: var(--r-ctrl); background: var(--primary); color: var(--primary-fg); font-size: 12.5px; font-weight: 500; position: relative; }
+      .cfgbtn:hover, .cfgbtn.hov { background: color-mix(in oklch, var(--primary) 88%, #000); }
+      .cfgbtn .i { color: var(--primary-fg); }
+
+      /* 最近区两栏 */
+      .recent { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 28px; }
+      .rcol { border: 1px solid var(--border); border-radius: 12px; background: var(--card); box-shadow: var(--card-drop); overflow: hidden; display: flex; flex-direction: column; }
+      .rcol-h { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 6px 0 13px; border-bottom: 1px solid var(--border); }
+      .rcol-h .t { font-size: 11px; font-weight: 600; color: var(--muted-fg); text-transform: uppercase; letter-spacing: 0.4px; flex: 1; display: flex; align-items: center; gap: 7px; }
+      .rcol-h .t .i { color: var(--muted-fg); }
+      .rcol-h .act { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 9px; border-radius: var(--r-ctrl); font-size: 12px; color: var(--muted-fg); background: none; position: relative; }
+      .rcol-h .act:hover, .rcol-h .act.hov { background: var(--accent); color: var(--fg); }
+      .rcol-h .act.pri { color: var(--primary); }
+      .rcol-h .act.pri:hover, .rcol-h .act.pri.hov { background: color-mix(in oklch, var(--primary) 10%, transparent); }
+      .rcol-body { display: flex; flex-direction: column; padding: 5px; gap: 1px; }
+      .ritem { display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 0 9px; border-radius: var(--r-ctrl); position: relative; }
+      .ritem:hover, .ritem.hov { background: var(--accent); }
+      .ritem.on { background: var(--sidebar-accent); }
+      .ritem .ti { color: var(--muted-fg); flex: none; }
+      .ritem.on .ti { color: var(--sidebar-accent-fg); }
+      .ritem .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+      .ritem .nm { font-size: 13px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .ritem.on .nm { font-weight: 500; color: var(--sidebar-accent-fg); }
+      .ritem .pth { font-size: 11px; color: var(--muted-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); }
+      .ritem .when { font-size: 11px; color: var(--muted-fg); flex: none; }
+      .ritem .rrun { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--success); flex: none; }
+      .ritem .rrun .d { width: 7px; height: 7px; border-radius: 9999px; background: var(--success); }
+      .ritem .go { margin-left: auto; color: var(--muted-fg); display: none; flex: none; }
+      .ritem:hover .go, .ritem.hov .go { display: flex; }
+      .ritem:hover .when, .ritem:hover .rrun, .ritem.hov .when, .ritem.hov .rrun { display: none; }
+      .radd { display: flex; align-items: center; gap: 8px; height: 36px; margin: 1px 5px 6px; padding: 0 9px; border-radius: var(--r-ctrl); border: 1px dashed var(--border); color: var(--muted-fg); font-size: 12px; position: relative; }
+      .radd .i { color: var(--muted-fg); }
+      .radd:hover, .radd.hov { border-color: color-mix(in oklch, var(--primary) 45%, var(--border)); color: var(--fg); background: var(--accent); }
+
+      /* 最近区·空态引导（s2） */
+      .guide { grid-column: 1 / -1; border: 1px dashed var(--border); border-radius: 12px; background: var(--accent); padding: 24px 24px; display: flex; flex-direction: column; align-items: center; gap: 11px; text-align: center; }
+      .guide .gic { width: 46px; height: 46px; border-radius: 13px; background: var(--card); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; color: var(--muted-fg); }
+      .guide .gt2 { font-size: 15px; font-weight: 600; color: var(--fg); }
+      .guide .gs { font-size: 13px; color: var(--muted-fg); max-width: 430px; line-height: 1.55; }
+      .guide .gbtns { display: flex; gap: 9px; margin-top: 6px; flex-wrap: wrap; justify-content: center; }
+      .gbtn { display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 15px; border-radius: var(--r-ctrl); font-size: 13px; font-weight: 500; border: 1px solid var(--border); background: var(--card); color: var(--fg); position: relative; }
+      .gbtn .i { color: var(--muted-fg); }
+      .gbtn:hover, .gbtn.hov { background: var(--accent); }
+      .gbtn.pri { background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
+      .gbtn.pri .i { color: var(--primary-fg); }
+      .gbtn.pri:hover, .gbtn.pri.hov { background: color-mix(in oklch, var(--primary) 88%, #000); }
+
+      /* s3 聚焦让位 */
+      .home.focusing .hero { transform: scale(0.9); opacity: 0.5; margin-bottom: 14px; }
+      .home.focusing .recent { opacity: 0.62; }
+
+      /* ===== annotation block ===== */
+      .anno { border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; overflow: hidden; margin-top: 18px; }
+      .anno > .anno-h { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 11px 14px 4px; }
+      .anno-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; padding: 12px 14px 14px; align-items: start; }
+      .anno-card { border: 1px solid #d1d9e0; border-radius: 8px; background: #fff; overflow: hidden; }
+      .anno-card > .ac-h { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 10px 13px 7px; }
+      .anno-card.span2 { grid-column: 1 / -1; }
+      .anno ol { list-style: none; display: flex; flex-direction: column; }
+      .anno-card ol li { display: flex; gap: 10px; padding: 9px 13px; border-top: 1px solid #d1d9e0; font-size: 13px; line-height: 1.6; color: #59636e; }
+      .anno-card ol li b { color: #1f2328; font-weight: 600; }
+      .pin { flex: none; width: 18px; height: 18px; border-radius: 9999px; background: #0969da; color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+      .menulist { background: #fff; padding: 4px 13px 12px; font-size: 13px; line-height: 1.6; color: #59636e; }
+      .menulist .ml-grp { font-size: 11px; font-weight: 600; color: #3d444d; margin: 10px 0 4px; }
+      .menulist .ml-i { display: flex; gap: 8px; padding: 3px 0; }
+      .menulist .ml-i b { color: #1f2328; font-weight: 500; }
+      .menulist .ml-i.dz b { color: #cf222e; }
+      .menulist .ml-note { margin-top: 8px; padding-top: 8px; border-top: 1px solid #d1d9e0; color: #59636e; }
+      .menulist .ml-open { margin-top: 8px; padding: 7px 9px; border: 1px dashed rgba(9, 105, 218, 0.4); border-radius: 6px; background: rgba(9, 105, 218, 0.05); color: #59636e; }
+      .menulist .ml-open b { color: #0969da; }
+      .states { padding: 4px 13px 12px; }
+      .states dl { display: grid; grid-template-columns: 84px 1fr; gap: 8px 14px; font-size: 13px; line-height: 1.55; }
+      .states dt { color: #3d444d; font-weight: 600; }
+      .states dd { margin: 0; color: #59636e; }
+      .states dd b { color: #1f2328; font-weight: 500; }
+      .states dd.dk { color: #1f2328; }
+      .states dd.dk b { color: #0969da; }
+    </style>
+  </head>
+  <body>
+    <!-- ============ SVG SPRITE ============ -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol>
+      <symbol id="folder-plus" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /><path d="M12 10v6M9 13h6" /></symbol>
+      <symbol id="pen" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.4 2.6a1 1 0 0 1 3 3l-9 9-4 1 1-4z" /></symbol>
+      <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></symbol>
+      <symbol id="settings" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></symbol>
+      <symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="more-h" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
+      <symbol id="terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6" /><path d="M12 19h8" /></symbol>
+      <symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></symbol>
+      <symbol id="panel-l" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 3v18" /></symbol>
+      <symbol id="panel-r" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M15 3v18" /></symbol>
+      <symbol id="filetree" viewBox="0 0 24 24"><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="10" width="7" height="5" rx="1" /><rect x="14" y="17" width="7" height="4" rx="1" /><path d="M9 5.5h5M9 12.5h5M9 19.5h5M9 5.5V19.5" /></symbol>
+      <symbol id="lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
+      <symbol id="brain" viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.9.7A3 3 0 0 0 4 9a3 3 0 0 0 1 5.6V16a3 3 0 0 0 5 2 3 3 0 0 0 5-2v-1.4A3 3 0 0 0 20 9a3 3 0 0 0-2.1-3.3A3 3 0 0 0 12 5z" /></symbol>
+      <symbol id="clip" viewBox="0 0 24 24"><path d="m21.4 11-9.2 9.2a6 6 0 0 1-8.5-8.5l8.6-8.6A4 4 0 1 1 18 8.8l-8.6 8.6a2 2 0 0 1-2.8-2.9l8.5-8.5" /></symbol>
+      <symbol id="up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7" /><path d="M12 19V5" /></symbol>
+      <symbol id="branch" viewBox="0 0 24 24"><line x1="6" x2="6" y1="3" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></symbol>
+      <symbol id="sliders" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4" /><line x1="10" x2="3" y1="4" y2="4" /><line x1="21" x2="12" y1="12" y2="12" /><line x1="8" x2="3" y1="12" y2="12" /><line x1="21" x2="16" y1="20" y2="20" /><line x1="12" x2="3" y1="20" y2="20" /><line x1="14" x2="14" y1="2" y2="6" /><line x1="8" x2="8" y1="10" y2="14" /><line x1="16" x2="16" y1="18" y2="22" /></symbol>
+      <symbol id="robot" viewBox="0 0 24 24"><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M12 4v4" /><circle cx="12" cy="4" r="1" /><path d="M9 13v2M15 13v2M2 14h2M20 14h2" /></symbol>
+      <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></symbol>
+      <symbol id="spark" viewBox="0 0 24 24"><path d="M9.9 15.5A2 2 0 0 0 8.5 14L2.4 12.5a.5.5 0 0 1 0-1L8.5 10a2 2 0 0 0 1.4-1.4L11.5 2.4a.5.5 0 0 1 1 0L14 8.5a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z" /></symbol>
+      <symbol id="gauge" viewBox="0 0 24 24"><path d="m12 14 4-4" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></symbol>
+      <symbol id="history" viewBox="0 0 24 24"><path d="M3 3v5h5" /><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8" /><path d="M12 7v5l4 2" /></symbol>
+      <symbol id="alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></symbol>
+      <symbol id="arrow-r" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
+    </svg>
+
+    <!-- ============ BOARD HEADER ============ -->
+    <div class="board-h">
+      <h1>
+        <span class="logo"><svg class="i lg"><use href="#gauge" /></svg></span>
+        Helm · UI 设计稿 · 丰富首页（连上主机后的着陆态 · 套 codePilot）
+      </h1>
+      <p class="sub">
+        本地需求设计稿（gate-1 · 待董事长看 PNG）。需求 <b>2026-06-28-welcome-home</b>：把用户连上主机后落地的「<b>中区画布 · 无活跃对话</b>」着陆态，从简陋占位升级成 <b>CodePilot 式丰富首页</b>——<b>时段问候 hero</b> + <b>中央 Composer</b>（主入口）+ <b>最近对话 / 最近项目</b>短列表 + <b>打开项目 / 选择工作目录</b>快捷入口。
+        <b style="color: #cf222e">边界</b>：本需求<b>只填中区内容</b>，统一顶栏 / 4 张浮动卡片 / codePilot 主题来源全部<b>照搬</b> <b>2026-06-27-codepilot-layout</b>（外壳与主题的唯一源），不重画。整页 <b>codePilot 浅色默认</b>（白底 #ffffff · 字 #1f2328 · 边框 #d1d9e0 · 主蓝 #0969da · 选中淡灰 #eaeef2）；深色随同一套令牌自动适配，本稿不渲染深色屏、把深色变体写进各屏注解。
+      </p>
+    </div>
+
+    <div class="req-log">
+      <div class="rl-h"><svg class="i sm"><use href="#clock" /></svg> 需求日志</div>
+      <table>
+        <tr>
+          <th style="width: 110px">日期</th>
+          <th>需求</th>
+          <th style="width: 440px">关键决策</th>
+        </tr>
+        <tr>
+          <td>2026-06-28</td>
+          <td>丰富首页 —— 中区画布无活跃对话时的着陆态升级为 CodePilot 式首页</td>
+          <td>
+            <span class="pill new">时段问候 hero</span>
+            <span class="pill new">中央 Composer 主入口</span>
+            <span class="pill new">最近对话 / 最近项目</span>
+            <span class="pill new">打开项目 / 选择工作目录</span>
+            <span class="pill p0">套 codePilot · 复用外壳</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="nav-idx">
+      <a href="#s1" class="new">S1 丰富首页 · 默认（有最近项）</a>
+      <a href="#s2" class="new">S2 首次进入 · 空态（无最近项 · 引导）</a>
+      <a href="#s3" class="new">S3 Composer 聚焦 + hover / active</a>
+      <a href="#s4" class="new">S4 无可用模型 · 引导去配置</a>
+    </div>
+
+    <div class="note">
+      <svg class="i sm"><use href="#spark" /></svg>
+      <span>
+        交互标注：蓝色圆点 <span class="pin" style="width: 16px; height: 16px; vertical-align: middle">1</span> 标在控件旁，对应注解块「点击效果」编号；设备框内只画真实 UI，流程 / 跳转写进注解。
+        <b>只画中区画布；顶栏 + 左栏 + 右栏 / 目录树（收起）的外壳与主题照搬 codepilot-layout，不在本稿重定义。首页 = 中区「无活跃对话」态，故左栏对话树本屏均无选中项。</b>
+      </span>
+    </div>
+
+    <!-- ============================================================ S1 ============================================================ -->
+    <section class="screen" id="s1">
+      <div class="screen-head">
+        <span class="tag new">丰富首页 · 1</span>
+        <h2>丰富首页 · 默认（有最近项）</h2>
+        <p>
+          用户连上主机、中区无活跃对话时的<b>标准落地态</b>。中区自上而下：<b>时段问候 hero</b>（品牌图标 + 「晚上好」+ 一句含当前项目名的友好提示）→ <b>中央 Composer</b>（外壳既有 Composer 摆为首页主入口）+ 当前上下文 chips → <b>最近对话 / 最近项目</b>两栏，各取最近几项，栏头带「搜索」「打开项目」快捷入口，项目栏底部「选择工作目录…」。
+          外壳照搬：统一顶栏（标题「新对话」）+ 左栏（主机切换器 + 新对话 + 搜索 + 对话树 + 设置，<b>无选中项</b>）+ 右栏 / 目录树收起。
+        </p>
+      </div>
+      <div class="frame" id="shot1">
+        <div class="win tall">
+          <!-- 统一顶栏（照搬外壳；首页态标题=新对话） -->
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">新对话</span>
+            <button class="tb-proj"><span>paseo-main</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>2</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+            </div>
+          </div>
+          <div class="row">
+            <!-- ① 左栏（照搬外壳 · 无选中项） -->
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目 <span class="act"><svg class="i xs"><use href="#folder-plus" /></svg></span></div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><svg class="i sm ti"><use href="#robot" /></svg><span class="tname">重构 checkout 子系统</span><span class="ttime">3 分钟前</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot run"></span><span class="tname">修复侧边栏 toggle</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot idle"></span><span class="tname">VoiceSession 迁移</span><span class="ttime">1 小时前</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot">
+                  <div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div>
+                </div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <!-- ② 中区画布 · 丰富首页 -->
+            <div class="card main">
+              <div class="main-wrap">
+                <div class="home">
+                  <div class="home-inner">
+                    <!-- 时段问候 hero -->
+                    <div class="hero">
+                      <div class="brand"><svg class="i"><use href="#gauge" /></svg><span class="pinb">1</span></div>
+                      <div class="gt">晚上好</div>
+                      <div class="gsub">今天想在 <b>paseo-main</b> 构建点什么？随时开始一段新对话，或回到最近的活儿。<span class="pinb s">2</span></div>
+                    </div>
+                    <!-- 中央 Composer -->
+                    <div class="home-cmp">
+                      <div class="composer">
+                        <div class="cbox">
+                          <div class="cph">问点什么，或让代理开始干活…<span class="pinb s">3</span></div>
+                          <div class="crow">
+                            <div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div>
+                            <div class="ctool on"><svg class="i sm"><use href="#brain" /></svg> 思考</div>
+                            <div class="ctool"><svg class="i sm"><use href="#globe" /></svg> 联网</div>
+                            <div class="cspacer"></div>
+                            <div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> Claude Code <span class="sep">·</span> GLM <span class="sep">·</span> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">4</span></div>
+                            <div class="csend dim"><svg class="i sm"><use href="#up" /></svg></div>
+                          </div>
+                        </div>
+                        <div class="chips">
+                          <span class="chip"><svg class="i xs"><use href="#folder" /></svg> paseo-main</span>
+                          <span class="chip"><svg class="i xs"><use href="#sliders" /></svg> 默认模式</span>
+                          <span class="chip"><svg class="i xs"><use href="#branch" /></svg> develop</span>
+                          <span class="pinb s" style="align-self: center">5</span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 最近两栏 -->
+                    <div class="recent">
+                      <div class="rcol">
+                        <div class="rcol-h">
+                          <span class="t"><svg class="i sm"><use href="#history" /></svg> 最近对话</span>
+                          <button class="act"><svg class="i sm"><use href="#search" /></svg> 搜索<span class="pinb">6</span></button>
+                        </div>
+                        <div class="rcol-body">
+                          <div class="ritem"><svg class="i sm ti"><use href="#robot" /></svg><div class="meta"><div class="nm">重构 checkout 子系统</div></div><span class="when">3 分钟前</span><svg class="i sm go"><use href="#arrow-r" /></svg><span class="pinb">7</span></div>
+                          <div class="ritem"><svg class="i sm ti"><use href="#robot" /></svg><div class="meta"><div class="nm">修复侧边栏 toggle</div></div><span class="rrun"><span class="d"></span>运行中<span class="pinb s">8</span></span><svg class="i sm go"><use href="#arrow-r" /></svg></div>
+                          <div class="ritem"><svg class="i sm ti"><use href="#robot" /></svg><div class="meta"><div class="nm">VoiceSession 迁移</div></div><span class="when">1 小时前</span><svg class="i sm go"><use href="#arrow-r" /></svg></div>
+                        </div>
+                      </div>
+                      <div class="rcol">
+                        <div class="rcol-h">
+                          <span class="t"><svg class="i sm"><use href="#folder" /></svg> 最近项目</span>
+                          <button class="act pri"><svg class="i sm"><use href="#folder-plus" /></svg> 打开项目<span class="pinb">9</span></button>
+                        </div>
+                        <div class="rcol-body">
+                          <div class="ritem"><svg class="i sm ti"><use href="#folder" /></svg><div class="meta"><div class="nm">paseo-main</div><div class="pth">~/dev/paseo-main</div></div><svg class="i sm go"><use href="#arrow-r" /></svg><span class="pinb">10</span></div>
+                          <div class="ritem"><svg class="i sm ti"><use href="#folder" /></svg><div class="meta"><div class="nm">helm-relay</div><div class="pth">~/dev/helm-relay</div></div><svg class="i sm go"><use href="#arrow-r" /></svg></div>
+                          <div class="ritem"><svg class="i sm ti"><use href="#folder" /></svg><div class="meta"><div class="nm">website</div><div class="pth">~/dev/paseo-website</div></div><svg class="i sm go"><use href="#arrow-r" /></svg></div>
+                        </div>
+                        <div class="radd"><svg class="i sm"><use href="#folder" /></svg> 选择工作目录…<span class="pinb">11</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- ③ 右栏 + ④ 目录树：收起（首页态默认，仅顶栏 toggle 可唤出） -->
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件 · 中区首页）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>品牌图标（hero · 蓝圆角块 + gauge）</b>：纯品牌标识、不可点（hover 无态）。与顶栏看板 logo / 应用图标同源，强化「这是 Helm」。</div></li>
+              <li><span class="pin">2</span><div><b>时段问候语 + 友好提示</b>：问候语<b>随本地时段变化</b>——凌晨「夜深了」/ 早「早上好」/ 午「下午好」/ 晚「晚上好」；提示语随上下文细化：有当前项目 → 含项目名（「在 paseo-main 构建点什么」）、无项目 → 通用版（见 s2）、无模型 → 让位给引导条（见 s4）。纯文案、不可点。</div></li>
+              <li><span class="pin">3</span><div><b>中央 Composer 输入</b>：首页<b>主入口</b>。点击 / 聚焦 → 进入聚焦态（蓝光晕环 + hero 缩小让位，见 s3）；输入并发送第一条 → 中区<b>切换为消息流</b>（离开着陆态、进入普通对话页）。Composer 内部（附件 / 思考 / 联网 / 模型）<b>以外壳既有 Composer 为准，本需求不重定义</b>。</div></li>
+              <li><span class="pin">4</span><div><b>模型选择器（Composer 内联）</b>：提供方🔒 · 中转站 · 模型三层，沿用外壳既有级联。本需求不重定义其菜单。<b>无可用模型时转 warning 态、见 s4。</b></div></li>
+              <li><span class="pin">5</span><div><b>当前上下文 chips（项目 / 模式 / 分支）</b>：表示「即将发出的这条新对话」的上下文，属外壳 Composer 既有组成（弱化展示）。点项目 chip 可改当前项目、点分支可改分支、点模式可切模式 —— 沿用外壳，本需求不重定义。</div></li>
+              <li><span class="pin">6</span><div><b>「搜索」（最近对话栏头）</b>：打开全局会话搜索（与左栏「搜索会话」/ ⌘K 同一入口）。hover 浮极淡灰底 #f6f8fa。</div></li>
+              <li><span class="pin">7</span><div><b>最近对话项</b>：点击 → 进入<b>该对话的消息流</b>（中区切为消息流、左栏对应节点高亮选中）。hover → 整行淡灰底 #f6f8fa + 行尾浮「→」（时间让位）。各取<b>最近几项</b>，<b>不复制整棵左栏对话树</b>。</div></li>
+              <li><span class="pin">8</span><div><b>运行中状态点（最近对话项）</b>：绿点 + 「运行中」= 该对话后台流式中（与左栏对话树绿运行点同源）；点进即看实时输出。idle / 完成项显相对时间。</div></li>
+              <li><span class="pin">9</span><div><b>「打开项目」（最近项目栏头 · primary 蓝字）</b>：打开<b>已知项目选择器</b>，选中后以该项目为上下文准备新对话（中区回到首页态、context chips 切到该项目）。hover 浮极淡蓝底。</div></li>
+              <li><span class="pin">10</span><div><b>最近项目项</b>：点击 → 以该项目为上下文<b>准备新对话</b>（不直接进消息流，停在首页态、Composer 待输入；发出首条才进消息流）。hover 淡灰底 + 行尾「→」。副行 = 工作目录路径（mono）。</div></li>
+              <li><span class="pin">11</span><div><b>「选择工作目录…」（虚线行）</b>：打开系统目录选择器，挑一个本地目录作为新项目上下文（首次 / 项目不在最近列表时用）。hover → 边框转蓝虚线 + 淡灰底。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局 + 深色变体）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>桌面优先</b>：照搬外壳 —— 统一顶栏 h40 + 内容行（左栏 240 · 中区 flex-1 · 右栏 / 目录树本屏收起）。中区首页内容<b>居中、max-width 768</b>，自上而下 hero → Composer → 最近两栏（grid 1:1）；内容超高时中区内部滚动。<b>紧凑 / 手机态：后续</b>（随外壳统一适配 —— 最近两栏堆叠为单列、hero 收紧、Composer 贴顶）。</dd>
+                <dt>默认</dt>
+                <dd>左栏展开且<b>无选中项</b>（中区无活跃对话）；中区呈完整丰富首页；Composer 未聚焦（无蓝环）、发送键 dim；主机在线（绿点）。</dd>
+                <dt>悬浮</dt>
+                <dd>最近项 / 栏头按钮 / 「选择工作目录」hover 显淡灰底 #f6f8fa（项目栏「打开项目」为淡蓝底）；最近项 hover 行尾浮「→」、时间让位；顶栏 / 左栏 hover 同外壳。</dd>
+                <dt>活跃·选中</dt>
+                <dd>首页态<b>本身无 active 选中项</b>（无活跃对话）。点击最近对话后该项瞬时 pressed（淡灰 #eaeef2）随即切走。左栏开关为已展开淡灰填充态（外壳态）。</dd>
+                <dt>运行</dt>
+                <dd>「修复侧边栏 toggle」最近对话显<b>绿点 + 运行中</b>（后台流式）；左栏对话树同步绿运行点。</dd>
+                <dt>禁用</dt>
+                <dd>Composer 空输入 → 发送键 dim（不可发）。<b>无可用模型 → 整个 Composer 禁用 + 引导条，见 s4。</b></dd>
+                <dt>空</dt>
+                <dd><b>无最近项目 / 对话 → 见 s2</b>（最近区转引导态，hero + Composer 仍在）。</dd>
+                <dt>加载</dt>
+                <dd>拉取最近项 / 主机刚连上时，最近两栏显<b>骨架占位行</b>（灰条）；切主机时 hero 提示语转「正在连接…」。<b>细节后续</b>。</dd>
+                <dt>错误 / 离线</dt>
+                <dd>主机离线 → 顶栏主机切换器红点 + 中区顶部细提示条「主机已离线 · 重连」，最近区转只读灰态（不可点开）。<b>细节随主机模块对齐后补。</b></dd>
+                <dt>深色变体</dt>
+                <dd class="dk">同一套 codePilot 令牌（<b>.dark</b>）自动适配：中区卡 #161b22、字 #e6edf3、边框 #30363d、最近项 hover #1c2128、品牌块 / 主蓝 #1f6feb、运行绿点不变。<b>本稿只渲浅色，深色不另画屏。</b></dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-grp">最近对话项右键（4 项 · 与左栏对话树根行语义一致）</div>
+              <div class="ml-i"><b>打开</b> — 进入该对话消息流（= 左键）。</div>
+              <div class="ml-i"><b>重命名</b> — 行内改对话标题。</div>
+              <div class="ml-i"><b>复制 ID</b> — 复制会话 ID + toast。</div>
+              <div class="ml-i dz"><b>从最近移除</b> — 仅移出最近列表（不删对话本体）。</div>
+              <div class="ml-grp">最近项目项右键（4 项）</div>
+              <div class="ml-i"><b>以此开始新对话</b> — 以该项目为上下文准备新对话（= 左键）。</div>
+              <div class="ml-i"><b>在 Finder 显示</b> — 打开工作目录所在位置。</div>
+              <div class="ml-i"><b>复制路径</b> — 复制工作目录绝对路径。</div>
+              <div class="ml-i dz"><b>从最近移除</b> — 移出最近列表（不删本地目录）。</div>
+              <div class="ml-note">最近区右键<b>语义对齐</b>既有左栏对话树 / 项目右键，只是入口在首页；危险项仅「从最近移除」（不触碰对话 / 目录本体），归档 / 彻底删除仍走左栏对话树。Composer / hero / 上下文 chips <b>无右键菜单</b>。</div>
+              <div class="ml-open"><b>与外壳的边界</b>：顶栏 ··· 菜单（分屏 / 重命名 / 复制 ID / 删除）、左栏对话树右键、模型选择器级联<b>全部照搬 codepilot-layout / home-shell</b>，本需求<b>不改</b>；只新增「最近对话 / 最近项目」两个首页专属右键。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S2 ============================================================ -->
+    <section class="screen" id="s2">
+      <div class="screen-head">
+        <span class="tag new">丰富首页 · 2</span>
+        <h2>首次进入 · 空态（无最近项 · 引导态）</h2>
+        <p>
+          用户<b>首次连上主机、尚无任何项目 / 对话</b>时的着陆态。<b>hero 与中央 Composer 照常在场、照样能开干</b>（问候提示转通用版）；但<b>最近区</b>没有任何项可列 → 转为一张<b>引导卡</b>：「还没有项目或对话」+ 两个主抓手「打开项目」「选择工作目录」。左栏对话树同步空态（项目区「还没有项目」）。
+        </p>
+      </div>
+      <div class="frame" id="shot2">
+        <div class="win tall">
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">新对话</span>
+            <button class="tb-proj ph"><span>未选择项目</span></button><span class="pinb s">5</span>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>—</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+            </div>
+          </div>
+          <div class="row">
+            <!-- ① 左栏 · 首次进入空态 -->
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目 <span class="act"><svg class="i xs"><use href="#folder-plus" /></svg></span></div>
+                <div class="tree">
+                  <div class="tree-empty">还没有项目<br />打开一个目录开始</div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot">
+                  <div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div>
+                </div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <!-- ② 中区 · 空态引导 -->
+            <div class="card main">
+              <div class="main-wrap">
+                <div class="home">
+                  <div class="home-inner">
+                    <div class="hero">
+                      <div class="brand"><svg class="i"><use href="#gauge" /></svg></div>
+                      <div class="gt">晚上好</div>
+                      <div class="gsub">欢迎使用 Helm。主机已连上、随时可以开始 —— 在下方输入第一句，或先打开一个项目。<span class="pinb s">1</span></div>
+                    </div>
+                    <div class="home-cmp">
+                      <div class="composer">
+                        <div class="cbox">
+                          <div class="cph">问点什么，或让代理开始干活…<span class="pinb s">2</span></div>
+                          <div class="crow">
+                            <div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div>
+                            <div class="ctool on"><svg class="i sm"><use href="#brain" /></svg> 思考</div>
+                            <div class="ctool"><svg class="i sm"><use href="#globe" /></svg> 联网</div>
+                            <div class="cspacer"></div>
+                            <div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> Claude Code <span class="sep">·</span> GLM <svg class="i sm"><use href="#chev-d" /></svg></div>
+                            <div class="csend dim"><svg class="i sm"><use href="#up" /></svg></div>
+                          </div>
+                        </div>
+                        <div class="chips">
+                          <span class="chip ph"><svg class="i xs"><use href="#folder" /></svg> 未选择项目</span>
+                          <span class="chip"><svg class="i xs"><use href="#sliders" /></svg> 默认模式</span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 最近区 · 空态引导卡 -->
+                    <div class="recent">
+                      <div class="guide">
+                        <div class="gic"><svg class="i lg"><use href="#folder-plus" /></svg></div>
+                        <div class="gt2">还没有项目或对话</div>
+                        <div class="gs">打开一个项目、或直接在上方 Composer 开始一段新对话 —— 你的最近项目和最近对话会出现在这里，方便一键回到。</div>
+                        <div class="gbtns">
+                          <button class="gbtn pri"><svg class="i sm"><use href="#folder-plus" /></svg> 打开项目<span class="pinb">3</span></button>
+                          <button class="gbtn"><svg class="i sm"><use href="#folder" /></svg> 选择工作目录<span class="pinb">4</span></button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件 · 空态）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>问候提示（通用版）</b>：无当前项目 → 提示语<b>不含项目名</b>，改为欢迎 + 「主机已连上、随时可开始」的通用引导文案；问候语仍随时段变化。</div></li>
+              <li><span class="pin">2</span><div><b>中央 Composer（空态仍可用）</b>：即便无最近项，<b>Composer 照常可输入</b>。直接打字发出第一条 → 系统以当前主机默认工作目录建对话、中区切消息流。这是「无项目也能一步开干」的保证。</div></li>
+              <li><span class="pin">3</span><div><b>「打开项目」（引导主抓手 · primary 蓝）</b>：空态<b>首要引导</b>。打开已知项目选择器（首次通常为空 → 回落到目录选择器）；选中后以该项目为上下文、首页恢复有最近项态。</div></li>
+              <li><span class="pin">4</span><div><b>「选择工作目录」（次抓手 · ghost 描边）</b>：打开系统目录选择器，挑本地目录作为新项目；选中后该项目进入左栏对话树 + 最近项目，首页转 s1 态。</div></li>
+              <li><span class="pin">5</span><div><b>顶栏项目名（占位态）</b>：无项目 → 显斜体灰「未选择项目」占位（不可点选项目时为纯展示）；选了项目后转正常项目名面包屑（外壳态）。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局 + 深色变体）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>同 s1 外壳；中区最近区<b>由两栏 grid 合并为一张跨栏引导卡</b>（居中、虚线边 + 极淡灰底）。<b>紧凑 / 手机态：后续</b>（引导卡两抓手堆叠为竖排）。</dd>
+                <dt>空（本屏主态）</dt>
+                <dd><b>无最近项目 + 无最近对话</b>：最近区 = 引导卡（图标 + 「还没有项目或对话」+ 两抓手）；左栏对话树 = 「还没有项目 · 打开一个目录开始」；hero + Composer <b>仍在、仍可开干</b>（验收 7）。</dd>
+                <dt>默认 / 悬浮</dt>
+                <dd>引导卡两按钮 hover：primary「打开项目」转深蓝、ghost「选择工作目录」浮淡灰底；Composer / 左栏 hover 同 s1。</dd>
+                <dt>活跃 / 运行 / 禁用</dt>
+                <dd>无活跃 / 运行对话（首次进入）；Composer 空输入发送键 dim。</dd>
+                <dt>加载</dt>
+                <dd>主机刚连上、最近项还在拉取的瞬时 → 引导卡位置先显<b>骨架占位</b>，确认确无数据后才落「还没有项目」空态（避免空态闪现）。<b>细节后续。</b></dd>
+                <dt>错误 / 离线</dt>
+                <dd>同 s1：主机离线则引导卡两抓手禁用 + 顶部重连提示条。</dd>
+                <dt>深色变体</dt>
+                <dd class="dk">引导卡底 #1c2128、虚线边 #30363d、primary 抓手 #1f6feb；其余同 s1 深色映射。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">空态引导卡<b>无右键菜单</b>（无列表项可操作）；hero / Composer 同 s1 无右键。顶栏 ··· / 左栏空态右键沿用外壳。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S3 ============================================================ -->
+    <section class="screen" id="s3">
+      <div class="screen-head">
+        <span class="tag new">丰富首页 · 3</span>
+        <h2>Composer 聚焦 + hover / active 态</h2>
+        <p>
+          一张图集中演示三类态：<b>① Composer 聚焦</b>（蓝光晕环 + 已输入文字 + 发送键转蓝可发；hero 缩小淡化「让位」、最近区下沉淡化）；<b>② hover</b>（最近对话首项 hover 行尾浮「→」、「打开项目」按钮 hover）；<b>③ active / pressed</b>（最近项目首项被按下选中淡灰 #eaeef2）。右侧注解附「发出首条后离开着陆态」的过渡说明（不画进框）。
+        </p>
+      </div>
+      <div class="frame" id="shot3">
+        <div class="win tall">
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">新对话</span>
+            <button class="tb-proj"><span>paseo-main</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>2</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目 <span class="act"><svg class="i xs"><use href="#folder-plus" /></svg></span></div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><svg class="i sm ti"><use href="#robot" /></svg><span class="tname">重构 checkout 子系统</span><span class="ttime">3 分钟前</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot run"></span><span class="tname">修复侧边栏 toggle</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot idle"></span><span class="tname">VoiceSession 迁移</span><span class="ttime">1 小时前</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot">
+                  <div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div>
+                </div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <!-- ② 中区 · 聚焦让位 -->
+            <div class="card main">
+              <div class="main-wrap">
+                <div class="home focusing">
+                  <div class="home-inner">
+                    <div class="hero">
+                      <div class="brand"><svg class="i"><use href="#gauge" /></svg></div>
+                      <div class="gt">晚上好</div>
+                      <div class="gsub">今天想在 <b>paseo-main</b> 构建点什么？</div>
+                    </div>
+                    <div class="home-cmp">
+                      <div class="composer">
+                        <div class="cbox focus">
+                          <div class="cph typed">帮我把 checkout 的读取逻辑抽成独立 session<span class="caret"></span><span class="pinb s">1</span></div>
+                          <div class="crow">
+                            <div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div>
+                            <div class="ctool on"><svg class="i sm"><use href="#brain" /></svg> 思考</div>
+                            <div class="ctool"><svg class="i sm"><use href="#globe" /></svg> 联网</div>
+                            <div class="cspacer"></div>
+                            <div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> GLM <span class="sep">·</span> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg></div>
+                            <div class="csend go"><svg class="i sm"><use href="#up" /></svg><span class="pinb">2</span></div>
+                          </div>
+                        </div>
+                        <div class="chips">
+                          <span class="chip"><svg class="i xs"><use href="#folder" /></svg> paseo-main</span>
+                          <span class="chip"><svg class="i xs"><use href="#sliders" /></svg> 默认模式</span>
+                          <span class="chip"><svg class="i xs"><use href="#branch" /></svg> develop</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="recent">
+                      <div class="rcol">
+                        <div class="rcol-h">
+                          <span class="t"><svg class="i sm"><use href="#history" /></svg> 最近对话</span>
+                          <button class="act"><svg class="i sm"><use href="#search" /></svg> 搜索</button>
+                        </div>
+                        <div class="rcol-body">
+                          <div class="ritem hov"><svg class="i sm ti"><use href="#robot" /></svg><div class="meta"><div class="nm">重构 checkout 子系统</div></div><span class="when">3 分钟前</span><svg class="i sm go"><use href="#arrow-r" /></svg><span class="pinb">3</span></div>
+                          <div class="ritem"><svg class="i sm ti"><use href="#robot" /></svg><div class="meta"><div class="nm">修复侧边栏 toggle</div></div><span class="rrun"><span class="d"></span>运行中</span><svg class="i sm go"><use href="#arrow-r" /></svg></div>
+                          <div class="ritem"><svg class="i sm ti"><use href="#robot" /></svg><div class="meta"><div class="nm">VoiceSession 迁移</div></div><span class="when">1 小时前</span><svg class="i sm go"><use href="#arrow-r" /></svg></div>
+                        </div>
+                      </div>
+                      <div class="rcol">
+                        <div class="rcol-h">
+                          <span class="t"><svg class="i sm"><use href="#folder" /></svg> 最近项目</span>
+                          <button class="act pri hov"><svg class="i sm"><use href="#folder-plus" /></svg> 打开项目<span class="pinb">4</span></button>
+                        </div>
+                        <div class="rcol-body">
+                          <div class="ritem on"><svg class="i sm ti"><use href="#folder" /></svg><div class="meta"><div class="nm">paseo-main</div><div class="pth">~/dev/paseo-main</div></div><svg class="i sm go"><use href="#arrow-r" /></svg><span class="pinb">5</span></div>
+                          <div class="ritem"><svg class="i sm ti"><use href="#folder" /></svg><div class="meta"><div class="nm">helm-relay</div><div class="pth">~/dev/helm-relay</div></div><svg class="i sm go"><use href="#arrow-r" /></svg></div>
+                          <div class="ritem"><svg class="i sm ti"><use href="#folder" /></svg><div class="meta"><div class="nm">website</div><div class="pth">~/dev/paseo-website</div></div><svg class="i sm go"><use href="#arrow-r" /></svg></div>
+                        </div>
+                        <div class="radd"><svg class="i sm"><use href="#folder" /></svg> 选择工作目录…</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果 / 态（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>Composer 聚焦态</b>：点击 / 聚焦输入 → <b>cbox 浮 GitHub 蓝 14% 光晕环</b>（border 转蓝）；占位文案被已输入文字取代 + 蓝光标；同时 <b>hero 缩小到 0.9 并淡化、最近区整体下沉淡化（让位、突出输入）</b>。失焦且未发送 → 回 s1 默认态。</div></li>
+              <li><span class="pin">2</span><div><b>发送键（已激活 go 态）</b>：有输入内容 → 由灰 dim 转 <b>primary 蓝可发</b>。点击 / ⌘↵ 发出第一条 → <b>中区切换为消息流（离开着陆态、进入普通对话页）</b>，左栏新建该对话节点并选中。<b>过渡（注解，不画框）</b>：首页 hero / 最近区随消息上屏淡出，Composer 下移到对话页底部 chat-cmp 位。</div></li>
+              <li><span class="pin">3</span><div><b>最近对话项 hover</b>：整行淡灰底 #f6f8fa + 行尾浮「→」（时间让位）。点击进该对话消息流。<b>右键</b> = s1 的 4 项菜单。</div></li>
+              <li><span class="pin">4</span><div><b>「打开项目」hover</b>：primary 蓝字 + 浮极淡蓝底。点击打开项目选择器。</div></li>
+              <li><span class="pin">5</span><div><b>最近项目项 active / pressed</b>：按下瞬间 = <b>选中淡灰底 #eaeef2 + 深灰字加粗</b>（绝非黑底白字）。松开 → 以该项目为上下文准备新对话、首页 context chips 切到该项目。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局 + 深色变体）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>同 s1 外壳；聚焦时中区内部用 transform 让 hero 缩小、recent 降透明度，<b>不改外壳卡片几何</b>。<b>紧凑 / 手机态：后续</b>（聚焦时移动端 hero 可整体收起、Composer 升顶）。</dd>
+                <dt>悬浮</dt>
+                <dd>本屏即 hover 演示：最近对话首项 hover、「打开项目」hover；其余项 / 按钮静止默认态。</dd>
+                <dt>活跃·选中</dt>
+                <dd>本屏即 active 演示：最近项目首项 pressed 选中淡灰 #eaeef2 + 深灰字。提醒：首页常态无持久 active，此为点击瞬时态。</dd>
+                <dt>聚焦</dt>
+                <dd>Composer = focus 态（蓝环 + 输入 + go 键）；hero / 最近区让位淡化。</dd>
+                <dt>禁用 / 空 / 加载 / 错误 / 离线</dt>
+                <dd>禁用 = 清空输入则发送键回 dim；空 / 加载 / 错误 / 离线 <b>同 s1 / s2</b>，本屏不重复演示。</dd>
+                <dt>深色变体</dt>
+                <dd class="dk">聚焦环 = #1f6feb 14%、go 键 #1f6feb、pressed 选中 #21262d + 字 #e6edf3、hover #1c2128；让位透明度逻辑不变。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">同 s1：最近对话项 4 项 / 最近项目项 4 项；Composer 聚焦态<b>无新增右键</b>（文本区右键 = 系统输入菜单，属外壳 Composer）。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S4 ============================================================ -->
+    <section class="screen" id="s4">
+      <div class="screen-head">
+        <span class="tag new">丰富首页 · 4</span>
+        <h2>边界 · 无可用 provider / 模型（引导去配置）</h2>
+        <p>
+          检测到<b>当前无可用 provider / 模型</b>时的首页态。hero 照常；其下叠加一条醒目的<b>「去配置」引导条</b>（警告橙边 + alert 图标 + 「去配置」primary 按钮）；<b>中央 Composer 转禁用态</b>（整体淡化、模型选择器显 warning「未配置模型」、发送键 dim）；最近对话仍可查看但发新消息需先配置。<b>本屏只摆「引导」抓手，配置界面本身属另一需求、不在本屏。</b>
+        </p>
+      </div>
+      <div class="frame" id="shot4">
+        <div class="win tall">
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">新对话</span>
+            <button class="tb-proj"><span>paseo-main</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>2</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目 <span class="act"><svg class="i xs"><use href="#folder-plus" /></svg></span></div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><svg class="i sm ti"><use href="#robot" /></svg><span class="tname">重构 checkout 子系统</span><span class="ttime">3 分钟前</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><svg class="i sm ti"><use href="#robot" /></svg><span class="tname">VoiceSession 迁移</span><span class="ttime">1 小时前</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot">
+                  <div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div>
+                </div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <!-- ② 中区 · 无模型引导 -->
+            <div class="card main">
+              <div class="main-wrap">
+                <div class="home">
+                  <div class="home-inner">
+                    <div class="hero">
+                      <div class="brand"><svg class="i"><use href="#gauge" /></svg></div>
+                      <div class="gt">晚上好</div>
+                      <div class="gsub">就差最后一步 —— 配置一个模型，就能在 <b>paseo-main</b> 开始对话了。</div>
+                    </div>
+                    <!-- 去配置引导条 -->
+                    <div class="needcfg">
+                      <div class="wic"><svg class="i md"><use href="#alert" /></svg></div>
+                      <div class="wt"><b>还没有可用的模型</b><div class="s">先配置一个提供方和模型，才能开始新对话。最近对话可查看，继续发消息同样需要先配置。</div></div>
+                      <button class="cfgbtn">去配置 <svg class="i sm"><use href="#arrow-r" /></svg><span class="pinb">1</span></button>
+                    </div>
+                    <div class="home-cmp">
+                      <div class="composer">
+                        <div class="cbox dis">
+                          <div class="cph">先配置模型后即可开始对话…<span class="pinb s">2</span></div>
+                          <div class="crow">
+                            <div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div>
+                            <div class="ctool"><svg class="i sm"><use href="#brain" /></svg> 思考</div>
+                            <div class="ctool"><svg class="i sm"><use href="#globe" /></svg> 联网</div>
+                            <div class="cspacer"></div>
+                            <div class="cmodel warn"><svg class="i sm"><use href="#alert" /></svg> 未配置模型 <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">3</span></div>
+                            <div class="csend dim"><svg class="i sm"><use href="#up" /></svg></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 最近区 · 可查看 -->
+                    <div class="recent">
+                      <div class="rcol">
+                        <div class="rcol-h">
+                          <span class="t"><svg class="i sm"><use href="#history" /></svg> 最近对话</span>
+                          <button class="act"><svg class="i sm"><use href="#search" /></svg> 搜索</button>
+                        </div>
+                        <div class="rcol-body">
+                          <div class="ritem"><svg class="i sm ti"><use href="#robot" /></svg><div class="meta"><div class="nm">重构 checkout 子系统</div></div><span class="when">3 分钟前</span><svg class="i sm go"><use href="#arrow-r" /></svg><span class="pinb">4</span></div>
+                          <div class="ritem"><svg class="i sm ti"><use href="#robot" /></svg><div class="meta"><div class="nm">VoiceSession 迁移</div></div><span class="when">1 小时前</span><svg class="i sm go"><use href="#arrow-r" /></svg></div>
+                        </div>
+                      </div>
+                      <div class="rcol">
+                        <div class="rcol-h">
+                          <span class="t"><svg class="i sm"><use href="#folder" /></svg> 最近项目</span>
+                          <button class="act pri"><svg class="i sm"><use href="#folder-plus" /></svg> 打开项目</button>
+                        </div>
+                        <div class="rcol-body">
+                          <div class="ritem"><svg class="i sm ti"><use href="#folder" /></svg><div class="meta"><div class="nm">paseo-main</div><div class="pth">~/dev/paseo-main</div></div><svg class="i sm go"><use href="#arrow-r" /></svg></div>
+                          <div class="ritem"><svg class="i sm ti"><use href="#folder" /></svg><div class="meta"><div class="nm">helm-relay</div><div class="pth">~/dev/helm-relay</div></div><svg class="i sm go"><use href="#arrow-r" /></svg></div>
+                        </div>
+                        <div class="radd"><svg class="i sm"><use href="#folder" /></svg> 选择工作目录…</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件 · 无模型态）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>「去配置」引导抓手（primary 蓝按钮）</b>：本屏<b>首要抓手</b>。点击 → 进入<b>配置入口</b>（provider / 模型配置，<b>属另一需求</b>，本屏不含其界面）。<b>默认</b> = 蓝实底白字；<b>hover</b> = 转深蓝；配置完成回首页 → 引导条消失、Composer 恢复可用、模型选择器显真实模型。</div></li>
+              <li><span class="pin">2</span><div><b>Composer（禁用态）</b>：整框淡化（opacity 0.55）、占位文案改「先配置模型后即可开始对话…」、不可聚焦发送。这是「为什么开不了工」的就地解释，配合上方引导条。</div></li>
+              <li><span class="pin">3</span><div><b>模型选择器（warning 态）</b>：橙边 + alert 图标 + 「未配置模型」。点击 → 同样跳配置入口（与「去配置」同目的地，给第二个抓手）。</div></li>
+              <li><span class="pin">4</span><div><b>最近对话 / 最近项目（仍可查看）</b>：点最近对话 → 进该对话消息流可<b>查看历史</b>；但要<b>继续发消息</b>仍会被拦到配置入口。点最近项目 / 打开项目同样先配置再开干。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局 + 深色变体）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>同 s1 外壳；中区在 hero 与 Composer 之间插入一条<b>引导条</b>（整宽、警告橙边）。<b>紧凑 / 手机态：后续</b>（引导条「去配置」按钮换行到条下方）。</dd>
+                <dt>错误 / 边界（本屏主态）</dt>
+                <dd><b>无可用 provider / 模型</b>：引导条 + Composer 禁用 + 模型选择器 warning；最近区可读不可发。这是<b>边界引导态</b>，非崩溃错误。</dd>
+                <dt>默认 / 悬浮</dt>
+                <dd>「去配置」hover 转深蓝；模型选择器 warning hover 加深橙边；最近项 hover 同 s1。</dd>
+                <dt>活跃 / 运行</dt>
+                <dd>无可用模型 → 无法发起新运行；已存在的后台运行对话（若有）仍在左栏显运行点、可查看。</dd>
+                <dt>禁用</dt>
+                <dd>Composer 输入 + 发送整体禁用（直到配置完成）；思考 / 联网 / 附件等工具一并灰置。</dd>
+                <dt>空 / 加载</dt>
+                <dd>「无模型」与「无最近项」可叠加 → 引导条 + 空态引导卡（s2）同现；检测模型可用性时引导条先显加载骨架。<b>细节后续。</b></dd>
+                <dt>离线</dt>
+                <dd>主机离线时优先显「主机离线」提示（高于无模型引导）；恢复在线再判模型可用性。</dd>
+                <dt>深色变体</dt>
+                <dd class="dk">引导条 = 橙边 #d29922 + 暗橙底；模型选择器 warning 同色；「去配置」#1f6feb；禁用 Composer 降透明度逻辑不变。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">引导条 / 禁用 Composer <b>无右键菜单</b>；最近对话 / 最近项目右键同 s1（但「打开 / 以此开始新对话」最终仍引导去配置）。</div>
+              <div class="ml-open"><b>边界声明</b>：本屏<b>只负责「引导去配置」这一步</b>；provider / 模型的<b>配置界面本身属另一需求</b>（主机 / 设置相关），不在本首页设计范围。配置完成后回首页即恢复 s1 正常开干态。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 截图辅助：?only=sN 时只显该屏视觉（隐藏看板/标题/注解），供逐屏 PNG 渲染。 -->
+    <script>
+      (function () {
+        var p = new URLSearchParams(location.search);
+        var only = p.get("only");
+        if (!only) return;
+        ["board-h", "req-log", "nav-idx", "note"].forEach(function (c) {
+          document.querySelectorAll("." + c).forEach(function (el) { el.style.display = "none"; });
+        });
+        document.querySelectorAll("section.screen").forEach(function (sec) {
+          if (sec.id !== only) { sec.style.display = "none"; return; }
+          sec.style.margin = "0 auto";
+          sec.querySelectorAll(".screen-head, .anno").forEach(function (el) { el.style.display = "none"; });
+        });
+        document.body.style.padding = "28px 28px";
+        document.body.style.maxWidth = "none";
+      })();
+    </script>
+  </body>
+</html>

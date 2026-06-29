@@ -1,0 +1,1753 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · 设置 · 主机(Host) · UI 设计稿（CodePilot 浅色 GitHub 主题换肤 · 2026-06-27）</title>
+    <style>
+      /* =========================================================================
+         令牌：CodePilot 浅色「GitHub」主题（themes/github.json light + globals.css）
+         —— 绿色 accent(#20744a) 全部换成 GitHub 蓝(#0969da)；几何/状态色/阴影/字体
+         与并行「CodePilot 主布局」项目同源。oklch 直出（Chrome 原生支持），hex 仅对照。
+         保留现有 settings 组件的 token 变量名，故组件 CSS 几乎原样复用 = 纯换肤。
+         ========================================================================= */
+      :root {
+        /* 面 */
+        --surface0: oklch(1 0 0);                 /* #ffffff 卡/页底 */
+        --surface1: oklch(0.985 0.002 247.9);     /* ≈#fafbfc 行 hover 极浅 */
+        --surface2: oklch(0.978 0.003 247.9);     /* ≈#f6f8fa 侧栏/嵌入面 canvas-subtle */
+        --surface3: oklch(0.947 0.007 247.9);     /* ≈#eef0f3 次级面/轨道 */
+        --surface4: oklch(0.876 0.012 248.0);     /* ≈#d0d7de 强边/拇指 */
+        --surfaceSidebar: oklch(0.978 0.003 247.9);/* ≈#f6f8fa 左导航 */
+        --surfaceWorkspace: oklch(1 0 0);
+        /* 文字 */
+        --fg: oklch(0.254 0.011 254.0);           /* ≈#1f2328 正文 */
+        --fgMuted: oklch(0.531 0.017 251.3);      /* ≈#656d76 次要 */
+        --fgFaint: oklch(0.646 0.014 250.0);      /* ≈#8c959f 更弱 */
+        /* 线 */
+        --border: oklch(0.876 0.012 248.0);       /* ≈#d0d7de 边/分隔 */
+        --borderAccent: oklch(0.917 0.008 248.0); /* ≈#e1e6eb 浅分隔 */
+        /* 品牌（GitHub 蓝，克制强调：链接/主按钮/选中/聚焦/「当前」） */
+        --accent: oklch(0.540 0.191 257.5);       /* ≈#0969da */
+        --accentBright: oklch(0.540 0.191 257.5); /* 同蓝（图标/小字强调） */
+        --accentHover: oklch(0.482 0.176 257.5);  /* ≈#0860c9 主按钮 hover */
+        --accentSoft: color-mix(in oklch, var(--accent) 10%, transparent);
+        --accentSoftBorder: color-mix(in oklch, var(--accent) 30%, transparent);
+        --accentFg: oklch(1 0 0);
+        /* 选中态（canonical codePilot：列表/导航选中 = 很淡的灰底 --surface3 #eaeef2 + 深灰字 #3d444d + 加粗，绝不用蓝/primary） */
+        --selBg: oklch(0.947 0.007 247.9);        /* #eaeef2 选中底·很淡灰（= surface3） */
+        --selFg: oklch(0.338 0.015 252.3);        /* #3d444d 选中字·深灰（canonical sidebar-accent-fg） */
+        /* 状态（globals.css 原值） */
+        --success: oklch(0.527 0.154 150.069);    /* ≈#1a7f37 CLI 已装/健康 */
+        --successSoft: color-mix(in oklch, var(--success) 13%, transparent);
+        --warning: oklch(0.705 0.213 47.604);     /* 警告/限额 橙 */
+        --warningSoft: color-mix(in oklch, var(--warning) 13%, transparent);
+        --danger: oklch(0.577 0.245 27.325);      /* ≈#cf222e 删除/离线/错误 红 */
+        --dangerSoft: color-mix(in oklch, var(--danger) 10%, transparent);
+        --info: oklch(0.546 0.245 262.881);       /* 信息 蓝 */
+        /* 字号 */
+        --xs: 12px; --sm: 14px; --base: 16px; --lg: 18px; --xl: 20px; --xxl: 22px; --xxxl: 26px;
+        /* 几何 —— GitHub 偏扁平：靠 1px 边框分隔，圆角克制；卡 12 / 控件 6 / 胶囊全圆（与 codepilot-layout 同源） */
+        --r-sm: 4px; --r-base: 6px; --r-md: 6px; --r-lg: 10px; --r-xl: 12px; --r-2xl: 16px;
+        /* 阴影 = GitHub 扁平：清晰 1px 边框 + 极轻投影（与 codepilot-layout 逐值一致，去 macOS 厚玻璃/柔阴影） */
+        --shadow: 0 8px 24px rgba(31, 35, 40, 0.12);
+        --card-drop: 0 1px 0 rgba(31, 35, 40, 0.04), 0 1px 3px rgba(31, 35, 40, 0.08);
+        /* 窗口 chrome（macOS 浮窗：磨砂窗背景 + 整窗投影 + 半透磨砂左栏；与 codepilot-layout 逐值一致） */
+        --win-backdrop: radial-gradient(135% 90% at 12% -10%, rgba(255,255,255,0.66), rgba(255,255,255,0) 55%), radial-gradient(120% 120% at 108% 115%, rgba(174,192,214,0.40), rgba(174,192,214,0) 50%), linear-gradient(152deg, #edf0f4 0%, #e4e9ef 48%, #e9edf1 100%);
+        --win-shadow: 0 12px 30px -16px rgba(31,35,40,0.16), 0 2px 6px -3px rgba(31,35,40,0.10);
+        --sidebar-surface: rgba(255,255,255,0.58);
+        --ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        background: #eaeef2;
+        color: var(--fg); font-family: var(--ui); -webkit-font-smoothing: antialiased;
+        font-size: var(--base); line-height: 1.45;
+      }
+      body { padding: 40px 32px 120px; }
+      svg.i { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+      .i.xs { width: 12px; height: 12px; } .i.sm { width: 14px; height: 14px; } .i.md { width: 16px; height: 16px; } .i.lg { width: 20px; height: 20px; } .i.xl { width: 26px; height: 26px; }
+
+      /* ---------- 设计板自身（非产品 UI） ---------- */
+      .board-h { max-width: 1320px; margin: 0 auto 20px; }
+      .board-h h1 { font-size: 30px; font-weight: 600; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px; }
+      .board-h h1 .logo { width: 34px; height: 34px; border-radius: 9px; background: var(--accent); display: flex; align-items: center; justify-content: center; color: #fff; }
+      .board-h .sub { color: var(--fgMuted); font-size: var(--sm); margin-top: 8px; max-width: 1040px; }
+      .board-h .sub b { color: var(--fg); font-weight: 600; }
+      /* 图例（本期建 vs 对话接入·暂缓） */
+      .legend { max-width: 1320px; margin: 0 auto 20px; border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface0); box-shadow: var(--card-drop); overflow: hidden; }
+      .legend-h { padding: 11px 16px; background: var(--surface2); border-bottom: 1px solid var(--border); font-size: var(--xs); font-weight: 700; color: var(--fgMuted); letter-spacing: 0.5px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; }
+      .legend-b { padding: 14px 16px; display: flex; flex-direction: column; gap: 11px; }
+      .legend-row { display: flex; align-items: flex-start; gap: 12px; font-size: 13px; color: var(--fgMuted); line-height: 1.5; }
+      .legend-row b { color: var(--fg); font-weight: 600; }
+      /* 标记：本期建 / 对话接入·暂缓 */
+      .cb { display: inline-flex; align-items: center; gap: 5px; flex: none; font-size: 11px; font-weight: 600; color: var(--success); background: var(--successSoft); border: 1px solid color-mix(in oklch, var(--success) 26%, transparent); border-radius: 9999px; padding: 2px 9px; white-space: nowrap; }
+      .cz { display: inline-flex; align-items: center; gap: 5px; flex: none; font-size: 11px; font-weight: 600; color: var(--warning); background: var(--warningSoft); border: 1px dashed color-mix(in oklch, var(--warning) 45%, transparent); border-radius: 9999px; padding: 2px 9px; white-space: nowrap; }
+      .cb .i, .cz .i { width: 11px; height: 11px; }
+
+      .nav-idx { max-width: 1320px; margin: 0 auto 30px; display: flex; flex-wrap: wrap; gap: 8px; }
+      .nav-idx a { font-size: var(--xs); color: var(--fgMuted); text-decoration: none; padding: 5px 11px; border: 1px solid var(--border); border-radius: 9999px; background: var(--surface0); }
+      .nav-idx a:hover { color: var(--fg); background: var(--surface2); }
+      .nav-idx .grp { flex-basis: 100%; font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.6px; margin: 8px 0 2px; padding: 0; }
+      .nav-idx .grp:first-child { margin-top: 0; }
+
+      .screen { max-width: 1320px; margin: 0 auto 54px; scroll-margin-top: 20px; }
+      .screen-head { margin-bottom: 14px; }
+      .screen-head .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: var(--accent); background: var(--accentSoft); padding: 2px 9px; border-radius: 9999px; margin-bottom: 8px; }
+      .screen-head h2 { font-size: var(--xl); font-weight: 600; letter-spacing: -0.2px; }
+      .screen-head p { color: var(--fgMuted); font-size: var(--sm); margin-top: 5px; max-width: 1040px; }
+      .screen-head p b { color: var(--fg); font-weight: 600; }
+
+      /* 截图目标包裹：每屏 PNG = caphead + frame（注解块在外，不入图） */
+      .cap { display: inline-block; padding: 26px 28px; border-radius: 20px; background: transparent; }
+      .caphead { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; padding-left: 2px; }
+      .caphead .captag { font-size: 12px; font-weight: 700; color: #fff; background: var(--accent); padding: 3px 11px; border-radius: 9999px; letter-spacing: 0.3px; }
+      .caphead .capsub { font-size: 13px; color: var(--fgMuted); }
+      .caphead .capsub b { color: var(--fg); font-weight: 600; }
+
+      /* ---------- annotation block（每屏四维度） ---------- */
+      .anno { border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface0); overflow: hidden; margin-top: 4px; box-shadow: var(--card-drop); }
+      .anno .anno-h { font-size: var(--xs); font-weight: 700; color: var(--fgMuted); text-transform: uppercase; letter-spacing: 0.4px; padding: 10px 14px 7px; }
+      .anno ol { list-style: none; display: flex; flex-direction: column; }
+      .anno li { display: flex; gap: 9px; padding: 9px 14px; border-top: 1px solid var(--border); font-size: 13px; line-height: 1.5; color: var(--fgMuted); }
+      .anno li b { color: var(--fg); font-weight: 500; }
+      .pin { flex: none; width: 18px; height: 18px; border-radius: 9999px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+      .pinb { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 9999px; background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; vertical-align: super; margin-left: 3px; }
+      .states { border-top: 1px solid var(--border); padding: 10px 14px; background: var(--surface2); }
+      .states .sh { font-size: 11px; font-weight: 700; color: var(--fgMuted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 7px; }
+      .states dl { display: grid; grid-template-columns: 84px 1fr; gap: 5px 10px; font-size: 12px; line-height: 1.5; }
+      .states dt { color: var(--accent); font-weight: 600; }
+      .states dd { margin: 0; color: var(--fgMuted); }
+      .states dd b { color: var(--fg); font-weight: 500; }
+
+      /* ---------- device frame（白窗 + 圆角 + 柔投影） ---------- */
+      .frame { width: 1240px; border-radius: var(--r-2xl); overflow: hidden; background: var(--win-backdrop); box-shadow: var(--win-shadow); padding: 8px 16px 16px; }
+      .frame.rel { position: relative; }
+      .titlebar { height: 40px; background: transparent; display: flex; align-items: center; padding: 0 4px; gap: 8px; }
+      .lights { display: flex; gap: 8px; }
+      .lights span { width: 11px; height: 11px; border-radius: 9999px; }
+      .lights .r { background: #ff5f57; } .lights .y { background: #febc2e; } .lights .g { background: #28c840; }
+      .tb-title { margin-left: 10px; font-size: 13px; color: var(--fgMuted); }
+
+      /* ---------- master-detail 外壳 ---------- */
+      .set-shell { display: flex; gap: 8px; min-height: 620px; }
+      .set-nav { width: 240px; flex: none; background: var(--sidebar-surface); backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: var(--card-drop); padding: 10px 10px 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+      .set-navback { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--fgMuted); padding: 7px 9px; border-radius: var(--r-md); cursor: pointer; margin-bottom: 4px; }
+      .set-navback:hover { background: var(--surface3); color: var(--fg); }
+      .set-navgroup { font-size: 11px; font-weight: 700; color: var(--fgFaint); text-transform: uppercase; letter-spacing: 0.5px; padding: 10px 9px 5px; }
+      .set-navrow { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: var(--r-md); font-size: var(--sm); color: var(--fg); cursor: pointer; text-decoration: none; position: relative; }
+      .set-navrow .i { color: var(--fgMuted); }
+      .set-navrow:hover { background: var(--surface3); }
+      .set-navrow.active { background: var(--selBg); color: var(--selFg); font-weight: 500; }
+      .set-navrow.active .i { color: var(--selFg); }
+      .set-navrow.disabled { color: var(--fgFaint); cursor: not-allowed; }
+      .set-navrow.disabled .i { color: var(--fgFaint); }
+      .set-navrow .navbadge { margin-left: auto; font-size: 10px; color: var(--fgMuted); background: var(--surface3); border-radius: 9999px; padding: 0 6px; min-width: 17px; text-align: center; }
+      .set-navrow.active .navbadge { background: var(--surface4); color: var(--fg); }
+      /* host 选择器 */
+      .set-hostpick { display: flex; align-items: center; gap: 8px; margin: 4px 0 2px; padding: 9px 10px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface0); cursor: pointer; }
+      .set-hostpick:hover { background: var(--surface1); border-color: var(--surface4); }
+      .set-hostpick.open { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accentSoft); }
+      .set-hostpick .hp-name { font-size: 13px; font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .set-hostpick .hp-chev { color: var(--fgMuted); }
+      /* host 下拉菜单（展开态） */
+      .hostmenu { margin: 3px 0 4px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface0); box-shadow: var(--shadow); overflow: hidden; padding: 5px; }
+      .hostmenu .hm-cap { font-size: 10px; font-weight: 700; color: var(--fgFaint); text-transform: uppercase; letter-spacing: 0.4px; padding: 6px 8px 4px; }
+      .hostmenu .hm-row { display: flex; align-items: center; gap: 8px; padding: 8px 9px; border-radius: var(--r-md); font-size: 13px; color: var(--fg); cursor: pointer; }
+      .hostmenu .hm-row:hover { background: var(--surface3); }
+      .hostmenu .hm-row.on { background: var(--selBg); color: var(--selFg); font-weight: 500; }
+      .hostmenu .hm-row .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .hostmenu .hm-row .tag2 { font-size: 10px; color: var(--fgMuted); background: var(--surface3); border-radius: 9999px; padding: 1px 7px; }
+      .hostmenu .hm-row .ck { color: var(--accent); }
+      .hostmenu .hm-sep { height: 1px; background: var(--border); margin: 4px 2px; }
+      .hostmenu .hm-add { display: flex; align-items: center; gap: 8px; padding: 8px 9px; border-radius: var(--r-md); font-size: 13px; color: var(--fgMuted); cursor: pointer; }
+      .hostmenu .hm-add:hover { background: var(--surface3); color: var(--fg); }
+
+      /* 右详情面 */
+      .set-detail { flex: 1; min-width: 0; background: var(--surfaceWorkspace); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: var(--card-drop); overflow: hidden; display: flex; flex-direction: column; }
+      .set-dhead { padding: 18px 24px 15px; border-bottom: 1px solid var(--border); display: flex; align-items: flex-start; gap: 12px; }
+      .set-dhead .dh-main { flex: 1; min-width: 0; }
+      .set-dtitle { font-size: var(--lg); font-weight: 600; letter-spacing: -0.2px; display: flex; align-items: center; gap: 9px; }
+      .set-dsub { color: var(--fgMuted); font-size: 13px; margin-top: 4px; max-width: 660px; line-height: 1.5; }
+      .ap-dhead-act { flex: none; align-self: center; }
+      .set-dbody { padding: 18px 24px 28px; overflow-y: auto; display: flex; flex-direction: column; gap: 22px; }
+      .set-group { display: flex; flex-direction: column; }
+      .set-grouph { font-size: 12px; font-weight: 600; color: var(--fgMuted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 9px; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .set-card { border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface0); overflow: hidden; }
+      .set-row { display: flex; align-items: center; gap: 16px; padding: 13px 16px; border-top: 1px solid var(--border); }
+      .set-card > .set-row:first-child { border-top: none; }
+      .set-row:hover { background: var(--surface1); }
+      .set-rl { flex: 1; min-width: 0; }
+      .set-rt { font-size: var(--sm); color: var(--fg); }
+      .set-rd { font-size: var(--xs); color: var(--fgMuted); margin-top: 3px; line-height: 1.5; }
+      .set-rc { flex: none; display: flex; align-items: center; gap: 8px; }
+
+      /* 控件 */
+      .set-toggle { width: 38px; height: 22px; border-radius: 9999px; background: var(--surface4); position: relative; transition: background .15s; flex: none; }
+      .set-toggle::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 9999px; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.2); transition: left .15s; }
+      .set-toggle.on { background: var(--accent); } .set-toggle.on::after { left: 18px; }
+      .set-toggle.dis { opacity: .45; }
+      .set-seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface2); padding: 2px; gap: 2px; }
+      .set-seg span { font-size: var(--xs); padding: 5px 12px; border-radius: var(--r-base); color: var(--fgMuted); cursor: pointer; white-space: nowrap; }
+      .set-seg span.on { background: var(--surface0); color: var(--fg); font-weight: 600; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+      .set-select { display: inline-flex; align-items: center; gap: 8px; font-size: var(--sm); padding: 7px 11px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface0); color: var(--fg); cursor: pointer; min-width: 150px; justify-content: space-between; }
+      .set-select:hover { background: var(--surface1); }
+      .set-select .i { color: var(--fgMuted); }
+      .set-input { font-size: var(--sm); padding: 8px 11px; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface0); color: var(--fg); min-width: 110px; font-family: var(--ui); }
+      .set-input.mono { font-family: var(--mono); font-size: var(--xs); }
+      .set-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accentSoft); }
+      .set-input:disabled { opacity: .5; cursor: not-allowed; }
+
+      /* 按钮 */
+      .btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-size: var(--sm); font-weight: 500; padding: 8px 13px; border-radius: var(--r-md); border: 1px solid transparent; white-space: nowrap; cursor: pointer; }
+      .btn.df { background: var(--accent); color: #fff; border-color: var(--accent); }
+      .btn.df:hover { background: var(--accentHover); }
+      .btn.out { background: var(--surface0); border-color: var(--border); color: var(--fg); }
+      .btn.out:hover { background: var(--surface2); border-color: var(--surface4); }
+      .btn.ghost { background: transparent; color: var(--fgMuted); border-color: transparent; }
+      .btn.ghost:hover { background: var(--surface3); color: var(--fg); }
+      .btn.danger { background: var(--surface0); border-color: color-mix(in oklch, var(--danger) 42%, transparent); color: var(--danger); }
+      .btn.danger:hover { background: var(--dangerSoft); }
+      .btn.sm { padding: 6px 11px; font-size: var(--xs); }
+      .btn.ic { padding: 6px; }
+      .btn.dis { opacity: .45; cursor: not-allowed; }
+      .btn .i { width: 15px; height: 15px; }
+
+      /* 小件 */
+      .dot { width: 8px; height: 8px; border-radius: 9999px; flex: none; }
+      .dot.on { background: var(--success); } .dot.busy { background: var(--warning); } .dot.off { background: var(--danger); }
+      .dot.lg { width: 10px; height: 10px; } .dot.idle { background: var(--fgFaint); }
+      .badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+      .badge.suc { color: var(--success); background: var(--successSoft); }
+      .badge.warn { color: var(--warning); background: var(--warningSoft); }
+      .badge.err { color: var(--danger); background: var(--dangerSoft); }
+      .badge.mut { color: var(--fgMuted); background: var(--surface3); }
+      .badge.acc { color: var(--accent); background: var(--accentSoft); }
+      .badge.lock { color: var(--fgMuted); background: var(--surface3); }
+      .chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 9999px; background: var(--surface0); font-size: var(--xs); color: var(--fg); cursor: pointer; }
+      .chip.on { background: var(--accentSoft); border-color: var(--accentSoftBorder); color: var(--accent); font-weight: 600; }
+      .badge-ic { width: 32px; height: 32px; border-radius: var(--r-lg); background: var(--surface2); display: flex; align-items: center; justify-content: center; color: var(--accent); flex: none; }
+      .spinner { width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--surface3); border-top-color: var(--accent); animation: spin 1s linear infinite; }
+      .spinner.sm { width: 16px; height: 16px; border-width: 2px; }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .emptybox { border: 1px dashed var(--border); border-radius: var(--r-lg); padding: 26px; text-align: center; color: var(--fgMuted); font-size: 13px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+      .alertbox { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--r-lg); font-size: 13px; background: var(--surface0); }
+      .alertbox.err { border-color: color-mix(in oklch, var(--danger) 42%, transparent); background: var(--dangerSoft); }
+      .alertbox.err .i, .alertbox.err .at { color: var(--danger); }
+      .alertbox.warn { border-color: color-mix(in oklch, var(--warning) 42%, transparent); background: var(--warningSoft); }
+      .alertbox.warn .i, .alertbox.warn .at { color: var(--warning); }
+      .alertbox.info { border-color: var(--accentSoftBorder); background: var(--accentSoft); }
+      .alertbox.info .i, .alertbox.info .at { color: var(--accent); }
+      .alertbox .at { font-weight: 600; }
+      .alertbox .ad { color: var(--fgMuted); margin-top: 3px; line-height: 1.5; }
+
+      /* 右键菜单 */
+      .ctxmenu { width: 220px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface0); box-shadow: var(--shadow); overflow: hidden; padding: 5px; }
+      .ctxmenu .ci { display: flex; align-items: center; gap: 9px; padding: 8px 9px; border-radius: var(--r-base); font-size: 13px; color: var(--fg); cursor: pointer; }
+      .ctxmenu .ci:hover { background: var(--surface3); }
+      .ctxmenu .ci.danger { color: var(--danger); }
+      .ctxmenu .ci.danger:hover { background: var(--dangerSoft); }
+      .ctxmenu .csep { height: 1px; background: var(--border); margin: 4px 0; }
+      .ctxmenu .ci .i { color: var(--fgMuted); }
+      .ctxmenu .ci.danger .i { color: var(--danger); }
+      .ctx-anchor { position: relative; }
+      .ctx-pop { position: absolute; z-index: 20; }
+
+      /* hm- 主机 tab */
+      .hm-block { display: flex; flex-direction: column; gap: 16px; }
+      .hm-blocktitle { display: flex; align-items: center; gap: 9px; font-size: var(--base); font-weight: 600; color: var(--fg); letter-spacing: -0.1px; padding-bottom: 11px; border-bottom: 1px solid var(--border); }
+      .hm-blocktitle > .i { color: var(--accent); }
+      .hc-qr { width: 150px; height: 150px; background: #fff; border: 1px solid var(--border); border-radius: var(--r-xl); display: flex; align-items: center; justify-content: center; flex: none; }
+      .hc-codebox { display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 6px 7px 6px 11px; min-width: 0; }
+      .hc-codebox code { flex: 1; min-width: 0; font-family: var(--mono); font-size: var(--xs); color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .hc-codebox .cp { width: 26px; height: 26px; border-radius: var(--r-base); display: flex; align-items: center; justify-content: center; color: var(--fgMuted); cursor: pointer; flex: none; }
+      .hc-codebox .cp:hover { background: var(--surface0); color: var(--fg); }
+      .hc-ctxstack { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+      .hc-ctxlabel { font-size: 11px; font-weight: 600; color: var(--fgMuted); text-transform: uppercase; letter-spacing: 0.4px; margin: 0 0 7px; display: flex; align-items: center; gap: 6px; }
+      .hc-ctxlabel .i { color: var(--fgFaint); }
+      .hb-statline { display: flex; align-items: center; flex-wrap: wrap; gap: 9px; padding: 10px 13px; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface2); font-size: 12px; color: var(--fgMuted); }
+      .hb-statline b { color: var(--fg); font-weight: 600; } .hb-statline .sep { color: var(--fgFaint); }
+      .hb-jsonlink { display: inline-flex; align-items: center; gap: 6px; font-size: var(--xs); color: var(--accent); background: var(--accentSoft); border: 1px solid var(--accentSoftBorder); border-radius: var(--r-md); padding: 5px 10px; cursor: pointer; white-space: nowrap; }
+      .hb-jsonlink:hover { background: color-mix(in oklch, var(--accent) 16%, transparent); }
+      .hb-jsonlink .i { color: var(--accent); }
+      .hb-mono { font-family: var(--mono); font-size: var(--xs); color: var(--fgMuted); }
+      .mr-collapse { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+      .mr-collapse-h { display: flex; align-items: center; gap: 9px; padding: 11px 13px; cursor: pointer; background: var(--surface2); font-size: 13px; font-weight: 500; color: var(--fg); }
+      .mr-collapse-h:hover { background: var(--surface3); }
+      .mr-collapse-h .cc-chev { margin-left: auto; color: var(--fgMuted); }
+      .mr-collapse-b { padding: 14px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 16px; }
+
+      /* mp- 提供方 drill-in */
+      .mp-crumb { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; color: var(--fgMuted); cursor: pointer; margin: 0 0 8px -5px; padding: 4px 9px 4px 6px; border-radius: var(--r-md); width: fit-content; }
+      .mp-crumb:hover { background: var(--surface3); color: var(--fg); }
+      .mp-crumb .i { color: var(--fgMuted); }
+      .mp-prow { display: flex; align-items: center; gap: 13px; padding: 13px 15px; border-top: 1px solid var(--border); cursor: pointer; }
+      .set-card > .mp-prow:first-child { border-top: none; }
+      .mp-prow:hover { background: var(--surface1); }
+      .mp-prow.dis { opacity: .6; cursor: not-allowed; }
+      .mp-pic { width: 36px; height: 36px; border-radius: var(--r-lg); background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 15px; font-weight: 700; color: var(--accent); flex: none; }
+      .mp-pmain { flex: 1; min-width: 0; }
+      .mp-pname { font-size: var(--sm); font-weight: 600; color: var(--fg); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+      .mp-pmeta { display: flex; align-items: center; flex-wrap: wrap; gap: 7px; margin-top: 4px; font-size: var(--xs); color: var(--fgMuted); }
+      .mp-pmeta .sep { color: var(--fgFaint); } .mp-pmeta .cmd { font-family: var(--mono); }
+      .mp-prow-act { flex: none; display: flex; align-items: center; gap: 10px; }
+      .mp-cog { width: 32px; height: 32px; border-radius: var(--r-md); display: inline-flex; align-items: center; justify-content: center; color: var(--fgMuted); cursor: pointer; flex: none; }
+      .mp-cog:hover { background: var(--surface3); color: var(--fg); }
+      .mp-vlist { display: flex; flex-direction: column; gap: 10px; }
+      .mp-vlist .mr-vendor { border-radius: var(--r-xl); padding: 12px 14px; }
+      .mp-confirm-act { display: flex; gap: 8px; justify-content: flex-end; margin-top: 2px; }
+
+      /* mr- 中转站 / 模型 / 用量基件 */
+      .mr-pic { width: 28px; height: 28px; border-radius: var(--r-md); background: var(--surface2); display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: var(--accent); flex: none; }
+      .mr-vendor { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface0); padding: 10px 12px; cursor: pointer; }
+      .mr-vendor:hover { border-color: var(--surface4); background: var(--surface1); }
+      .mr-vendor.active { border-color: var(--surface4); background: var(--selBg); }
+      .mr-vtop { display: flex; align-items: center; gap: 7px; }
+      .mr-vname { font-size: 13px; font-weight: 600; color: var(--fg); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .mr-vurl { font-family: var(--mono); font-size: 11px; color: var(--fgMuted); margin-top: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .mr-vmeta { display: flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 11px; color: var(--fgMuted); }
+      .mr-section { display: flex; flex-direction: column; }
+      .mr-sh { font-size: 12px; font-weight: 600; color: var(--fgMuted); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 9px; display: flex; align-items: center; gap: 7px; }
+      .mr-sh .sh-act { margin-left: auto; display: flex; gap: 6px; align-items: center; text-transform: none; letter-spacing: 0; }
+      .mr-field { display: flex; flex-direction: column; gap: 6px; }
+      .mr-field + .mr-field { margin-top: 12px; }
+      .mr-flabel { font-size: 12px; font-weight: 600; color: var(--fg); display: flex; align-items: center; gap: 6px; }
+      .mr-fhint { font-size: 11px; color: var(--fgMuted); line-height: 1.5; }
+      .mr-frow { display: flex; gap: 8px; align-items: center; }
+      .mr-frow .set-input { flex: 1; min-width: 0; }
+      .mr-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .mr-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+      .mr-pwd { display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0; border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface0); padding: 0 8px 0 11px; }
+      .mr-pwd input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; font-family: var(--mono); font-size: 13px; color: var(--fg); padding: 9px 0; letter-spacing: 1px; }
+      .mr-pwd .eye { color: var(--fgMuted); cursor: pointer; display: inline-flex; padding: 3px; border-radius: var(--r-base); }
+      .mr-pwd .eye:hover { background: var(--surface3); }
+      .mr-json { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface2); overflow: hidden; }
+      .mr-json-h { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--fgMuted); }
+      .mr-json-h .jh-act { margin-left: auto; display: flex; gap: 4px; }
+      .mr-json-body { display: flex; font-family: var(--mono); font-size: 12px; line-height: 1.7; padding: 8px 0; }
+      .mr-json-ln { color: var(--fgFaint); text-align: right; padding: 0 10px; user-select: none; border-right: 1px solid var(--border); white-space: pre; }
+      .mr-json-code { padding: 0 12px; white-space: pre; overflow-x: auto; color: var(--fg); }
+      .mr-jk { color: var(--accent); } .mr-jstr { color: var(--success); } .mr-jp { color: var(--fgFaint); }
+      .mr-model { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid var(--border); }
+      .set-card > .mr-model:first-child { border-top: none; }
+      .mr-model.off { opacity: .5; }
+      .mr-cbx { width: 18px; height: 18px; border-radius: var(--r-base); border: 1.5px solid var(--surface4); background: var(--surface0); display: flex; align-items: center; justify-content: center; color: #fff; flex: none; cursor: pointer; }
+      .mr-cbx .i { width: 12px; height: 12px; opacity: 0; }
+      .mr-cbx.on { background: var(--accent); border-color: var(--accent); } .mr-cbx.on .i { opacity: 1; }
+      .mr-mname { flex: 1; min-width: 0; font-size: 13px; display: flex; align-items: center; gap: 7px; }
+      .mr-mname .sub { font-size: 11px; color: var(--fgMuted); font-family: var(--mono); }
+      .mr-ping { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fgMuted); }
+      .mr-ping.ok { color: var(--success); } .mr-ping.bad { color: var(--danger); } .mr-ping.busy { color: var(--warning); }
+      .mini-spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid var(--surface3); border-top-color: var(--warning); animation: spin .8s linear infinite; flex: none; }
+      .mr-ep { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-top: 1px solid var(--border); font-size: 13px; }
+      .set-card > .mr-ep:first-child { border-top: none; }
+      .mr-ep .ep-url { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12px; color: var(--fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .mr-bar { flex: 1; height: 6px; border-radius: 9999px; background: var(--surface3); overflow: hidden; min-width: 50px; }
+      .mr-bar-fill { height: 100%; border-radius: 9999px; background: var(--accent); }
+      .mr-bar-fill.warn { background: var(--warning); } .mr-bar-fill.danger { background: var(--danger); }
+      .mr-ubal { font-size: 24px; font-weight: 600; letter-spacing: -0.5px; color: var(--fg); font-variant-numeric: tabular-nums; }
+      .mr-ubal .unit { font-size: 13px; font-weight: 400; color: var(--fgMuted); margin-left: 4px; }
+      .mr-meter { display: flex; flex-direction: column; gap: 5px; }
+      .mr-meter-top { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+      .mr-meter-top .ml { color: var(--fgMuted); } .mr-meter-top .mv { color: var(--fg); font-variant-numeric: tabular-nums; }
+      .mr-statecase { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+      .mr-statebox { border: 1px solid var(--border); border-radius: var(--r-lg); overflow: hidden; background: var(--surface0); }
+      .mr-statebox-h { padding: 9px 12px; background: var(--surface2); border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--fg); display: flex; align-items: center; gap: 7px; }
+      .mr-statebox-h .badge { margin-left: auto; }
+      .mr-statebox-b { padding: 14px; min-height: 132px; display: flex; flex-direction: column; gap: 9px; }
+
+      /* us- 用量 */
+      .us-dhead-act { flex: none; align-self: center; display: flex; align-items: center; gap: 12px; }
+      .us-segwrap { display: inline-flex; align-items: center; gap: 7px; }
+      .us-gap { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; color: var(--fgMuted); background: var(--surface2); border: 1px dashed var(--accentSoftBorder); border-radius: 9999px; padding: 1px 8px 1px 6px; white-space: nowrap; }
+      .us-gap .i { width: 11px; height: 11px; color: var(--accent); }
+      .us-osub { font-size: 11px; color: var(--fgMuted); line-height: 1.5; } .us-osub b { color: var(--fg); font-weight: 600; }
+      .us-provlist { display: flex; flex-direction: column; gap: 14px; }
+      .us-provider { border: 1px solid var(--border); border-radius: var(--r-xl); background: var(--surface0); overflow: hidden; }
+      .us-provider:hover { border-color: var(--surface4); }
+      .us-provider.gated { opacity: .72; }
+      .us-prov-h { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+      .us-prov-name { font-size: 14px; font-weight: 600; color: var(--fg); display: flex; align-items: center; gap: 8px; min-width: 0; }
+      .us-prov-act { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
+      .us-prov-body { display: grid; grid-template-columns: 304px 1fr; gap: 18px; padding: 14px; }
+      .us-prov-body.single { grid-template-columns: 1fr; }
+      .us-bal-box { display: flex; flex-direction: column; gap: 11px; padding-right: 16px; border-right: 1px solid var(--border); }
+      .us-meters-box { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+      .us-meter-note { font-size: 11px; color: var(--fgFaint); margin-top: -1px; }
+      .us-meter-note.warn { color: var(--warning); } .us-meter-note.danger { color: var(--danger); }
+      .us-models { border-top: 1px solid var(--border); }
+      .us-models-h { display: flex; align-items: center; gap: 8px; padding: 9px 14px; font-size: 11px; font-weight: 600; color: var(--fgMuted); text-transform: uppercase; letter-spacing: 0.4px; background: var(--surface2); }
+      .us-models-h .us-gap { margin-left: auto; text-transform: none; letter-spacing: 0; }
+      .us-mrow { display: flex; align-items: center; gap: 12px; padding: 9px 14px; border-top: 1px solid var(--border); }
+      .us-mname { flex: 1; min-width: 0; font-size: 13px; color: var(--fg); display: flex; align-items: center; gap: 8px; overflow: hidden; }
+      .us-mname .sub { font-family: var(--mono); font-size: 11px; color: var(--fgMuted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .us-mnum { font-family: var(--mono); font-size: 12px; color: var(--fgMuted); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; flex: none; min-width: 66px; }
+      .us-mnum b { color: var(--fg); font-weight: 500; }
+      .us-mshare { display: flex; align-items: center; gap: 8px; flex: none; width: 140px; }
+      .us-mbar { flex: 1; height: 5px; border-radius: 9999px; background: var(--surface3); overflow: hidden; }
+      .us-mbar > i { display: block; height: 100%; border-radius: 9999px; background: var(--accent); }
+      .us-mpct { font-size: 11px; color: var(--fgMuted); font-variant-numeric: tabular-nums; width: 34px; text-align: right; flex: none; }
+      .us-foot { display: flex; align-items: center; gap: 7px; font-size: 11px; color: var(--fgFaint); }
+      .us-foot .i { color: var(--fgFaint); }
+      .us-skel { background: linear-gradient(90deg, var(--surface2), var(--surface3), var(--surface2)); border-radius: var(--r-base); height: 12px; }
+      .us-skel.big { height: 26px; width: 96px; border-radius: var(--r-md); } .us-skel.bar { height: 6px; border-radius: 9999px; }
+
+      /* pl- 目录新增弹窗 */
+      .pl-backdrop { position: absolute; inset: 0; background: rgba(27,31,36,0.45); display: flex; align-items: center; justify-content: center; padding: 24px; z-index: 5; }
+      .pl-modal { width: 600px; max-width: 100%; max-height: 100%; background: var(--surface0); border: 1px solid var(--border); border-radius: var(--r-2xl); box-shadow: 0 30px 70px -24px rgba(0,0,0,0.45); display: flex; flex-direction: column; overflow: hidden; }
+      .pl-modal-h { display: flex; align-items: center; gap: 11px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+      .pl-modal-h .pl-mtitle { font-size: var(--base); font-weight: 600; flex: 1; min-width: 0; }
+      .pl-modal-h .pl-mx { color: var(--fgMuted); cursor: pointer; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--r-md); flex: none; }
+      .pl-modal-h .pl-mx:hover { background: var(--surface3); color: var(--fg); }
+      .pl-modal-b { padding: 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; }
+      .pl-modal-f { display: flex; align-items: center; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--border); background: var(--surface2); }
+      .pl-modal-f .pl-fsp { flex: 1; min-width: 0; font-size: var(--xs); color: var(--fgMuted); }
+      .pl-search { display: flex; align-items: center; gap: 8px; background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 9px 12px; color: var(--fgMuted); font-size: 13px; }
+
+      /* cf- config.json 编辑器 */
+      .cf-body { display: flex; flex-direction: column; gap: 14px; padding: 18px 24px 24px; }
+      .cf-note { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+      .cf-note .alertbox { flex: 1; min-width: 280px; }
+      .cf-path { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: var(--xs); color: var(--fgMuted); background: var(--surface2); border: 1px solid var(--border); border-radius: var(--r-md); padding: 7px 11px; white-space: nowrap; }
+      .cf-path .i { color: var(--fgFaint); }
+      .cf-editor { border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--surface0); overflow: hidden; display: flex; flex-direction: column; }
+      .cf-editor-h { display: flex; align-items: center; gap: 10px; padding: 9px 13px; border-bottom: 1px solid var(--border); background: var(--surface2); }
+      .cf-editor-h .ef-name { display: inline-flex; align-items: center; gap: 7px; font-size: var(--xs); color: var(--fgMuted); font-family: var(--mono); }
+      .ef-dirty { width: 7px; height: 7px; border-radius: 9999px; background: var(--warning); display: inline-block; flex: none; }
+      .ef-act { margin-left: auto; display: flex; align-items: center; gap: 13px; }
+      .ef-pos { font-size: 11px; color: var(--fgFaint); font-family: var(--mono); font-variant-numeric: tabular-nums; }
+      .cf-search { display: inline-flex; align-items: center; gap: 5px; font-size: var(--xs); color: var(--fgMuted); cursor: pointer; }
+      .cf-search:hover { color: var(--fg); }
+      .cf-editor-scroll { padding: 8px 0; overflow: auto; font-family: var(--mono); font-size: 12.5px; line-height: 1.65; max-height: 540px; }
+      .cf-line { display: flex; align-items: flex-start; }
+      .cf-line:hover { background: var(--surface1); }
+      .cf-line.cur { background: var(--selBg); }
+      .cf-ln { width: 46px; flex: none; text-align: right; padding-right: 16px; color: var(--fgFaint); user-select: none; font-variant-numeric: tabular-nums; }
+      .cf-ct { white-space: pre; color: var(--fg); padding-right: 16px; }
+      .cf-k { color: var(--accent); } .cf-s { color: var(--success); } .cf-n { color: #953800; } .cf-b { color: #8250df; } .cf-p { color: var(--fgMuted); }
+
+      *::-webkit-scrollbar { width: 8px; height: 8px; }
+      *::-webkit-scrollbar-thumb { background: color-mix(in oklch, var(--fgMuted) 30%, transparent); border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; }
+      * { scrollbar-width: thin; scrollbar-color: color-mix(in oklch, var(--fgMuted) 30%, transparent) transparent; }
+    </style>
+  </head>
+  <body>
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="gauge" viewBox="0 0 24 24"><path d="m12 14 4-4" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></symbol>
+      <symbol id="settings" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></symbol>
+      <symbol id="server" viewBox="0 0 24 24"><rect width="20" height="8" x="2" y="2" rx="2" /><rect width="20" height="8" x="2" y="14" rx="2" /><path d="M6 6h.01M6 18h.01" /></symbol>
+      <symbol id="package" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15" /><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></symbol>
+      <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></symbol>
+      <symbol id="network" viewBox="0 0 24 24"><rect x="9" y="2" width="6" height="6" rx="1" /><rect x="2" y="16" width="6" height="6" rx="1" /><rect x="16" y="16" width="6" height="6" rx="1" /><path d="M12 8v4M5 16v-2h14v2" /></symbol>
+      <symbol id="link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" /><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></symbol>
+      <symbol id="bot" viewBox="0 0 24 24"><path d="M12 8V4H8" /><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M2 14h2M20 14h2M15 13v2M9 13v2" /></symbol>
+      <symbol id="folder" viewBox="0 0 24 24"><path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.93a2 2 0 0 1-1.66-.9l-.82-1.2A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13c0 1.1.9 2 2 2Z" /></symbol>
+      <symbol id="terminal" viewBox="0 0 24 24"><path d="m7 11 2-2-2-2M11 13h4" /><rect width="18" height="18" x="3" y="3" rx="2" /></symbol>
+      <symbol id="layers" viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></symbol>
+      <symbol id="plus" viewBox="0 0 24 24"><path d="M5 12h14M12 5v14" /></symbol>
+      <symbol id="trash" viewBox="0 0 24 24"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
+      <symbol id="pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z" /><path d="m15 5 4 4" /></symbol>
+      <symbol id="refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 9-9 9.7 9.7 0 0 1 6.7 2.7L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-9 9 9.7 9.7 0 0 1-6.7-2.7L3 16" /><path d="M8 16H3v5" /></symbol>
+      <symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
+      <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+      <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
+      <symbol id="alert" viewBox="0 0 24 24"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></symbol>
+      <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></symbol>
+      <symbol id="key" viewBox="0 0 24 24"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L18.9 3.9" /><path d="m21 2-9.6 9.6" /><circle cx="7.5" cy="15.5" r="5.5" /></symbol>
+      <symbol id="zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z" /></symbol>
+      <symbol id="qr" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><path d="M14 14h3v3h-3zM20 14v3M14 20h7" /></symbol>
+      <symbol id="smartphone" viewBox="0 0 24 24"><rect width="14" height="20" x="5" y="2" rx="2" /><path d="M12 18h.01" /></symbol>
+      <symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></symbol>
+      <symbol id="monitor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2" /><path d="M8 21h8M12 17v4" /></symbol>
+      <symbol id="copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+      <symbol id="download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3" /></symbol>
+      <symbol id="power" viewBox="0 0 24 24"><path d="M12 2v10M18.4 6.6a9 9 0 1 1-12.77.04" /></symbol>
+      <symbol id="file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v5h5M8 13h8M8 17h8M8 9h2" /></symbol>
+      <symbol id="external" viewBox="0 0 24 24"><path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></symbol>
+      <symbol id="wifi-off" viewBox="0 0 24 24"><path d="M12 20h.01M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 5.2-2.8M2 8.8a15 15 0 0 1 4.2-2.5M19 12.9a10 10 0 0 0-2.4-1.6M22 8.8a15 15 0 0 0-4.8-2.7" /><path d="m2 2 20 20" /></symbol>
+      <symbol id="lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
+      <symbol id="eye" viewBox="0 0 24 24"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0" /><circle cx="12" cy="12" r="3" /></symbol>
+      <symbol id="dollar" viewBox="0 0 24 24"><line x1="12" x2="12" y1="2" y2="22" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" /></symbol>
+      <symbol id="sliders" viewBox="0 0 24 24"><line x1="4" x2="4" y1="21" y2="14" /><line x1="4" x2="4" y1="10" y2="3" /><line x1="12" x2="12" y1="21" y2="12" /><line x1="12" x2="12" y1="8" y2="3" /><line x1="20" x2="20" y1="21" y2="16" /><line x1="20" x2="20" y1="12" y2="3" /><line x1="1" x2="7" y1="14" y2="14" /><line x1="9" x2="15" y1="8" y2="8" /><line x1="17" x2="23" y1="16" y2="16" /></symbol>
+      <symbol id="more-v" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /></symbol>
+      <symbol id="pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1" /><rect x="14" y="4" width="4" height="16" rx="1" /></symbol>
+      <symbol id="message" viewBox="0 0 24 24"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z" /></symbol>
+      <symbol id="arrow-ur" viewBox="0 0 24 24"><path d="M7 7h10v10" /><path d="M7 17 17 7" /></symbol>
+      <symbol id="activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></symbol>
+    </svg>
+
+    <div class="board-h">
+      <h1><span class="logo"><svg class="i lg"><use href="#gauge" /></svg></span> Helm · 设置 · 主机(Host) — CodePilot 浅色 GitHub 主题换肤</h1>
+      <p class="sub">需求 <b>2026-06-27-settings-host</b>。在<b>现有 Settings 设计</b>基础上重出「主机段」，整体<b>换肤为 CodePilot 浅色 GitHub 主题</b>：绿色 accent(#20744a) → <b>GitHub 蓝 #0969da</b>，卡片白底 + 细线(#d0d7de) + 大圆角 + 柔阴影，状态色 = CLI 已装/健康绿 · 限额橙 · 删除/离线/错误红。<b>保住现有结构</b>：master-detail 外壳 + host 选择器；B1 主机（含<b>守护进程</b>卡 · 本机内建 daemon · 桌面 only · 本期建真实）/ B2 模型与提供方(三级 L1→L2→L3) / B3 用量 / B4 config.json。浅色 · 桌面 only(1240 宽)。</p>
+    </div>
+
+    <div class="legend">
+      <div class="legend-h"><svg class="i sm"><use href="#info" /></svg> 图例 · 本期建 vs 暂缓（董事长验收第三标准：隔离边界一眼可辨）</div>
+      <div class="legend-b">
+        <div class="legend-row"><span class="cb"><svg class="i"><use href="#check" /></svg> 本期建 · UI＋协议配置</span><div>本期同时建 <b>①设置 UI ②协议/配置 schema</b>（写该主机 config.json）。绝大多数控件属此类——主机配置可在隔离下完整落地、不碰别处。</div></div>
+        <div class="legend-row"><span class="cz"><svg class="i"><use href="#pause" /></svg> 对话接入 · 暂缓</span><div>凡「<b>设为当前中转站 / 设为默认模型 → 驱动 home 对话框 composer</b>」「composer『管理中转站…』深链」这类<b>对话接入</b>触点：<b>控件照画不删</b>，但打此浅色角标——<b>本期只出 UI＋配置，不接对话流</b>（多项目同时改对话，现在接会冲突）。</div></div>
+      </div>
+    </div>
+
+    <div class="nav-idx">
+      <span class="grp">主机段（master-detail + host 选择器）</span>
+      <a href="#shell">shell · 设置外壳 — 左导航 + host 选择器（展开切换态）</a>
+      <a href="#hm1">B1 hm1 · 主机 — 默认（在线）</a>
+      <a href="#hm1-pair">B1 hm1-pair · 主机 — 配对手机（就地展开）</a>
+      <a href="#hm1-offline">B1 hm1-offline · 主机 — 离线态</a>
+      <a href="#daemon-modals">B1 守护进程 · 日志 / 完整状态 双 Modal</a>
+      <a href="#mp1">B2-L1 mp1 · 提供方列表 — 内置 5 + 目录新增 · CLI 检测</a>
+      <a href="#mp1-add">B2-L1 mp1-add · 从目录新增（catalog 选择器）</a>
+      <a href="#mp1-ctx">B2-L1 mp1-ctx · 行右键（删除 · 门控）</a>
+      <a href="#mp2">B2-L2 mp2 · 提供方设置 — 基础信息 + 中转站列表</a>
+      <a href="#mp3">B2-L3 mp3 · 中转站详情 — base_url/key/测速/放出模型/高级折叠</a>
+      <a href="#mp5">B2 mp5 · 边界态画廊（空/加载/错误/删除/一键装/离线）</a>
+      <a href="#us1">B3 us1 · 用量 — 每提供方余额/额度</a>
+      <a href="#us2">B3 us2 · 用量 — 状态合屏</a>
+      <a href="#cfg1">B4 cfg1 · 配置文件（JSON）编辑器 — 逃生舱</a>
+    </div>
+
+    <!--CAP shell-->
+    <section class="screen" id="shell">
+      <div class="screen-head">
+        <span class="tag">shell · 外壳 + host 选择器（展开切换态）</span>
+        <h2>设置外壳 — master-detail（左导航 + 右详情）· host 选择器展开</h2>
+        <p>所有主机段 tab 共用的容器。左导航 = <b>主机段</b>（段头 host 选择器：当前主机 + 在线点 + 「当前」蓝标 + 展开切换）+ 4 行（主机 / 模型与提供方 / 用量 / 配置文件 JSON）+ 灰置「应用设置 · 后续阶段」。本屏聚焦 <b>host 选择器展开下拉</b>：列已连主机（在线/连接中/离线点 + 当前✓ + relay/本地标识），选另一台 → 右详情整体重载该主机数据。换肤要点：选中行<b>蓝左条 + 浅蓝底</b>、「当前」=蓝、聚焦环=蓝。</p>
+      </div>
+      <div class="cap" id="cap-shell">
+        <div class="caphead"><span class="captag">shell</span><span class="capsub"><b>设置外壳</b> · 左导航 + host 选择器展开</span></div>
+        <div class="frame rel">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置</span></div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick open">
+                <span class="dot on"></span>
+                <span class="hp-name">Wolffy-MBP</span>
+                <span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span>
+                <svg class="i sm hp-chev"><use href="#chev-d" /></svg>
+              </div>
+              <!-- host 下拉展开 -->
+              <div class="hostmenu">
+                <div class="hm-cap">已连接的主机</div>
+                <div class="hm-row on"><span class="dot on"></span><span class="nm">Wolffy-MBP</span><span class="tag2">本地</span><svg class="i sm ck"><use href="#check" /></svg></div>
+                <div class="hm-row"><span class="dot on"></span><span class="nm">studio-linux</span><span class="tag2">relay</span></div>
+                <div class="hm-row"><span class="dot busy"></span><span class="nm">office-mini</span><span class="tag2">连接中</span></div>
+                <div class="hm-row"><span class="dot off"></span><span class="nm">old-imac</span><span class="tag2">离线</span></div>
+                <div class="hm-sep"></div>
+                <div class="hm-add"><svg class="i sm"><use href="#plus" /></svg> 添加主机…（去主壳）</div>
+              </div>
+              <a class="set-navrow active"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+            <section class="set-detail">
+              <header class="set-dhead"><div class="dh-main"><div class="set-dtitle">主机</div><div class="set-dsub">Wolffy-MBP · 切主机后右详情整体重载该主机数据，默认进当前主机「主机」tab。</div></div></header>
+              <div class="set-dbody">
+                <div class="set-card">
+                  <div class="set-row">
+                    <span class="badge-ic"><svg class="i"><use href="#monitor" /></svg></span>
+                    <div class="set-rl"><div class="set-rt" style="font-size:var(--base);font-weight:600;display:flex;align-items:center;gap:9px;flex-wrap:wrap;">Wolffy-MBP <span class="badge suc"><span class="dot on"></span> 在线</span> <span class="badge acc">当前主机</span></div><div class="set-rd">这台主机的后台服务 · <span class="hb-mono" style="color:var(--fg)">v0.1.7</span> · 已是最新</div></div>
+                    <div class="set-rc"><span class="btn out sm"><svg class="i"><use href="#pencil" /></svg> 重命名</span></div>
+                  </div>
+                </div>
+                <div class="alertbox info"><svg class="i sm"><use href="#info" /></svg><div><div class="at">这是外壳金标准</div><div class="ad">左导航选 section → 右详情整块替换；host 选择器切主机 → 主机段 3 tab + 配置文件全部重载该主机。具体 tab 内容见 hm1 / mp1 / us1 / cfg1。</div></div></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>左导航 section 行</b>：点 = 切到该 section，右详情整块替换；选中行 <b>蓝左条 + 浅蓝底 + 蓝字/图标</b>，一次只一个 active。</div></li>
+          <li><span class="pin">2</span><div><b>host 选择器</b>（段头）：点开下拉（本屏展开态）列已连主机（在线/连接中/离线点 + 当前✓ + 本地/relay 标识）；选另一台 → 下方主机段所有 tab 的右详情重载该主机数据。<b>不负责添加主机</b>（「添加主机…」回主壳/onboarding）。</div></li>
+          <li><span class="pin">3</span><div><b>返回主壳</b>：回对话主壳（Esc 同效）。</div></li>
+          <li><span class="pin">4</span><div><b>控件即时生效</b>：GUI 改动<b>立即落盘</b>（写该主机 config.json），无独立「保存」；输入类失焦/回车提交。</div></li>
+          <li><span class="pin">5</span><div><b>灰置「应用设置 · 后续阶段」</b>：不可点占位，标本版搁置（应用段 8 tab 整段后续回归）。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（四维度齐全）</div>
+          <dl>
+            <dt>布局</dt><dd>桌面 master-detail：左导航固定 244px，右详情自适应可滚。<b>桌面 only</b>；手机意图：host 选择器移顶、详情单列、导航抽屉化。</dd>
+            <dt>默认</dt><dd>进入落当前主机「主机」tab（或记忆上次 section）；host 选择器 = 当前 active 主机 + 蓝「当前」。</dd>
+            <dt>hover</dt><dd>导航行 → surface3 底；host 选择器 hover 描边加深；下拉行 hover surface3。</dd>
+            <dt>活跃</dt><dd>选中 section 蓝左条 + 浅蓝底；host 选择器展开 = 蓝描边 + 蓝聚焦环；下拉当前项浅蓝底 + 蓝✓。</dd>
+            <dt>运行</dt><dd>切 section / 切主机 → 右详情页级 spinner；连接中主机下拉行黄点「连接中」。</dd>
+            <dt>禁用</dt><dd>「应用设置 · 后续阶段」灰置不可点；无已连主机时主机段 tab 不可进。</dd>
+            <dt>空</dt><dd>无已连主机 → 主机段显「未连接主机」占位 +「去连接」（回主壳）。</dd>
+            <dt>加载</dt><dd>切 section / 切主机时右详情页级 spinner；行级数据各自 inline spinner。</dd>
+            <dt>错误</dt><dd>主机级数据拉取失败 → 详情面顶 Alert(err) + 重试。</dd>
+            <dt>离线</dt><dd>所选主机离线 → host 选择器红点 + 详情顶 callout（主机离线 + 重新连接）；只读项显缓存、可改项禁用（见 hm1-offline）。</dd>
+            <dt>右键</dt><dd>外壳本身无右键；host 选择器右键 = 重新连接 / 切到其它在线主机 / 移除此主机（danger）。list 类详情右键由各 tab 定义。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP hm1-->
+    <section class="screen" id="hm1">
+      <div class="screen-head">
+        <span class="tag">B1 · hm1 · 主机 · 默认（在线）</span>
+        <h2>主机 — 常用项留界面（身份 / 连接状态 / 重启 / 远程访问 / 配对），技术项收「高级」</h2>
+        <p>做减法：顶部一处<b>身份</b>（名 / 在线 / 版本 / 当前主机 / 重命名，仅一处）+ <b>连接状态</b> + <b>常用</b>（重启 / 远程访问开关 / 配对手机）。relay 全字段 / TCP / 服务代理 → 收进<b>「高级」折叠</b> + 「在 config.json 编辑」。改动即时生效、无「保存」。<b>relay = 加密远程通道 ≠ 中转站</b>。</p>
+      </div>
+      <div class="cap" id="cap-hm1">
+        <div class="caphead"><span class="captag">B1 hm1</span><span class="capsub"><b>主机</b> · 默认在线态</span></div>
+        <div class="frame">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · 主机</span></div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick"><span class="dot on"></span><span class="hp-name">Wolffy-MBP</span><span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span><svg class="i sm hp-chev"><use href="#chev-d" /></svg></div>
+              <a class="set-navrow active"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+            <section class="set-detail">
+              <header class="set-dhead"><div class="dh-main"><div class="set-dtitle">主机</div><div class="set-dsub">Wolffy-MBP · 常用项在上，技术项收进「高级」。改动即时生效，无需保存。</div></div></header>
+              <div class="set-dbody">
+                <div class="set-card">
+                  <div class="set-row">
+                    <span class="badge-ic"><svg class="i"><use href="#monitor" /></svg></span>
+                    <div class="set-rl"><div class="set-rt" style="font-size:var(--base);font-weight:600;display:flex;align-items:center;gap:9px;flex-wrap:wrap;">Wolffy-MBP <span class="badge suc"><span class="dot on"></span> 在线</span> <span class="badge acc">当前主机</span></div><div class="set-rd">这台主机的后台服务 · <span class="hb-mono" style="color:var(--fg)">v0.1.7</span> · <span style="color:var(--success);font-weight:500">已是最新</span></div></div>
+                    <div class="set-rc"><span class="btn out sm"><svg class="i"><use href="#pencil" /></svg> 重命名</span></div>
+                  </div>
+                </div>
+                <div class="set-group">
+                  <div class="set-grouph">连接状态</div>
+                  <div class="set-card"><div class="set-row">
+                    <div class="set-rl"><div class="set-rt">当前连接方式</div><div class="set-rd">这台电脑就在身边，走本机直连，最快、最稳。</div></div>
+                    <div class="set-rc"><span class="badge acc"><svg class="i xs"><use href="#monitor" /></svg> 本地直连</span><span class="chip"><svg class="i xs"><use href="#zap" /></svg> 1 ms</span></div>
+                  </div></div>
+                </div>
+                <div class="set-group">
+                  <div class="set-grouph">常用</div>
+                  <div class="set-card">
+                    <div class="set-row"><span class="badge-ic"><svg class="i"><use href="#power" /></svg></span><div class="set-rl"><div class="set-rt">重启主机服务</div><div class="set-rd">重新启动这台主机的后台服务。<b>会短暂断开所有正在运行的 agent</b>，几秒后自动恢复；需二次确认。</div></div><div class="set-rc"><span class="btn out sm"><svg class="i"><use href="#power" /></svg> 重启</span></div></div>
+                    <div class="set-row"><span class="badge-ic"><svg class="i"><use href="#globe" /></svg></span><div class="set-rl"><div class="set-rt">远程访问</div><div class="set-rd">开启后手机 / 平板在外网也能连到这台主机；<b>全程加密，Helm 看不到你的代码和对话</b>。关掉就只能本地用。</div></div><div class="set-rc"><div class="set-toggle on"></div></div></div>
+                    <div class="set-row"><span class="badge-ic"><svg class="i"><use href="#smartphone" /></svg></span><div class="set-rl"><div class="set-rt">配对手机 / 平板</div><div class="set-rd">生成二维码 / 链接，扫一下就把手机连到这台主机（需先开启上面的「远程访问」）。</div></div><div class="set-rc"><span class="btn df sm"><svg class="i"><use href="#qr" /></svg> 显示二维码 / 链接</span></div></div>
+                  </div>
+                </div>
+                <!-- 守护进程（本机内建 daemon · 桌面 only · 本期建·真实，不打暂缓） -->
+                <div class="set-group">
+                  <div class="set-grouph">
+                    <span style="display:flex;align-items:center;gap:8px"><svg class="i sm" style="color:var(--accent)"><use href="#server" /></svg> 守护进程 <span class="badge mut" style="font-weight:500">仅本机 · 桌面端</span></span>
+                    <span class="btn ghost sm" style="font-weight:500"><svg class="i"><use href="#arrow-ur" /></svg> 高级设置</span>
+                  </div>
+                  <div class="set-card">
+                    <div class="set-row">
+                      <div class="set-rl"><div class="set-rt">状态</div><div class="set-rd">仅内建守护进程</div></div>
+                      <div class="set-rc"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="display:inline-flex;align-items:center;gap:6px;font-size:14px;color:var(--fg)"><span class="dot on"></span> 运行中</span><span style="font-size:12px;color:var(--fgMuted);font-family:var(--mono)">PID: 12345</span></div></div>
+                    </div>
+                    <div class="set-row"><div class="set-rl"><div class="set-rt">管理内建守护进程</div><div class="set-rd">由 Helm 桌面端启动并监控这台机器的内建后台服务（关掉则交回手动 / 外部管理）。</div></div><div class="set-rc"><div class="set-toggle on"></div></div></div>
+                    <div class="set-row"><div class="set-rl"><div class="set-rt">退出后保持运行</div><div class="set-rd">退出 app 后守护进程继续运行。</div></div><div class="set-rc"><div class="set-toggle"></div></div></div>
+                    <div class="set-row"><div class="set-rl"><div class="set-rt">日志</div><div class="set-rd hb-mono">~/.helm/logs/daemon.log</div></div><div class="set-rc"><span class="btn out sm"><svg class="i"><use href="#copy" /></svg> 复制路径</span><span class="btn out sm"><svg class="i"><use href="#file-text" /></svg> 打开日志</span></div></div>
+                    <div class="set-row"><div class="set-rl"><div class="set-rt">完整状态</div><div class="set-rd">运行 <span class="hb-mono">helm daemon status</span> 查看完整诊断输出（版本 / 端口 / 连接数…）。</div></div><div class="set-rc"><span class="btn out sm"><svg class="i"><use href="#activity" /></svg> 查看</span></div></div>
+                  </div>
+                  <div style="margin-top:11px;border:1px solid color-mix(in oklch, var(--warning) 55%, transparent);background:var(--warningSoft);border-radius:var(--r-lg);padding:9px 13px;display:flex;align-items:flex-start;gap:9px;font-size:12px;color:var(--warning)">
+                    <svg class="i sm" style="flex:none;margin-top:1px"><use href="#alert" /></svg>
+                    <span>app 与守护进程版本不一致（app <b>v0.1.7</b> · daemon <b>v0.1.5</b>）。建议更新到匹配版本或重启守护进程，避免协议不兼容。</span>
+                  </div>
+                </div>
+
+                <div class="set-group">
+                  <div class="set-grouph">高级</div>
+                  <div class="mr-collapse">
+                    <div class="mr-collapse-h"><svg class="i sm"><use href="#sliders" /></svg> 高级设置 <span class="set-rd" style="font-weight:400;margin-left:9px">连接方式 · 远程中继地址 · 服务代理</span><svg class="i sm cc-chev"><use href="#chev-d" /></svg></div>
+                    <div class="mr-collapse-b">
+                      <div class="alertbox info" style="padding:9px 11px"><svg class="i sm"><use href="#info" /></svg><div><div class="at" style="font-size:12px">这些一般不用改</div><div class="ad" style="font-size:12px">默认就能用。需要时在下面查看，或直接在 config.json 改全部高级项（界面没暴露的也都能在那改）。</div></div></div>
+                      <div class="set-card">
+                        <div class="set-row"><div class="set-rl"><div class="set-rt">连接方式 <span class="badge mut">3 条</span></div><div class="set-rd">本地直连 · 远程中继(Relay) · 局域网(TCP)。逐条增删 / 改地址在 config.json。</div></div><div class="set-rc"><span class="hb-jsonlink"><svg class="i sm"><use href="#file-text" /></svg> 在 config.json 编辑</span></div></div>
+                        <div class="set-row"><div class="set-rl"><div class="set-rt">远程中继地址(Relay)</div><div class="set-rd">远程访问走的加密中转服务器，默认官方、可换自建。endpoint / TLS / 公开地址都在 config.json。<span class="hb-mono">wss://relay.paseo.sh</span></div></div><div class="set-rc"><span class="hb-jsonlink"><svg class="i sm"><use href="#file-text" /></svg> 在 config.json 编辑</span></div></div>
+                        <div class="set-row"><div class="set-rl"><div class="set-rt">服务代理(Service Proxy)</div><div class="set-rd">把工作区里运行的本地服务暴露到公网预览。需自备域名 + 反向代理。<span class="hb-mono">http://localhost:7070/s/&lt;workspace&gt;</span></div></div><div class="set-rc"><span class="hb-jsonlink"><svg class="i sm"><use href="#file-text" /></svg> 在 config.json 编辑</span></div></div>
+                      </div>
+                      <span class="btn out sm" style="align-self:flex-start"><svg class="i"><use href="#file-text" /></svg> 打开 config.json 编辑全部高级项</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">右键菜单 + 点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>右键 · 主机身份卡</b>（2 项）：① 重命名（行内打开主机名输入框；提交后全局主机标识含外壳 host 选择器随之刷新）② 复制主机名。<b>身份只此一处可改名。</b></div></li>
+          <li><span class="pin">2</span><div><b>右键 · 高级 · 连接方式行</b>（2 项）：① 复制地址 ② 在 config.json 编辑（跳左导航「配置文件(JSON)」并定位）。</div></li>
+          <li><span class="pin">3</span><div><b>重启主机服务</b>：二次确认（点明会断开所有 agent）→ 连接状态转 busy「重启中…」→ 回「在线」；超时报「无法重新连接」；离线时禁用。</div></li>
+          <li><span class="pin">4</span><div><b>远程访问开关</b>（= relay 启用，弱化术语）：开 → 配对可用、远程通道就绪；关 → 配对禁用占位「需先开启远程访问」。即时落盘。</div></li>
+          <li><span class="pin">5</span><div><b>配对手机 / 平板</b>：就地展开二维码 + 可复制链接（见 hm1-pair）；远程访问关时禁用。</div></li>
+          <li><span class="pin">6</span><div><b>高级折叠头</b>：展开 / 收起（chev-d⇄chev-r，默认折叠，此处示意展开）。「在 config.json 编辑 / 打开 config.json…」跳「配置文件(JSON)」并定位对应高级项。</div></li>
+          <li><span class="pin">7</span><div><b>守护进程 · 高级设置 ↗</b>：ghost 外链按钮，开外部文档（docs/configuration），不改本地配置。<span class="cb"><svg class="i"><use href="#check" /></svg> 本期建·真实</span> 整段是<b>本机内建 daemon 的真实能力</b>（已实现、不涉及对话流），<b>不打暂缓角标</b>；<b>仅当所选主机=本机桌面时显示</b>。</div></li>
+          <li><span class="pin">8</span><div><b>状态行</b>（只读）：绿点「运行中」+「PID: 12345」/ 灰点「未运行」+「PID: —」；副提示「仅内建守护进程」。<b>管理内建守护进程 / 退出后保持运行</b> 两个 Switch：切换即写设备本地设置（manageBuiltInDaemon / keepRunningAfterQuit），<b>切换中 loading 禁用</b>防抖。</div></li>
+          <li><span class="pin">9</span><div><b>日志行</b>：hint 显日志路径（无则「不可用」）；<b>复制路径</b>（仅有路径时显，Copy 图标）写剪贴板；<b>打开日志</b>（FileText 图标，无日志禁用）→ 弹<b>日志 Modal</b>（mono 等宽日志正文，经标题栏关闭；见「守护进程 · 双 Modal」屏）。</div></li>
+          <li><span class="pin">10</span><div><b>完整状态行</b>「查看」（Activity 图标）→ 跑 <span class="hb-mono">helm daemon status</span> → 弹<b>完整状态 Modal</b>（mono 输出 + 关闭 / 复制）；加载中按钮显「加载中…」禁用，失败 Modal 内显错误文案。<b>版本不匹配警告条</b>（app≠daemon 版本时显，amber 边 + 浅黄底）。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（四维度 + 做减法 + 术语铁律）</div>
+          <dl>
+            <dt>布局</dt><dd>master-detail：左导航 244px，右详情可滚。<b>桌面 only</b>；手机意图：host 选择器移顶、卡片单列、右键改长按。</dd>
+            <dt>默认</dt><dd>在线；身份一处（名/在线/v0.1.7/已最新/当前/重命名）；连接状态「本地直连 + 1 ms」；常用三项；高级默认折叠（此处示意展开）。</dd>
+            <dt>hover</dt><dd>卡片行整行 surface1；折叠头整行高亮；「在 config.json 编辑」蓝链 hover 加深蓝底。</dd>
+            <dt>活跃</dt><dd>左导航「主机」蓝左条 + 浅蓝底；远程访问 toggle on = 蓝；重命名输入聚焦蓝描边 + 蓝光环。</dd>
+            <dt>运行</dt><dd>延迟探测「…」；重命名提交 inline spinner；重启「重启中…」（等断开 + 重连）。</dd>
+            <dt>禁用</dt><dd>远程访问关 → 配对禁用 +「需先开启远程访问」；离线 → 重启/远程访问/配对禁用（见 hm1-offline）。</dd>
+            <dt>空</dt><dd>远程访问关 → 配对入口占位「先开启远程访问」；服务代理未配 → config.json 内默认空值（非错误）。</dd>
+            <dt>加载</dt><dd>切主机/首读 → 右详情页级 spinner；连接状态行 inline 占位。</dd>
+            <dt>错误</dt><dd>重启失败「无法重新连接」+「查看诊断」；远程访问开启失败 → 回退关态并提示。</dd>
+            <dt>离线</dt><dd>见 hm1-offline：host 选择器红点 + 详情顶 callout；重启/远程访问/配对禁用且显缓存；<b>重命名仍可用</b>。</dd>
+            <dt>守护进程</dt><dd><b>仅本机 · 桌面端显示</b>（所选主机=本机桌面时才出现；远程主机 / 移动端不显）。状态只读（运行中绿点 + PID / 未运行灰点）；两 Switch 切换中 loading 禁用；日志无路径时「复制路径」隐藏、「打开日志」禁用；完整状态加载中「加载中…」禁用、失败 Modal 内显错误；<b>整卡加载态=居中 spinner</b>；版本不匹配才显 amber 警告条。<span class="cb"><svg class="i"><use href="#check" /></svg> 本期建·真实</span>，<b>不打暂缓</b>。</dd>
+            <dt>术语</dt><dd><b>relay = 加密远程通道 ≠ 中转站 vendor</b>（base_url+key 在「模型与提供方」）；<b>本机内建 daemon = 这台机器的本地后台服务</b>（守护进程卡，桌面 only）≠ relay/中继 ≠ 中转站；配对只生成 offer、无设备列表/吊销。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP hm1-pair-->
+    <section class="screen" id="hm1-pair">
+      <div class="screen-head">
+        <span class="tag">B1 · hm1-pair · 配对展开态</span>
+        <h2>主机 — 配对手机 / 平板（就地展开，非弹窗）</h2>
+        <p>点「显示二维码 / 链接」后，配对区<b>就地展开</b>：二维码 + 可复制链接 + 复制 / 重新生成 +「链接像密码」提示 + 底部「等待扫码 → 已连接」实时回执。术语弱化（只说「加密通道 / 像密码」，不提公钥 / E2E）。</p>
+      </div>
+      <div class="cap" id="cap-hm1-pair">
+        <div class="caphead"><span class="captag">B1 hm1-pair</span><span class="capsub"><b>配对手机 / 平板</b> · 就地展开</span></div>
+        <div class="frame">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · 主机</span></div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick"><span class="dot on"></span><span class="hp-name">Wolffy-MBP</span><span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span><svg class="i sm hp-chev"><use href="#chev-d" /></svg></div>
+              <a class="set-navrow active"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+            <section class="set-detail">
+              <header class="set-dhead"><div class="dh-main"><div class="set-dtitle">主机</div><div class="set-dsub">Wolffy-MBP · 配对手机 / 平板 —— 扫一下就连上。</div></div></header>
+              <div class="set-dbody">
+                <div class="set-card"><div class="set-row">
+                  <span class="badge-ic"><svg class="i"><use href="#monitor" /></svg></span>
+                  <div class="set-rl"><div class="set-rt" style="font-size:var(--base);font-weight:600;display:flex;align-items:center;gap:9px;flex-wrap:wrap;">Wolffy-MBP <span class="badge suc"><span class="dot on"></span> 在线</span> <span class="badge acc">当前主机</span></div><div class="set-rd">这台主机的后台服务 · <span class="hb-mono" style="color:var(--fg)">v0.1.7</span> · 已是最新</div></div>
+                  <div class="set-rc"><span class="btn out sm"><svg class="i"><use href="#pencil" /></svg> 重命名</span></div>
+                </div></div>
+                <div class="alertbox info" style="padding:9px 11px"><svg class="i sm"><use href="#globe" /></svg><div><div class="at" style="font-size:12px">远程访问已开启 · 配对走加密通道</div><div class="ad" style="font-size:12px">扫码后手机就能连上这台主机；中继地址等技术项在「高级 → config.json」。</div></div></div>
+                <div class="set-group">
+                  <div class="set-grouph">配对手机 / 平板</div>
+                  <div class="set-card">
+                    <div class="set-row"><span class="badge-ic" style="color:var(--accent)"><svg class="i"><use href="#qr" /></svg></span><div class="set-rl"><div class="set-rt">配对入口已生成</div><div class="set-rd">扫码或复制链接，把手机连到这台主机。</div></div><div class="set-rc"><span class="btn ghost sm"><svg class="i"><use href="#chev-d" /></svg> 收起</span></div></div>
+                    <div style="display:flex;gap:20px;padding:18px 16px;border-top:1px solid var(--border);align-items:flex-start;">
+                      <div class="hc-qr">
+                        <svg width="120" height="120" viewBox="0 0 25 25" shape-rendering="crispEdges" aria-label="配对二维码"><rect width="25" height="25" fill="#fff" /><g fill="#1f2328">
+                          <rect x="0" y="0" width="7" height="7" /><rect x="1" y="1" width="5" height="5" fill="#fff" /><rect x="2" y="2" width="3" height="3" />
+                          <rect x="18" y="0" width="7" height="7" /><rect x="19" y="1" width="5" height="5" fill="#fff" /><rect x="20" y="2" width="3" height="3" />
+                          <rect x="0" y="18" width="7" height="7" /><rect x="1" y="19" width="5" height="5" fill="#fff" /><rect x="2" y="20" width="3" height="3" />
+                          <rect x="9" y="0" width="1" height="1" /><rect x="11" y="0" width="1" height="1" /><rect x="14" y="0" width="1" height="1" /><rect x="16" y="0" width="1" height="1" />
+                          <rect x="10" y="2" width="2" height="1" /><rect x="13" y="2" width="1" height="1" /><rect x="15" y="2" width="1" height="1" />
+                          <rect x="9" y="9" width="1" height="1" /><rect x="11" y="9" width="2" height="1" /><rect x="14" y="9" width="1" height="1" /><rect x="16" y="9" width="1" height="1" /><rect x="18" y="9" width="1" height="1" /><rect x="21" y="9" width="2" height="1" />
+                          <rect x="1" y="11" width="1" height="1" /><rect x="4" y="11" width="1" height="1" /><rect x="9" y="11" width="2" height="1" /><rect x="12" y="11" width="1" height="1" /><rect x="17" y="11" width="2" height="1" /><rect x="20" y="11" width="1" height="1" />
+                          <rect x="3" y="13" width="1" height="1" /><rect x="5" y="13" width="2" height="1" /><rect x="9" y="13" width="1" height="1" /><rect x="14" y="13" width="1" height="1" /><rect x="19" y="13" width="2" height="1" /><rect x="22" y="13" width="1" height="1" />
+                          <rect x="9" y="15" width="2" height="1" /><rect x="12" y="15" width="1" height="1" /><rect x="15" y="15" width="2" height="1" /><rect x="18" y="15" width="1" height="1" /><rect x="21" y="15" width="1" height="1" />
+                          <rect x="9" y="17" width="1" height="1" /><rect x="13" y="17" width="2" height="1" /><rect x="16" y="17" width="1" height="1" />
+                          <rect x="9" y="19" width="1" height="1" /><rect x="12" y="19" width="2" height="1" /><rect x="18" y="19" width="2" height="1" /><rect x="21" y="19" width="1" height="1" />
+                          <rect x="10" y="21" width="1" height="1" /><rect x="15" y="21" width="2" height="1" /><rect x="22" y="21" width="2" height="1" />
+                          <rect x="9" y="23" width="2" height="1" /><rect x="14" y="23" width="1" height="1" /><rect x="17" y="23" width="2" height="1" /><rect x="20" y="23" width="1" height="1" />
+                        </g></svg>
+                      </div>
+                      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px;">
+                        <div style="font-size:13px;color:var(--fg);line-height:1.55;">用 Helm 手机 App 扫描二维码，或把下面的链接复制到另一台设备打开。</div>
+                        <div class="alertbox warn" style="padding:9px 11px"><svg class="i sm"><use href="#lock" /></svg><div><div class="at" style="font-size:12px">链接像密码 —— 别公开发出去</div><div class="ad" style="font-size:12px">任何拿到链接的人都能连上这台主机。想作废，点「重新生成」就让旧链接立即失效。</div></div></div>
+                        <div class="hc-codebox"><code>https://app.paseo.sh/#offer=eyJwayI6IjB4YTFiMmMz…</code><span class="cp"><svg class="i sm"><use href="#copy" /></svg></span></div>
+                        <div style="display:flex;align-items:center;gap:8px;"><span class="btn df sm"><svg class="i"><use href="#copy" /></svg> 复制链接</span><span class="btn out sm"><svg class="i"><use href="#refresh" /></svg> 重新生成</span><span style="font-size:12px;color:var(--fgMuted);margin-left:auto;display:flex;align-items:center;gap:6px;"><span class="dot busy"></span> 等待设备扫码…</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">右键菜单 + 点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>右键 · 配对链接</b>（1 项）：复制链接。</div></li>
+          <li><span class="pin">2</span><div><b>复制链接 / code 框复制键</b>：复制以 <code>#offer=</code> 承载的链接，按钮短暂显「已复制」✓。</div></li>
+          <li><span class="pin">3</span><div><b>重新生成</b>：作废当前链接、换新二维码 + 链接（区级 spinner）；<b>旧链接随即失效</b>（这就是「吊销」方式，无需设备列表）。</div></li>
+          <li><span class="pin">4</span><div><b>收起</b>：折叠配对区，回 hm1「显示二维码 / 链接」入口态；未完成会话保留（再展开仍同链接）。</div></li>
+          <li><span class="pin">5</span><div><b>设备扫码成功</b>（实时）：底部「等待扫码…」黄点 →「已连接 · {设备名}」绿点。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（四维度 + 术语铁律）</div>
+          <dl>
+            <dt>布局</dt><dd>配对区卡内 inline 展开（非弹窗）：左二维码 + 右链接 / 操作。<b>桌面 only</b>；手机意图：二维码居中、链接与按钮纵向堆叠。</dd>
+            <dt>默认</dt><dd>已生成二维码 + 链接；底部「等待扫码…」黄点；顶一行「远程访问已开启」上下文。</dd>
+            <dt>hover</dt><dd>复制 / 重新生成 / 收起按钮各自 hover；code 框复制键 hover 浅底。</dd>
+            <dt>活跃</dt><dd>展开态卡片<b>蓝描边</b>；「复制链接」为蓝主按钮。</dd>
+            <dt>运行</dt><dd>生成 / 重新生成中：二维码区 spinner、链接占位骨架、「重新生成」busy。</dd>
+            <dt>禁用</dt><dd>远程访问关 / 主机离线时此展开态不可达（入口已禁用，见 hm1 / hm1-offline）。</dd>
+            <dt>空</dt><dd>不适用（展开即有链接；生成失败转错误态）。</dd>
+            <dt>加载</dt><dd>首次展开生成链接的瞬时 spinner（二维码 + 链接区）。</dd>
+            <dt>错误</dt><dd>生成失败 → 二维码区替换为 alertbox.err「生成配对链接失败」+「重试」。</dd>
+            <dt>离线</dt><dd>展开后主机掉线 → 配对区顶 callout「主机已离线，无法完成配对」，二维码灰化、复制仍可。</dd>
+            <dt>术语</dt><dd><b>relay = 加密远程通道 ≠ 中转站</b>；<b>配对只生成 offer</b>，安全靠「链接像密码 + 重新生成使旧链接失效」；本屏不出现公钥 / E2E。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP hm1-offline-->
+    <section class="screen" id="hm1-offline">
+      <div class="screen-head">
+        <span class="tag">B1 · hm1-offline · 离线态</span>
+        <h2>主机 — 所选主机离线（简化）</h2>
+        <p>所选主机离线：host 选择器<b>红点</b> + 详情顶<b>离线 callout</b>（主机离线 + 重新连接）。身份 / 连接状态 / 常用 显缓存且禁用；高级折叠为「离线只读」但 <b>config.json 仍可打开编辑</b>。<b>重命名仍可用</b>。无死胡同：重连成功回 hm1，失败 callout 保留可再试。</p>
+      </div>
+      <div class="cap" id="cap-hm1-offline">
+        <div class="caphead"><span class="captag">B1 hm1-offline</span><span class="capsub"><b>主机离线</b> · 缓存只读 + 重连</span></div>
+        <div class="frame">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · 主机</span></div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick"><span class="dot off"></span><span class="hp-name">Wolffy-MBP</span><span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span><svg class="i sm hp-chev"><use href="#chev-d" /></svg></div>
+              <a class="set-navrow active"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+            <section class="set-detail">
+              <header class="set-dhead"><div class="dh-main"><div class="set-dtitle">主机</div><div class="set-dsub">Wolffy-MBP · 当前离线 —— 显示上次的信息，连上后才能改。</div></div></header>
+              <div class="set-dbody">
+                <div class="alertbox err"><svg class="i"><use href="#wifi-off" /></svg><div style="flex:1"><div class="at">主机离线</div><div class="ad">连不上 Wolffy-MBP（上次在线 5 分钟前）。下面是缓存信息，重新连接后才能修改；<b>重命名仍可用</b>。</div></div><span class="btn out sm" style="flex:none"><svg class="i"><use href="#refresh" /></svg> 重新连接</span></div>
+                <div class="set-card"><div class="set-row">
+                  <span class="badge-ic" style="color:var(--fgFaint)"><svg class="i"><use href="#monitor" /></svg></span>
+                  <div class="set-rl"><div class="set-rt" style="font-size:var(--base);font-weight:600;display:flex;align-items:center;gap:9px;flex-wrap:wrap;">Wolffy-MBP <span class="badge err"><span class="dot off"></span> 离线</span> <span class="badge acc">当前主机</span></div><div class="set-rd">这台主机的后台服务 · <span class="hb-mono">v0.1.7（缓存）</span> · 最近错误：连接超时</div></div>
+                  <div class="set-rc"><span class="btn out sm"><svg class="i"><use href="#pencil" /></svg> 重命名</span></div>
+                </div></div>
+                <div class="set-group">
+                  <div class="set-grouph">连接状态（缓存）</div>
+                  <div class="set-card"><div class="set-row"><div class="set-rl"><div class="set-rt" style="color:var(--fgFaint)">当前连接方式</div><div class="set-rd">这台主机的后台服务当前不可达。</div></div><div class="set-rc"><span class="badge err"><svg class="i xs"><use href="#x" /></svg> 不可达</span><span class="chip" style="color:var(--fgMuted)">超时</span></div></div></div>
+                </div>
+                <div class="set-group">
+                  <div class="set-grouph">常用</div>
+                  <div class="set-card">
+                    <div class="set-row"><span class="badge-ic" style="color:var(--fgFaint)"><svg class="i"><use href="#power" /></svg></span><div class="set-rl"><div class="set-rt" style="color:var(--fgFaint)">重启主机服务</div><div class="set-rd">主机离线 / 无可用连接，无法重启（重新连接后可用）。</div></div><div class="set-rc"><span class="btn out sm dis"><svg class="i"><use href="#power" /></svg> 重启</span></div></div>
+                    <div class="set-row"><span class="badge-ic" style="color:var(--fgFaint)"><svg class="i"><use href="#globe" /></svg></span><div class="set-rl"><div class="set-rt" style="color:var(--fgFaint)">远程访问</div><div class="set-rd">主机离线，无法修改（重新连接后可用）。</div></div><div class="set-rc"><div class="set-toggle on dis"></div></div></div>
+                    <div class="set-row"><span class="badge-ic" style="color:var(--fgFaint)"><svg class="i"><use href="#smartphone" /></svg></span><div class="set-rl"><div class="set-rt" style="color:var(--fgFaint)">配对手机 / 平板</div><div class="set-rd">配对需主机在线，当前离线暂不可用。</div></div><div class="set-rc"><span class="btn df sm dis"><svg class="i"><use href="#qr" /></svg> 显示二维码 / 链接</span></div></div>
+                  </div>
+                </div>
+                <div class="set-group">
+                  <div class="set-grouph">高级</div>
+                  <div class="mr-collapse"><div class="mr-collapse-h"><svg class="i sm" style="color:var(--fgFaint)"><use href="#sliders" /></svg> <span style="color:var(--fgFaint)">高级设置</span> <span class="set-rd" style="font-weight:400;margin-left:9px">离线只读 · config.json 仍可编辑（连上后生效）</span><svg class="i sm cc-chev" style="color:var(--fgFaint)"><use href="#chev-r" /></svg></div></div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">右键菜单 + 点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>右键 · 主机身份卡（离线仍可用）</b>（2 项）：重命名 / 复制主机名。</div></li>
+          <li><span class="pin">2</span><div><b>右键 · host 选择器（离线）</b>（3 项）：① 重新连接 ② 切到其它在线主机 ③ <b>移除此主机（danger，离线也可执行）</b> —— 即原「移除主机」的去处。</div></li>
+          <li><span class="pin">3</span><div><b>重新连接</b>：callout 转「连接中…」+ host 选择器点转 busy 黄脉冲 + 按钮 spinner；成功 → 切回 hm1 在线、控件恢复；失败 → callout 保持红 + 显原因 +「查看诊断」，可再试。<b>无死胡同。</b></div></li>
+          <li><span class="pin">4</span><div><b>禁用项</b>：重启 / 远程访问 / 配对全部置灰，hover 不变色、光标 not-allowed。</div></li>
+          <li><span class="pin">5</span><div><b>重命名 / config.json</b>：离线下仍可改主机名（本地记录）；高级 → 仍可打开「配置文件(JSON)」编辑（本地文件），改动重新连上后生效。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（离线聚焦 · 四维度 + 术语铁律）</div>
+          <dl>
+            <dt>布局</dt><dd>同 hm1；额外在详情顶插入离线 callout(alertbox.err)。<b>桌面 only</b>。</dd>
+            <dt>默认</dt><dd>host 选择器红点；身份徽章红「离线」；连接状态「不可达 / 超时」；常用三项禁用；高级折叠「离线只读」。</dd>
+            <dt>hover</dt><dd>可用元素（重新连接 / 重命名 / host 选择器）正常 hover；禁用元素无 hover 反馈。</dd>
+            <dt>活跃</dt><dd>左导航「主机」仍蓝高亮（section 选中与主机在线无关）。</dd>
+            <dt>运行</dt><dd>点「重新连接」→ callout「连接中…」+ 选择器点 busy 黄脉冲 + 按钮 spinner。</dd>
+            <dt>禁用</dt><dd>需实时与后台通信的可改项（重启 / 远程访问 / 配对）禁用；仅本地操作（重命名 / 切主机 / 重连 / config.json 编辑 / 移除主机）可用。</dd>
+            <dt>空</dt><dd>该主机从未成功连过（无缓存）→ 详情整体空态「尚无此主机的缓存信息」+ 重新连接。</dd>
+            <dt>加载</dt><dd>进入先尝试连接 → 短暂「连接中」骨架，超时落本离线态。</dd>
+            <dt>错误</dt><dd>重连失败 → callout 升级带原因（端口被占用 / 密码错误 / 中继不可达）+「查看诊断」。</dd>
+            <dt>离线</dt><dd>本屏即离线主样式。</dd>
+            <dt>术语</dt><dd><b>relay = 加密远程通道 ≠ 中转站</b>；「移除主机」收进 host 选择器菜单 —— 简化屏不放危险区，但仍有入口。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP daemon-modals-->
+    <section class="screen" id="daemon-modals">
+      <div class="screen-head">
+        <span class="tag">B1 · 守护进程 · 双 Modal（日志 / 完整状态）</span>
+        <h2>守护进程 — 日志 Modal / 完整状态 Modal（含加载 / 失败态）</h2>
+        <p>B1「守护进程」卡的「打开日志」「查看」分别弹两个 Modal。<b>日志 Modal</b>：标题 + 日志路径 + mono 等宽日志正文（经标题栏关闭，复制路径在卡行上）。<b>完整状态 Modal</b>：跑 <span class="hb-mono">helm daemon status</span>，mono 输出 + 底部「关闭 / 复制」；加载中按钮「加载中…」禁用、失败 Modal 内显错误文案。<span class="cb" style="vertical-align:middle"><svg class="i"><use href="#check" /></svg> 本期建 · 真实可用（不打暂缓）</span></p>
+      </div>
+      <div class="cap" id="cap-daemon-modals">
+        <div class="caphead"><span class="captag">B1 守护进程</span><span class="capsub"><b>日志 Modal / 完整状态 Modal</b> · 含失败态</span></div>
+        <div class="frame">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · 主机 · 守护进程 Modal</span></div>
+          <div style="background:var(--surface2);padding:30px 32px;display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;min-height:560px">
+            <!-- 日志 Modal -->
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div class="hc-ctxlabel"><svg class="i sm"><use href="#file-text" /></svg> 点「打开日志」→ 日志 Modal</div>
+              <div style="background:var(--surface0);border:1px solid var(--border);border-radius:var(--r-2xl);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column">
+                <div style="display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--border)"><svg class="i" style="color:var(--accent)"><use href="#file-text" /></svg><div style="flex:1;font-size:15px;font-weight:600">守护进程日志</div><span style="color:var(--fgMuted);cursor:pointer;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-md)"><svg class="i sm"><use href="#x" /></svg></span></div>
+                <div style="padding:16px 18px;display:flex;flex-direction:column;gap:11px">
+                  <div class="hb-mono">~/.helm/logs/daemon.log</div>
+                  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px;font-family:var(--mono);font-size:12px;line-height:1.75;color:var(--fgMuted);white-space:pre;overflow:auto;max-height:280px">2026-06-27 12:30:01  INFO  daemon listening on 127.0.0.1:7070
+2026-06-27 12:30:01  INFO  relay connected wss://relay.paseo.sh
+2026-06-27 12:30:14  INFO  workspace "paseo-main" attached
+2026-06-27 12:31:02  INFO  agent claude session started (pid 41882)
+2026-06-27 12:33:47  <span style="color:var(--warning)">WARN  vendor api.moonshot.cn 401 unauthorized</span>
+2026-06-27 12:34:10  INFO  usage snapshot pushed (3 providers)
+2026-06-27 12:36:55  INFO  keepRunningAfterQuit = false</div>
+                </div>
+              </div>
+            </div>
+            <!-- 完整状态 Modal（默认 + 失败态） -->
+            <div style="display:flex;flex-direction:column;gap:10px">
+              <div class="hc-ctxlabel"><svg class="i sm"><use href="#activity" /></svg> 点「查看」→ 完整状态 Modal</div>
+              <div style="background:var(--surface0);border:1px solid var(--border);border-radius:var(--r-2xl);box-shadow:var(--shadow);overflow:hidden;display:flex;flex-direction:column">
+                <div style="display:flex;align-items:center;gap:10px;padding:15px 18px;border-bottom:1px solid var(--border)"><svg class="i" style="color:var(--accent)"><use href="#activity" /></svg><div style="flex:1;font-size:15px;font-weight:600">守护进程完整状态</div><span style="color:var(--fgMuted);cursor:pointer;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:var(--r-md)"><svg class="i sm"><use href="#x" /></svg></span></div>
+                <div style="padding:16px 18px;display:flex;flex-direction:column;gap:13px">
+                  <div style="background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-md);padding:12px 14px;font-family:var(--mono);font-size:12px;line-height:1.8;color:var(--fgMuted);white-space:pre;overflow:auto;max-height:230px">Helm daemon   v0.1.5
+status      running
+pid         12345
+listen      127.0.0.1:7070
+uptime      2h 41m
+relay       connected (wss://relay.paseo.sh)
+workspaces  3 attached
+agents      2 running, 1 idle
+mcp         enabled (injectIntoAgents)</div>
+                  <div style="display:flex;justify-content:flex-end;gap:8px"><span class="btn out sm">关闭</span><span class="btn df sm"><svg class="i"><use href="#copy" /></svg> 复制</span></div>
+                </div>
+              </div>
+              <!-- 失败态 + 加载态 -->
+              <div class="hc-ctxlabel" style="margin-top:6px"><svg class="i sm"><use href="#alert" /></svg> 完整状态 · 加载中 / 失败态</div>
+              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                <span class="btn out sm dis"><span class="mini-spin" style="border-top-color:var(--accent)"></span> 加载中…</span>
+                <span style="font-size:12px;color:var(--fgMuted)">→ 完成弹 Modal；失败时 Modal 内显错误：</span>
+              </div>
+              <div style="background:var(--surface0);border:1px solid color-mix(in oklch, var(--danger) 42%, transparent);border-radius:var(--r-md);padding:11px 13px;font-family:var(--mono);font-size:12px;line-height:1.7;color:var(--danger);white-space:pre-wrap">无法获取守护进程状态：daemon 未运行或 CLI 不可达
+（helm: command not found / connection refused）</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>日志 Modal</b>（来自卡「打开日志」）：标题「守护进程日志」+ 顶日志路径（无则「不可用」）+ <b>mono 等宽日志正文</b>（可选中复制；空则显「（日志为空）」）。经标题栏 × / 下拉关闭；<b>复制路径在卡行上</b>（非 Modal 内），照源码不在此 Modal 放按钮。</div></li>
+          <li><span class="pin">2</span><div><b>完整状态 Modal</b>（来自卡「查看」）：跑 <span class="hb-mono">helm daemon status</span> → 标题「守护进程完整状态」+ <b>mono 输出</b> + 底部 <b>「关闭」(outline)/「复制」(蓝)</b>。复制 → 写剪贴板 + toast「已复制」。</div></li>
+          <li><span class="pin">3</span><div><b>加载中</b>：卡上「查看」按钮转「加载中…」+ mini-spin 禁用（防重复）；完成才弹 Modal。</div></li>
+          <li><span class="pin">4</span><div><b>失败态</b>：CLI 取状态失败 → Modal 照常弹出，但 mono 区显<b>错误文案</b>（fetchFailed，如「daemon 未运行 / CLI 不可达」），仍可「关闭 / 复制」错误文本去排查。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（四维度齐全）</div>
+          <dl>
+            <dt>布局</dt><dd>两 Modal 居中浮层（AdaptiveModalSheet：桌面=居中弹窗、移动=底部 sheet）；本屏并列演示。<b>桌面 only</b>（守护进程仅本机桌面显示）。</dd>
+            <dt>默认</dt><dd>日志 Modal = 路径 + mono 日志；完整状态 Modal = mono status 输出 + 关闭 / 复制。</dd>
+            <dt>hover</dt><dd>× / 关闭 / 复制按钮各自 hover；mono 文本区可选中。</dd>
+            <dt>活跃</dt><dd>Modal 打开态（遮罩 + 浮层）；复制为蓝主按钮。</dd>
+            <dt>运行</dt><dd>完整状态拉取中 = 卡「查看」按钮「加载中…」+ mini-spin 禁用；复制中瞬时 toast。</dd>
+            <dt>禁用</dt><dd>无日志路径 → 卡「打开日志」禁用（不可弹日志 Modal）、「复制路径」隐藏；加载中「查看」禁用。</dd>
+            <dt>空</dt><dd>日志为空 → mono 区显「（日志为空）」；status 输出为空 → 空字符串（仍可关闭）。</dd>
+            <dt>加载</dt><dd>整卡加载（守护进程信息未就绪）= 卡级居中 spinner（见 hm1 守护进程卡加载态）。</dd>
+            <dt>错误</dt><dd>完整状态拉取失败 → Modal 内 mono 显 <b>fetchFailed 错误文案</b>（红字示意），不阻断关闭 / 复制。</dd>
+            <dt>离线</dt><dd>守护进程是<b>本机内建</b>（设备级），与所选主机在线无关；但远程主机时整段不显（仅本机桌面）。</dd>
+            <dt>右键</dt><dd>Modal 内 mono 文本 = 浏览器 / 系统自带文本右键（复制 / 全选）；Helm 不自定义。</dd>
+            <dt>术语</dt><dd>这是<b>本机内建 daemon</b>（这台机器的本地后台服务）日志 / 状态，<b>≠ relay 远程通道 ≠ 中转站</b>。<span class="cb"><svg class="i"><use href="#check" /></svg> 本期建·真实可用</span>，不接对话流、不打暂缓。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP mp1-->
+    <section class="screen" id="mp1">
+      <div class="screen-head">
+        <span class="tag">B2-L1 · mp1 · 提供方列表</span>
+        <h2>提供方 — 内置 5 + 从目录新增（启停 / 删除 / CLI 检测 + 一键安装）</h2>
+        <p>「模型与提供方」落地页（三级第一层）。<b>内置 5</b>（Claude Code / Codex / Copilot / OpenCode / Pi）+ <b>从目录新增的 ACP</b>（如 Qwen Code）。每行 = 图标 + 名称 + <b>CLI 已装/未装检测</b> + 模型数 + 开关 + ⚙。顶部 <b>「+ 新增提供方」= 从目录选已存在的</b>。右键含<b>「删除」</b>：目录新增=真实删除、内置=<b>需新主机能力门控</b>。CLI 未装行<b>「一键安装」</b>。<span class="cz" style="vertical-align:middle"><svg class="i"><use href="#pause" /></svg> 行内「当前 智谱 GLM」= 驱动 composer 默认 vendor，对话接入暂缓</span></p>
+      </div>
+      <div class="cap" id="cap-mp1">
+        <div class="caphead"><span class="captag">B2-L1 mp1</span><span class="capsub"><b>提供方列表</b> · 含 Claude 行右键（删除门控）</span></div>
+        <div class="frame rel">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · 模型与提供方</span></div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick"><span class="dot on"></span><span class="hp-name">Wolffy-MBP</span><span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span><svg class="i sm hp-chev"><use href="#chev-d" /></svg></div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+            <section class="set-detail">
+              <header class="set-dhead"><div class="dh-main"><div class="set-dtitle"><svg class="i" style="color:var(--accent)"><use href="#layers" /></svg> 模型与提供方</div><div class="set-dsub">为这台主机配置提供方 →（下钻）中转站（base_url+key 的 API 供应商）→ 放出模型。中转站 ≠ 「主机」tab 的 relay 远程连接。</div></div><div class="ap-dhead-act"><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增提供方</span></div></header>
+              <div class="set-dbody">
+                <div class="alertbox info"><svg class="i sm"><use href="#info" /></svg><div><div class="at">三级：提供方 → 中转站 → 模型</div><div class="ad"><b>提供方</b>＝内置 5 + 从目录新增的 ACP（启用 / 停用 / 删除）。<b>中转站</b>＝该提供方下 base_url + key 的 API 供应商，<b>≠ relay 远程</b>（远程连接在「主机」tab）。</div></div></div>
+                <div class="set-group">
+                  <div class="set-grouph">已启用 <span class="badge mut">4</span></div>
+                  <div class="set-card" style="overflow:visible">
+                    <div class="ctx-anchor">
+                      <div class="mp-prow">
+                        <div class="mp-pic">C</div>
+                        <div class="mp-pmain"><div class="mp-pname">Claude Code <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div><div class="mp-pmeta"><span>4 个模型</span><span class="sep">·</span><span>当前 智谱 GLM <span class="cz" style="font-size:9px;padding:0 6px"><svg class="i"><use href="#pause" /></svg> 接入暂缓</span></span></div></div>
+                        <div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog" title="设置"><svg class="i sm"><use href="#settings" /></svg></div></div>
+                      </div>
+                      <div class="ctx-pop" style="top:calc(100% - 10px);right:14px"><div class="ctxmenu" style="width:240px">
+                        <div class="ci"><svg class="i sm"><use href="#settings" /></svg> 设置 <span style="margin-left:auto;color:var(--fgFaint)">→ L2</span></div>
+                        <div class="ci"><svg class="i sm"><use href="#power" /></svg> 停用</div>
+                        <div class="csep"></div>
+                        <div class="ci danger"><svg class="i sm"><use href="#trash" /></svg> 删除 <span style="margin-left:auto;font-size:10px;color:var(--fgFaint)">需新主机能力</span></div>
+                      </div></div>
+                    </div>
+                    <div class="mp-prow"><div class="mp-pic">X</div><div class="mp-pmain"><div class="mp-pname">Codex <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div><div class="mp-pmeta"><span>2 个模型</span><span class="sep">·</span><span>当前 直连 · 官方</span></div></div><div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div></div>
+                    <div class="mp-prow"><div class="mp-pic">G</div><div class="mp-pmain"><div class="mp-pname">GitHub Copilot <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div><div class="mp-pmeta"><span>1 个模型</span><span class="sep">·</span><span>当前 直连</span></div></div><div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div></div>
+                    <div class="mp-prow"><div class="mp-pic">Q</div><div class="mp-pmain"><div class="mp-pname">Qwen Code <span class="badge acc">ACP · 目录新增</span> <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div><div class="mp-pmeta"><span>3 个模型</span><span class="sep">·</span><span>当前 阿里云百炼</span><span class="sep">·</span><span>来自目录 · 删除＝回目录可再加</span></div></div><div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div></div>
+                  </div>
+                </div>
+                <div class="set-group">
+                  <div class="set-grouph">未安装 · 已停用 <span class="badge mut">2</span></div>
+                  <div class="set-card">
+                    <div class="mp-prow"><div class="mp-pic">O</div><div class="mp-pmain"><div class="mp-pname">OpenCode <span class="badge warn"><svg class="i xs"><use href="#alert" /></svg> CLI 未安装</span></div><div class="mp-pmeta"><span>未检测到 <span class="cmd">opencode</span></span><span class="sep">·</span><span>一键安装后可启用</span></div></div><div class="mp-prow-act"><span class="btn df sm"><svg class="i"><use href="#download" /></svg> 一键安装</span><div class="mp-cog" title="安装指引 / 只读设置"><svg class="i sm"><use href="#settings" /></svg></div></div></div>
+                    <div class="mp-prow"><div class="mp-pic">P</div><div class="mp-pmain"><div class="mp-pname">Pi <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span> <span class="badge mut">已停用</span></div><div class="mp-pmeta"><span>0 个模型</span></div></div><div class="mp-prow-act"><div class="set-toggle"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">右键菜单 + 点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>每行右键 3 项</b>：① 设置(→L2) ② 停用/启用 ③ <b>删除</b>(danger)。<b>目录新增(ACP)行 = 真实删除</b>（二次确认 → 从 <code>agents.providers</code> 移除、回目录可再加）；<b>内置 5 行 = 标「需新主机能力」</b>（给入口但点击落能力门「更新主机后可删」，<b>不假装能删</b>）—— 本屏 Claude 行示意展开此菜单。</div></li>
+          <li><span class="pin">2</span><div><b>提供方行 / ⚙</b>：点行或行尾 ⚙ → 下钻 <b>L2 提供方设置(mp2)</b>，顶部带「‹ 返回提供方」面包屑。</div></li>
+          <li><span class="pin">3</span><div><b>启用开关</b>（行尾 toggle）：切 enabled（stopPropagation 不下钻）；关 = 该提供方从对话选型与启动隐藏、中转站配置保留。CLI 未装的开关不可用（先一键安装）。</div></li>
+          <li><span class="pin">4</span><div><b>+ 新增提供方</b>：打开<b>目录选择器(mp1-add)</b> —— 从真实 ACP 目录里挑还没加的；<b>只从目录选已存在的，不支持自造命令 / 名字</b>。</div></li>
+          <li><span class="pin">5</span><div><b>一键安装 CLI</b>（未装行如 OpenCode）：→ 安装中 → 成功转「CLI 已安装」开关可用；失败 → 行内红字 + 重试。<b>诚实标注：</b>Helm CLI 安装为真实能力；agent CLI 一键装 / 更新可能需新主机能力 → 缺则按钮转「需更新主机」回落安装指引外链。</div></li>
+          <li><span class="pin">6</span><div><span class="cz"><svg class="i"><use href="#pause" /></svg> 对话接入暂缓</span> 行内「当前 智谱 GLM」反映的是<b>驱动 home composer 默认 vendor</b> 的「设为当前」结果；本期出 UI＋配置，<b>不接对话流</b>。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（四维度齐全）</div>
+          <dl>
+            <dt>布局</dt><dd>右详情 = 单列提供方列表，分「已启用 / 未安装·已停用」两组卡。<b>桌面 only</b>；手机意图：行收窄、⚙ 收右键、两组堆叠。</dd>
+            <dt>默认</dt><dd>落 L1 列表，已启用组在上；dhead「+ 新增提供方」常驻。</dd>
+            <dt>hover</dt><dd>提供方行 → surface1；⚙ / 开关 / 「+ 新增」各自 hover。</dd>
+            <dt>活跃</dt><dd>列表无持久选中（点即下钻 L2）；左导航「模型与提供方」蓝高亮。</dd>
+            <dt>运行</dt><dd>启停 = 开关过渡；CLI 探测中 = badge「检测中…」+ mini-spin；<b>CLI 安装中 = 「一键安装」转「安装中…」spinner</b>；删除中 = 按钮 inline spinner。</dd>
+            <dt>禁用</dt><dd>CLI 未装 → 开关不可用 + 不可下钻编辑（仅只读 + 安装指引）；<b>内置删除入口可见但门控</b>；一键安装缺能力时转「需更新主机」。</dd>
+            <dt>空</dt><dd>无任何提供方启用 → 顶提示「还没启用任何提供方 · 打开下方开关即可」（5 内置始终在列）；dhead「+ 新增提供方」仍在（见 mp5）。</dd>
+            <dt>加载</dt><dd>首进 / 切 host → 列表行骨架 + 页级 spinner。</dd>
+            <dt>错误</dt><dd>配置损坏 / CLI 探测失败 → 行尾红角标 + 顶 alertbox err；CLI 安装失败 → 行内红字 + 重试（见 mp5）。</dd>
+            <dt>离线</dt><dd>host 离线 → 选择器红点 + 顶 callout；列表显缓存，启停 / 下钻 / 新增 / 删除 / 一键安装禁用。</dd>
+            <dt>右键</dt><dd>见 mp1-ctx 两态对照：目录新增=真实删除、内置=需新主机能力门控（不假装能删）。</dd>
+            <dt>术语</dt><dd>提供方 = 内置 agent CLI 或目录新增 ACP（<b>非自造命令 / 名字</b>）；中转站 ≠ relay。命令 ≠ 终端 PTY profile。CLI badge 无版本号。<b>删除内置 / 一键装 agent CLI = 需新主机能力（缺口标注，待架构）</b>。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP mp1-add-->
+    <section class="screen" id="mp1-add">
+      <div class="screen-head">
+        <span class="tag">B2-L1 · mp1-add · 从目录新增（非自定义）</span>
+        <h2>新增提供方 — 从目录（catalog）选已存在的加入</h2>
+        <p>点 mp1 顶部「+ 新增提供方」弹出。<b>目录选择器</b>列<b>真实 ACP 目录</b>里这台主机还没加的项（Gemini CLI / Kimi / Cursor / DeepAgents / Cline / goose…，<b>已加入的如 Qwen Code 不在列</b>）。每行 = 图标 + 名称 + ACP + 版本 + 简介 + 安装说明↗ + 「新增」。<b>只从目录选已存在的，无自造命令 / 名字入口</b>。</p>
+      </div>
+      <div class="cap" id="cap-mp1-add">
+        <div class="caphead"><span class="captag">B2-L1 mp1-add</span><span class="capsub"><b>从目录新增</b> · catalog 选择器（弹窗）</span></div>
+        <div class="frame rel">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · 模型与提供方 · 从目录新增</span></div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick"><span class="dot on"></span><span class="hp-name">Wolffy-MBP</span><span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span><svg class="i sm hp-chev"><use href="#chev-d" /></svg></div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+            <section class="set-detail">
+              <header class="set-dhead"><div class="dh-main"><div class="set-dtitle"><svg class="i" style="color:var(--accent)"><use href="#layers" /></svg> 模型与提供方</div><div class="set-dsub">为这台主机配置提供方 →（下钻）其下中转站 → 放出模型。</div></div><div class="ap-dhead-act"><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增提供方</span></div></header>
+              <div class="set-dbody">
+                <div class="set-group"><div class="set-grouph">已启用 <span class="badge mut">4</span></div><div class="set-card">
+                  <div class="mp-prow"><div class="mp-pic">C</div><div class="mp-pmain"><div class="mp-pname">Claude Code <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div><div class="mp-pmeta"><span>4 个模型</span></div></div><div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div></div>
+                  <div class="mp-prow"><div class="mp-pic">X</div><div class="mp-pmain"><div class="mp-pname">Codex <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div><div class="mp-pmeta"><span>2 个模型</span></div></div><div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div></div>
+                  <div class="mp-prow"><div class="mp-pic">Q</div><div class="mp-pmain"><div class="mp-pname">Qwen Code <span class="badge acc">ACP · 目录新增</span></div><div class="mp-pmeta"><span>3 个模型</span></div></div><div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div></div>
+                </div></div>
+              </div>
+            </section>
+          </div>
+          <div class="pl-backdrop">
+            <div class="pl-modal">
+              <div class="pl-modal-h"><svg class="i" style="color:var(--accent)"><use href="#package" /></svg><div class="pl-mtitle">从目录新增提供方</div><div class="pl-mx"><svg class="i sm"><use href="#x" /></svg></div></div>
+              <div class="pl-modal-b">
+                <div class="alertbox info"><svg class="i sm"><use href="#info" /></svg><div><div class="at">从目录里挑一个加入</div><div class="ad">只列 <b>Helm 维护的真实 ACP 目录</b>里、这台主机还没加的项。<b>不支持自造命令 / 名字</b>（要更高级的自定义走「配置文件(JSON)」手改）。<b>已加入的（如 Qwen Code）不在列</b>。</div></div></div>
+                <div class="pl-search"><svg class="i sm"><use href="#search" /></svg> 搜索提供方</div>
+                <div class="set-card">
+                  <div class="mp-prow" style="cursor:default"><div class="mp-pic">✦</div><div class="mp-pmain"><div class="mp-pname">Gemini CLI <span class="badge mut">ACP</span> <span class="badge mut">0.47.0</span></div><div class="mp-pmeta"><span>Google 官方 Gemini 命令行代理，ACP 接入对话</span></div><div class="mp-pmeta" style="margin-top:3px"><span style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);cursor:pointer">安装说明 <svg class="i xs"><use href="#external" /></svg></span></div></div><div class="mp-prow-act"><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增</span></div></div>
+                  <div class="mp-prow" style="cursor:default"><div class="mp-pic">K</div><div class="mp-pmain"><div class="mp-pname">Kimi Code CLI <span class="badge mut">ACP</span> <span class="badge mut">0.11.0</span></div><div class="mp-pmeta"><span>月之暗面 Kimi 开源终端代码代理，长上下文</span></div><div class="mp-pmeta" style="margin-top:3px"><span style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);cursor:pointer">安装说明 <svg class="i xs"><use href="#external" /></svg></span></div></div><div class="mp-prow-act"><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增</span></div></div>
+                  <div class="mp-prow" style="cursor:default"><div class="mp-pic">Cl</div><div class="mp-pmain"><div class="mp-pname">Cline <span class="badge mut">ACP</span> <span class="badge mut">3.0.29</span></div><div class="mp-pmeta"><span>自主编码代理 CLI，可改文件 / 跑命令 / 用浏览器</span></div><div class="mp-pmeta" style="margin-top:3px"><span style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);cursor:pointer">安装说明 <svg class="i xs"><use href="#external" /></svg></span></div></div><div class="mp-prow-act"><span class="btn df sm" style="opacity:.75"><span class="mini-spin" style="border-color:rgba(255,255,255,0.45);border-top-color:#fff"></span> 新增中…</span></div></div>
+                  <div class="mp-prow" style="cursor:default"><div class="mp-pic">Cu</div><div class="mp-pmain"><div class="mp-pname">Cursor <span class="badge mut">ACP</span> <span class="badge mut">2026.03.30</span></div><div class="mp-pmeta"><span>Cursor 命令行代码代理，ACP 接入统一对话</span></div><div class="mp-pmeta" style="margin-top:3px"><span style="display:inline-flex;align-items:center;gap:4px;color:var(--accent);cursor:pointer">安装说明 <svg class="i xs"><use href="#external" /></svg></span></div></div><div class="mp-prow-act"><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增</span></div></div>
+                </div>
+              </div>
+              <div class="pl-modal-f"><span class="pl-fsp">目录由 Helm 维护（真实 ACP catalog），<b>不聚合第三方市场、不支持自造命令 / 名字</b>。</span><span class="btn ghost sm">取消</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>某行「新增」</b>：把该目录项写入 <code>agents.providers.&lt;id&gt;</code>（extends:"acp" + label + command，来自目录预置），按钮转「新增中…」spinner（如 Cline）；成功 → 该行从目录移出、回 mp1 成一行。<b>同样走 CLI 检测</b>：未装 → 行尾「一键安装」。右键「删除」＝真实删除（回目录可再加）。</div></li>
+          <li><span class="pin">2</span><div><b>搜索框</b>：按名称 / id / 简介过滤；无命中 → 空态「没有匹配的提供方 · 清除搜索」。</div></li>
+          <li><span class="pin">3</span><div><b>安装说明 ↗</b>：开外链到该代理安装文档；不改配置。</div></li>
+          <li><span class="pin">4</span><div><b>关闭</b>（× / 取消 / 点遮罩）：收起弹窗，回 mp1，不新增。</div></li>
+          <li><span class="pin">5</span><div><b>边界</b>：目录<b>只列已知 ACP 项</b>，<b>无「自定义新增 / 自造命令」入口</b>；要自造走「配置文件(JSON)」手改 <code>agents.providers</code>。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（四维度齐全）</div>
+          <dl>
+            <dt>布局</dt><dd>弹窗(pl-modal 600px)居中叠在 mp1 列表上 + 半透明遮罩压暗；模态体 = 信息条 + 搜索框 + 目录行 + 底部说明 / 取消。<b>桌面 only</b>；手机意图：转底部上拉全宽 sheet。</dd>
+            <dt>默认</dt><dd>列真实 ACP 目录里还没加的项（已加入的不在列），按目录顺序；每行「新增」可点。</dd>
+            <dt>hover</dt><dd>目录行 → surface1；「新增」/「安装说明」/「取消」/「×」各自 hover；行本身不下钻。</dd>
+            <dt>活跃</dt><dd>无持久选中；点「新增」即触发该行加入。</dd>
+            <dt>运行</dt><dd>正在加入的行「新增」转「新增中…」mini-spin + 防重复（如 Cline），其余行仍可点。</dd>
+            <dt>禁用</dt><dd>主机离线 → 所有「新增」禁用（目录可浏览、加入需在线）。</dd>
+            <dt>空</dt><dd>目录里都已加入 → emptybox「目录里的提供方都已加入」；搜索无命中 →「没有匹配的提供方 · 清除搜索」。</dd>
+            <dt>加载</dt><dd>目录拉取中 → 列表区骨架行 + spinner。</dd>
+            <dt>错误</dt><dd>目录拉取失败 → 模态体顶 alertbox err + 重试；某项加入失败 → 该行下红字 + 「新增」恢复可重试。</dd>
+            <dt>离线</dt><dd>host 离线 → 顶 callout；目录可浏览，「新增」全禁用直到重连。</dd>
+            <dt>右键</dt><dd><b>无右键菜单</b>（出口都在显式「新增」/「安装说明」/「取消」按钮）。</dd>
+            <dt>术语</dt><dd><b>从目录新增 = 选目录里已存在的已知项 ≠ 自定义新增</b>；加入写 <code>agents.providers</code>(extends:"acp")，与 cfg1 同一真相源。目录 = 真实 ACP catalog，<b>非第三方插件市场</b>。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP mp1-ctx-->
+    <section class="screen" id="mp1-ctx">
+      <div class="screen-head">
+        <span class="tag">B2-L1 · mp1-ctx · 行右键（删除 · 门控对照）</span>
+        <h2>提供方行右键 — 删除分两态（诚实门控，不假装能删）</h2>
+        <p>提供方行右键 3 项：① 设置(→L2) ② 停用/启用 ③ <b>删除</b>(danger)。「删除」<b>分两态</b>：<b>目录新增(ACP) = 真实删除</b>（二次确认 → 从 <code>agents.providers</code> 移除、回目录可再加）；<b>内置 5 = 标「需新主机能力」</b>（给入口但点击落能力门、<b>不假装能删</b>）。两菜单并列对照，便于评审。</p>
+      </div>
+      <div class="cap" id="cap-mp1-ctx">
+        <div class="caphead"><span class="captag">B2-L1 mp1-ctx</span><span class="capsub"><b>行右键</b> · 内置门控 vs 目录新增真实删除</span></div>
+        <div class="frame">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · 模型与提供方 · 行右键对照</span></div>
+          <div style="padding:28px 32px;display:flex;flex-direction:column;gap:24px;">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:start;">
+              <!-- 内置：门控 -->
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                <div class="hc-ctxlabel"><svg class="i sm"><use href="#lock" /></svg> 内置提供方行（Claude Code）— 删除＝需新主机能力</div>
+                <div class="set-card" style="overflow:visible">
+                  <div class="mp-prow"><div class="mp-pic">C</div><div class="mp-pmain"><div class="mp-pname">Claude Code <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div><div class="mp-pmeta"><span>4 个模型</span><span class="sep">·</span><span>内置</span></div></div><div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div></div>
+                </div>
+                <div class="ctxmenu" style="width:100%"><div class="ci"><svg class="i sm"><use href="#settings" /></svg> 设置 <span style="margin-left:auto;color:var(--fgFaint)">→ L2</span></div><div class="ci"><svg class="i sm"><use href="#power" /></svg> 停用</div><div class="csep"></div><div class="ci danger"><svg class="i sm"><use href="#trash" /></svg> 删除 <span style="margin-left:auto;font-size:10px;color:var(--fgFaint)">需新主机能力</span></div></div>
+                <div class="alertbox warn"><svg class="i sm"><use href="#info" /></svg><div><div class="at">点「删除」→ 落能力门（不执行）</div><div class="ad">「更新主机后可删除内置提供方」（架构阶段给方案）。当前出口：<b>改为停用</b> 隐藏，或在 config.json 调整。<b>不假装能删。</b></div></div></div>
+              </div>
+              <!-- 目录新增：真实删除 -->
+              <div style="display:flex;flex-direction:column;gap:12px;">
+                <div class="hc-ctxlabel"><svg class="i sm"><use href="#trash" /></svg> 目录新增 ACP 行（Qwen Code）— 删除＝真实移除</div>
+                <div class="set-card" style="overflow:visible">
+                  <div class="mp-prow"><div class="mp-pic">Q</div><div class="mp-pmain"><div class="mp-pname">Qwen Code <span class="badge acc">ACP · 目录新增</span></div><div class="mp-pmeta"><span>3 个模型</span><span class="sep">·</span><span>来自目录</span></div></div><div class="mp-prow-act"><div class="set-toggle on"></div><div class="mp-cog"><svg class="i sm"><use href="#settings" /></svg></div></div></div>
+                </div>
+                <div class="ctxmenu" style="width:100%"><div class="ci"><svg class="i sm"><use href="#settings" /></svg> 设置 <span style="margin-left:auto;color:var(--fgFaint)">→ L2</span></div><div class="ci"><svg class="i sm"><use href="#power" /></svg> 停用</div><div class="csep"></div><div class="ci danger"><svg class="i sm"><use href="#trash" /></svg> 删除 <span style="margin-left:auto;font-size:10px;color:var(--fgFaint)">真实 · 回目录可再加</span></div></div>
+                <div class="alertbox err"><svg class="i sm"><use href="#trash" /></svg><div><div class="at">删除提供方「Qwen Code」？</div><div class="ad"><b>目录新增 = 真实删除</b>：从这台主机 <code>agents.providers</code> 移除该项及其中转站 / 放出模型（对话选型一并移除）；<b>回目录可再加</b>。二次确认 → 取消 / 删除。</div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>设置</b>（两态同）：→ L2 提供方设置(mp2)。</div></li>
+          <li><span class="pin">2</span><div><b>停用 / 启用</b>（两态同）：切 enabled；停用 = 从对话选型隐藏、配置保留。</div></li>
+          <li><span class="pin">3</span><div><b>删除 · 内置</b>：标「需新主机能力」，点击<b>不执行删除</b>，落能力门弹层「更新主机后可删除内置提供方」+ 出口「改为停用」/「在 config.json 编辑」（见 mp5 box 11）。</div></li>
+          <li><span class="pin">4</span><div><b>删除 · 目录新增</b>：二次确认（红 alertbox）→「删除」真实移除 <code>agents.providers</code> 该项（连带中转站 / 放出模型）；回目录可再加（见 mp5 box 10）。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（四维度齐全）</div>
+          <dl>
+            <dt>布局</dt><dd>对照屏：左内置门控菜单 + 右目录新增真实删除菜单，各配行示意 + 确认/门控 callout。<b>桌面 only</b>。</dd>
+            <dt>默认</dt><dd>右键唤起菜单覆盖在目标行右上；菜单外点击 / Esc 关闭。</dd>
+            <dt>hover</dt><dd>菜单项 hover surface3；danger 项 hover 红底。</dd>
+            <dt>活跃</dt><dd>菜单唤起态；确认对话 danger 主按钮强调。</dd>
+            <dt>运行</dt><dd>真实删除确认后 → 行 inline spinner「删除中…」，成功移除该行。</dd>
+            <dt>禁用</dt><dd>离线时整个右键的写操作（停用 / 删除）禁用，仅「设置（只读）」可用。</dd>
+            <dt>空 / 加载 / 错误</dt><dd>删除失败 → 保留行 + 可重试；其余边界态见 mp5。</dd>
+            <dt>离线</dt><dd>host 离线 → 菜单写项禁用、灰置。</dd>
+            <dt>右键</dt><dd>本屏即「右键」维度的专屏：<b>3 项（设置 / 停用 / 删除）</b>，删除按提供方来源分两态（门控 vs 真实）。</dd>
+            <dt>术语</dt><dd><b>内置删除 = 需新主机能力（缺口、诚实门控、不假装）</b>；<b>目录新增删除 = 真实</b>（agents.providers 移除）；config.json 始终可兜底。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP mp2-->
+    <section class="screen" id="mp2">
+      <div class="screen-head">
+        <span class="tag">B2-L2 · mp2 · 提供方设置</span>
+        <h2>提供方设置 — 基础信息 + 中转站列表（启停只顶部一处）</h2>
+        <p>从 L1 下钻，<b>整页</b>，顶「‹ 返回提供方」面包屑。上＝基础信息（名称 / 图标 / 命令）；下＝该提供方名下中转站卡列表 +「新增中转站」。<b>启用 / 停用只在顶部一处开关</b>（删掉旧稿底部重复块）。点中转站卡下钻 L3。<span class="cz" style="vertical-align:middle"><svg class="i"><use href="#pause" /></svg> 中转站卡右键「设为当前」驱动 composer，接入暂缓</span></p>
+      </div>
+      <div class="cap" id="cap-mp2">
+        <div class="caphead"><span class="captag">B2-L2 mp2</span><span class="capsub"><b>提供方设置</b> · 基础信息 + 中转站（含卡右键）</span></div>
+        <div class="frame rel">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · 模型与提供方 · Claude Code</span></div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick"><span class="dot on"></span><span class="hp-name">Wolffy-MBP</span><span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span><svg class="i sm hp-chev"><use href="#chev-d" /></svg></div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+            <section class="set-detail">
+              <header class="set-dhead"><div class="dh-main"><div class="mp-crumb"><svg class="i sm"><use href="#chev-l" /></svg> 返回提供方</div><div class="set-dtitle"><span class="mp-pic" style="width:30px;height:30px">C</span> Claude Code <span class="badge suc"><svg class="i xs"><use href="#check" /></svg> CLI 已安装</span></div><div class="set-dsub">内置 agent 提供方。配置基础信息与其名下中转站（base_url + key 的 API 供应商）。</div></div><div class="ap-dhead-act" style="display:flex;align-items:center;gap:9px"><span class="set-rd">已启用</span><div class="set-toggle on"></div></div></header>
+              <div class="set-dbody">
+                <div class="set-group"><div class="set-grouph">基础信息</div><div class="set-card">
+                  <div class="set-row"><div class="set-rl"><div class="set-rt">名称</div><div class="set-rd">列表与对话选型菜单中的显示名(label)。改显示名不改底层 id。</div></div><div class="set-rc"><input class="set-input" value="Claude Code" /></div></div>
+                  <div class="set-row"><div class="set-rl"><div class="set-rt">图标</div><div class="set-rd">列表与选型菜单中显示的标识。</div></div><div class="set-rc"><span class="badge-ic" style="width:34px;height:34px;font-size:14px;font-weight:700">C</span><span class="btn out sm">更换</span></div></div>
+                  <div class="set-row"><div class="set-rl"><div class="set-rt">命令 <span class="badge mut">command</span></div><div class="set-rd">agent CLI 启动命令（覆盖默认 binary）。<b>≠ 终端 PTY profile</b> —— 终端归属开放、另设；本字段只决定如何拉起此 agent 进程。</div></div><div class="set-rc"><input class="set-input mono" style="min-width:210px" value="claude" /></div></div>
+                  <div class="set-row"><div class="set-rl"><div class="set-rt">恢复默认</div><div class="set-rd">把名称 / 命令恢复为内置默认值。</div></div><div class="set-rc"><span class="btn ghost sm"><svg class="i"><use href="#refresh" /></svg> 恢复默认</span></div></div>
+                </div></div>
+                <div class="set-group">
+                  <div class="set-grouph">中转站 · 4 <span style="display:flex;gap:6px;text-transform:none;letter-spacing:0;font-weight:500"><span class="btn out sm"><svg class="i"><use href="#refresh" /></svg> cc-switch 同步</span><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增中转站</span></span></div>
+                  <div class="mp-vlist">
+                    <div class="mr-vendor"><div class="mr-vtop"><span class="mr-vname">直连 · 官方</span><span class="badge mut">官方</span><svg class="i sm" style="color:var(--fgFaint);margin-left:auto"><use href="#chev-r" /></svg></div><div class="mr-vurl">api.anthropic.com</div><div class="mr-vmeta"><span class="dot on"></span> 健康 · 无限额</div></div>
+                    <div class="ctx-anchor">
+                      <div class="mr-vendor active"><div class="mr-vtop"><span class="mr-vname">智谱 GLM</span><span class="badge acc"><svg class="i xs"><use href="#check" /></svg> 当前</span><svg class="i sm" style="color:var(--accent);margin-left:auto"><use href="#chev-r" /></svg></div><div class="mr-vurl">api.z.ai/api/anthropic</div><div class="mr-vmeta"><span class="dot on"></span> 健康 · 320ms · 放出 3 / 4 模型</div></div>
+                      <div class="ctx-pop" style="top:38px;right:16px"><div class="ctxmenu"><div class="ci"><svg class="i sm"><use href="#check" /></svg> 设为当前 <span class="cz" style="margin-left:auto;font-size:9px;padding:0 6px"><svg class="i"><use href="#pause" /></svg> 接入暂缓</span></div><div class="ci"><svg class="i sm"><use href="#pencil" /></svg> 编辑 <span style="margin-left:auto;color:var(--fgFaint)">→ L3</span></div><div class="ci"><svg class="i sm"><use href="#zap" /></svg> 测速</div><div class="ci"><svg class="i sm"><use href="#copy" /></svg> 复制</div><div class="csep"></div><div class="ci danger"><svg class="i sm"><use href="#trash" /></svg> 删除</div></div></div>
+                    </div>
+                    <div class="mr-vendor"><div class="mr-vtop"><span class="mr-vname">Moonshot</span><span class="badge err">不健康</span><svg class="i sm" style="color:var(--fgFaint);margin-left:auto"><use href="#chev-r" /></svg></div><div class="mr-vurl">api.moonshot.cn/anthropic</div><div class="mr-vmeta"><span class="dot off"></span> <span style="color:var(--danger)">连接失败 · 401 未授权</span></div></div>
+                    <div class="mr-vendor"><div class="mr-vtop"><span class="mr-vname">DeepSeek</span><span class="badge mut">第三方转发</span><svg class="i sm" style="color:var(--fgFaint);margin-left:auto"><use href="#chev-r" /></svg></div><div class="mr-vurl">api.deepseek.com/anthropic</div><div class="mr-vmeta"><span class="dot on"></span> 健康 · 180ms · 放出 3 模型</div></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">右键菜单 + 点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>‹ 返回提供方</b>（面包屑）：回 L1 提供方列表(mp1)。Esc 同效。</div></li>
+          <li><span class="pin">2</span><div><b>顶部「已启用」开关</b>：本屏<b>唯一</b>启用 / 停用入口；关 = 该提供方从对话隐藏、中转站配置保留。（旧稿底部重复块已删。）</div></li>
+          <li><span class="pin">3</span><div><b>基础信息</b>（名称 / 图标 / 命令）：失焦 / 回车<b>即时持久化</b>，无独立保存；「恢复默认」还原内置默认。</div></li>
+          <li><span class="pin">4</span><div><b>中转站卡</b>：点卡 → 下钻 <b>L3 中转站详情(mp3)</b>；卡上「当前✓」= 该提供方对话时实际启用的中转站。</div></li>
+          <li><span class="pin">5</span><div><b>中转站卡右键 5 项</b>：① 设为当前 <span class="cz" style="font-size:9px;padding:0 6px"><svg class="i"><use href="#pause" /></svg> 接入暂缓</span> ② 编辑(→L3) ③ 测速 ④ 复制 ⑤ 删除(danger)。「设为当前」驱动 composer 默认 vendor，<b>本期出 UI＋配置、不接对话流</b>。</div></li>
+          <li><span class="pin">6</span><div><b>+ 新增中转站</b> → 空白 L3；<b>cc-switch 同步</b> → 从 cc-switch.db 勾选导入（不覆盖本地放出 / 限额）。<b>提供方「删除」在 mp1 行右键</b>（L2 不堆危险区）。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（四维度齐全）</div>
+          <dl>
+            <dt>布局</dt><dd>L2 整页 = 面包屑 + 基础信息卡 + 中转站卡列表（仅此二段，无底部管理块）。<b>桌面 only</b>；手机意图：卡单列、面包屑吸附。</dd>
+            <dt>默认</dt><dd>带现值进入；顶部 toggle=on；当前✓ 卡<b>蓝边 + 浅蓝底</b>在显眼位。</dd>
+            <dt>hover</dt><dd>set-row → surface1；中转站卡 → surface1 + 边加深 + 行尾 chev 提示下钻；按钮各自 hover。</dd>
+            <dt>活跃</dt><dd>当前中转站卡蓝边 + 浅蓝底 +「当前」✓ badge；顶部启用开关 on=蓝。</dd>
+            <dt>运行</dt><dd>cc-switch 同步中 = 按钮 inline spinner；某卡测速中 = 健康位 mini-spin「测速中…」。</dd>
+            <dt>禁用</dt><dd>CLI 未装 L2 只读 + 一键安装 / 安装指引、新增 / 编辑禁用；「删除提供方」不在本屏（统一 mp1 行右键）。</dd>
+            <dt>空</dt><dd>该提供方无中转站 → emptybox「Claude Code 还没有中转站」+「+ 新增中转站」「cc-switch 同步」（见 mp5）。</dd>
+            <dt>加载</dt><dd>进 L2 拉中转站 → 卡骨架；基础信息字段就绪前字段级骨架。</dd>
+            <dt>错误</dt><dd>某中转站不健康 → 卡红点 + 红字（401，如 Moonshot）；配置写回失败 → 顶 alertbox err + 重试。</dd>
+            <dt>离线</dt><dd>host 离线 → 顶 callout，编辑 / 新增 / 设当前 / 同步 / 启停禁用，显缓存值。</dd>
+            <dt>右键</dt><dd><b>中转站卡 5 项</b>：设为当前 / 编辑(→L3) / 测速 / 复制 / 删除。基础信息行无右键；提供方启停在顶部 toggle。</dd>
+            <dt>术语</dt><dd>命令 ≠ PTY profile；中转站(base_url+key) ≠ relay 远程；提供方层新增 = 从目录、删除 = mp1 行右键（内置门控）。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP mp3-->
+    <section class="screen" id="mp3">
+      <div class="screen-head">
+        <span class="tag">B2-L3 · mp3 · 中转站详情（跨模块关键）</span>
+        <h2>中转站详情 — base_url / key / 测速 / 放出模型（常用突出）· 高级折叠</h2>
+        <p>从 L2 点中转站卡下钻，整页，顶面包屑。<b>常用项突出</b>：连接(base_url + key 密码态 + 测试) → 端点测速 → <b>放出模型</b>(多选 + 设默认 + thinking)。<b>高级折叠</b>：JSON / 限额 / 倍率收进「高级」+ 「在 config.json 编辑」。<span class="cz" style="vertical-align:middle"><svg class="i"><use href="#pause" /></svg> 放出模型 / 设默认 / 设为当前 → 驱动 home composer，对话接入暂缓（本期出 UI＋配置，不接对话流）</span></p>
+      </div>
+      <div class="cap" id="cap-mp3">
+        <div class="caphead"><span class="captag">B2-L3 mp3</span><span class="capsub"><b>中转站详情</b> · base_url/key/测速/放出模型/高级折叠</span></div>
+        <div class="frame">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · Claude Code · 智谱 GLM</span></div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick"><span class="dot on"></span><span class="hp-name">Wolffy-MBP</span><span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span><svg class="i sm hp-chev"><use href="#chev-d" /></svg></div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+            <section class="set-detail">
+              <header class="set-dhead"><div class="dh-main"><div class="mp-crumb"><svg class="i sm"><use href="#chev-l" /></svg> 返回 Claude Code</div><div class="set-dtitle"><span class="mr-pic">Z</span> 智谱 GLM <span class="badge acc"><svg class="i xs"><use href="#check" /></svg> 当前</span> <span class="badge mut">第三方转发</span></div><div class="set-dsub">base_url + key 的 API 供应商（中转站）。Claude Code 下，<b>≠ relay 远程</b>。</div></div><div class="ap-dhead-act" style="display:flex;gap:8px"><span class="btn out sm dis"><svg class="i"><use href="#check" /></svg> 已是当前 <span class="cz" style="font-size:9px;padding:0 5px;border:none;background:transparent;color:var(--warning)"><svg class="i"><use href="#pause" /></svg></span></span><span class="btn out sm"><svg class="i"><use href="#zap" /></svg> 测速</span></div></header>
+              <div class="set-dbody">
+                <div class="alertbox info"><svg class="i sm"><use href="#layers" /></svg><div><div class="at" style="display:flex;align-items:center;gap:8px">这页决定对话框里能用什么 <span class="cz"><svg class="i"><use href="#pause" /></svg> 对话接入 · 暂缓</span></div><div class="ad">下面<b>「放出模型」</b>勾选 + <b>「设为当前」</b>，决定 home 对话框 composer 的中转站 / 模型下拉里出现哪些、默认选哪个。<b>本期出 UI＋配置 schema，不接对话流</b>（对话接入待对话项目就绪后统一接）。</div></div></div>
+                <div class="mr-section">
+                  <div class="mr-sh">连接 <span class="sh-act"><span class="badge acc" style="text-transform:none;letter-spacing:0">常用</span></span></div>
+                  <div class="mr-field"><span class="mr-flabel">请求地址 base_url</span><input class="set-input mono" style="width:100%" value="https://api.z.ai/api/anthropic" /></div>
+                  <div class="mr-field"><span class="mr-flabel"><svg class="i sm" style="color:var(--accent)"><use href="#key" /></svg> API Key</span><div class="mr-frow"><div class="mr-pwd"><input type="password" value="sk-xxxxxxxxxxxxxxxx4f2a" /><span class="eye"><svg class="i sm"><use href="#eye" /></svg></span></div><span class="badge suc"><svg class="i xs"><use href="#check" /></svg> 已验证</span><span class="btn out sm"><svg class="i"><use href="#zap" /></svg> 测试 key</span></div><span class="mr-fhint">key 加密存储在主机本地，仅用于向 base_url 发起请求；不会同步到云端或其它设备。</span></div>
+                </div>
+                <div class="mr-section">
+                  <div class="mr-sh">端点测速 <span class="sh-act"><span class="btn out sm"><svg class="i"><use href="#zap" /></svg> 全部测速</span></span></div>
+                  <div class="set-card"><div class="mr-ep"><span class="ep-url">https://api.z.ai/api/anthropic</span><span class="mr-ping ok"><span class="dot on"></span> 320ms</span><span class="btn ghost sm"><svg class="i"><use href="#zap" /></svg></span></div><div class="mr-ep"><span class="ep-url">https://api.z.ai/api/anthropic/v2</span><span class="mr-ping busy"><span class="mini-spin"></span> 测速中…</span><span class="btn ghost sm"><svg class="i"><use href="#zap" /></svg></span></div></div>
+                </div>
+                <div class="mr-section">
+                  <div class="mr-sh">放出模型 · 3 / 4 <span class="sh-act"><span class="cz"><svg class="i"><use href="#pause" /></svg> 决定对话选型 · 接入暂缓</span><span class="btn out sm"><svg class="i"><use href="#refresh" /></svg> 拉取列表</span></span></div>
+                  <span class="mr-fhint" style="margin-bottom:9px">勾选要在 <b>home 对话框 composer 选型菜单</b>里放出的模型；列表自动从 base_url 拉取，亦可手动添加。每个放出模型可设 thinking 强度（无 / 低 / 中 / 高），<b>默认模型</b>行内联标记 = composer 选此中转站时的初始模型。<b>（本期写配置，不接对话流。）</b></span>
+                  <div class="set-card" style="overflow:visible">
+                    <div class="mr-model"><div class="mr-cbx on"><svg class="i"><use href="#check" /></svg></div><div class="mr-mname">glm-5.1 <span class="badge acc">默认</span></div><div class="set-seg"><span>无</span><span>低</span><span class="on">中</span><span>高</span></div></div>
+                    <div class="ctx-anchor">
+                      <div class="mr-model"><div class="mr-cbx on"><svg class="i"><use href="#check" /></svg></div><div class="mr-mname">glm-5-turbo</div><span class="btn ghost sm">设默认</span></div>
+                      <div class="ctx-pop" style="top:calc(100% - 8px);right:14px"><div class="ctxmenu"><div class="ci"><svg class="i sm"><use href="#check" /></svg> 设为默认 <span class="cz" style="margin-left:auto;font-size:9px;padding:0 6px"><svg class="i"><use href="#pause" /></svg> 暂缓</span></div><div class="ci danger"><svg class="i sm"><use href="#x" /></svg> 移除（取消放出）</div></div></div>
+                    </div>
+                    <div class="mr-model"><div class="mr-cbx on"><svg class="i"><use href="#check" /></svg></div><div class="mr-mname">glm-4.7</div><span class="btn ghost sm">设默认</span></div>
+                    <div class="mr-model off"><div class="mr-cbx"><svg class="i"><use href="#check" /></svg></div><div class="mr-mname">glm-4.5-air <span class="sub">未放出</span></div></div>
+                  </div>
+                  <div class="mr-frow" style="margin-top:10px"><input class="set-input mono" style="flex:1" placeholder="手动添加模型 id，如 glm-5.1-vision" /><span class="btn out sm"><svg class="i"><use href="#plus" /></svg> 添加</span></div>
+                </div>
+                <div class="mr-collapse">
+                  <div class="mr-collapse-h"><svg class="i sm"><use href="#sliders" /></svg> 高级 · JSON 配置 · 花费限额 · 倍率 <span class="badge mut">高级</span><svg class="i sm cc-chev"><use href="#chev-d" /></svg></div>
+                  <div class="mr-collapse-b">
+                    <div class="mr-fhint" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">普通用户一般不用动这些；高级项也可在 <b style="color:var(--fg)">配置文件(JSON)</b> 里整体编辑。<span class="btn ghost sm" style="margin-left:auto"><svg class="i"><use href="#file-text" /></svg> 在 config.json 编辑全部高级项 →</span></div>
+                    <div class="mr-section">
+                      <div class="mr-sh"><svg class="i sm"><use href="#sliders" /></svg> 通用配置 <span class="sh-act"><span class="badge suc"><svg class="i xs"><use href="#check" /></svg> JSON 有效</span></span></div>
+                      <div class="mr-grid2"><div class="mr-field"><span class="mr-flabel">超时（秒）</span><input class="set-input" value="60" /></div><div class="mr-field"><span class="mr-flabel">最大重试</span><input class="set-input" value="2" /></div></div>
+                      <div class="mr-json" style="margin-top:12px"><div class="mr-json-h"><svg class="i xs"><use href="#terminal" /></svg> 该中转站的 extra 配置 <span class="jh-act"><span class="btn ghost sm"><svg class="i"><use href="#copy" /></svg></span><span class="btn ghost sm">格式化</span></span></div><div class="mr-json-body"><div class="mr-json-ln">1
+2
+3
+4
+5</div><div class="mr-json-code">{
+  <span class="mr-jk">"timeout"</span><span class="mr-jp">:</span> 60<span class="mr-jp">,</span>
+  <span class="mr-jk">"max_retries"</span><span class="mr-jp">:</span> 2<span class="mr-jp">,</span>
+  <span class="mr-jk">"default_headers"</span><span class="mr-jp">:</span> { <span class="mr-jk">"x-source"</span><span class="mr-jp">:</span> <span class="mr-jstr">"helm"</span> }
+}</div></div></div>
+                    </div>
+                    <div class="mr-section">
+                      <div class="mr-sh"><svg class="i sm" style="color:var(--accent)"><use href="#dollar" /></svg> 花费限额与倍率 <span class="sh-act"><span class="badge mut" style="text-transform:none;letter-spacing:0">仅设值 · 不强制</span></span></div>
+                      <div class="mr-grid3"><div class="mr-field"><span class="mr-flabel">日限额 USD</span><input class="set-input" value="10.00" /></div><div class="mr-field"><span class="mr-flabel">月限额 USD</span><input class="set-input" value="200.00" /></div><div class="mr-field"><span class="mr-flabel">倍率</span><input class="set-input" value="1.0" /></div></div>
+                      <span class="mr-fhint" style="margin-top:8px">本轮只「设值 + 进度占位」；超限自动暂停 / 切换为目标态（需新核算能力）。倍率把第三方转发计价折算成真实花费；置 0 = 不限。</span>
+                    </div>
+                  </div>
+                </div>
+                <div class="mr-frow" style="border-top:1px solid var(--border);padding-top:14px"><span class="mr-fhint" style="flex:1">删除后该中转站及其放出模型从对话选型移除，不可恢复。</span><span class="btn danger sm"><svg class="i"><use href="#trash" /></svg> 删除中转站</span></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">右键菜单 + 点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>‹ 返回 Claude Code</b>（面包屑）：回 L2(mp2)。Esc 同效。<b>测速</b>（头部）对全部端点重探。</div></li>
+          <li><span class="pin">2</span><div><b>base_url</b>：编辑请求地址；失焦轻量校验（协议 / 可达），格式不对红框。base_url + key 是中转站最小必填。</div></li>
+          <li><span class="pin">3</span><div><b>API Key（密码态）</b>：默认掩码；点眼睛明文 / 掩码切换；「测试 key」发鉴权探测 → 成功「已验证」绿，失败转红「401 未授权」。</div></li>
+          <li><span class="pin">4</span><div><b>端点测速</b>：单行 ⚡ 或头部「全部测速」→ 延迟位 mini-spinner「测速中…」，完成显延迟 + 健康点（绿 / 黄 / 红）。</div></li>
+          <li><span class="pin">5</span><div><span class="cz"><svg class="i"><use href="#pause" /></svg> 对话接入暂缓</span> <b>放出模型 / 设默认 / 设为当前</b>：勾选决定放出哪些、「设默认」/「设为当前」决定 composer 默认 —— <b>本期把这些写进配置 schema、UI 完整，但不接对话流</b>（待对话项目就绪统一接，避免多项目同时改对话冲突）。模型行右键 2 项：① 设为默认（暂缓）② 移除（取消放出，danger）。</div></li>
+          <li><span class="pin">6</span><div><b>高级（折叠）</b>：默认折叠（此处示意展开）。内含 JSON / 限额 / 倍率。「在 config.json 编辑全部高级项 →」跳 cfg1。</div></li>
+          <li><span class="pin">7</span><div><b>即时持久化</b>：字段失焦 / 回车即写回主机（JSON 无效时挂起）。<b>删除中转站</b>（底部 danger）→ 二次确认（见 mp5）。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（四维度齐全）</div>
+          <dl>
+            <dt>布局</dt><dd>L3 整页表单：常用区在上（连接 / 测速 / 放出模型），高级折叠在下（JSON / 限额 / 倍率），底部删除；顶面包屑。<b>桌面 only</b>；手机意图：各段可折叠、面包屑吸附。</dd>
+            <dt>默认</dt><dd>带现值进入；key 已验证；高级默认折叠（此处示意展开）；顶跨模块提示条常驻（带<b>对话接入·暂缓</b>角标）。</dd>
+            <dt>hover</dt><dd>输入框 focus 蓝描边 + 蓝光环；折叠头整行可点高亮；眼睛 / 测速 / checkbox / 分段各自 hover。</dd>
+            <dt>活跃</dt><dd>已放出模型 cbx 实心蓝；thinking 当前段白底；默认模型蓝 badge；高级展开 chev 朝下。</dd>
+            <dt>运行</dt><dd>测速中 mini-spinner；测 key / 拉取列表中 = 对应按钮 inline spinner + 防重复。</dd>
+            <dt>禁用</dt><dd>JSON 无效 → 便捷字段冻结、写入挂起；官方直连无 key 字段（整段隐藏）、倍率置灰。</dd>
+            <dt>空</dt><dd>「拉取列表」前模型区「尚未拉取，点拉取列表」；返回 0 → emptybox + 仅手动添加（见 mp5）。</dd>
+            <dt>加载</dt><dd>进入首帧 key / 模型未就绪 → 字段级骨架；拉取列表时模型区 inline spinner。</dd>
+            <dt>错误</dt><dd>测 key 失败 → key 行红「401」；JSON 语法错 → 红框 + 行内错点；端点测速失败 → 红点 + 红字（见 mp5）。</dd>
+            <dt>离线</dt><dd>host 离线 → 顶 callout，输入只读显缓存，测速 / 测 key / 拉取 / 删除禁用。</dd>
+            <dt>右键</dt><dd><b>模型行 2 项</b>：设为默认（<span class="cz" style="font-size:9px;padding:0 5px"><svg class="i"><use href="#pause" /></svg> 暂缓</span>）/ 移除（取消放出）。表单其它区无右键。</dd>
+            <dt>暂缓</dt><dd><span class="cz"><svg class="i"><use href="#pause" /></svg> 对话接入</span> 放出模型 + 设为当前 = home composer 真相源，<b>本期只出 UI＋配置 schema、不接对话流</b>；接入由对话项目就绪后统一做（隔离边界）。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP mp5-->
+    <section class="screen" id="mp5">
+      <div class="screen-head">
+        <span class="tag">B2 · mp5 · 边界态画廊</span>
+        <h2>空 / 状态合屏 — 边界态画廊（含删除 / 一键装 CLI 各态）</h2>
+        <p>三级界面各边界态合屏（评审用，实际每次只出现其一）：无提供方启用 / 无中转站 / 加载 / 测速中 / 拉模型失败 / 不健康 401 / CLI 未装·一键装 / CLI 安装中·失败 / 删除中转站 / <b>删除目录提供方（真实）</b> / <b>删除内置（需新主机能力·门控）</b> / 主机离线。每态都给出口、无死胡同。</p>
+      </div>
+      <div class="cap" id="cap-mp5">
+        <div class="caphead"><span class="captag">B2 mp5</span><span class="capsub"><b>边界态画廊</b> · 12 态合屏</span></div>
+        <div class="frame">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · 模型与提供方 · 边界态</span></div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick"><span class="dot on"></span><span class="hp-name">Wolffy-MBP</span><span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span><svg class="i sm hp-chev"><use href="#chev-d" /></svg></div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+            <section class="set-detail">
+              <header class="set-dhead"><div class="dh-main"><div class="set-dtitle">模型与提供方 · 边界态</div><div class="set-dsub">同一三级界面在不同条件下各态合屏（评审用）；实际运行每次只出现其一。</div></div></header>
+              <div class="set-dbody">
+                <div class="mr-statecase">
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#layers" /></svg> 空 · 无提供方启用 <span class="badge mut">空</span></div><div class="mr-statebox-b" style="justify-content:center"><div class="emptybox" style="border:none;padding:6px"><svg class="i xl" style="color:var(--fgFaint)"><use href="#layers" /></svg><span style="color:var(--fg);font-weight:600">还没有启用任何提供方</span><span class="set-rd">打开下方任意内置提供方的开关即可启用<br/>（5 个内置始终在列；要更多走顶部「+ 新增提供方」从目录加）</span></div></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#network" /></svg> 空 · 提供方无中转站 <span class="badge mut">空</span></div><div class="mr-statebox-b" style="justify-content:center"><div class="emptybox" style="border:none;padding:6px"><svg class="i xl" style="color:var(--fgFaint)"><use href="#network" /></svg><span style="color:var(--fg);font-weight:600">Claude Code 还没有中转站</span><span class="set-rd">接入第一个 base_url + key 的 API 供应商</span><div style="display:flex;gap:8px;margin-top:6px"><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 新增中转站</span><span class="btn out sm"><svg class="i"><use href="#refresh" /></svg> cc-switch 同步</span></div></div></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#refresh" /></svg> 加载 · 切提供方 / 切 host <span class="badge mut">加载</span></div><div class="mr-statebox-b" style="align-items:center;justify-content:center;gap:12px"><div class="spinner"></div><span class="set-rd">正在加载提供方与中转站…</span></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#zap" /></svg> 运行 · 端点测速中 <span class="badge warn">运行</span></div><div class="mr-statebox-b"><div class="set-card"><div class="mr-ep"><span class="ep-url">api.z.ai/api/anthropic</span><span class="mr-ping busy"><span class="mini-spin"></span> 测速中…</span></div><div class="mr-ep"><span class="ep-url">api.deepseek.com/anthropic</span><span class="mr-ping busy"><span class="mini-spin"></span> 测速中…</span></div></div><span class="mr-fhint">延迟位显 mini-spinner，完成后转延迟 + 健康点（绿 / 黄 / 红）。</span></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#bot" /></svg> 错误 · 拉模型失败 <span class="badge err">错误</span></div><div class="mr-statebox-b"><div class="alertbox err"><svg class="i sm"><use href="#alert" /></svg><div><div class="at">拉取模型列表失败</div><div class="ad">base_url 未返回模型清单（端点不支持 / 鉴权失败）。</div></div></div><div class="mr-frow"><span style="flex:1"></span><span class="btn out sm"><svg class="i"><use href="#refresh" /></svg> 重试拉取</span><span class="btn df sm"><svg class="i"><use href="#plus" /></svg> 手动添加</span></div></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#key" /></svg> 错误 · 不健康 401 <span class="badge err">错误</span></div><div class="mr-statebox-b"><div class="mr-frow"><span class="mr-ping bad"><span class="dot off"></span> 401 未授权</span></div><div class="alertbox err"><svg class="i sm"><use href="#alert" /></svg><div><div class="at">API Key 无效</div><div class="ad">端点返回 401；key 过期或权限不足，更新后重试。</div></div></div><div class="mr-frow"><span style="flex:1"></span><span class="btn df sm"><svg class="i"><use href="#key" /></svg> 更新 key → L3</span></div></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#download" /></svg> CLI 未安装 · 一键安装 <span class="badge warn">未装</span></div><div class="mr-statebox-b"><div class="set-card"><div class="mp-prow" style="cursor:default"><div class="mp-pic">O</div><div class="mp-pmain"><div class="mp-pname">OpenCode <span class="badge warn"><svg class="i xs"><use href="#alert" /></svg> CLI 未安装</span></div><div class="mp-pmeta"><span>未检测到 <span class="cmd">opencode</span></span></div></div><div class="mp-prow-act"><span class="btn df sm"><svg class="i"><use href="#download" /></svg> 一键安装</span></div></div></div><div class="alertbox info"><svg class="i sm"><use href="#info" /></svg><div><div class="at">检测到未安装 → 可一键安装</div><div class="ad">Helm CLI 安装为真实能力；<b>agent CLI 一键装 / 更新可能需新主机能力</b>，缺则按钮转「需更新主机」+ 回落「安装指引」。</div></div></div><div class="mr-frow"><span style="flex:1"></span><span class="btn out sm"><svg class="i"><use href="#external" /></svg> 安装指引</span></div></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#refresh" /></svg> 运行 / 错误 · CLI 安装中 / 失败 <span class="badge warn">运行</span></div><div class="mr-statebox-b"><div class="set-card"><div class="mp-prow" style="cursor:default"><div class="mp-pic">O</div><div class="mp-pmain"><div class="mp-pname">OpenCode <span class="badge mut">安装中…</span></div><div class="mp-pmeta"><span class="cmd">opencode</span></div></div><div class="mp-prow-act"><span class="btn df sm" style="opacity:.75"><span class="mini-spin" style="border-color:rgba(255,255,255,0.45);border-top-color:#fff"></span> 安装中…</span></div></div></div><div class="alertbox err"><svg class="i sm"><use href="#alert" /></svg><div><div class="at">安装失败（示例）</div><div class="ad">命令不可用 / 网络失败 → 行内红字；「重试」再装一次，或「安装指引」手动装。</div></div></div><div class="mr-frow"><span style="flex:1"></span><span class="btn out sm"><svg class="i"><use href="#external" /></svg> 安装指引</span><span class="btn df sm"><svg class="i"><use href="#refresh" /></svg> 重试</span></div></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#trash" /></svg> 删除确认 · 中转站 <span class="badge err">确认</span></div><div class="mr-statebox-b"><div class="alertbox err"><svg class="i sm"><use href="#trash" /></svg><div><div class="at">删除中转站「Moonshot」？</div><div class="ad">该中转站及其放出模型从对话选型移除，不可恢复。本地限额 / 倍率一并删除。</div></div></div><div class="mp-confirm-act"><span class="btn ghost sm">取消</span><span class="btn danger sm"><svg class="i"><use href="#trash" /></svg> 删除</span></div></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#trash" /></svg> 删除 · 目录新增提供方（真实） <span class="badge err">确认</span></div><div class="mr-statebox-b"><div class="alertbox err"><svg class="i sm"><use href="#trash" /></svg><div><div class="at">删除提供方「Qwen Code」？</div><div class="ad"><b>目录新增(ACP)= 真实删除</b>：从这台主机移除该项及其中转站 / 放出模型（对话选型一并移除）；<b>回目录可再加</b>。</div></div></div><div class="mp-confirm-act"><span class="btn ghost sm">取消</span><span class="btn danger sm"><svg class="i"><use href="#trash" /></svg> 删除</span></div></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#lock" /></svg> 删除 · 内置提供方（门控） <span class="badge lock">需新主机能力</span></div><div class="mr-statebox-b"><div class="alertbox warn"><svg class="i sm"><use href="#info" /></svg><div><div class="at">删除内置提供方需主机新能力</div><div class="ad">右键给「删除」入口但<b>不假装能删</b>：点击落此门控——「更新主机后可删除内置提供方」。当前可「停用」隐藏，或在 config.json 调整。</div></div></div><div class="mr-frow"><span style="flex:1"></span><span class="btn out sm"><svg class="i"><use href="#power" /></svg> 改为停用</span><span class="btn out sm"><svg class="i"><use href="#file-text" /></svg> 在 config.json 编辑</span></div></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#server" /></svg> 离线 · 主机断开 <span class="badge mut">离线</span></div><div class="mr-statebox-b"><div class="alertbox warn"><svg class="i sm"><use href="#alert" /></svg><div><div class="at">主机离线 · 显示缓存</div><div class="ad">Wolffy-MBP 已断开；提供方 / 中转站显最后缓存值，启停 / 新增 / 编辑 / 测速 / 删除禁用。</div></div></div><div class="mr-frow"><span style="flex:1"></span><span class="btn out sm"><svg class="i"><use href="#refresh" /></svg> 重连主机</span></div></div></div>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>空 · 无提供方</b>：5 内置始终在列 → 打开任一开关即启用；顶部「+ 新增提供方」仍在。<b>空 · 无中转站</b>「+ 新增中转站」→ 空白 L3，「cc-switch 同步」→ 导入弹窗。</div></li>
+          <li><span class="pin">2</span><div><b>加载 / 测速中</b>：页级 spinner / mini-spinner，完成转正常态。</div></li>
+          <li><span class="pin">3</span><div><b>拉模型失败</b>「重试拉取」/「手动添加」；<b>不健康 401</b>「更新 key」→ L3。</div></li>
+          <li><span class="pin">4</span><div><b>CLI 未装 · 一键安装</b>：「一键安装」→ 安装中 → 成功转「CLI 已安装」；失败 → 红字 + 重试；「安装指引」外链=真实兜底。诚实：agent CLI 一键装可能需新主机能力。</div></li>
+          <li><span class="pin">5</span><div><b>删除中转站</b>：二次确认 → 移除该中转站 + 放出模型 + 本地限额。</div></li>
+          <li><span class="pin">6</span><div><b>删除提供方</b>：<b>目录新增=真实删除</b>（agents.providers 移除，回目录可再加）；<b>内置=需新主机能力</b>（落门控，出口「改为停用」/「在 config.json 编辑」，<b>不假装能删</b>）。</div></li>
+          <li><span class="pin">7</span><div><b>离线</b>「重连主机」；只读显缓存，所有写操作禁用直到恢复。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（四维度齐全）</div>
+          <dl>
+            <dt>布局</dt><dd>合屏画廊 2 列 <b>12 box</b>。实际运行每次只出现一种，嵌在三级对应层。<b>桌面 only</b>；手机意图：各态单列。</dd>
+            <dt>默认</dt><dd>有数据且健康时不显任何边界态（回 mp1 / mp2 / mp3 正常态）。</dd>
+            <dt>hover</dt><dd>各态按钮各自 hover；emptybox 不响应 hover。</dd>
+            <dt>活跃</dt><dd>边界态本身即非默认呈现；删除确认主按钮 danger 强调。</dd>
+            <dt>运行</dt><dd>测速 mini-spinner；加载 spinner；CLI 安装中转 spinner；重试 / 重连 / 删除 inline spinner。</dd>
+            <dt>禁用</dt><dd>CLI 未装 → 开关不可用；内置删除入口可见但门控；离线态所有写操作禁用。</dd>
+            <dt>空</dt><dd>box 1 / 2：无提供方启用 / 提供方无中转站（带出口）。</dd>
+            <dt>加载</dt><dd>box 3：页级 spinner +「正在加载…」。</dd>
+            <dt>错误</dt><dd>box 5 / 6 / 8：拉模型失败 / 401 / CLI 安装失败，alertbox err + 出口。</dd>
+            <dt>离线</dt><dd>box 12：选择器红点、顶 callout、缓存值，写操作禁用 +「重连主机」。</dd>
+            <dt>右键</dt><dd>各边界态无右键（出口都在显式按钮）；恢复正常后回各层右键。</dd>
+            <dt>术语</dt><dd>「401 / 超时」= <b>中转站端点</b>健康；「离线」= <b>主机连接</b>；与 relay 远程不混。删除分两态（目录真实 / 内置门控）；一键装 agent CLI 可能需新主机能力。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP us1-->
+    <section class="screen" id="us1">
+      <div class="screen-head">
+        <span class="tag">B3 · us1 · 用量 · 默认</span>
+        <h2>用量 — 每提供方一块（余额 / 用了多少 / 剩多少），目标态缺口克制呈现</h2>
+        <p>做减法：一行「真实概览」窄条 + <b>每提供方一块</b>（余额 / 已用 / 还能用 + 本周额度条）。三处「目标态」缺口（<b>时间窗切换 · 估算金额 · 按模型明细</b>）<b>保留但弱化、标「目标态」</b>。真实可显 = provider + 窗口 + 余额 + planLabel；目标态各需主机新能力，设计先行不伪造；providerUsageList 缺失显「更新主机」。</p>
+      </div>
+      <div class="cap" id="cap-us1">
+        <div class="caphead"><span class="captag">B3 us1</span><span class="capsub"><b>用量</b> · 每提供方余额 / 额度</span></div>
+        <div class="frame">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · 用量</span></div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick"><span class="dot on"></span><span class="hp-name">Wolffy-MBP</span><span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span><svg class="i sm hp-chev"><use href="#chev-d" /></svg></div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+            <section class="set-detail">
+              <header class="set-dhead"><div class="dh-main"><div class="set-dtitle"><svg class="i"><use href="#gauge" /></svg> 用量</div><div class="set-dsub">看看各家用了多少、还剩多少。只读；刷新就向主机拉最新。</div></div><div class="us-dhead-act"><div class="us-segwrap"><span class="set-seg"><span>今天</span><span class="on">本周</span><span>本月</span><span>全局</span></span><span class="us-gap"><svg class="i"><use href="#info" /></svg> 目标态</span></div><span class="btn out sm"><svg class="i"><use href="#refresh" /></svg> 刷新</span></div></header>
+              <div class="set-dbody">
+                <div class="alertbox warn"><svg class="i sm"><use href="#info" /></svg><div><div class="at">有 1 个提供方暂不支持用量</div><div class="ad">「Moonshot」所在主机版本较旧，没回传用量；把那台主机升级后会自动显示。其余正常。</div></div></div>
+                <div class="hb-statline"><span>本周</span><span class="sep">·</span><span><b>3 / 4</b> 个提供方回传用量</span><span class="sep">·</span><span>估算 <b>≈ $93</b></span><span class="us-gap"><svg class="i"><use href="#info" /></svg> 目标态</span><span class="sep">·</span><span>最近窗口 <b>2h 12m</b> 后重置</span></div>
+                <div class="us-provlist">
+                  <div class="us-provider">
+                    <div class="us-prov-h"><span class="mr-pic">Z</span><span class="us-prov-name">智谱 GLM <span class="badge mut">GLM Coding Plan</span></span><span class="us-prov-act"><span class="badge suc"><span class="dot on"></span> 正常</span><span class="btn ghost sm">查看 <svg class="i"><use href="#chev-r" /></svg></span></span></div>
+                    <div class="us-prov-body">
+                      <div class="us-bal-box"><div class="mr-ubal">$53.80 <span class="unit">余额 · 还能用</span></div><div class="mr-meter"><div class="mr-meter-top"><span class="ml">已用 $48.10</span><span class="mv">共 $100.00 · 48%</span></div><div class="mr-bar"><div class="mr-bar-fill" style="width:48%"></div></div></div><div class="us-osub">本周 <b>1,840</b> 次请求 · <b>5.2M</b> tokens</div></div>
+                      <div class="us-meters-box"><div class="mr-meter"><div class="mr-meter-top"><span class="ml">本周额度</span><span class="mv">$31.40 / $80.00 · 39%</span></div><div class="mr-bar"><div class="mr-bar-fill" style="width:39%"></div></div><div class="us-meter-note">按当前速度约 6 天后用完 · 每周一 00:00 重置</div></div></div>
+                    </div>
+                    <div class="us-models">
+                      <div class="us-models-h" style="cursor:pointer">按模型明细 <span class="us-gap"><svg class="i"><use href="#info" /></svg> 目标态 · 近似</span><svg class="i sm" style="color:var(--fgFaint)"><use href="#chev-d" /></svg></div>
+                      <div class="us-mrow"><span class="us-mname">GLM-5.1 <span class="sub">glm-5.1</span></span><span class="us-mnum"><b>1,240</b> 次</span><span class="us-mnum"><b>3.6M</b> tok</span><span class="us-mshare"><span class="us-mbar"><i style="width:69%"></i></span><span class="us-mpct">69%</span></span></div>
+                      <div class="us-mrow"><span class="us-mname">GLM-5-Turbo <span class="sub">glm-5-turbo</span></span><span class="us-mnum"><b>600</b> 次</span><span class="us-mnum"><b>1.6M</b> tok</span><span class="us-mshare"><span class="us-mbar"><i style="width:31%"></i></span><span class="us-mpct">31%</span></span></div>
+                    </div>
+                  </div>
+                  <div class="us-provider">
+                    <div class="us-prov-h"><span class="mr-pic">A</span><span class="us-prov-name">直连 · 官方 <span class="badge mut">Claude Pro</span></span><span class="us-prov-act"><span class="badge suc"><span class="dot on"></span> 正常</span><span class="btn ghost sm">查看 <svg class="i"><use href="#chev-r" /></svg></span></span></div>
+                    <div class="us-prov-body"><div class="us-bal-box"><div class="mr-ubal">12,480 <span class="unit">credits · 还能用</span></div><div class="us-osub">本周已用 <b>3,210</b> 次请求 · 限额内</div></div><div class="us-meters-box"><div class="mr-meter"><div class="mr-meter-top"><span class="ml">本周请求</span><span class="mv">3,210 / 10,000 · 32%</span></div><div class="mr-bar"><div class="mr-bar-fill" style="width:32%"></div></div><div class="us-meter-note">每周一 00:00 重置 · 余量充足</div></div></div></div>
+                    <div class="us-models"><div class="us-models-h" style="cursor:pointer">按模型明细 <span class="us-gap"><svg class="i"><use href="#info" /></svg> 目标态 · 近似</span><svg class="i sm" style="color:var(--fgFaint)"><use href="#chev-r" /></svg></div></div>
+                  </div>
+                  <div class="us-provider">
+                    <div class="us-prov-h"><span class="mr-pic">D</span><span class="us-prov-name">DeepSeek <span class="badge mut">按量付费</span></span><span class="us-prov-act"><span class="badge warn"><span class="dot busy"></span> 接近限额</span><span class="btn ghost sm">查看 <svg class="i"><use href="#chev-r" /></svg></span></span></div>
+                    <div class="us-prov-body"><div class="us-bal-box"><div class="mr-ubal">8.4M <span class="unit">tokens · 本周已用</span></div><div class="us-osub">约 <b>≈ $12.60</b> <span class="us-gap"><svg class="i"><use href="#info" /></svg> 目标态 · 估算金额</span></div></div><div class="us-meters-box"><div class="mr-meter"><div class="mr-meter-top"><span class="ml">本周预算</span><span class="mv">$12.60 / $14.00 · 90%</span></div><div class="mr-bar"><div class="mr-bar-fill danger" style="width:90%"></div></div><div class="us-meter-note danger">超预算 · 按当前速度预计明天用完 · 1h 后窗口重置</div></div></div></div>
+                    <div class="us-models"><div class="us-models-h" style="cursor:pointer">按模型明细 <span class="us-gap"><svg class="i"><use href="#info" /></svg> 目标态 · 近似</span><svg class="i sm" style="color:var(--fgFaint)"><use href="#chev-r" /></svg></div></div>
+                  </div>
+                  <div class="us-provider gated">
+                    <div class="us-prov-h"><span class="mr-pic">M</span><span class="us-prov-name">Moonshot <span class="badge mut">Kimi</span></span><span class="us-prov-act"><span class="badge lock"><svg class="i xs"><use href="#lock" /></svg> 暂不支持用量</span></span></div>
+                    <div class="us-prov-body single"><div class="emptybox" style="padding:18px"><svg class="i lg"><use href="#info" /></svg><span>这个提供方还没回传用量</span><span class="set-rd">把它所在的主机升级到新版后，用量会自动显示。</span></div></div>
+                  </div>
+                </div>
+                <div class="us-foot"><svg class="i sm"><use href="#info" /></svg> 数据由当前主机回传 · 更新于 刚刚 · 12:34</div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">右键菜单 + 点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>时间窗切换</b>「今天 / 本周 / 本月 / 全局」：切聚合窗口，概览条 + 各额度条整体重算，选中段白底。<b>目标态</b>：真实只各家固定窗口（Session / Weekly），跨窗聚合需主机新能力 → 分段旁挂虚线「目标态」角标。</div></li>
+          <li><span class="pin">2</span><div><b>刷新</b>：向主机请求最新用量；刷新中按钮 spinner + 数字与额度条骨架，完成更新右下角时间戳。</div></li>
+          <li><span class="pin">3</span><div><b>提供方块 / 「查看 →」</b>：深链回「模型与提供方」该提供方详情（可继续编辑）。只读监控本身不改配置。</div></li>
+          <li><span class="pin">4</span><div><b>余额 + 本周额度条</b>：余额大数 + 「已用 / 共」条 + 本周额度条；接近转黄、超预算转红（DeepSeek 90% 红条示例）；纯展示不可点。</div></li>
+          <li><span class="pin">5</span><div><b>按模型明细（折叠 · 目标态）</b>：默认折叠、标题灰、挂「目标态 · 近似」角标，点击展开（智谱示意展开）。行只读不可点。</div></li>
+          <li><span class="pin">6</span><div><b>门控块</b>（Moonshot）：不回传用量 → 整块降透明 +「暂不支持用量」锁 badge + emptybox 引导升级主机，<b>绝不显伪造数字</b>。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（四维度 + 做减法 + 真实/目标）</div>
+          <dl>
+            <dt>布局</dt><dd>左导航「用量」active；右详情 = 时间窗头 + 门控提示 + 1 行真实概览窄条 + 每提供方块。<b>桌面 only</b>；手机意图：窄条换行、块单列堆叠。</dd>
+            <dt>默认</dt><dd>停「本周」；3 真实块 + 1 门控块；概览窄条「3/4 · 估算≈$93[目标态] · 重置 2h12m」；按模型默认折叠（智谱示意展开）。</dd>
+            <dt>hover</dt><dd>提供方块 hover 边亮（提示深链）；「查看 / 刷新 / 时间段 / 折叠头」各自 hover；模型行 hover surface1。</dd>
+            <dt>活跃</dt><dd>当前时间段白底；接近限额块 warn badge、超预算 danger 条 + danger 副标。</dd>
+            <dt>运行</dt><dd>刷新中 = 数字与额度条转骨架 + 刷新按钮 spinner；只读监控无写操作运行态。</dd>
+            <dt>禁用</dt><dd>门控块整块降透明、无数字；离线时刷新 / 时间段禁用；「今天 / 全局」无聚合能力时点击仅近似（挂目标态）。</dd>
+            <dt>空</dt><dd>当前窗口零用量 → 概览窄条显 0 + emptybox「本周还没有用量」+「去模型与提供方」（见 us2）。</dd>
+            <dt>加载</dt><dd>首进 / 切 host / 切窗口 → 概览 + 块整体骨架（见 us2）。</dd>
+            <dt>错误</dt><dd>某提供方拉取失败 → 该块红角标 +「重试」；全局失败顶 alertbox err（见 us2）。</dd>
+            <dt>离线</dt><dd>host 离线 → 选择器红点 + 顶 callout，块显缓存值 + 缓存时间，刷新禁用（见 us2）。</dd>
+            <dt>右键</dt><dd>用量只读 → 仅「复制数值 / 复制本行 / 在模型与提供方打开」，无写操作（见 us2）。</dd>
+            <dt>真实/目标</dt><dd>真实 = provider + 窗口 + 余额 + planLabel + 门控；<b>目标态（虚线角标，克制）= 时间聚合 · 统一估算金额 · 结构化按模型</b> —— 各需主机新能力，设计先行不伪造。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP us2-->
+    <section class="screen" id="us2">
+      <div class="screen-head">
+        <span class="tag">B3 · us2 · 用量 · 状态合屏</span>
+        <h2>用量 — 状态（加载 / 空 / 门控 / 刷新中 / 错误 / 离线 + 右键）</h2>
+        <p>同一「用量」详情面各边界态的简化呈现。外壳与 us1 一致，仅 set-dbody 随态切换；此屏用 statecase 网格并列演示，真实运行一次只呈现其一。每态都有明确进入 / 退出，无死端。</p>
+      </div>
+      <div class="cap" id="cap-us2">
+        <div class="caphead"><span class="captag">B3 us2</span><span class="capsub"><b>用量状态</b> · 六态 + 只读右键</span></div>
+        <div class="frame">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · 用量 · 状态</span></div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick"><span class="dot on"></span><span class="hp-name">Wolffy-MBP</span><span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span><svg class="i sm hp-chev"><use href="#chev-d" /></svg></div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+            <section class="set-detail">
+              <header class="set-dhead"><div class="dh-main"><div class="set-dtitle"><svg class="i"><use href="#gauge" /></svg> 用量</div><div class="set-dsub">六态并列演示（加载 / 空 / 门控 / 刷新中 / 错误 / 离线）。运行时一次只显其一。</div></div><div class="us-dhead-act"><div class="us-segwrap"><span class="set-seg"><span>今天</span><span class="on">本周</span><span>本月</span><span>全局</span></span><span class="us-gap"><svg class="i"><use href="#info" /></svg> 目标态</span></div><span class="btn out sm"><svg class="i"><use href="#refresh" /></svg> 刷新</span></div></header>
+              <div class="set-dbody">
+                <div class="mr-statecase">
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#refresh" /></svg> 加载 <span class="badge mut">首次 / 切 host / 切窗口</span></div><div class="mr-statebox-b" style="align-items:center;justify-content:center;gap:11px"><div class="spinner"></div><span class="set-rd">正在向主机拉取各提供方用量…</span><span class="set-rd" style="color:var(--fgFaint)">数据到达即替换为正常态(us1)</span></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#gauge" /></svg> 空 <span class="badge mut">本窗口零用量</span></div><div class="mr-statebox-b"><div class="emptybox" style="border:none;flex:1;justify-content:center"><svg class="i xl"><use href="#gauge" /></svg><span>本周还没有用量</span><span class="set-rd">这个窗口暂时没有任何提供方回传用量</span><span class="btn out sm"><svg class="i"><use href="#layers" /></svg> 去模型与提供方</span></div></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#lock" /></svg> 门控 <span class="badge lock">暂不支持用量</span></div><div class="mr-statebox-b"><div class="alertbox warn" style="padding:9px 11px"><svg class="i sm"><use href="#info" /></svg><div><div class="at" style="font-size:12px">有提供方暂不支持用量</div></div></div><div class="us-provider gated" style="margin-top:2px"><div class="us-prov-h" style="padding:9px 11px"><span class="mr-pic" style="width:24px;height:24px;font-size:12px">M</span><span class="us-prov-name" style="font-size:13px">Moonshot</span><span class="us-prov-act"><span class="badge lock"><svg class="i xs"><use href="#lock" /></svg> 不支持</span></span></div><div class="us-prov-body single" style="padding:11px"><div class="emptybox" style="padding:12px"><span class="set-rd">升级主机到新版后显示</span></div></div></div></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#refresh" /></svg> 刷新中 <span class="badge warn">运行</span></div><div class="mr-statebox-b"><div style="display:flex;gap:9px"><div class="us-skel big"></div><div class="us-skel big"></div></div><div class="us-skel bar" style="width:82%"></div><div class="us-skel bar" style="width:64%"></div><span class="mr-ping busy" style="margin-top:2px"><span class="mini-spin"></span> 刷新中…保留旧值叠骨架，完成更新时间戳</span></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#alert" /></svg> 错误 <span class="badge err">拉取失败</span></div><div class="mr-statebox-b"><div class="alertbox err"><svg class="i sm"><use href="#alert" /></svg><div><div class="at">用量获取失败</div><div class="ad">与主机的用量通道超时。单提供方失败仅该块红角标，不阻断其余块。</div></div></div><span class="btn out sm" style="align-self:flex-start"><svg class="i"><use href="#refresh" /></svg> 重试</span></div></div>
+                  <div class="mr-statebox"><div class="mr-statebox-h"><svg class="i sm"><use href="#wifi-off" /></svg> 离线 <span class="badge err">host 离线</span></div><div class="mr-statebox-b"><div class="alertbox"><svg class="i sm"><use href="#wifi-off" /></svg><div><div class="at">主机已离线</div><div class="ad">显示缓存用量（缓存于 10:02），刷新已禁用；恢复在线后自动解禁。</div></div></div><div style="display:flex;align-items:center;gap:12px;margin-top:2px"><div class="mr-ubal" style="opacity:0.65;font-size:20px">$53.80 <span class="unit">余额 · 缓存</span></div><span class="btn out sm dis" style="margin-left:auto"><svg class="i"><use href="#refresh" /></svg> 刷新</span></div></div></div>
+                </div>
+                <div class="hc-ctxstack" style="margin-top:18px"><div><div class="hc-ctxlabel"><svg class="i sm"><use href="#more-v" /></svg> 用量数字 / 模型明细行 右键（纯只读，仅复制 + 深链）</div><div class="ctxmenu" style="position:static;width:240px"><div class="ci"><svg class="i sm"><use href="#copy" /></svg> 复制数值</div><div class="ci"><svg class="i sm"><use href="#copy" /></svg> 复制本行（模型 + 用量）</div><div class="csep"></div><div class="ci"><svg class="i sm"><use href="#layers" /></svg> 在「模型与提供方」打开</div></div></div></div>
+              </div>
+            </section>
+          </div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">右键菜单 + 点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>重试</b>（错误态）：重新发起用量请求；成功 → 渲染数据回 us1 正常态，再失败 → 保留错误态 + 角标。</div></li>
+          <li><span class="pin">2</span><div><b>去模型与提供方</b>（空态）：深链到该 tab 添加 / 检查提供方，回来即可见用量。</div></li>
+          <li><span class="pin">3</span><div><b>刷新禁用</b>（离线态）：host 离线时刷新置灰；恢复在线后自动解禁。</div></li>
+          <li><span class="pin">4</span><div><b>右键「复制数值 / 复制本行」</b>：把该数字 / 整行文本写入剪贴板；「在模型与提供方打开」= 深链。用量只读，右键仅复制 + 深链，无改配置项。</div></li>
+          <li><span class="pin">5</span><div><b>升级引导</b>（门控态）：门控块不提供操作按钮，仅文案引导升级主机，不显伪造数字。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（进入 / 退出齐全）</div>
+          <dl>
+            <dt>布局</dt><dd>六态共用 us1 外壳，仅 set-dbody 切换；此屏 statecase 网格并列演示。<b>桌面 only</b>。</dd>
+            <dt>加载</dt><dd>进入 / 切 host / 切窗口 → 骨架 + spinner；数据到达替换为 us1 正常态。</dd>
+            <dt>空</dt><dd>当前窗口零用量 → emptybox +「去模型与提供方」；有任一回传即退出空态。</dd>
+            <dt>门控</dt><dd>标记不支持项 → 顶 warn + 该块锁 / emptybox；升级主机后转正常。</dd>
+            <dt>运行</dt><dd>刷新中保留旧值叠骨架 + ping，完成更新时间戳；失败转错误态。</dd>
+            <dt>错误</dt><dd>通道失败 → alertbox err + 重试；单提供方失败仅该块红角标。</dd>
+            <dt>离线</dt><dd>host 离线 → 缓存值（降透明 + 缓存时间）+ 刷新禁用 + 顶 callout + 选择器红点。</dd>
+            <dt>hover</dt><dd>重试 / 去模型 / 解禁后刷新各自 hover；右键项 hover surface3。</dd>
+            <dt>禁用</dt><dd>离线刷新置灰；门控块无操作按钮。</dd>
+            <dt>右键</dt><dd>只读 → 仅「复制数值 / 复制本行 / 在模型与提供方打开」，无删除 / 编辑。</dd>
+            <dt>退出</dt><dd>每态有明确出口（数据到达 / 有回传 / 升级 / 重试成功 / 恢复在线）→ 回 us1，无死端 / 孤屏。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!--CAP cfg1-->
+    <section class="screen" id="cfg1">
+      <div class="screen-head">
+        <span class="tag">B4 · cfg1 · 配置文件（JSON）逃生舱</span>
+        <h2>config.json 编辑器 — VSCode settings.json 式 · 界面没暴露的高级项都能在这改</h2>
+        <p>入口 = nav「配置文件(JSON)」行 active。<b>接一个现成 JSON 编辑器组件（Monaco / CodeMirror 类）</b>占满整宽：行号 + 语法高亮 + JSON 校验（非法标红）+ 查找，全是组件自带；顶部 <b>保存 / 格式化 / 恢复</b>。映射这台主机<b>真实 config.json</b>。<b>不自造区段导航、不自定义右键</b> —— 右键用编辑器自带标准菜单。</p>
+      </div>
+      <div class="cap" id="cap-cfg1">
+        <div class="caphead"><span class="captag">B4 cfg1</span><span class="capsub"><b>配置文件(JSON)</b> · 现成编辑器逃生舱</span></div>
+        <div class="frame rel">
+          <div class="titlebar"><div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="tb-title">Helm — 设置 · 配置文件（JSON）</span></div>
+          <div class="set-shell">
+            <nav class="set-nav">
+              <div class="set-navback"><svg class="i sm"><use href="#chev-l" /></svg> 返回主壳</div>
+              <div class="set-navgroup">主机</div>
+              <div class="set-hostpick"><span class="dot on"></span><span class="hp-name">Wolffy-MBP</span><span class="badge acc" style="font-size:10px;padding:1px 7px">当前</span><svg class="i sm hp-chev"><use href="#chev-d" /></svg></div>
+              <a class="set-navrow"><svg class="i sm"><use href="#server" /></svg> 主机</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#layers" /></svg> 模型与提供方</a>
+              <a class="set-navrow"><svg class="i sm"><use href="#gauge" /></svg> 用量</a>
+              <a class="set-navrow active"><svg class="i sm"><use href="#file-text" /></svg> 配置文件（JSON）</a>
+              <div class="set-navgroup" style="color:var(--fgFaint);margin-top:14px">应用设置 · 后续阶段</div>
+              <a class="set-navrow disabled"><svg class="i sm"><use href="#settings" /></svg> 通用 / 外观 / 快捷键…（本版搁置）</a>
+            </nav>
+            <section class="set-detail">
+              <header class="set-dhead"><div class="dh-main"><div class="set-dtitle"><svg class="i" style="color:var(--accent)"><use href="#file-text" /></svg> 配置文件 (config.json)</div><div class="set-dsub">这台主机守护进程的完整配置。<b>界面没暴露的高级项都能在这里改</b>（cors / 日志轮转 / metadataGeneration / terminalProfiles / hostnames…）。改动即时校验，保存后落盘。</div></div><div class="ap-dhead-act" style="display:flex;align-items:center;gap:8px"><span class="btn ghost sm"><svg class="i"><use href="#refresh" /></svg> 恢复</span><span class="btn out sm"><svg class="i"><use href="#sliders" /></svg> 格式化</span><span class="btn df sm"><svg class="i"><use href="#check" /></svg> 保存</span></div></header>
+              <div class="cf-body">
+                <div class="cf-note"><div class="alertbox info"><svg class="i sm"><use href="#info" /></svg><div><div class="at">高级 · 逃生舱</div><div class="ad">上面各 tab 是常用项的友好界面；<b>这里是完整 config.json，能改界面没暴露的一切</b>。改错会即时标红，保存前可「格式化」整理、「恢复」回上次落盘值。</div></div></div><span class="cf-path"><svg class="i xs"><use href="#folder" /></svg> ~/.helm/config.json</span></div>
+                <div class="cf-editor">
+                  <div class="cf-editor-h"><span class="ef-name"><span class="ef-dirty"></span> config.json</span><span class="badge suc"><svg class="i xs"><use href="#check" /></svg> JSON 有效</span><div class="ef-act"><span class="ef-pos">Ln 5, Col 24</span><span class="cf-search"><svg class="i xs"><use href="#search" /></svg> 查找</span></div></div>
+                  <div class="cf-editor-scroll">
+                    <div class="cf-line"><span class="cf-ln">1</span><span class="cf-ct"><span class="cf-p">{</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">2</span><span class="cf-ct">  <span class="cf-k">"$schema"</span><span class="cf-p">:</span> <span class="cf-s">"https://helm.sh/schema/config.v1.json"</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">3</span><span class="cf-ct">  <span class="cf-k">"version"</span><span class="cf-p">:</span> <span class="cf-n">1</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">4</span><span class="cf-ct">  <span class="cf-k">"daemon"</span><span class="cf-p">: {</span></span></div>
+                    <div class="cf-line cur"><span class="cf-ln">5</span><span class="cf-ct">    <span class="cf-k">"listen"</span><span class="cf-p">:</span> <span class="cf-s">"127.0.0.1:7070"</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">6</span><span class="cf-ct">    <span class="cf-k">"hostnames"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">7</span><span class="cf-ct">    <span class="cf-k">"mcp"</span><span class="cf-p">: {</span> <span class="cf-k">"enabled"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span> <span class="cf-k">"injectIntoAgents"</span><span class="cf-p">:</span> <span class="cf-b">true</span> <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">8</span><span class="cf-ct">    <span class="cf-k">"autoArchiveAfterMerge"</span><span class="cf-p">:</span> <span class="cf-b">false</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">9</span><span class="cf-ct">    <span class="cf-k">"appendSystemPrompt"</span><span class="cf-p">:</span> <span class="cf-s">""</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">10</span><span class="cf-ct">    <span class="cf-k">"cors"</span><span class="cf-p">: {</span> <span class="cf-k">"allowedOrigins"</span><span class="cf-p">: [</span><span class="cf-s">"https://app.paseo.sh"</span><span class="cf-p">] },</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">11</span><span class="cf-ct">    <span class="cf-k">"relay"</span><span class="cf-p">: {</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">12</span><span class="cf-ct">      <span class="cf-k">"enabled"</span><span class="cf-p">:</span> <span class="cf-b">true</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">13</span><span class="cf-ct">      <span class="cf-k">"endpoint"</span><span class="cf-p">:</span> <span class="cf-s">"wss://relay.paseo.sh"</span><span class="cf-p">,</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">14</span><span class="cf-ct">      <span class="cf-k">"useTls"</span><span class="cf-p">:</span> <span class="cf-b">true</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">15</span><span class="cf-ct">    <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">16</span><span class="cf-ct">    <span class="cf-k">"serviceProxy"</span><span class="cf-p">: {</span> <span class="cf-k">"publicBaseUrl"</span><span class="cf-p">:</span> <span class="cf-s">"https://dev.wolffy.example.com"</span> <span class="cf-p">}</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">17</span><span class="cf-ct">  <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">18</span><span class="cf-ct">  <span class="cf-k">"agents"</span><span class="cf-p">: {</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">19</span><span class="cf-ct">    <span class="cf-k">"providers"</span><span class="cf-p">: {</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">20</span><span class="cf-ct">      <span class="cf-k">"claude"</span><span class="cf-p">: {</span> <span class="cf-k">"command"</span><span class="cf-p">:</span> <span class="cf-s">"claude"</span> <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">21</span><span class="cf-ct">      <span class="cf-k">"qwen-code"</span><span class="cf-p">: {</span> <span class="cf-k">"extends"</span><span class="cf-p">:</span> <span class="cf-s">"acp"</span><span class="cf-p">,</span> <span class="cf-k">"label"</span><span class="cf-p">:</span> <span class="cf-s">"Qwen Code"</span><span class="cf-p">,</span> <span class="cf-k">"command"</span><span class="cf-p">: [</span><span class="cf-s">"npx"</span><span class="cf-p">,</span> <span class="cf-s">"-y"</span><span class="cf-p">,</span> <span class="cf-s">"@qwen-code/qwen-code"</span><span class="cf-p">,</span> <span class="cf-s">"--acp"</span><span class="cf-p">] }</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">22</span><span class="cf-ct">    <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">23</span><span class="cf-ct">    <span class="cf-k">"metadataGeneration"</span><span class="cf-p">: {</span> <span class="cf-k">"provider"</span><span class="cf-p">:</span> <span class="cf-s">"claude"</span><span class="cf-p">,</span> <span class="cf-k">"model"</span><span class="cf-p">:</span> <span class="cf-s">"glm-4.7"</span> <span class="cf-p">}</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">24</span><span class="cf-ct">  <span class="cf-p">},</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">25</span><span class="cf-ct">  <span class="cf-k">"features"</span><span class="cf-p">: {</span> <span class="cf-k">"dictation"</span><span class="cf-p">: {</span> <span class="cf-k">"enabled"</span><span class="cf-p">:</span> <span class="cf-b">true</span> <span class="cf-p">} },</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">26</span><span class="cf-ct">  <span class="cf-k">"log"</span><span class="cf-p">: {</span> <span class="cf-k">"level"</span><span class="cf-p">:</span> <span class="cf-s">"info"</span><span class="cf-p">,</span> <span class="cf-k">"format"</span><span class="cf-p">:</span> <span class="cf-s">"pretty"</span> <span class="cf-p">}</span></span></div>
+                    <div class="cf-line"><span class="cf-ln">27</span><span class="cf-ct"><span class="cf-p">}</span></span></div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </div>
+          <div class="ctx-pop" style="top:392px;left:560px"><div class="ctxmenu" style="width:212px"><div class="ci"><svg class="i sm"><use href="#x" /></svg> 剪切</div><div class="ci"><svg class="i sm"><use href="#copy" /></svg> 复制</div><div class="ci"><svg class="i sm"><use href="#file-text" /></svg> 粘贴</div><div class="csep"></div><div class="ci"><svg class="i sm"><use href="#sliders" /></svg> 格式化文档</div><div class="ci"><svg class="i sm"><use href="#search" /></svg> 命令面板</div></div></div>
+        </div>
+      </div>
+      <!--/CAP-->
+      <div class="anno">
+        <div class="anno-h">右键菜单 + 点击效果</div>
+        <ol>
+          <li><span class="pin">1</span><div><b>现成 JSON 编辑器组件</b>（Monaco / CodeMirror 类）：<b>不自造区段导航</b> —— 行号、语法高亮、当前行高亮、滚动、查找、折叠都是组件自带；载入真实 config.json，daemon / agents.providers / features / log 各节顺序原样呈现。</div></li>
+          <li><span class="pin">2</span><div><b>编辑 JSON</b>：直接改文本；每次改动<b>即时校验</b>：合法 → 顶 badge「JSON 有效」绿、保存可用；非法 → 出错行红波浪 + badge 转「JSON 无效」红、保存禁用。</div></li>
+          <li><span class="pin">3</span><div><b>保存</b>：写回 <code>~/.helm/config.json</code>（守护进程热读 / 必要时提示重启）；写盘后 ef-dirty 黄点消失。仅「JSON 有效」时可点。</div></li>
+          <li><span class="pin">4</span><div><b>格式化</b>：缩进 / 键序规范化整篇（组件 format document）；<b>恢复</b>：丢弃未保存改动、回上次落盘值（有未保存改动时二次确认）。</div></li>
+          <li><span class="pin">5</span><div><b>查找</b>（编辑器头 / 右键命令面板）：组件自带行内查找。<b>ef-pos</b> 实时显光标 Ln / Col。</div></li>
+          <li><span class="pin">6</span><div><b>右键 = 编辑器组件自带标准菜单（5 项）</b>：剪切 / 复制 / 粘贴 / 格式化文档 / 命令面板；<b>Helm 不自定义</b>（已删「跳到对应设置项」「恢复此节为默认」过度设计）。</div></li>
+          <li><span class="pin">7</span><div><b>跨界面一致</b>：上面各 tab 改的等价于改这里对应键；这里改完保存，对应 tab 即时反映（同一 config.json 真相源）。界面没暴露的高级项 + 目录新增提供方的移除都在这改。</div></li>
+        </ol>
+        <div class="states">
+          <div class="sh">状态（四维度齐全）</div>
+          <dl>
+            <dt>布局</dt><dd>右详情 = 顶 dhead（格式化 / 恢复 / 保存）+ 说明条（信息 callout + 路径 chip）+ <b>单栏现成 JSON 编辑器（行号槽 + 高亮代码，占满整宽，独立滚动）</b>。<b>桌面 only</b>；手机意图：编辑器占满、动作收顶部溢出。</dd>
+            <dt>默认</dt><dd>载入真实 config.json；JSON 有效（绿 badge）；光标行 cur 微底高亮；有未保存改动时 ef-dirty 黄点 + 保存高亮。</dd>
+            <dt>hover</dt><dd>编辑器行 hover 微亮(surface1)；格式化 / 恢复 / 保存 / 查找各自 hover；行号槽不响应。</dd>
+            <dt>活跃</dt><dd>光标行 cur 浅蓝微底（组件当前行高亮）；保存按钮蓝。无 Helm 自定义「区段选中」态。</dd>
+            <dt>运行</dt><dd>保存中 = 保存按钮 inline spinner + 防重复；格式化中短暂禁用编辑。</dd>
+            <dt>禁用</dt><dd><b>JSON 无效 → 保存禁用</b>（badge 红「JSON 无效」）；离线 → 全编辑器只读。恢复在无未保存改动时置灰。</dd>
+            <dt>空</dt><dd>config.json 全为默认 → 编辑器显默认最小配置，说明「当前全是默认值，按 schema 添加键即可覆盖」。</dd>
+            <dt>加载</dt><dd>首进 / 切 host → 编辑器区骨架行 + 页级 spinner。</dd>
+            <dt>错误</dt><dd>语法错 → 出错行红底 + 红波浪 + 行号红 + 顶 badge「JSON 无效 · 第 N 行」、保存禁用；schema 校验错 → 黄波浪 + 悬浮提示；写盘失败 → 顶 alertbox err + 保留改动可重试。</dd>
+            <dt>离线</dt><dd>host 离线 → 选择器红点 + 顶 callout；编辑器只读显缓存、保存 / 格式化 / 恢复禁用。</dd>
+            <dt>右键</dt><dd><b>= 编辑器组件自带标准菜单（5 项）</b>：剪切 / 复制 / 粘贴 / 格式化文档 / 命令面板。Helm 不自定义。</dd>
+            <dt>术语</dt><dd>本屏 = <b>所选主机的</b> config.json；<code>daemon.relay</code> = E2E 远程通道 <b>≠ 中转站</b>（中转站在 <code>agents.providers</code> 下 base_url+key）；<code>agents.providers.&lt;id&gt;</code> 含内置 + 目录新增 ACP(extends:"acp")。映射真实 PersistedConfigSchema。</dd>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+  </body>
+</html>
+

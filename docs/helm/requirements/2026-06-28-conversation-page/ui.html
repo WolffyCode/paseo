@@ -1,0 +1,1535 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · UI 设计稿 · 对话页（消息流）· 套 codePilot 浅色外壳</title>
+    <style>
+      /* =========================================================================
+         主题令牌 = CodePilot「github」浅色（内部命名 codePilot）· 原样照搬
+         codepilot-layout/ui.html 的 :root（GitHub Primer 浅色）。默认浅色，.dark 不启用。
+         选中态 = 很淡的灰（sidebar-accent #eaeef2 + 深灰字 #3d444d），绝非黑底白字。
+         ========================================================================= */
+      :root {
+        --bg: oklch(1 0 0);                        /* #ffffff 主背景/中区 */
+        --fg: oklch(0.254 0.011 254);             /* #1f2328 主文字·近黑 */
+        --card: oklch(1 0 0);                      /* #ffffff */
+        --primary: oklch(0.540 0.191 257.5);      /* #0969da GitHub 蓝 · 按钮/链接/focus/品牌 */
+        --primary-fg: oklch(1 0 0);               /* #ffffff */
+        --secondary: oklch(0.947 0.007 247.9);    /* #eaeef2 次级浅灰底 */
+        --secondary-fg: oklch(0.338 0.015 252.3); /* #3d444d */
+        --muted: oklch(0.947 0.007 247.9);        /* #eaeef2 */
+        --muted-fg: oklch(0.531 0.017 251.3);     /* #59636e 次要文字灰 */
+        --accent: oklch(0.978 0.003 247.9);       /* #f6f8fa 极淡冷灰·hover 底/代码面 */
+        --accent-fg: oklch(0.338 0.015 252.3);    /* #3d444d */
+        --border: oklch(0.876 0.012 248);         /* #d1d9e0 边框浅灰 */
+        --input: oklch(0.876 0.012 248);
+        --ring: oklch(0.540 0.191 257.5);         /* #0969da focus 蓝环 */
+        --sidebar: oklch(0.978 0.003 247.9);      /* #f6f8fa 左栏背景 */
+        --sidebar-accent: oklch(0.947 0.007 247.9);    /* #eaeef2 选中/hover */
+        --sidebar-accent-fg: oklch(0.338 0.015 252.3); /* #3d444d */
+        --destructive: oklch(0.552 0.205 24.5);   /* #cf222e 危险红 */
+        --success: oklch(0.503 0.137 152);        /* ≈#1a7f37 成功绿 */
+        --warning: oklch(0.555 0.118 75);         /* ≈#9a6700 警告橙 */
+        --info: oklch(0.540 0.191 257.5);         /* #0969da 信息蓝 */
+        --radius: 12px; --r-card: 12px; --r-ctrl: 6px; --r-sm: 6px;
+        --card-drop: 0 1px 0 rgba(31, 35, 40, 0.04), 0 1px 3px rgba(31, 35, 40, 0.08);
+        --win-backdrop:
+          radial-gradient(135% 90% at 12% -10%, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0) 55%),
+          radial-gradient(120% 120% at 108% 115%, rgba(174, 192, 214, 0.40), rgba(174, 192, 214, 0) 50%),
+          linear-gradient(152deg, #edf0f4 0%, #e4e9ef 48%, #e9edf1 100%);
+        --sidebar-surface: rgba(255, 255, 255, 0.58);
+        --win-shadow: 0 12px 30px -16px rgba(31, 35, 40, 0.16), 0 2px 6px -3px rgba(31, 35, 40, 0.10);
+        /* diff 行底色（GitHub Primer · 与令牌同源） */
+        --diff-add-bg: #e6ffec; --diff-add-gut: #ccffd8;
+        --diff-del-bg: #ffebe9; --diff-del-gut: #ffd7d5;
+        --ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        /* 语法着色（GitHub Primer light） */
+        --syn-key: #cf222e; --syn-str: #0a3069; --syn-fn: #8250df; --syn-num: #0550ae; --syn-com: #6e7781; --syn-var: #953800;
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { background: #eaeef2; color: var(--fg); font-family: var(--ui); -webkit-font-smoothing: antialiased; font-size: 16px; line-height: 1.45; }
+      body { padding: 40px 32px 120px; }
+      button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+      svg.i { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+      .i.xs { width: 12px; height: 12px; } .i.sm { width: 14px; height: 14px; } .i.md { width: 16px; height: 16px; } .i.lg { width: 20px; height: 20px; }
+
+      /* ===== board header（house style） ===== */
+      .board-h { max-width: 1480px; margin: 0 auto 24px; }
+      .board-h h1 { font-size: 30px; font-weight: 600; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px; color: #1f2328; }
+      .board-h h1 .logo { width: 34px; height: 34px; border-radius: 9px; background: #0969da; display: flex; align-items: center; justify-content: center; color: #fff; }
+      .board-h .sub { color: #59636e; font-size: 14px; margin-top: 8px; max-width: 1040px; }
+      .board-h .sub b { color: #1f2328; font-weight: 600; }
+      .req-log { max-width: 1480px; margin: 0 auto 18px; border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; overflow: hidden; }
+      .req-log .rl-h { padding: 10px 16px; background: #eaeef2; font-size: 12px; font-weight: 600; color: #59636e; letter-spacing: 0.4px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #d1d9e0; }
+      .req-log table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      .req-log td, .req-log th { padding: 8px 16px; text-align: left; border-top: 1px solid #d1d9e0; vertical-align: top; }
+      .req-log th { color: #59636e; font-weight: 500; font-size: 12px; }
+      .req-log td:first-child { color: #59636e; white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .pill { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+      .pill.p0 { color: #3d444d; background: rgba(120, 113, 108, 0.16); }
+      .pill.new { color: #0969da; background: rgba(9, 105, 218, 0.12); }
+      .nav-idx { max-width: 1480px; margin: 0 auto 30px; display: flex; flex-wrap: wrap; gap: 8px; }
+      .nav-idx a { font-size: 12px; color: #59636e; text-decoration: none; padding: 5px 11px; border: 1px solid #d1d9e0; border-radius: 9999px; background: #f6f8fa; }
+      .nav-idx a:hover { color: #1f2328; background: #eaeef2; }
+      .nav-idx a.new { color: #0969da; border-color: rgba(9, 105, 218, 0.3); }
+      .note { max-width: 1480px; margin: 0 auto 30px; font-size: 13px; color: #59636e; display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border: 1px dashed #d1d9e0; border-radius: 10px; background: #f6f8fa; }
+      .note b { color: #1f2328; }
+
+      /* ===== screen scaffold ===== */
+      .screen { max-width: 1480px; margin: 0 auto 60px; scroll-margin-top: 20px; }
+      .screen-head { margin-bottom: 14px; }
+      .screen-head .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #3d444d; background: rgba(120, 113, 108, 0.16); padding: 2px 9px; border-radius: 9999px; margin-bottom: 8px; }
+      .screen-head .tag.new { color: #0969da; background: rgba(9, 105, 218, 0.12); }
+      .screen-head h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.2px; color: #1f2328; }
+      .screen-head p { color: #59636e; font-size: 14px; margin-top: 5px; max-width: 1040px; }
+      .screen-head p b { color: #1f2328; font-weight: 600; }
+
+      /* ===== FRAME = macOS 浮窗 ===== */
+      .frame { border-radius: 16px; overflow: hidden; background: var(--win-backdrop); box-shadow: var(--win-shadow); position: relative; }
+      .win { display: flex; flex-direction: column; gap: 4px; padding: 8px 16px 16px; height: 700px; }
+      .win.tall { height: 760px; }
+
+      /* ===== 统一顶栏（透明 · 横跨整宽 · h40 · 与外壳一致） ===== */
+      .topbar { height: 40px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 2px; }
+      .lights { display: flex; gap: 8px; padding-left: 4px; margin-right: 8px; }
+      .lights span { width: 12px; height: 12px; border-radius: 9999px; }
+      .lights .r { background: #ff5f57; } .lights .y { background: #febc2e; } .lights .g { background: #28c840; }
+      .tbtn { width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted-fg); position: relative; flex: none; }
+      .tbtn:hover { background: color-mix(in oklch, var(--fg) 7%, transparent); color: var(--fg); }
+      .tbtn.on { background: var(--secondary); color: var(--fg); }
+      .tb-title { font-size: 13px; font-weight: 500; color: var(--fg); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tb-proj { height: 26px; padding: 0 8px; border-radius: var(--r-ctrl); font-size: 12px; color: var(--muted-fg); display: inline-flex; align-items: center; gap: 5px; max-width: 200px; }
+      .tb-proj:hover { background: var(--accent); color: var(--fg); }
+      .tb-spacer { flex: 1; }
+      .tb-right { display: flex; align-items: center; gap: 4px; }
+      .tb-branch { height: 28px; padding: 0 7px; border-radius: var(--r-ctrl); font-size: 12px; color: var(--muted-fg); display: inline-flex; align-items: center; gap: 5px; }
+      .tb-branch:hover { background: var(--accent); color: var(--fg); }
+      .tb-branch .dirty { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; color: var(--warning); }
+      .tb-branch .dirty .d { width: 6px; height: 6px; border-radius: 9999px; background: var(--warning); }
+      .pinb { display: inline-flex; align-items: center; justify-content: center; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 9999px; background: var(--primary); color: var(--primary-fg); font-size: 10px; font-weight: 700; position: absolute; top: -5px; right: -5px; font-variant-numeric: tabular-nums; }
+
+      /* ===== 内容行 + 卡片 ===== */
+      .row { flex: 1; min-height: 0; display: flex; gap: 0; }
+      .card { height: 100%; border-radius: var(--r-card); border: 1px solid var(--border); box-shadow: var(--card-drop); background: var(--card); overflow: hidden; display: flex; flex-direction: column; flex: none; position: relative; }
+      .card.main { flex: 1; min-width: 0; background: var(--bg); }
+      .card.sidebar { width: 240px; background: var(--sidebar-surface); backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4); }
+      .gutter { width: 8px; flex: none; align-self: stretch; display: flex; align-items: center; justify-content: center; position: relative; }
+      .gutter::after { content: ""; width: 3px; height: 40px; border-radius: 3px; background: color-mix(in oklch, var(--fg) 13%, transparent); }
+
+      /* ===== 左栏（Helm 对话树 · 与外壳一致） ===== */
+      .sb-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px; gap: 2px; }
+      .sb-new { display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 10px; border-radius: var(--r-ctrl); color: var(--fg); font-size: 13px; }
+      .sb-new:hover { background: var(--sidebar-accent); }
+      .sb-new .i { color: var(--muted-fg); }
+      .sb-item { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: var(--r-ctrl); color: var(--fg); font-size: 13px; }
+      .sb-item .i { color: var(--muted-fg); }
+      .sb-item:hover { background: var(--sidebar-accent); }
+      .sb-item .kbd { margin-left: auto; font-size: 10px; color: var(--muted-fg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 4px; font-family: var(--mono); }
+      .sb-sec { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: 0.3px; padding: 12px 10px 5px; text-transform: uppercase; }
+      .host-switch { margin: 0 0 2px; }
+      .host-pill { display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 10px; border-radius: var(--r-ctrl); font-size: 13px; color: var(--fg); }
+      .host-pill:hover { background: var(--sidebar-accent); }
+      .host-pill .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .host-pill .i { color: var(--muted-fg); }
+      .host-pill .hdot { width: 14px; height: 14px; flex: none; border-radius: 9999px; background: radial-gradient(circle, var(--success) 0 3.5px, transparent 4px); }
+      .tree { display: flex; flex-direction: column; gap: 1px; }
+      .tnode { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: var(--r-ctrl); font-size: 14px; color: var(--muted-fg); position: relative; min-height: 32px; }
+      .tnode:hover { background: var(--sidebar-accent); color: var(--sidebar-accent-fg); }
+      .tnode.on { background: var(--sidebar-accent); color: var(--sidebar-accent-fg); font-weight: 500; }
+      .tnode.proj { color: var(--fg); }
+      .twedge { flex: none; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; color: var(--muted-fg); border-radius: 3px; }
+      .twedge .chev { transition: transform 0.12s ease; }
+      .twedge.exp .chev { transform: rotate(90deg); }
+      .twedge.leaf { visibility: hidden; }
+      .tnode .ti { flex: none; color: var(--muted-fg); }
+      .tname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tnode .dot { width: 7px; height: 7px; border-radius: 9999px; flex: none; }
+      .tnode .dot.run { background: var(--success); } .tnode .dot.idle { background: var(--muted-fg); }
+      .badge-sub { flex: none; font-size: 10px; color: var(--muted-fg); background: var(--border); border-radius: 9999px; padding: 0 6px; line-height: 16px; }
+      .ttime { margin-left: auto; font-size: 11px; color: var(--muted-fg); }
+      .sb-spacer { flex: 1; min-height: 8px; }
+      .sb-foot { padding-top: 4px; }
+
+      /* =========================================================================
+         ★★★ 中区 · 消息流（本需求新增的全部内容）★★★
+         ========================================================================= */
+      .chatv { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg); }
+      .scroll { flex: 1; min-height: 0; overflow: hidden; position: relative; }
+      .scroll::before { content: ""; position: absolute; top: 0; left: 0; right: 0; height: 22px; background: linear-gradient(var(--bg), transparent); z-index: 4; pointer-events: none; }
+      .col { max-width: 772px; margin: 0 auto; padding: 26px 30px 10px; display: flex; flex-direction: column; gap: 24px; }
+      .turn { display: flex; flex-direction: column; gap: 10px; position: relative; }
+
+      /* 用户轮次 = 靠右气泡 */
+      .um { align-self: flex-end; max-width: 84%; }
+      .um .ub { background: var(--secondary); border-radius: 14px 14px 4px 14px; padding: 9px 13px; font-size: 14px; color: var(--fg); line-height: 1.55; }
+      .um .uatt { display: flex; gap: 7px; justify-content: flex-end; margin-top: 7px; }
+      .att-pill { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); font-size: 12px; color: var(--muted-fg); }
+      .att-pill .i { color: var(--muted-fg); }
+      .um .ufail { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; color: var(--destructive); }
+      .um .ufail .rl { color: var(--primary); text-decoration: none; border-bottom: 1px solid color-mix(in oklch, var(--primary) 40%, transparent); }
+
+      /* Agent 轮次 = 左侧头像 + 富文本 */
+      .am { display: flex; gap: 12px; }
+      .am .av { width: 28px; height: 28px; border-radius: 8px; background: var(--primary); color: var(--primary-fg); display: flex; align-items: center; justify-content: center; flex: none; }
+      .am .body { flex: 1; min-width: 0; }
+      .am .who { font-size: 12px; color: var(--muted-fg); margin-bottom: 5px; display: flex; align-items: center; gap: 7px; }
+      .am .who b { color: var(--fg); font-weight: 600; }
+      .am .who .mdl { font-family: var(--mono); font-size: 11px; }
+      .am .who .tm { margin-left: auto; }
+
+      /* 富文本（markdown） */
+      .md { font-size: 14px; color: var(--fg); line-height: 1.62; }
+      .md > *:last-child { margin-bottom: 0; }
+      .md p { margin: 0 0 11px; }
+      .md h3 { font-size: 15px; font-weight: 600; margin: 6px 0 8px; }
+      .md ul, .md ol { margin: 0 0 11px; padding-left: 20px; }
+      .md li { margin: 4px 0; }
+      .md li::marker { color: var(--muted-fg); }
+      .md strong { font-weight: 600; }
+      .md a { color: var(--primary); text-decoration: none; }
+      .md a:hover { text-decoration: underline; }
+      .md code.inl { font-family: var(--mono); font-size: 12.5px; background: var(--secondary); border: 1px solid var(--border); border-radius: 5px; padding: 0.5px 5px; color: var(--fg); }
+      .md .caret { display: inline-block; width: 8px; height: 16px; background: var(--fg); vertical-align: -3px; margin-left: 2px; border-radius: 1px; }
+
+      /* 工具调用块（可折叠徽章 · 状态：折叠/运行/成功/失败/展开） */
+      .tool { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); overflow: hidden; margin: 12px 0; }
+      .tool:first-child { margin-top: 0; }
+      .tool-h { display: flex; align-items: center; gap: 9px; min-height: 38px; padding: 6px 11px; font-size: 13px; cursor: pointer; }
+      .tool-h:hover { background: var(--accent); }
+      .tool-h .ti { color: var(--muted-fg); flex: none; }
+      .tool-h .tn { font-weight: 500; color: var(--fg); flex: none; }
+      .tool-h .ts { color: var(--muted-fg); font-family: var(--mono); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; flex: 1; }
+      .tool-h .st { flex: none; display: flex; align-items: center; }
+      .tool-h .chev { color: var(--muted-fg); flex: none; }
+      .tool.ok .st { color: var(--success); }
+      .tool.run { border-color: color-mix(in oklch, var(--info) 32%, var(--border)); }
+      .tool.run .tn { color: var(--fg); }
+      .tool.err { border-color: color-mix(in oklch, var(--destructive) 42%, var(--border)); }
+      .tool.err .st, .tool.err .ts { color: var(--destructive); }
+      .spin { width: 13px; height: 13px; border-radius: 50%; border: 2px solid color-mix(in oklch, var(--info) 22%, transparent); border-top-color: var(--info); transform: rotate(60deg); }
+      .tool-d { border-top: 1px solid var(--border); background: var(--accent); padding: 10px 12px; font-family: var(--mono); font-size: 12px; color: var(--fg); line-height: 1.6; overflow: hidden; }
+      .tool-d .o-dim { color: var(--muted-fg); }
+      .tool-d .o-ok { color: var(--success); }
+      .tool-d .o-err { color: var(--destructive); }
+      .openfile { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); font-size: 11px; color: var(--muted-fg); font-family: var(--ui); margin-top: 8px; }
+      .openfile .i { color: var(--muted-fg); }
+
+      /* 结构化卡片（计划 / 待办清单） */
+      .struct { border: 1px solid var(--border); border-radius: 8px; background: var(--bg); overflow: hidden; margin: 12px 0; }
+      .struct-h { display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 11px; font-size: 13px; font-weight: 500; color: var(--fg); border-bottom: 1px solid var(--border); }
+      .struct-h .i { color: var(--muted-fg); }
+      .struct-h .prog { margin-left: auto; font-size: 11px; color: var(--muted-fg); font-variant-numeric: tabular-nums; }
+      .struct-b { padding: 7px 11px; display: flex; flex-direction: column; gap: 2px; }
+      .ti-row { display: flex; align-items: center; gap: 9px; font-size: 13px; color: var(--fg); padding: 3px 0; }
+      .ti-row .ck { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--border); flex: none; display: flex; align-items: center; justify-content: center; color: var(--bg); }
+      .ti-row.done .ck { background: var(--success); border-color: var(--success); }
+      .ti-row.done .tx { color: var(--muted-fg); text-decoration: line-through; }
+      .ti-row.now .ck { border-color: var(--info); }
+      .ti-row.now .tx { color: var(--fg); font-weight: 500; }
+      .ti-row .tx { flex: 1; min-width: 0; }
+
+      /* 代码块 */
+      .codeblock { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--accent); margin: 12px 0; }
+      .cb-h { display: flex; align-items: center; height: 32px; padding: 0 11px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--muted-fg); font-family: var(--mono); }
+      .cb-h .copy { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; color: var(--muted-fg); font-family: var(--ui); font-size: 11px; }
+      .cb-h .copy .i { color: var(--muted-fg); }
+      .cb-b { padding: 11px 13px; font-family: var(--mono); font-size: 12.5px; line-height: 1.65; color: var(--fg); overflow-x: auto; white-space: pre; }
+      .k { color: var(--syn-key); } .s { color: var(--syn-str); } .f { color: var(--syn-fn); } .n { color: var(--syn-num); } .c { color: var(--syn-com); } .v { color: var(--syn-var); }
+
+      /* diff 块 */
+      .diff { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 12px 0; }
+      .df-h { display: flex; align-items: center; gap: 9px; height: 34px; padding: 0 11px; border-bottom: 1px solid var(--border); font-size: 12.5px; font-family: var(--mono); color: var(--fg); background: var(--accent); }
+      .df-h .stat { margin-left: auto; display: inline-flex; gap: 8px; font-size: 12px; }
+      .df-h .stat .add { color: var(--success); } .df-h .stat .del { color: var(--destructive); }
+      .df-b { font-family: var(--mono); font-size: 12.5px; line-height: 1.55; }
+      .dl { display: flex; }
+      .dl .gut { width: 76px; flex: none; display: flex; }
+      .dl .gut span { width: 38px; text-align: right; padding: 0 8px; color: var(--muted-fg); opacity: 0.75; user-select: none; }
+      .dl .mk { width: 16px; flex: none; text-align: center; color: var(--muted-fg); }
+      .dl .ct { flex: 1; padding-right: 10px; white-space: pre; color: var(--fg); overflow: hidden; }
+      .dl.add { background: var(--diff-add-bg); } .dl.add .gut { background: var(--diff-add-gut); } .dl.add .mk { color: var(--success); }
+      .dl.del { background: var(--diff-del-bg); } .dl.del .gut { background: var(--diff-del-gut); } .dl.del .mk { color: var(--destructive); }
+      .dl.hunk { background: var(--accent); } .dl.hunk .ct, .dl.hunk .gut span { color: var(--muted-fg); }
+
+      /* 流式 · 思考指示 */
+      .think { display: inline-flex; align-items: center; gap: 9px; color: var(--muted-fg); font-size: 13px; }
+      .dots { display: inline-flex; gap: 4px; align-items: center; }
+      .dots i { width: 6px; height: 6px; border-radius: 50%; background: var(--muted-fg); display: block; }
+      .dots i:nth-child(2) { opacity: 0.6; } .dots i:nth-child(3) { opacity: 0.3; }
+      .gen-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--info); background: color-mix(in oklch, var(--info) 9%, var(--bg)); border: 1px solid color-mix(in oklch, var(--info) 28%, var(--border)); border-radius: 9999px; padding: 2px 9px; }
+
+      /* 错误卡片 */
+      .err-card { border: 1px solid color-mix(in oklch, var(--destructive) 38%, var(--border)); background: color-mix(in oklch, var(--destructive) 6%, var(--bg)); border-radius: 8px; padding: 12px 13px; display: flex; gap: 11px; margin: 0; }
+      .err-card .ei { color: var(--destructive); flex: none; margin-top: 1px; }
+      .err-card .et { font-size: 13px; color: var(--fg); font-weight: 600; }
+      .err-card .es { color: var(--muted-fg); font-size: 12.5px; margin-top: 3px; line-height: 1.55; }
+      .err-card .ea { margin-top: 10px; display: flex; gap: 8px; }
+      .btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 11px; font-size: 12px; border-radius: 6px; border: 1px solid var(--border); background: var(--bg); color: var(--fg); }
+      .btn .i { color: var(--muted-fg); }
+      .btn.pri { background: var(--primary); color: var(--primary-fg); border-color: transparent; }
+      .btn.pri .i { color: var(--primary-fg); }
+      .btn:hover { background: var(--accent); }
+      .btn.pri:hover { background: color-mix(in oklch, var(--primary) 90%, black); }
+
+      /* 逐轮 hover 操作 + 浮动菜单 */
+      .turn-acts { display: flex; align-items: center; gap: 1px; margin-top: 9px; margin-left: 40px; }
+      .ta-btn { width: 28px; height: 28px; border-radius: 6px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted-fg); }
+      .ta-btn:hover { background: var(--secondary); color: var(--fg); }
+      .ta-btn.on { background: var(--secondary); color: var(--fg); }
+      .menu { position: absolute; width: 218px; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 30px -10px rgba(31, 35, 40, 0.22), 0 2px 6px -3px rgba(31, 35, 40, 0.12); padding: 5px; z-index: 30; }
+      .menu .mi { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 9px; border-radius: 6px; font-size: 13px; color: var(--fg); }
+      .menu .mi .i { color: var(--muted-fg); }
+      .menu .mi:hover { background: var(--secondary); }
+      .menu .mi .k { margin-left: auto; font-size: 11px; color: var(--muted-fg); font-family: var(--mono); }
+      .menu .mi.dz { color: var(--destructive); } .menu .mi.dz .i { color: var(--destructive); }
+      .menu .msep { height: 1px; background: var(--border); margin: 5px 6px; }
+
+      /* 回到底部浮动按钮 */
+      .scrollbtn { position: absolute; left: 50%; bottom: 16px; transform: translateX(-50%); height: 34px; padding: 0 6px 0 6px; min-width: 34px; border-radius: 9999px; background: var(--bg); border: 1px solid var(--border); box-shadow: 0 6px 18px -8px rgba(31, 35, 40, 0.30); display: inline-flex; align-items: center; gap: 7px; color: var(--fg); z-index: 6; }
+      .scrollbtn .ic { width: 22px; height: 22px; display: flex; align-items: center; justify-content: center; }
+      .scrollbtn .nb { font-size: 12px; color: var(--primary); font-weight: 500; padding-right: 6px; }
+      .topfade-cut { opacity: 0.5; -webkit-mask-image: linear-gradient(transparent, #000 60%); mask-image: linear-gradient(transparent, #000 60%); }
+
+      /* ===== 底部输入区 dock（沿用外壳 Composer，对话页态） ===== */
+      .dock { flex: none; padding: 8px 0 16px; }
+      .dcol { max-width: 772px; margin: 0 auto; padding: 0 30px; }
+      .cbox { border: 1px solid var(--border); border-radius: 14px; background: var(--bg); box-shadow: 0 6px 20px -12px rgba(31, 35, 40, 0.12); padding: 12px 13px 9px; }
+      .cbox.focus { border-color: color-mix(in oklch, var(--primary) 55%, var(--border)); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 14%, transparent); }
+      .cbox.dis { opacity: 0.6; background: var(--secondary); box-shadow: none; }
+      .cph { font-size: 14px; color: var(--muted-fg); min-height: 24px; line-height: 1.5; }
+      .ctxt { font-size: 14px; color: var(--fg); min-height: 24px; line-height: 1.5; }
+      .ctxt .tcaret { display: inline-block; width: 1.5px; height: 16px; background: var(--primary); vertical-align: -3px; margin-left: 1px; }
+      .crow { display: flex; align-items: center; gap: 6px; margin-top: 7px; }
+      .ctool { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 9px; border-radius: 9px; font-size: 12px; color: var(--muted-fg); border: 1px solid transparent; }
+      .ctool .i { color: var(--muted-fg); }
+      .ctool:hover { background: var(--secondary); }
+      .ctool.icon { padding: 0 7px; }
+      .cspacer { flex: 1; }
+      .cmodel { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 9px; border-radius: 9px; font-size: 12px; color: var(--fg); border: 1px solid var(--border); }
+      .cmodel .lock, .cmodel .sep { color: var(--muted-fg); }
+      .csend { width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+      .csend.dim { background: var(--secondary); color: var(--muted-fg); }
+      .csend.go { background: var(--primary); color: var(--primary-fg); }
+      .cstop { width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; background: var(--fg); color: var(--bg); flex: none; }
+      .cstop .sq { width: 10px; height: 10px; border-radius: 2px; background: currentColor; }
+      .queue { display: flex; align-items: center; gap: 9px; font-size: 12px; color: var(--muted-fg); padding: 7px 10px; margin-bottom: 8px; border: 1px dashed var(--border); border-radius: 9px; }
+      .queue .qd { width: 6px; height: 6px; border-radius: 50%; background: var(--info); flex: none; }
+      .queue .qx { margin-left: auto; color: var(--muted-fg); display: flex; }
+      .offbar { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--warning); padding: 8px 11px; margin-bottom: 8px; border: 1px solid color-mix(in oklch, var(--warning) 35%, var(--border)); background: color-mix(in oklch, var(--warning) 9%, var(--bg)); border-radius: 9px; }
+      .offbar .i { color: var(--warning); }
+      .offbar .rl { margin-left: auto; color: var(--warning); border-bottom: 1px solid color-mix(in oklch, var(--warning) 40%, transparent); }
+
+      /* 输入区状态画廊（S7） */
+      .gallery { max-width: 772px; margin: 0 auto; padding: 22px 30px; display: flex; flex-direction: column; gap: 16px; }
+      .gcase { }
+      .gcase .gl { font-size: 12px; font-weight: 600; color: var(--muted-fg); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 7px; display: flex; align-items: center; gap: 8px; }
+      .gcase .gl .gn { width: 18px; height: 18px; border-radius: 5px; background: var(--secondary); color: var(--fg); font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; }
+
+      /* ===== annotation block（house style） ===== */
+      .anno { border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; overflow: hidden; margin-top: 18px; }
+      .anno > .anno-h { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 11px 14px 4px; }
+      .anno-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; padding: 12px 14px 14px; align-items: start; }
+      .anno-card { border: 1px solid #d1d9e0; border-radius: 8px; background: #fff; overflow: hidden; }
+      .anno-card > .ac-h { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 10px 13px 7px; }
+      .anno-card.span2 { grid-column: 1 / -1; }
+      .anno ol { list-style: none; display: flex; flex-direction: column; }
+      .anno-card ol li { display: flex; gap: 10px; padding: 9px 13px; border-top: 1px solid #d1d9e0; font-size: 13px; line-height: 1.6; color: #59636e; }
+      .anno-card ol li b { color: #1f2328; font-weight: 600; }
+      .pin { flex: none; width: 18px; height: 18px; border-radius: 9999px; background: #0969da; color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+      .menulist { background: #fff; padding: 4px 13px 12px; font-size: 13px; line-height: 1.6; color: #59636e; }
+      .menulist .ml-grp { font-size: 11px; font-weight: 600; color: #3d444d; margin: 10px 0 4px; }
+      .menulist .ml-i { display: flex; gap: 8px; padding: 3px 0; }
+      .menulist .ml-i b { color: #1f2328; font-weight: 500; }
+      .menulist .ml-i.dz b { color: #cf222e; }
+      .menulist .ml-note { margin-top: 8px; padding-top: 8px; border-top: 1px solid #d1d9e0; color: #59636e; }
+      .states { padding: 4px 13px 12px; }
+      .states dl { display: grid; grid-template-columns: 86px 1fr; gap: 8px 14px; font-size: 13px; line-height: 1.55; }
+      .states dt { color: #3d444d; font-weight: 600; }
+      .states dd { margin: 0; color: #59636e; }
+      .states dd b { color: #1f2328; font-weight: 500; }
+    </style>
+  </head>
+  <body>
+    <!-- ============ SVG SPRITE ============ -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol>
+      <symbol id="pen" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.4 2.6a1 1 0 0 1 3 3l-9 9-4 1 1-4z" /></symbol>
+      <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></symbol>
+      <symbol id="settings" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></symbol>
+      <symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="more-h" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
+      <symbol id="kebab" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></symbol>
+      <symbol id="plus" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5v14" /></symbol>
+      <symbol id="terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6" /><path d="M12 19h8" /></symbol>
+      <symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></symbol>
+      <symbol id="file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /></symbol>
+      <symbol id="file-text" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /><path d="M9 13h6M9 17h4" /></symbol>
+      <symbol id="panel-l" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 3v18" /></symbol>
+      <symbol id="panel-r" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M15 3v18" /></symbol>
+      <symbol id="filetree" viewBox="0 0 24 24"><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="10" width="7" height="5" rx="1" /><rect x="14" y="17" width="7" height="4" rx="1" /><path d="M9 5.5h5M9 12.5h5M9 19.5h5M9 5.5V19.5" /></symbol>
+      <symbol id="lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
+      <symbol id="brain" viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.9.7A3 3 0 0 0 4 9a3 3 0 0 0 1 5.6V16a3 3 0 0 0 5 2 3 3 0 0 0 5-2v-1.4A3 3 0 0 0 20 9a3 3 0 0 0-2.1-3.3A3 3 0 0 0 12 5z" /></symbol>
+      <symbol id="clip" viewBox="0 0 24 24"><path d="m21.4 11-9.2 9.2a6 6 0 0 1-8.5-8.5l8.6-8.6A4 4 0 1 1 18 8.8l-8.6 8.6a2 2 0 0 1-2.8-2.9l8.5-8.5" /></symbol>
+      <symbol id="up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7" /><path d="M12 19V5" /></symbol>
+      <symbol id="down" viewBox="0 0 24 24"><path d="M12 5v14" /><path d="m19 12-7 7-7-7" /></symbol>
+      <symbol id="branch" viewBox="0 0 24 24"><line x1="6" x2="6" y1="3" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></symbol>
+      <symbol id="robot" viewBox="0 0 24 24"><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M12 4v4" /><circle cx="12" cy="4" r="1" /><path d="M9 13v2M15 13v2M2 14h2M20 14h2" /></symbol>
+      <symbol id="spark" viewBox="0 0 24 24"><path d="M9.9 15.5A2 2 0 0 0 8.5 14L2.4 12.5a.5.5 0 0 1 0-1L8.5 10a2 2 0 0 0 1.4-1.4L11.5 2.4a.5.5 0 0 1 1 0L14 8.5a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z" /></symbol>
+      <symbol id="check-c" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="m9 12 2 2 4-4" /></symbol>
+      <symbol id="x-c" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="m15 9-6 6M9 9l6 6" /></symbol>
+      <symbol id="alert" viewBox="0 0 24 24"><path d="M10.3 3.2 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.2a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></symbol>
+      <symbol id="copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+      <symbol id="retry" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8" /><path d="M3 3v5h5" /></symbol>
+      <symbol id="trash" viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
+      <symbol id="quote" viewBox="0 0 24 24"><path d="M15 10l5 5-5 5" /><path d="M4 4v7a4 4 0 0 0 4 4h12" /></symbol>
+      <symbol id="code" viewBox="0 0 24 24"><path d="m16 18 6-6-6-6" /><path d="m8 6-6 6 6 6" /></symbol>
+      <symbol id="list-checks" viewBox="0 0 24 24"><path d="m3 17 2 2 4-4" /><path d="m3 7 2 2 4-4" /><path d="M13 6h8M13 12h8M13 18h8" /></symbol>
+      <symbol id="scissors" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M20 4 8.1 15.9M14.5 14.5 20 20M8.1 8.1 12 12" /></symbol>
+      <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+      <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
+      <symbol id="markdown" viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2" /><path d="M6 15V9l3 3 3-3v6M18 9v6M21 12l-3 3-3-3" /></symbol>
+      <symbol id="cols" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 3v18" /></symbol>
+      <symbol id="wifi-off" viewBox="0 0 24 24"><path d="M2 8.8a16 16 0 0 1 4.5-2.6M8.4 4.2A16 16 0 0 1 22 8.8M5 12.5a11 11 0 0 1 2.6-1.8M9.5 9.6a11 11 0 0 1 7.7 2.9M8.5 16a6 6 0 0 1 7-1M12 20h.01M2 2l20 20" /></symbol>
+    </svg>
+
+    <!-- ============ BOARD HEADER ============ -->
+    <div class="board-h">
+      <h1>
+        <span class="logo"><svg class="i lg"><use href="#spark" /></svg></span>
+        Helm · UI 设计稿 · 对话页（消息流）
+      </h1>
+      <p class="sub">
+        本地需求设计稿（gate-1 · 待董事长看 PNG）。需求 <b>2026-06-28-conversation-page</b>：对话页 = 主界面外壳「<b>中区画布</b>」在<b>有活跃对话</b>时的态 —— 一条对话的<b>消息流</b>。
+        它与<b>丰富首页</b>（2026-06-28-welcome-home）是<b>同一中区的两种态</b>：无对话 = 首页；有对话 = 本消息流。<b>外壳与主题与首页完全一致</b>（统一顶栏 / 4 卡片 / codePilot 浅色由 codepilot-layout 负责，本稿不改），<b>只填中区消息流</b>的内容与全部交互态。
+        主题<b>原样照搬</b> codepilot-layout 的 <b>codePilot 浅色</b>（GitHub Primer：背景 #fff、左栏 #f6f8fa、选中淡灰 #eaeef2、主蓝 #0969da、边框 #d1d9e0），默认浅色、深色一并适配。
+      </p>
+    </div>
+
+    <div class="req-log">
+      <div class="rl-h">需求日志</div>
+      <table>
+        <tr><th style="width: 110px">日期</th><th>需求</th><th style="width: 430px">关键决策</th></tr>
+        <tr>
+          <td>2026-06-28</td>
+          <td>对话页（消息流）—— 填外壳中区「有活跃对话」态的全部内容与交互态</td>
+          <td>
+            <span class="pill new">同一中区两种态（首页 ↔ 消息流）</span>
+            <span class="pill new">外壳/主题与首页完全一致</span>
+            <span class="pill new">工具调用块 折叠/运行/成功/失败/展开</span>
+            <span class="pill new">代码 + diff + 流式 + 错误 + 排队</span>
+            <span class="pill p0">桌面优先 · 浅深双适配</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="nav-idx">
+      <a href="#s1" class="new">S1 标准全景</a>
+      <a href="#s2" class="new">S2 工具调用块全态</a>
+      <a href="#s3" class="new">S3 代码块 / diff 块</a>
+      <a href="#s4" class="new">S4 流式输出中</a>
+      <a href="#s5" class="new">S5 空对话·刚开始</a>
+      <a href="#s6" class="new">S6 错误态</a>
+      <a href="#s7" class="new">S7 输入区全态</a>
+      <a href="#s8" class="new">S8 长对话滚动·回到底</a>
+    </div>
+
+    <div class="note">
+      <svg class="i sm"><use href="#spark" /></svg>
+      <span>
+        交互标注：蓝色圆点 <span class="pin" style="width: 16px; height: 16px; vertical-align: middle">1</span> 标在控件旁，对应注解块「点击效果」编号；设备框内只画真实 UI，流程 / 跳转 / 平台逻辑写进注解。
+        <b>每屏置于 codePilot 浅色外壳中区</b>（右栏 / 目录树收起，聚焦中区消息流，与首页同布局）。本稿覆盖：用户 / Agent 轮次、工具调用全态、代码 / diff、流式、空对话刚开始、错误、输入区四态、长对话滚动 + 回到底。
+      </span>
+    </div>
+
+    <!-- ============================================================ S1 标准全景 ============================================================ -->
+    <section class="screen" id="s1">
+      <div class="screen-head">
+        <span class="tag new">消息流 · 1</span>
+        <h2>对话页 · 标准全景（消息流主视图）</h2>
+        <p>
+          有活跃对话时中区的样子：<b>用户轮次</b>（靠右气泡）+ <b>Agent 轮次</b>（左侧品牌头像 + Markdown 富文本）+ 一个<b>已完成工具调用</b>（折叠）+ 底部<b>输入区默认态</b>。
+          外壳与首页完全一致（顶栏标题 = 对话名、左栏对话树选中本对话、右栏 / 目录树收起）。本屏并示意：把指针移到某条 Agent 消息上 → 行下浮出<b>逐轮操作条</b>（复制 / 复制为 Markdown / 引用 / 从这一步重试 / 更多），点「更多」弹<b>轮次菜单</b>。
+        </p>
+      </div>
+      <div class="frame" id="shot1">
+        <div class="win">
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">重构 checkout 子系统</span>
+            <button class="tb-proj"><span>paseo-main</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg><span class="pinb">8</span></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>2</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+            </div>
+          </div>
+          <div class="row">
+            <!-- 左栏（与外壳一致） -->
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on" style="padding-left: 24px"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#robot" /></svg><span class="tname">重构 checkout 子系统</span><span class="badge-sub">2</span></div>
+                  <div class="tnode" style="padding-left: 42px"><span class="twedge leaf"></span><svg class="i xs ti"><use href="#robot" /></svg><span class="dot run"></span><span class="tname">写单测</span></div>
+                  <div class="tnode" style="padding-left: 42px"><span class="twedge leaf"></span><svg class="i xs ti"><use href="#robot" /></svg><span class="dot idle"></span><span class="tname">跑覆盖率</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot idle"></span><span class="tname">VoiceSession 迁移</span><span class="ttime">3 分钟前</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <!-- 中区 · 消息流 -->
+            <div class="card main">
+              <div class="chatv">
+                <div class="scroll">
+                  <div class="col">
+                    <!-- 用户轮次 -->
+                    <div class="turn">
+                      <div class="um"><div class="ub">把 checkout 的读取逻辑抽成独立 session，参照 <code class="inl" style="background:rgba(255,255,255,.5)">VoiceSession</code> 的结构，保持现有对外 API 不变。<span class="pinb" style="position:static;margin-left:4px">1</span></div></div>
+                    </div>
+                    <!-- Agent 轮次 -->
+                    <div class="turn">
+                      <div class="am">
+                        <div class="av"><svg class="i sm"><use href="#spark" /></svg></div>
+                        <div class="body">
+                          <div class="who"><b>Claude Code</b><span class="mdl">· glm-4.6</span><span class="tm">刚刚</span></div>
+                          <div class="md">
+                            <p>好的，我先看一下现有结构，确认 <code class="inl">CheckoutSession</code> 的依赖边界。</p>
+                            <div class="tool ok">
+                              <div class="tool-h"><svg class="i sm ti"><use href="#file-text" /></svg><span class="tn">读取</span><span class="ts">packages/server/src/session/checkout/index.ts</span><span class="st"><svg class="i sm"><use href="#check-c" /></svg></span><svg class="i sm chev"><use href="#chev-r" /></svg><span class="pinb" style="top:8px">2</span></div>
+                            </div>
+                            <p>现有 <code class="inl">CheckoutSession</code> 把<strong>读取、写入、广播</strong>三块耦合在一个类里。建议这样拆：</p>
+                            <ul>
+                              <li>抽出 <code class="inl">CheckoutReadSession</code> 只管读取与缓存；</li>
+                              <li>写入与广播留在原类，通过构造注入读 session；</li>
+                              <li>对外 <code class="inl">getCheckout()</code> 签名保持不变，内部转发。</li>
+                            </ul>
+                            <p>要我直接开始改吗？我会先补一个回归单测锁住现有行为。</p>
+                          </div>
+                          <!-- 逐轮 hover 操作条（本屏示意 hover 态） -->
+                          <div class="turn-acts">
+                            <div class="ta-btn"><svg class="i sm"><use href="#copy" /></svg></div>
+                            <div class="ta-btn"><svg class="i sm"><use href="#markdown" /></svg></div>
+                            <div class="ta-btn"><svg class="i sm"><use href="#quote" /></svg></div>
+                            <div class="ta-btn"><svg class="i sm"><use href="#retry" /></svg></div>
+                            <div class="ta-btn on"><svg class="i sm"><use href="#more-h" /></svg><span class="pinb">3</span></div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <!-- 轮次菜单（more 打开）· 提到 card 层，避开滚动区 overflow 裁剪；近底部向上展开 -->
+                <div class="menu" style="left: 446px; top: 176px">
+                  <div class="mi"><svg class="i sm"><use href="#copy" /></svg> 复制文本</div>
+                  <div class="mi"><svg class="i sm"><use href="#markdown" /></svg> 复制为 Markdown</div>
+                  <div class="mi"><svg class="i sm"><use href="#quote" /></svg> 引用回复</div>
+                  <div class="msep"></div>
+                  <div class="mi"><svg class="i sm"><use href="#retry" /></svg> 从这一步重试 <span class="k">⤺</span></div>
+                  <div class="mi"><svg class="i sm"><use href="#file-text" /></svg> 复制对话 ID</div>
+                </div>
+                <!-- 底部输入区 · 默认态 -->
+                <div class="dock">
+                  <div class="dcol">
+                    <div class="cbox">
+                      <div class="cph">继续输入…<span class="pinb" style="position:static;margin-left:4px">4</span></div>
+                      <div class="crow">
+                        <div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg><span class="pinb">5</span></div>
+                        <div class="ctool"><svg class="i sm"><use href="#brain" /></svg> 思考</div>
+                        <div class="cspacer"></div>
+                        <div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> GLM <span class="sep">·</span> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">6</span></div>
+                        <div class="csend dim"><svg class="i sm"><use href="#up" /></svg><span class="pinb">7</span></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>用户消息气泡</b>：靠右、淡灰底（#eaeef2）、右下角收一个尖角。hover 行下浮「复制 / 编辑并重发 / 从这条重试」。内含的 <b>@文件 / 行内代码</b>可点 → 右栏对应预览。</div></li>
+              <li><span class="pin">2</span><div><b>工具调用块（折叠 · 成功）</b>：左工具图标 + 工具名「读取」+ 文件路径摘要 + 右侧 ✓ 绿勾 + chevron。点击<b>展开</b>看详情（见 S2）；hover 整块浮极淡灰底（#f6f8fa）。点路径可<b>跳右栏文件预览</b>。</div></li>
+              <li><span class="pin">3</span><div><b>逐轮「更多」</b>：点开<b>轮次菜单</b>（见右键菜单块）。逐轮操作条仅在 hover 该轮时浮现（native / 紧凑态常驻）。</div></li>
+              <li><span class="pin">4</span><div><b>输入框（空态）</b>：占位「继续输入…」。聚焦 → 蓝聚焦环；有内容 → 发送键转蓝（见 S7）。回车发送、Shift+回车换行。</div></li>
+              <li><span class="pin">5</span><div><b>附件</b>：点开选图片 / 文件，附件以 pill 显示在输入框上方（采集细节属外壳输入区，本稿不重定义）。</div></li>
+              <li><span class="pin">6</span><div><b>模型选择器</b>：提供方🔒 · 中转站 · 模型三层级联（沿用外壳既有）。本稿只摆位，不重定义。</div></li>
+              <li><span class="pin">7</span><div><b>发送键</b>：空输入 = 灰 dim 不可点；有内容 = 蓝 primary 可发；Agent 运行中 = 转「停止」（见 S4 / S7）。</div></li>
+              <li><span class="pin">8</span><div><b>顶栏 ··· 菜单</b>：对当前对话 —— 分屏 / 重命名 / 复制 ID / 删除（沿用外壳，见右键菜单块）。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>桌面优先</b>：复用外壳（顶栏 h40 + 左栏 240 + 中区 flex-1，右栏 / 目录树收起）。中区 = 上<b>消息流（可滚）</b>+ 下<b>输入区 dock</b>；消息列 max-width ≈ 772 居中，长行不贴边。<b>紧凑 / 手机态</b>：左栏转抽屉、消息列占满整宽、输入区贴底、逐轮操作条常驻（无 hover）。</dd>
+                <dt>默认</dt>
+                <dd>用户气泡 + Agent 富文本 + 折叠工具块；输入区空、发送 dim；本对话在左栏树选中（淡灰 + 深灰字）。</dd>
+                <dt>悬浮</dt>
+                <dd>Agent 消息 hover → 行下浮逐轮操作条；工具块 hover 浮 #f6f8fa；输入区控件 hover 淡灰；链接 hover 下划线。</dd>
+                <dt>活跃</dt>
+                <dd>逐轮「更多」按下 = secondary 态 + 轮次菜单打开；左栏当前对话选中态。</dd>
+                <dt>运行 / 加载</dt>
+                <dd>见 S4（流式）/ S5（刚开始 · 思考中）；工具运行见 S2。</dd>
+                <dt>空 / 错误 / 离线</dt>
+                <dd>空对话刚开始 → S5；错误 → S6；主机离线 → 输入区禁用（S7 第 4 态）。</dd>
+                <dt>深色</dt>
+                <dd>随 codePilot 自动适配：背景 #0d1117、气泡 #21262d、工具块边框 #30363d、绿勾 #3fb950、链接 #1f6feb。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-grp">Agent 消息 · 轮次菜单（hover 操作条「更多」或右键消息 · 本屏已画开）</div>
+              <div class="ml-i"><b>复制文本</b> — 纯文本复制本轮。</div>
+              <div class="ml-i"><b>复制为 Markdown</b> — 带格式复制（代码块 / 列表保真）。</div>
+              <div class="ml-i"><b>引用回复</b> — 把本轮作为引用塞进输入区，接着追问。</div>
+              <div class="ml-i"><b>从这一步重试</b> — 回退到本轮、丢弃其后内容并重新产出（<b>破坏性</b>，与外壳既有「回退 / 重试」语义一致，需明确）。</div>
+              <div class="ml-i"><b>复制对话 ID</b> — 复制会话 ID + toast。</div>
+              <div class="ml-grp">用户消息 · 右键</div>
+              <div class="ml-i"><b>复制</b> / <b>编辑并重发</b>（改这条重新发，丢弃其后）/ <b>从这条重试</b>。</div>
+              <div class="ml-grp">顶栏 ··· 菜单（对当前对话 · 沿用外壳 codepilot-layout）</div>
+              <div class="ml-i"><b>分屏</b> · <b>重命名</b> · <b>复制 ID</b> · <span class="dz" style="color:#cf222e">删除</span>（二次确认）。</div>
+              <div class="ml-note">对话树节点右键（项目 / 对话 / subagent）沿用外壳 home-shell，不在本稿重画。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S2 工具调用块全态 ============================================================ -->
+    <section class="screen" id="s2">
+      <div class="screen-head">
+        <span class="tag new">消息流 · 2</span>
+        <h2>工具调用块 · 全态（运行中 / 成功 / 失败 / 展开 + 结构化卡片）</h2>
+        <p>
+          同一条消息流里集齐工具调用的四态：<b>运行中</b>（进度环 + 蓝边）、<b>成功</b>（绿勾 · 折叠）、<b>失败</b>（红 ✕ + 错误摘要 · 红边）、<b>展开</b>（点开看命令与输出）。再加 Agent 的<b>结构化结果</b>——<b>待办清单卡片</b>（带勾选进度）。工具块默认折叠、一行摘要，点击展开 / 收起。
+        </p>
+      </div>
+      <div class="frame" id="shot2">
+        <div class="win" style="height: 884px">
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">重构 checkout 子系统</span>
+            <button class="tb-proj"><span>paseo-main</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>2</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on" style="padding-left: 24px"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#robot" /></svg><span class="tname">重构 checkout 子系统</span><span class="dot run"></span></div>
+                  <div class="tnode" style="padding-left: 42px"><span class="twedge leaf"></span><svg class="i xs ti"><use href="#robot" /></svg><span class="dot run"></span><span class="tname">写单测</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot idle"></span><span class="tname">VoiceSession 迁移</span><span class="ttime">3 分钟前</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <div class="card main">
+              <div class="chatv">
+                <div class="scroll">
+                  <div class="col">
+                    <div class="turn"><div class="um"><div class="ub">跑一下单测和 typecheck，看现在过不过。</div></div></div>
+                    <div class="turn">
+                      <div class="am">
+                        <div class="av"><svg class="i sm"><use href="#spark" /></svg></div>
+                        <div class="body">
+                          <div class="who"><b>Claude Code</b><span class="mdl">· glm-4.6</span></div>
+                          <div class="md">
+                            <p>我按计划逐步执行：</p>
+                            <!-- 结构化：待办清单 -->
+                            <div class="struct">
+                              <div class="struct-h"><svg class="i sm"><use href="#list-checks" /></svg> 待办清单<span class="prog">2 / 4 已完成<span class="pinb" style="top:8px">5</span></span></div>
+                              <div class="struct-b">
+                                <div class="ti-row done"><span class="ck"><svg class="i xs"><use href="#check" /></svg></span><span class="tx">抽出 CheckoutReadSession</span></div>
+                                <div class="ti-row done"><span class="ck"><svg class="i xs"><use href="#check" /></svg></span><span class="tx">注入到 CheckoutSession</span></div>
+                                <div class="ti-row now"><span class="ck"></span><span class="tx">补回归单测并跑通</span></div>
+                                <div class="ti-row"><span class="ck"></span><span class="tx">跑 typecheck</span></div>
+                              </div>
+                            </div>
+                            <!-- 工具 · 运行中 -->
+                            <div class="tool run">
+                              <div class="tool-h"><svg class="i sm ti"><use href="#terminal" /></svg><span class="tn">运行命令</span><span class="ts">npx vitest run checkout-read-session.test.ts</span><span class="st"><span class="spin"></span></span><svg class="i sm chev"><use href="#chev-r" /></svg><span class="pinb" style="top:8px">1</span></div>
+                            </div>
+                            <!-- 工具 · 成功（折叠） -->
+                            <div class="tool ok">
+                              <div class="tool-h"><svg class="i sm ti"><use href="#file-text" /></svg><span class="tn">读取</span><span class="ts">checkout-read-session.ts · 142 行</span><span class="st"><svg class="i sm"><use href="#check-c" /></svg></span><svg class="i sm chev"><use href="#chev-r" /></svg><span class="pinb" style="top:8px">2</span></div>
+                            </div>
+                            <!-- 工具 · 失败（折叠 · 红边 + 错误摘要） -->
+                            <div class="tool err">
+                              <div class="tool-h"><svg class="i sm ti"><use href="#terminal" /></svg><span class="tn">运行命令</span><span class="ts">npm run typecheck · 退出码 2 · 3 个类型错误</span><span class="st"><svg class="i sm"><use href="#x-c" /></svg></span><svg class="i sm chev"><use href="#chev-r" /></svg><span class="pinb" style="top:8px">3</span></div>
+                            </div>
+                            <!-- 工具 · 展开（命令 + 输出） -->
+                            <div class="tool ok">
+                              <div class="tool-h"><svg class="i sm ti"><use href="#terminal" /></svg><span class="tn">运行命令</span><span class="ts">npx vitest run --reporter=dot</span><span class="st"><svg class="i sm"><use href="#check-c" /></svg></span><svg class="i sm chev"><use href="#chev-d" /></svg><span class="pinb" style="top:8px">4</span></div>
+                              <div class="tool-d"><span class="o-dim">$ npx vitest run --reporter=dot</span><br /><span class="o-dim">............</span><br /><span class="o-ok">✓ 12 passed</span> <span class="o-dim">(checkout-read-session.test.ts)</span><br /><span class="o-dim">Duration 1.84s</span><div class="openfile"><svg class="i xs"><use href="#cols" /></svg> 在右栏终端查看完整输出</div></div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="dock">
+                  <div class="dcol">
+                    <div class="cbox">
+                      <div class="cph">继续输入…</div>
+                      <div class="crow"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="cspacer"></div><div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg></div><div class="csend dim"><svg class="i sm"><use href="#up" /></svg></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>工具块 · 运行中</b>：左工具图标 + 名 + 参数摘要 + 右侧<b>进度环</b>（旋转）+ <b>蓝边</b>。运行中可点展开看已流出的部分输出；完成后自动转成功 / 失败。点参数摘要 → 不展开，直接跳右栏对应面板（命令 → 终端）。</div></li>
+              <li><span class="pin">2</span><div><b>工具块 · 成功（折叠）</b>：右侧 <b>✓ 绿勾</b>。点整行<b>展开</b>详情；再点收起。</div></li>
+              <li><span class="pin">3</span><div><b>工具块 · 失败（折叠）</b>：<b>红边 + 红 ✕</b>，摘要直接带<b>错误要点</b>（退出码 / 错误数）。展开看完整 stderr；旁附「重试此步」抓手（展开内，见 S6 同款按钮）。</div></li>
+              <li><span class="pin">4</span><div><b>工具块 · 展开态</b>：chevron 朝下，下方<b>详情面板</b>（淡灰代码面 #f6f8fa）显示命令 + 输出（成功绿 / 失败红着色）。底部「在右栏查看完整输出」→ 跳右栏终端 / 文件预览。</div></li>
+              <li><span class="pin">5</span><div><b>结构化 · 待办清单卡片</b>：标题右显进度「2 / 4 已完成」；已完成项绿勾 + 删除线，<b>进行中项</b>蓝描边空框 + 加粗。计划（plan）结果同理用结构化卡片。只读展示，不可勾选。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>折叠（默认）</dt>
+                <dd>工具块默认<b>折叠</b>为一行：图标 + 名 + 摘要 + 状态标 + chevron(→)。多个工具块在 Agent 轮次内纵向堆叠，块间 12px。</dd>
+                <dt>运行中</dt>
+                <dd>蓝边 + 进度环；左栏对话树该对话显<b>绿运行点</b>。运行可被打断（S4 停止）。</dd>
+                <dt>成功 / 失败</dt>
+                <dd>成功 = 绿勾、无边框强调；失败 = <b>红边 + 红 ✕ + 错误摘要</b>，一眼可辨。</dd>
+                <dt>展开</dt>
+                <dd>chevron(↓) + 详情面板；详情可能是命令输出 / 文件改动 diff（见 S3）/ 读取内容。</dd>
+                <dt>加载详情</dt>
+                <dd>展开后详情仍在拉取 → 面板内<b>骨架微光</b>占位，到达后替换为真实内容。</dd>
+                <dt>空</dt>
+                <dd>工具无输出（如纯副作用命令）→ 展开显「无输出 · 退出码 0」。</dd>
+                <dt>深色</dt>
+                <dd>代码面 #161b22、绿 #3fb950、红 #f85149、蓝边 #1f6feb。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-grp">工具调用块 · 右键</div>
+              <div class="ml-i"><b>展开 / 收起</b> · <b>复制命令</b> / <b>复制输出</b> · <b>在右栏打开</b>（命令→终端 / 文件→预览 / 改动→审查）· <b>重试此步</b>（失败块）。</div>
+              <div class="ml-note">结构化卡片（待办 / 计划）无右键，只读展示。其余沿用 S1 轮次菜单。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S3 代码块 / diff 块 ============================================================ -->
+    <section class="screen" id="s3">
+      <div class="screen-head">
+        <span class="tag new">消息流 · 3</span>
+        <h2>代码块 / diff 块（语法着色 + 复制 · 增删分色 + 增删统计）</h2>
+        <p>
+          Agent 富文本里的两类「硬内容」：<b>代码块</b>（等宽 + GitHub 语法着色 + 文件名/语言 header + 复制）与<b>代码改动 diff 块</b>（文件名 + <b>增删统计</b> + 行号槽 + <b>增行绿底 / 删行红底</b>）。diff 既可独立出现在富文本里，也可作为「编辑文件」工具块的展开详情。
+        </p>
+      </div>
+      <div class="frame" id="shot3">
+        <div class="win">
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">重构 checkout 子系统</span>
+            <button class="tb-proj"><span>paseo-main</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>3</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on" style="padding-left: 24px"><span class="twedge leaf"></span><svg class="i sm ti"><use href="#robot" /></svg><span class="tname">重构 checkout 子系统</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot idle"></span><span class="tname">VoiceSession 迁移</span><span class="ttime">3 分钟前</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <div class="card main">
+              <div class="chatv">
+                <div class="scroll">
+                  <div class="col">
+                    <div class="turn"><div class="um"><div class="ub">把 <code class="inl" style="background:rgba(255,255,255,.5)">getCheckout</code> 的返回类型补上，并展示改动。</div></div></div>
+                    <div class="turn">
+                      <div class="am">
+                        <div class="av"><svg class="i sm"><use href="#spark" /></svg></div>
+                        <div class="body">
+                          <div class="who"><b>Claude Code</b><span class="mdl">· glm-4.6</span></div>
+                          <div class="md">
+                            <p>补好的实现如下：</p>
+                            <!-- 代码块 -->
+                            <div class="codeblock">
+                              <div class="cb-h">checkout-read-session.ts<span class="copy"><svg class="i xs"><use href="#copy" /></svg> 复制<span class="pinb" style="top:7px">1</span></span></div>
+                              <div class="cb-b"><span class="c">// 只读视图，写入仍走 CheckoutSession</span>
+<span class="k">export</span> <span class="k">function</span> <span class="f">getCheckout</span>(id<span class="k">:</span> <span class="v">string</span>)<span class="k">:</span> <span class="v">Checkout</span> <span class="k">|</span> <span class="k">null</span> {
+  <span class="k">const</span> snap <span class="k">=</span> cache.<span class="f">get</span>(id)
+  <span class="k">if</span> (<span class="k">!</span>snap) <span class="k">return</span> <span class="k">null</span>
+  <span class="k">return</span> { <span class="k">...</span>snap, revision<span class="k">:</span> snap.rev <span class="k">??</span> <span class="n">0</span> }
+}</div>
+                            </div>
+                            <p>改动落在「编辑文件」这一步，展开如下：</p>
+                            <!-- diff 块（编辑工具展开详情） -->
+                            <div class="diff">
+                              <div class="df-h"><svg class="i sm" style="color:var(--muted-fg)"><use href="#pen" /></svg> checkout-read-session.ts<span class="stat"><span class="add">+4</span><span class="del">−1</span></span><span class="pinb" style="top:8px">2</span></div>
+                              <div class="df-b">
+                                <div class="dl hunk"><span class="gut"><span>@@</span><span></span></span><span class="mk"></span><span class="ct"> getCheckout(id) </span></div>
+                                <div class="dl"><span class="gut"><span>41</span><span>41</span></span><span class="mk"></span><span class="ct">  const snap = cache.get(id)</span></div>
+                                <div class="dl del"><span class="gut"><span>42</span><span></span></span><span class="mk">−</span><span class="ct">  return snap</span></div>
+                                <div class="dl add"><span class="gut"><span></span><span>42</span></span><span class="mk">+</span><span class="ct">  if (!snap) return null</span></div>
+                                <div class="dl add"><span class="gut"><span></span><span>43</span></span><span class="mk">+</span><span class="ct">  return { ...snap, revision: snap.rev ?? 0 }</span></div>
+                                <div class="dl"><span class="gut"><span>43</span><span>44</span></span><span class="mk"></span><span class="ct">}</span></div>
+                              </div>
+                            </div>
+                            <p>类型已收窄为 <code class="inl">Checkout | null</code>，<code class="inl">revision</code> 兜底为 <code class="inl">0</code>。需要我把它接进 <code class="inl">CheckoutSession</code> 吗？</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="dock">
+                  <div class="dcol">
+                    <div class="cbox">
+                      <div class="cph">继续输入…</div>
+                      <div class="crow"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="cspacer"></div><div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg></div><div class="csend dim"><svg class="i sm"><use href="#up" /></svg></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>代码块复制</b>：点 header「复制」→ 整段代码进剪贴板 + 图标转 ✓「已复制」1.5s。header 左显文件名 / 语言。代码<b>语法着色</b>（GitHub Primer：关键字红 / 字符串蓝 / 函数紫 / 注释灰）。超宽<b>横向滚动</b>，不换行截断。</div></li>
+              <li><span class="pin">2</span><div><b>diff 块</b>：header = 文件名 + <b>增删统计</b>（+N 绿 / −M 红）。行号<b>双槽</b>（旧 / 新），<b>增行绿底 + 「+」</b>、<b>删行红底 + 「−」</b>、hunk 头灰底。点 header → 跳右栏「审查」tab 看完整文件 diff。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>代码 / diff 块嵌在 Agent 富文本流里，宽度随消息列（max 772）；超宽横向滚动。块上下与正文段落 12px 间距。<b>紧凑态</b>：字号略减、行号槽收窄、仍横向滚动。</dd>
+                <dt>默认</dt>
+                <dd>代码块语法着色、可复制；diff 折叠为变更行 + 少量上下文，长 diff 可<b>「展开更多上下文」</b>。</dd>
+                <dt>悬浮</dt>
+                <dd>代码块 hover 右上浮「复制」；diff 行 hover 浮该行「在右栏打开此处」。</dd>
+                <dt>加载</dt>
+                <dd>diff 作为工具展开详情时仍在算 → 骨架微光；到达后渲染。</dd>
+                <dt>空 / 错误</dt>
+                <dd>空 diff（无改动）→「无变更」；diff 解析失败 → 回退为纯文本代码块 + 提示。</dd>
+                <dt>深色</dt>
+                <dd>代码面 #161b22；diff 增行深绿底、删行深红底（GitHub dark）；语法色随之提亮。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-grp">代码块 · 右键</div>
+              <div class="ml-i"><b>复制代码</b> · <b>复制为 Markdown 代码块</b> · <b>在右栏文件预览打开</b>（若关联文件）。</div>
+              <div class="ml-grp">diff 块 · 右键</div>
+              <div class="ml-i"><b>复制改动</b> · <b>在右栏审查打开</b> · <b>仅复制新增 / 仅复制删除</b>。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S4 流式输出中 ============================================================ -->
+    <section class="screen" id="s4">
+      <div class="screen-head">
+        <span class="tag new">消息流 · 4</span>
+        <h2>流式输出中（逐字 + 生成光标 · 伴随运行工具 · 输入区「停止」）</h2>
+        <p>
+          Agent 正在产出：文本<b>逐字流入</b>、末尾跟<b>生成光标</b>（闪烁块）；伴随的工具调用为<b>运行中</b>态；Agent 行右上挂一枚 <b>生成中</b> 标。此时<b>底部输入区</b>把发送键换成<b>停止</b>（黑底方块），点它打断本轮、保留已产出内容。
+        </p>
+      </div>
+      <div class="frame" id="shot4">
+        <div class="win">
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">重构 checkout 子系统</span>
+            <button class="tb-proj"><span>paseo-main</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>3</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on" style="padding-left: 24px"><span class="twedge leaf"></span><svg class="i sm ti"><use href="#robot" /></svg><span class="dot run"></span><span class="tname">重构 checkout 子系统</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot idle"></span><span class="tname">VoiceSession 迁移</span><span class="ttime">3 分钟前</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <div class="card main">
+              <div class="chatv">
+                <div class="scroll">
+                  <div class="col">
+                    <div class="turn"><div class="um"><div class="ub">继续，把广播逻辑也迁移过去，保持订阅者不受影响。</div></div></div>
+                    <div class="turn">
+                      <div class="am">
+                        <div class="av"><svg class="i sm"><use href="#spark" /></svg></div>
+                        <div class="body">
+                          <div class="who"><b>Claude Code</b><span class="mdl">· glm-4.6</span><span class="tm"><span class="gen-tag"><span class="spin" style="width:9px;height:9px;border-width:1.6px"></span> 生成中<span class="pinb" style="top:-6px">3</span></span></span></div>
+                          <div class="md">
+                            <!-- 运行中工具 -->
+                            <div class="tool run">
+                              <div class="tool-h"><svg class="i sm ti"><use href="#pen" /></svg><span class="tn">编辑文件</span><span class="ts">checkout-broadcast.ts</span><span class="st"><span class="spin"></span></span><svg class="i sm chev"><use href="#chev-r" /></svg><span class="pinb" style="top:8px">2</span></div>
+                            </div>
+                            <p>广播这块我保持 <code class="inl">emit()</code> 的对外行为不变，只把订阅表的持有从 <code class="inl">CheckoutSession</code> 移到新的读 session。现在我正在把<span class="caret"></span><span class="pinb" style="position:static;margin-left:2px">1</span></p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <!-- 输入区 · 停止态 -->
+                <div class="dock">
+                  <div class="dcol">
+                    <div class="cbox">
+                      <div class="cph">追问会在本轮结束后发送（或点发送插队）…</div>
+                      <div class="crow"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="cspacer"></div><div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg></div><div class="cstop"><span class="sq"></span><span class="pinb">4</span></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>生成光标</b>：流入文本末尾的闪烁实心块（≈8×16），随新字符不断右移；本轮结束即消失。期间消息流<b>自动跟随到底</b>（除非用户已上滚，见 S8）。</div></li>
+              <li><span class="pin">2</span><div><b>运行中工具</b>：与产出并行出现、进度环旋转；完成即转成功 / 失败并继续后续文本。</div></li>
+              <li><span class="pin">3</span><div><b>生成中标</b>：Agent 行右上的蓝色 pill「生成中」+ 小进度环。仅本轮产出期间显示。</div></li>
+              <li><span class="pin">4</span><div><b>停止键</b>：发送键在 Agent 运行中变为<b>停止</b>（黑底白方块）。点它<b>打断本轮</b> —— 停止产出、已产出内容<b>保留</b>、运行中工具标为「已取消」、输入区回到可输入态。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>同 S1。产出时若用户在底部 → <b>粘底跟随</b>；用户上滚 → 停止跟随并出现「回到底部 · N 新」（S8）。<b>紧凑态</b>：停止键贴底居中、生成中标移至消息头部。</dd>
+                <dt>运行（核心态）</dt>
+                <dd>逐字光标 + 运行工具 + 生成中标 + 输入区停止键；左栏对话树该对话<b>绿运行点</b>。</dd>
+                <dt>输入中（并行）</dt>
+                <dd>运行期间用户仍可在输入框打字：发出则<b>排队</b>（S7 第 3 态），不打断当前轮。</dd>
+                <dt>打断后</dt>
+                <dd>点停止 → 本轮定格、停止键复原为发送、可继续追问 / 从此重试。</dd>
+                <dt>错误中断</dt>
+                <dd>产出途中失败 → 光标消失、转错误卡片（S6）。</dd>
+                <dt>深色</dt>
+                <dd>光标用近白 #e6edf3；停止键反相为白底深块；生成中标蓝 #1f6feb。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">产出中的 Agent 轮次<b>不弹</b>逐轮菜单（内容未定稿）；停止 / 完成后恢复 S1 轮次菜单。运行中工具块右键仅「在右栏打开 / 取消此步」。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S5 空对话·刚开始 ============================================================ -->
+    <section class="screen" id="s5">
+      <div class="screen-head">
+        <span class="tag new">消息流 · 5</span>
+        <h2>空对话 · 刚开始（首条已发 · Agent 思考中 · 尚无正文）</h2>
+        <p>
+          用户从首页 / 新对话发出<b>第一条</b>后的过渡态：消息流里只有<b>用户首条</b> + Agent <b>「思考中…」</b>占位（头像 + 三点 + 提示），<b>尚无正文</b>。这区别于「无任何对话」的<b>首页空态</b>（那是中区的另一种态，见 welcome-home）。Agent 一旦开始产出即转入流式（S4）。
+        </p>
+      </div>
+      <div class="frame" id="shot5">
+        <div class="win">
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">新对话</span>
+            <button class="tb-proj"><span>paseo-main</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>2</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on" style="padding-left: 24px"><span class="twedge leaf"></span><svg class="i sm ti"><use href="#robot" /></svg><span class="dot init" style="width:7px;height:7px;border-radius:9999px;background:var(--info);box-shadow:0 0 0 3px color-mix(in oklch,var(--info) 22%,transparent)"></span><span class="tname">重构 checkout 子系统</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot idle"></span><span class="tname">VoiceSession 迁移</span><span class="ttime">3 分钟前</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <div class="card main">
+              <div class="chatv">
+                <div class="scroll">
+                  <div class="col">
+                    <div class="turn">
+                      <div class="um"><div class="ub">帮我重构 checkout 子系统，把读取逻辑拆成独立 session，参照 VoiceSession。</div>
+                        <div class="uatt"><span class="att-pill"><svg class="i xs"><use href="#file-text" /></svg> checkout-session.ts</span><span class="pinb" style="position:static;align-self:center">1</span></div>
+                      </div>
+                    </div>
+                    <div class="turn">
+                      <div class="am">
+                        <div class="av"><svg class="i sm"><use href="#spark" /></svg></div>
+                        <div class="body">
+                          <div class="who"><b>Claude Code</b><span class="mdl">· glm-4.6</span></div>
+                          <div class="md"><span class="think"><span class="dots"><i></i><i></i><i></i></span> 正在思考…<span class="pinb" style="position:static;margin-left:4px">2</span></span></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="dock">
+                  <div class="dcol">
+                    <div class="cbox">
+                      <div class="cph">追问会在本轮结束后发送…</div>
+                      <div class="crow"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="cspacer"></div><div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg></div><div class="cstop"><span class="sq"></span></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>用户首条 + 附件</b>：从首页中央输入区 / 新对话发出，立刻渲染在流顶；携带的附件以 pill 显示在气泡下（只读展示）。点附件 pill → 右栏文件预览打开。</div></li>
+              <li><span class="pin">2</span><div><b>Agent 「思考中…」占位</b>：头像 + 三点动画 + 「正在思考…」。这是<b>等待首字</b>的过渡，不可点；首字到达即被流式正文替换（S4）。左栏对话树该对话显<b>初始化点</b>（蓝 + 光晕）。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>同 S1，仅内容为「首条 + 思考占位」。顶栏标题此刻多为「新对话」或刚生成的对话名。<b>紧凑态</b>：占位居中、输入区贴底。</dd>
+                <dt>空（本屏核心）</dt>
+                <dd><b>对话刚开始</b>：有用户首条、无 Agent 正文、思考占位在。<b>与首页空态区分</b>：首页空态是<b>完全无对话</b>（问候 hero + 中央 Composer，见 welcome-home）；本屏是<b>已有对话、等首字</b>。</dd>
+                <dt>加载</dt>
+                <dd>思考占位即加载态；若首字迟迟不来（如排队 / 模型冷启）→ 占位文案细化为「正在连接模型…」。</dd>
+                <dt>运行 / 错误 / 离线</dt>
+                <dd>开始产出 → S4；首字前失败 → 错误卡片（S6）；主机离线 → 占位停住 + 输入区禁用（S7 第 4 态）。</dd>
+                <dt>深色</dt>
+                <dd>三点用 #8b949e；初始化点蓝 #1f6feb + 光晕。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i"><b>用户首条</b>右键 = 复制 / 编辑并重发（尚未有 Agent 回复时「编辑并重发」即改首条重问）。<b>思考占位</b>无右键。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S6 错误态 ============================================================ -->
+    <section class="screen" id="s6">
+      <div class="screen-head">
+        <span class="tag new">消息流 · 6</span>
+        <h2>错误态（Agent 轮次失败卡片 + 重试 · 发送失败就地提示）</h2>
+        <p>
+          两类错误：① <b>Agent 轮次失败</b> —— 产出中断，落一张<b>错误卡片</b>（红边 + 警示图标 + 错误摘要 + 「重试 / 查看详情」）；② <b>用户发送失败</b> —— 用户气泡下挂<b>就地红字提示 + 重试</b>。错误内容只读、不污染正文，重试即重发本轮 / 本条。
+        </p>
+      </div>
+      <div class="frame" id="shot6">
+        <div class="win">
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">重构 checkout 子系统</span>
+            <button class="tb-proj"><span>paseo-main</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>3</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on" style="padding-left: 24px"><span class="twedge leaf"></span><svg class="i sm ti"><use href="#robot" /></svg><span class="dot dan" style="background:var(--destructive)"></span><span class="tname">重构 checkout 子系统</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot idle"></span><span class="tname">VoiceSession 迁移</span><span class="ttime">5 分钟前</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <div class="card main">
+              <div class="chatv">
+                <div class="scroll">
+                  <div class="col">
+                    <!-- 用户发送失败 -->
+                    <div class="turn">
+                      <div class="um"><div class="ub">再跑一次完整测试套件。</div>
+                        <div class="ufail" style="justify-content:flex-end;display:flex"><svg class="i xs"><use href="#alert" /></svg> 发送失败 · <a class="rl" href="#">重试</a><span class="pinb" style="position:static;align-self:center">2</span></div>
+                      </div>
+                    </div>
+                    <!-- Agent 轮次失败 -->
+                    <div class="turn">
+                      <div class="am">
+                        <div class="av"><svg class="i sm"><use href="#spark" /></svg></div>
+                        <div class="body">
+                          <div class="who"><b>Claude Code</b><span class="mdl">· glm-4.6</span></div>
+                          <div class="md">
+                            <p>我开始执行测试，但模型连接中断了：</p>
+                            <div class="err-card">
+                              <svg class="i md ei"><use href="#alert" /></svg>
+                              <div style="flex:1;min-width:0">
+                                <div class="et">模型请求失败</div>
+                                <div class="es">连接到 GLM（中转站 bigmodel）时<b style="color:var(--fg)">超时（30s）</b>。可能是网络波动或中转站限流。已产出内容已保留，可重试本轮。</div>
+                                <div class="ea">
+                                  <button class="btn pri"><svg class="i sm"><use href="#retry" /></svg> 重试<span class="pinb">1</span></button>
+                                  <button class="btn"><svg class="i sm"><use href="#file-text" /></svg> 查看详情</button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="dock">
+                  <div class="dcol">
+                    <div class="cbox">
+                      <div class="cph">继续输入…（已恢复可输入）</div>
+                      <div class="crow"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="cspacer"></div><div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg></div><div class="csend dim"><svg class="i sm"><use href="#up" /></svg></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>错误卡片 · 重试</b>（主按钮 · 蓝）：从中断处<b>重发本轮</b>、继续产出；<b>查看详情</b>（次按钮）→ 展开完整错误堆栈 / 跳右栏诊断。卡片只读，不进 Markdown 正文。左栏对话树该对话显<b>红错误点</b>。</div></li>
+              <li><span class="pin">2</span><div><b>发送失败 · 重试</b>（用户气泡下红字链接）：本条没成功送达（如发送瞬断）→ 点「重试」<b>重发本条</b>；成功后红字消失、Agent 正常接续。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>错误卡片占满消息列宽、嵌在 Agent 轮次内；发送失败提示贴在用户气泡正下方右对齐。<b>紧凑态</b>：按钮换行、卡片满宽。</dd>
+                <dt>错误（本屏核心）</dt>
+                <dd>红边 + 警示图标 + <b>人话错误摘要</b>（什么失败 / 为什么 / 能怎么办）+ 重试 / 查看详情；已产出内容<b>保留</b>。</dd>
+                <dt>离线导致</dt>
+                <dd>若错因是主机 / 模型离线 → 摘要点明「主机已离线」并联动输入区禁用（S7 第 4 态）+ 重连后可重试。</dd>
+                <dt>重试中</dt>
+                <dd>点重试 → 卡片转「正在重试…」（小进度环），成功转流式（S4）/ 再失败则刷新摘要。</dd>
+                <dt>默认 / 悬浮</dt>
+                <dd>恢复后输入区可用（发送 dim 待输入）；按钮 hover 加深、主按钮 hover 深蓝。</dd>
+                <dt>深色</dt>
+                <dd>错误卡片红边 #f85149 + 极淡红底；红错误点 #f85149。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i"><b>错误卡片</b>右键 = 复制错误信息 / 查看详情 / 重试 / 在右栏诊断打开。<b>失败用户消息</b>右键 = 重试 / 编辑并重发 / 复制。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S7 输入区全态 ============================================================ -->
+    <section class="screen" id="s7">
+      <div class="screen-head">
+        <span class="tag new">消息流 · 7</span>
+        <h2>底部输入区 · 全态画廊（空 / 输入中 / 发送中·运行 / 禁用·离线）</h2>
+        <p>
+          输入区<b>沿用外壳既有 Composer</b>，本稿只定义它在对话页的<b>四种态与摆位</b>（不重定义其内部附件 / 思考 / 联网 / 模型选择器能力）。把四态画廊摆进中区：<b>① 空</b>（占位 · 发送 dim）<b>② 输入中</b>（有内容 · 聚焦环 · 发送转蓝）<b>③ 发送中·运行</b>（停止键 + 排队条）<b>④ 禁用·离线</b>（整条灰化 + 重连提示）。
+        </p>
+      </div>
+      <div class="frame" id="shot7">
+        <div class="win tall">
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">重构 checkout 子系统</span>
+            <button class="tb-proj"><span>paseo-main</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>3</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on" style="padding-left: 24px"><span class="twedge leaf"></span><svg class="i sm ti"><use href="#robot" /></svg><span class="tname">重构 checkout 子系统</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <div class="card main">
+              <div class="chatv">
+                <div class="gallery">
+                  <!-- ① 空 -->
+                  <div class="gcase">
+                    <div class="gl"><span class="gn">1</span> 空 · 默认（发送不可用）</div>
+                    <div class="cbox">
+                      <div class="cph">继续输入…<span class="pinb" style="position:static;margin-left:4px">1</span></div>
+                      <div class="crow"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="ctool"><svg class="i sm"><use href="#brain" /></svg> 思考</div><div class="ctool"><svg class="i sm"><use href="#globe" /></svg> 联网</div><div class="cspacer"></div><div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> GLM <span class="sep">·</span> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg></div><div class="csend dim"><svg class="i sm"><use href="#up" /></svg></div></div>
+                    </div>
+                  </div>
+                  <!-- ② 输入中 -->
+                  <div class="gcase">
+                    <div class="gl"><span class="gn">2</span> 输入中 · 聚焦（发送可用）</div>
+                    <div class="cbox focus">
+                      <div class="ctxt">把广播逻辑也迁移过去，保持订阅者不受影响<span class="tcaret"></span><span class="pinb" style="position:static;margin-left:2px">2</span></div>
+                      <div class="crow"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="ctool on" style="background:var(--secondary);color:var(--fg);border-color:var(--border)"><svg class="i sm"><use href="#brain" /></svg> 思考</div><div class="cspacer"></div><div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg></div><div class="csend go"><svg class="i sm"><use href="#up" /></svg><span class="pinb">3</span></div></div>
+                    </div>
+                  </div>
+                  <!-- ③ 发送中·运行（停止 + 排队） -->
+                  <div class="gcase">
+                    <div class="gl"><span class="gn">3</span> 发送中 · 运行中（停止 + 继续输入则排队）</div>
+                    <div class="cbox">
+                      <div class="queue"><span class="qd"></span> 已排队 · 本轮结束后发送：<b style="color:var(--fg);font-weight:500">&nbsp;跑一下完整测试套件</b><span class="qx"><svg class="i sm"><use href="#x" /></svg></span><span class="pinb" style="position:static;margin-left:4px">5</span></div>
+                      <div class="cph">继续输入会继续排队…</div>
+                      <div class="crow"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="cspacer"></div><div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg></div><div class="cstop"><span class="sq"></span><span class="pinb">4</span></div></div>
+                    </div>
+                  </div>
+                  <!-- ④ 禁用·离线 -->
+                  <div class="gcase">
+                    <div class="gl"><span class="gn">4</span> 禁用 · 主机离线（整条灰化 + 重连提示）</div>
+                    <div class="cbox dis">
+                      <div class="offbar"><svg class="i sm"><use href="#wifi-off" /></svg> 主机「本机 · 我的 Mac」已离线 · 正在重连…<a class="rl" href="#">立即重连</a><span class="pinb" style="position:static;margin-left:4px">6</span></div>
+                      <div class="cph">主机离线，重连后可继续输入</div>
+                      <div class="crow"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="cspacer"></div><div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg></div><div class="csend dim"><svg class="i sm"><use href="#up" /></svg></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>空态</b>：占位「继续输入…」，发送键<b>灰 dim 不可点</b>。底栏：附件 / 思考 / 联网 + 模型选择器（均沿用外壳）。</div></li>
+              <li><span class="pin">2</span><div><b>输入中</b>：有内容 → 蓝<b>聚焦环</b>；多行自动增高（到上限内部滚动）。Shift+回车换行、回车发送。</div></li>
+              <li><span class="pin">3</span><div><b>发送键转蓝</b>：有内容时 dim→primary 蓝；点击 / 回车发出 → 清空输入、消息进流、Agent 进思考（S5）。</div></li>
+              <li><span class="pin">4</span><div><b>停止键</b>：Agent 运行中发送键变停止（黑底方块）；点 → 打断本轮（同 S4）。</div></li>
+              <li><span class="pin">5</span><div><b>排队条</b>：运行中再发 → 该条<b>排队</b>（蓝点 + 文案 + ✕ 撤销）；本轮结束自动发送。可点条上「立即发送」插队 / ✕ 取消（多条排队则纵向堆叠）。</div></li>
+              <li><span class="pin">6</span><div><b>离线禁用</b>：主机离线 → 整条输入区<b>灰化不可交互</b>，顶部 amber 重连条 + 「立即重连」。重连成功 → 自动恢复可输入、历史保持可读。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>真实摆位 = 贴<b>中区底部</b>（dock，见 S1～S6）；本屏为讲解把四态画廊纵向铺在中区。max-width 随消息列。<b>紧凑态</b>：输入区固定贴底、随键盘上移、底栏工具收进溢出。</dd>
+                <dt>空 / 输入中</dt>
+                <dd>空 = 发送 dim；输入中 = 聚焦环 + 发送蓝。二者为常态切换。</dd>
+                <dt>发送中·运行</dt>
+                <dd>发送→停止；新输入排队不打断；左栏对话树绿运行点。</dd>
+                <dt>禁用·离线</dt>
+                <dd>主机离线 / 会话只读 / 无可用模型 → 灰化 + 对应提示条（离线→重连 / 无模型→去配置，去配置抓手语义同 welcome-home）。</dd>
+                <dt>加载</dt>
+                <dd>发出瞬间发送键短暂转小进度环，随即进入 S5 思考态。</dd>
+                <dt>深色</dt>
+                <dd>聚焦环蓝 #1f6feb、停止键白底深块、排队条蓝点 #1f6feb、离线条 amber #d29922。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i"><b>输入框</b>右键 = 系统文本菜单（剪切 / 复制 / 粘贴 / 粘贴为纯文本）。<b>排队项</b>右键 = 立即发送 / 编辑 / 删除。其余（附件 / 模型选择器）沿用外壳输入区，本稿不重定义。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S8 长对话滚动·回到底 ============================================================ -->
+    <section class="screen" id="s8">
+      <div class="screen-head">
+        <span class="tag new">消息流 · 8</span>
+        <h2>长对话滚动 + 回到底部（含未读新消息指示）</h2>
+        <p>
+          长对话里用户<b>上滚读历史</b>：顶部消息被裁切并<b>渐隐</b>，离开底部后中区下方浮出<b>回到底部</b>圆按钮。若此刻 Agent 仍在产出 → 按钮带<b>「N 条新消息」</b>指示；点它<b>回到底并恢复粘底跟随</b>。
+        </p>
+      </div>
+      <div class="frame" id="shot8">
+        <div class="win">
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">重构 checkout 子系统</span>
+            <button class="tb-proj"><span>paseo-main</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>3</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on" style="padding-left: 24px"><span class="twedge leaf"></span><svg class="i sm ti"><use href="#robot" /></svg><span class="dot run"></span><span class="tname">重构 checkout 子系统</span></div>
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot idle"></span><span class="tname">VoiceSession 迁移</span><span class="ttime">8 分钟前</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot"><div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div></div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <div class="card main">
+              <div class="chatv">
+                <div class="scroll">
+                  <div class="col" style="padding-top:14px">
+                    <!-- 顶部被裁切渐隐的历史 -->
+                    <div class="turn topfade-cut">
+                      <div class="am">
+                        <div class="av"><svg class="i sm"><use href="#spark" /></svg></div>
+                        <div class="body"><div class="md"><p>……已经把 <code class="inl">CheckoutReadSession</code> 接进了主类，下面继续迁移广播表，并保持订阅者 API 不变。</p></div></div>
+                      </div>
+                    </div>
+                    <div class="turn"><div class="um"><div class="ub">顺便把缓存失效策略也说明一下。</div></div></div>
+                    <div class="turn">
+                      <div class="am">
+                        <div class="av"><svg class="i sm"><use href="#spark" /></svg></div>
+                        <div class="body">
+                          <div class="who"><b>Claude Code</b><span class="mdl">· glm-4.6</span></div>
+                          <div class="md">
+                            <p>缓存按 <strong>写穿 + 版本号</strong> 失效：每次写入 <code class="inl">revision++</code>，读 session 命中后比对版本，过期则回源。</p>
+                            <div class="tool ok"><div class="tool-h"><svg class="i sm ti"><use href="#file-text" /></svg><span class="tn">读取</span><span class="ts">checkout-cache.ts · 88 行</span><span class="st"><svg class="i sm"><use href="#check-c" /></svg></span><svg class="i sm chev"><use href="#chev-r" /></svg></div></div>
+                            <p>下面我把失效逻辑也搬进读 session，确保单一职责。</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <!-- 回到底部按钮（带未读） -->
+                  <div class="scrollbtn"><span class="ic"><svg class="i sm"><use href="#down" /></svg></span><span class="nb">3 条新消息</span><span class="pinb">1</span></div>
+                </div>
+                <div class="dock">
+                  <div class="dcol">
+                    <div class="cbox">
+                      <div class="cph">追问会在本轮结束后发送…</div>
+                      <div class="crow"><div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div><div class="cspacer"></div><div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg></div><div class="cstop"><span class="sq"></span></div></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>回到底部按钮</b>：用户上滚<b>离开底部</b>即从中区下沿浮出（圆 / 胶囊）。Agent 同时产出 → 带<b>「N 条新消息」</b>蓝字。点它 → <b>平滑滚到底</b>并<b>恢复粘底跟随</b>；按钮随即消失。已在底部时<b>不显示</b>。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>消息列在 scroll 容器内纵向滚动；顶部 22px <b>渐隐遮罩</b>提示「上方还有内容」。回到底部按钮<b>绝对定位</b>于中区下沿居中、浮在消息上方、不挡输入区。<b>紧凑态</b>：按钮缩为纯图标圆点贴右下。</dd>
+                <dt>默认（在底部）</dt>
+                <dd>粘底跟随最新；<b>不显示</b>回到底部按钮。</dd>
+                <dt>上滚中（本屏核心）</dt>
+                <dd>离开底部 → 停止跟随、按钮浮现；纯读历史无新消息 → 按钮只显<b>箭头</b>无数字。</dd>
+                <dt>有未读</dt>
+                <dd>上滚期间 Agent 产出 → 按钮显<b>「N 条新消息」</b>；回到底清零。</dd>
+                <dt>加载更早</dt>
+                <dd>滚到<b>顶部</b>且还有更早历史 → 顶部<b>加载更多</b>（小进度环），补齐后维持滚动锚点不跳。</dd>
+                <dt>空 / 错误 / 离线</dt>
+                <dd>短对话不触发按钮；加载更早失败 → 顶部「加载失败 · 重试」；离线 → 历史只读可滚、输入区禁用。</dd>
+                <dt>深色</dt>
+                <dd>按钮白底→ #161b22 卡 + 边框 #30363d；渐隐遮罩用背景 #0d1117；未读数蓝 #1f6feb。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">滚动区 / 回到底部按钮<b>无右键菜单</b>。消息本身右键沿用 S1 轮次菜单。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 逐屏离屏渲染助手（system Chrome headless · ?shot=sN 只留该屏 .frame） ============ -->
+    <script>
+      (function () {
+        var p = new URLSearchParams(location.search);
+        var shot = p.get("shot");
+        if (!shot) return;
+        var target = document.getElementById(shot);
+        if (!target) return;
+        var frame = target.querySelector(".frame");
+        if (!frame) return;
+        var clone = frame.cloneNode(true);
+        Array.prototype.forEach.call(Array.prototype.slice.call(document.body.children), function (el) {
+          if (el.tagName && el.tagName.toLowerCase() === "svg") return; /* 保留 sprite，<use> 才有效 */
+          el.style.display = "none";
+        });
+        document.body.style.padding = "20px";
+        document.body.style.background = "#eaeef2";
+        var holder = document.createElement("div");
+        holder.style.maxWidth = "1480px";
+        holder.style.margin = "0 auto";
+        holder.appendChild(clone);
+        document.body.appendChild(holder);
+      })();
+    </script>
+  </body>
+</html>

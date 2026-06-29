@@ -1,0 +1,1057 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · UI 设计稿 · 主界面布局 + 主题色（参照 CodePilot · 骨架版）</title>
+    <style>
+      /* =========================================================================
+         主题令牌 = CodePilot「github」主题（themes/github.json 原值）· 内部命名 codePilot
+         —— GitHub Primer 浅色：冷灰中性 + GitHub 蓝仅点缀。选中态 = 很淡的灰
+         （sidebar-accent #eaeef2 + 深灰字 #3d444d），绝非黑底白字 / 绝非 primary。
+         oklch 为准（headless Chrome 支持），hex 为近似兜底。
+         ========================================================================= */
+      :root {
+        --bg: oklch(1 0 0);                        /* #ffffff 主背景/中区/右栏/目录树 */
+        --fg: oklch(0.254 0.011 254);             /* #1f2328 主文字·近黑 */
+        --card: oklch(1 0 0);                      /* #ffffff */
+        --primary: oklch(0.540 0.191 257.5);      /* #0969da GitHub 蓝 · 仅按钮/链接/focus/品牌强调 */
+        --primary-fg: oklch(1 0 0);               /* #ffffff 蓝底白字 */
+        --secondary: oklch(0.947 0.007 247.9);    /* #eaeef2 次级浅灰底 */
+        --secondary-fg: oklch(0.338 0.015 252.3); /* #3d444d */
+        --muted: oklch(0.947 0.007 247.9);        /* #eaeef2 */
+        --muted-fg: oklch(0.531 0.017 251.3);     /* #59636e 次要文字灰 */
+        --accent: oklch(0.978 0.003 247.9);       /* #f6f8fa 极淡冷灰·hover 底 */
+        --accent-fg: oklch(0.338 0.015 252.3);    /* #3d444d */
+        --border: oklch(0.876 0.012 248);         /* #d1d9e0 边框浅灰 */
+        --input: oklch(0.876 0.012 248);
+        --ring: oklch(0.540 0.191 257.5);         /* #0969da focus 蓝环 */
+        --sidebar: oklch(0.978 0.003 247.9);      /* #f6f8fa 左栏背景·浅冷灰 */
+        --sidebar-accent: oklch(0.947 0.007 247.9);    /* #eaeef2 选中/hover 高亮·很淡的灰（不是黑！） */
+        --sidebar-accent-fg: oklch(0.338 0.015 252.3); /* #3d444d 选中态文字·深灰 */
+        --destructive: oklch(0.552 0.205 24.5);   /* #cf222e 危险红 */
+        --success: oklch(0.503 0.137 152);        /* ≈#1a7f37 成功绿 */
+        --warning: oklch(0.555 0.118 75);         /* ≈#9a6700 警告橙 */
+        --info: oklch(0.540 0.191 257.5);         /* #0969da 信息蓝 */
+        /* 几何 —— GitHub 偏扁平：靠 1px 边框分隔，圆角克制 */
+        --radius: 12px;
+        --r-card: 12px;       /* 浮动卡片圆角（比 macOS 版收薄） */
+        --r-ctrl: 6px;        /* 控件圆角 */
+        --r-sm: 6px;
+        /* 卡片质感 = GitHub 扁平：清晰 1px 边框 + 轻投影（弱化 macOS 厚玻璃，去内高光） */
+        --card-drop: 0 1px 0 rgba(31, 35, 40, 0.04), 0 1px 3px rgba(31, 35, 40, 0.08);
+        --card-ring: 0 0 #0000;
+        /* 窗口背景层 = macOS 'sidebar' vibrancy 磨砂材质（半透磨砂，露桌面壁纸）。
+           静态 HTML 无真 vibrancy → 用「磨砂浅冷灰 + 一丝壁纸冷调渐变」模拟；
+           顶栏(surface-bar=transparent) + gutter 留白直接露这层 → 整窗读起来「微透磨砂」。 */
+        --win-backdrop:
+          radial-gradient(135% 90% at 12% -10%, rgba(255, 255, 255, 0.66), rgba(255, 255, 255, 0) 55%),
+          radial-gradient(120% 120% at 108% 115%, rgba(174, 192, 214, 0.40), rgba(174, 192, 214, 0) 50%),
+          linear-gradient(152deg, #edf0f4 0%, #e4e9ef 48%, #e9edf1 100%);
+        /* 左栏 surface = white 58% over 透明（半透磨砂，带窗口材质 tint）；内容卡保持实色白 */
+        --sidebar-surface: rgba(255, 255, 255, 0.58);
+        --win-shadow: 0 12px 30px -16px rgba(31, 35, 40, 0.16), 0 2px 6px -3px rgba(31, 35, 40, 0.10);
+        --ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+      .dark {
+        --bg: oklch(0.176 0.014 258.4);           /* #0d1117 */
+        --fg: oklch(0.943 0.011 243.7);           /* #e6edf3 近白 */
+        --card: oklch(0.220 0.016 256.8);         /* #161b22 */
+        --primary: oklch(0.569 0.202 259.7);      /* #1f6feb GitHub 蓝(深) */
+        --primary-fg: oklch(1 0 0);
+        --secondary: oklch(0.267 0.015 256.8);    /* #21262d */
+        --secondary-fg: oklch(0.857 0.014 248);
+        --muted: oklch(0.267 0.015 256.8);
+        --muted-fg: oklch(0.662 0.018 250.9);     /* ≈#8b949e */
+        --accent: oklch(0.246 0.015 256.8);       /* #1c2128 */
+        --accent-fg: oklch(0.943 0.011 243.7);
+        --border: oklch(0.330 0.015 252.3);       /* #30363d */
+        --input: oklch(0.330 0.015 252.3);
+        --ring: oklch(0.569 0.202 259.7);
+        --sidebar: oklch(0.104 0.019 248.3);      /* #010409 左栏(深) */
+        --sidebar-accent: oklch(0.267 0.015 256.8);    /* #21262d 选中(深) */
+        --sidebar-accent-fg: oklch(0.943 0.011 243.7); /* #e6edf3 */
+        --destructive: oklch(0.665 0.205 27.0);   /* #f85149 */
+        --success: oklch(0.65 0.15 152);          /* ≈#3fb950 */
+        --warning: oklch(0.74 0.13 80);           /* ≈#d29922 */
+        --info: oklch(0.569 0.202 259.7);
+        --card-drop: 0 1px 0 rgba(1, 4, 9, 0.30), 0 1px 3px rgba(1, 4, 9, 0.40);
+        --card-ring: 0 0 #0000;
+        --win-backdrop:
+          radial-gradient(135% 90% at 12% -10%, rgba(60, 72, 92, 0.50), rgba(60, 72, 92, 0) 55%),
+          radial-gradient(120% 120% at 108% 115%, rgba(20, 28, 44, 0.70), rgba(20, 28, 44, 0) 50%),
+          linear-gradient(152deg, #11151c 0%, #0b0e14 55%, #0d1117 100%);
+        --sidebar-surface: rgba(1, 4, 9, 0.55);
+        --win-shadow: 0 12px 30px -16px rgba(0, 0, 0, 0.60), 0 2px 6px -3px rgba(0, 0, 0, 0.50);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        background: #eaeef2;
+        color: var(--fg);
+        font-family: var(--ui);
+        -webkit-font-smoothing: antialiased;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+      body { padding: 40px 32px 120px; }
+      /* button reset —— 去掉浏览器默认按钮的灰边框/灰底（上版顶栏胶囊「看着像选中色」的真因） */
+      button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+      svg.i { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+      .i.xs { width: 12px; height: 12px; }
+      .i.sm { width: 14px; height: 14px; }
+      .i.md { width: 16px; height: 16px; }
+      .i.lg { width: 20px; height: 20px; }
+
+      /* ===== board header ===== */
+      .board-h { max-width: 1480px; margin: 0 auto 24px; }
+      .board-h h1 { font-size: 30px; font-weight: 600; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px; color: #1f2328; }
+      .board-h h1 .logo { width: 34px; height: 34px; border-radius: 9px; background: #0969da; display: flex; align-items: center; justify-content: center; color: #fff; }
+      .board-h .sub { color: #59636e; font-size: 14px; margin-top: 8px; max-width: 1040px; }
+      .board-h .sub b { color: #1f2328; font-weight: 600; }
+      .req-log { max-width: 1480px; margin: 0 auto 18px; border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; overflow: hidden; }
+      .req-log .rl-h { padding: 10px 16px; background: #eaeef2; font-size: 12px; font-weight: 600; color: #59636e; letter-spacing: 0.4px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #d1d9e0; }
+      .req-log table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      .req-log td, .req-log th { padding: 8px 16px; text-align: left; border-top: 1px solid #d1d9e0; vertical-align: top; }
+      .req-log th { color: #59636e; font-weight: 500; font-size: 12px; }
+      .req-log td:first-child { color: #59636e; white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .pill { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+      .pill.p0 { color: #3d444d; background: rgba(120, 113, 108, 0.16); }
+      .pill.new { color: #0969da; background: rgba(9, 105, 218, 0.12); }
+      .nav-idx { max-width: 1480px; margin: 0 auto 30px; display: flex; flex-wrap: wrap; gap: 8px; }
+      .nav-idx a { font-size: 12px; color: #59636e; text-decoration: none; padding: 5px 11px; border: 1px solid #d1d9e0; border-radius: 9999px; background: #f6f8fa; }
+      .nav-idx a:hover { color: #1f2328; background: #eaeef2; }
+      .nav-idx a.new { color: #0969da; border-color: rgba(9, 105, 218, 0.3); }
+      .note { max-width: 1480px; margin: 0 auto 30px; font-size: 13px; color: #59636e; display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border: 1px dashed #d1d9e0; border-radius: 10px; background: #f6f8fa; }
+      .note b { color: #1f2328; }
+
+      /* ===== screen scaffold ===== */
+      .screen { max-width: 1480px; margin: 0 auto 60px; scroll-margin-top: 20px; }
+      .screen-head { margin-bottom: 14px; }
+      .screen-head .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #3d444d; background: rgba(120, 113, 108, 0.16); padding: 2px 9px; border-radius: 9999px; margin-bottom: 8px; }
+      .screen-head .tag.new { color: #0969da; background: rgba(9, 105, 218, 0.12); }
+      .screen-head h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.2px; color: #1f2328; }
+      .screen-head p { color: #59636e; font-size: 14px; margin-top: 5px; max-width: 1040px; }
+      .screen-head p b { color: #1f2328; font-weight: 600; }
+
+      /* =========================================================================
+         FRAME = macOS 浮窗（窗口背景 + 整窗大投影 + 圆角）
+         ========================================================================= */
+      .frame { border-radius: 16px; overflow: hidden; background: var(--win-backdrop); box-shadow: var(--win-shadow); position: relative; }
+      .win { display: flex; flex-direction: column; gap: 4px; padding: 8px 16px 16px; height: 648px; }
+      .win.tall { height: 720px; }
+
+      /* ===== 统一顶栏（透明，融入 gutter 背景，横跨整宽，h40） ===== */
+      .topbar { height: 40px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 2px; }
+      .lights { display: flex; gap: 8px; padding-left: 4px; margin-right: 8px; }
+      .lights span { width: 12px; height: 12px; border-radius: 9999px; }
+      .lights .r { background: #ff5f57; }
+      .lights .y { background: #febc2e; }
+      .lights .g { background: #28c840; }
+      .tbtn { width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted-fg); position: relative; flex: none; }
+      .tbtn:hover { background: color-mix(in oklch, var(--fg) 7%, transparent); color: var(--fg); }
+      .tbtn.on { background: var(--secondary); color: var(--fg); }       /* panel 打开时 toggle 进入 secondary 态 */
+      .tb-title { font-size: 13px; font-weight: 500; color: var(--fg); max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      /* 项目名 = ghost 按钮：静止无底无边框 muted 灰字，hover 才浮极淡灰底 #f6f8fa + 字变深 */
+      .tb-proj { height: 26px; padding: 0 8px; border-radius: var(--r-ctrl); font-size: 12px; color: var(--muted-fg); display: inline-flex; align-items: center; gap: 5px; max-width: 200px; background: none; border: none; }
+      .tb-proj:hover { background: var(--accent); color: var(--fg); }
+      .tb-spacer { flex: 1; }
+      .tb-right { display: flex; align-items: center; gap: 4px; }
+      /* 分支 = 裸 button：rounded-md 无 border 无 bg，hover 字变深 */
+      .tb-branch { height: 28px; padding: 0 7px; border-radius: var(--r-ctrl); font-size: 12px; color: var(--muted-fg); display: inline-flex; align-items: center; gap: 5px; background: none; border: none; }
+      .tb-branch:hover { background: var(--accent); color: var(--fg); }
+      .tb-branch .dirty { display: inline-flex; align-items: center; gap: 2px; font-size: 11px; color: var(--warning); }
+      .tb-branch .dirty .d { width: 6px; height: 6px; border-radius: 9999px; background: var(--warning); }
+      .pinb { display: inline-flex; align-items: center; justify-content: center; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 9999px; background: var(--primary); color: var(--primary-fg); font-size: 10px; font-weight: 700; position: absolute; top: -5px; right: -5px; font-variant-numeric: tabular-nums; }
+      .tb-branch .pinb, .tb-proj .pinb { position: static; margin-left: 3px; }
+
+      /* ===== 内容行（gap 0，卡间靠 8px ResizeGutter） ===== */
+      .row { flex: 1; min-height: 0; display: flex; gap: 0; }
+
+      /* ===== 浮动卡片（GitHub 扁平：12px 圆角 + 清晰 1px 边框 + 轻投影，无玻璃内高光） ===== */
+      .card { height: 100%; border-radius: var(--r-card); border: 1px solid var(--border); box-shadow: var(--card-drop); background: var(--card); overflow: hidden; display: flex; flex-direction: column; flex: none; position: relative; }
+      .card.main { flex: 1; min-width: 0; background: var(--bg); }
+      .card.sidebar { width: 240px; background: var(--sidebar-surface); backdrop-filter: blur(22px) saturate(1.4); -webkit-backdrop-filter: blur(22px) saturate(1.4); }   /* 左栏 = white58% over · 半透磨砂（vibrancy tint）· min180/max300/默认240 */
+      .card.workspace { width: 480px; background: var(--bg); }               /* 右栏(工作面板) · min320/max800/默认480 */
+      .card.filetree { width: 280px; background: var(--bg); }                /* 目录树 · min220/max500/默认280 */
+
+      /* ResizeGutter（8px，悬浮/拖拽时中央 2px 提示线） */
+      .gutter { width: 8px; flex: none; align-self: stretch; display: flex; align-items: center; justify-content: center; cursor: col-resize; position: relative; }
+      /* 拖拽手柄 affordance：常态就浮一条淡灰竖线（让「可拖」一眼可见），hover / 拖拽态加长加深 + col-resize（对应 CodePilot ResizeGutter）。 */
+      .gutter::after { content: ""; width: 3px; height: 40px; border-radius: 3px; background: color-mix(in oklch, var(--fg) 13%, transparent); transition: all 0.12s; }
+      .gutter:hover::after, .gutter.hot::after { height: 120px; background: color-mix(in oklch, var(--fg) 32%, transparent); }
+      /* 拖拽宽度气泡（demo 左栏↔画布边界，悬浮在边界右侧、不挤占布局） */
+      .wbub { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 11px; font-weight: 500; color: var(--fg); background: #fff; border: 1px solid var(--border); border-radius: 9999px; padding: 3px 9px; box-shadow: var(--card-drop); display: inline-flex; align-items: center; gap: 5px; z-index: 6; }
+      .wbub .ar { color: var(--muted-fg); font-size: 12px; font-weight: 700; }
+
+      /* ===== 左栏（Helm 对话树：主机切换器 / 新对话 / 搜索 / 项目→对话→subagent / 设置） ===== */
+      .sb-body { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 8px 8px 8px; gap: 2px; }
+      /* 新对话 = ghost 行（源码 variant="ghost"），不是 primary 实心、不是黑底白字 */
+      .sb-new { display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 10px; border-radius: var(--r-ctrl); background: transparent; color: var(--fg); font-size: 13px; font-weight: 400; }
+      .sb-new:hover { background: var(--sidebar-accent); }
+      .sb-new .i { color: var(--muted-fg); }
+      .sb-item { display: flex; align-items: center; gap: 10px; height: 32px; padding: 0 10px; border-radius: var(--r-ctrl); color: var(--fg); font-size: 13px; position: relative; }
+      .sb-item .i { color: var(--muted-fg); }
+      .sb-item:hover { background: var(--sidebar-accent); }
+      /* 选中·激活 = sidebar-accent 很淡的灰 + 深灰字 + 加粗（绝非黑底白字） */
+      .sb-item.active { background: var(--sidebar-accent); color: var(--sidebar-accent-fg); font-weight: 500; }
+      .sb-item.active .i { color: var(--sidebar-accent-fg); }
+      .sb-item .kbd { margin-left: auto; font-size: 10px; color: var(--muted-fg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 4px; font-family: var(--mono); }
+      .sb-sec { font-size: 11px; font-weight: 600; color: var(--muted-fg); letter-spacing: 0.3px; padding: 12px 10px 5px; display: flex; align-items: center; gap: 6px; text-transform: uppercase; }
+      .sb-sec .act { margin-left: auto; opacity: 0.4; }
+      .sb-group { display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 10px; border-radius: var(--r-ctrl); font-size: 13px; color: var(--fg); }
+      .sb-group:hover { background: var(--sidebar-accent); }
+      .sb-conv { display: flex; align-items: center; gap: 8px; height: 30px; padding: 0 10px 0 26px; border-radius: var(--r-ctrl); font-size: 13px; color: var(--muted-fg); position: relative; }
+      .sb-conv:hover { background: var(--sidebar-accent); color: var(--sidebar-accent-fg); }
+      .sb-conv.on { background: var(--sidebar-accent); color: var(--sidebar-accent-fg); font-weight: 500; }
+      .sb-conv .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .sb-conv .run { width: 7px; height: 7px; border-radius: 9999px; background: var(--success); flex: none; }
+      .sb-spacer { flex: 1; min-height: 8px; }
+      .sb-foot { padding-top: 4px; margin-top: 2px; }
+      .sb-empty { padding: 10px; color: color-mix(in oklch, var(--muted-fg) 80%, transparent); font-size: 12px; }
+
+      /* ===== 左栏 · 主机切换器胶囊（Helm 净新 · 左栏顶 · 新对话之上 · 全栏宽） ===== */
+      .host-switch { position: relative; margin: 0 0 2px; }
+      /* 主机切换器 = 无边框侧边栏项（与「新对话」对齐：同 padding 0 10 / gap 9 / 高 36；绿点放进 14px 图标槽，文字左对齐到同一基线）。不再是带边框下拉框；仍可点开切主机。 */
+      .host-pill { display: flex; align-items: center; gap: 9px; height: 36px; padding: 0 10px; border-radius: var(--r-ctrl); background: transparent; font-size: 13px; color: var(--fg); }
+      .host-pill:hover { background: var(--sidebar-accent); }
+      .host-pill .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .host-pill .i { color: var(--muted-fg); }
+      .host-pill .hdot { width: 14px; height: 14px; flex: none; border-radius: 9999px; background: radial-gradient(circle, var(--success) 0 3.5px, transparent 4px); }
+
+      /* ===== 左栏 · 对话树（项目 → 对话(根) → subagent · 无限嵌套 · chevron 前置 · 正文 14px） ===== */
+      .tree { display: flex; flex-direction: column; gap: 1px; }
+      .tnode { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: var(--r-ctrl); font-size: 14px; color: var(--muted-fg); position: relative; min-height: 32px; }
+      /* 选中态 + hover 态都用 sidebar-accent 淡灰底 + 深灰字（对上董事长「选中淡灰」） */
+      .tnode:hover { background: var(--sidebar-accent); color: var(--sidebar-accent-fg); }
+      .tnode.on { background: var(--sidebar-accent); color: var(--sidebar-accent-fg); font-weight: 500; }
+      .tnode.proj { color: var(--fg); }
+      .twedge { flex: none; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; color: var(--muted-fg); border-radius: 3px; }
+      .twedge .chev { transition: transform 0.12s ease; }   /* chevron 前置：收起 0° / 展开 90° */
+      .twedge.exp .chev { transform: rotate(90deg); }
+      .twedge.leaf { visibility: hidden; }                  /* 叶子节点（无子）隐藏箭头但占位 */
+      .twedge:hover { background: var(--border); }
+      .tnode .ti { flex: none; color: var(--muted-fg); }    /* Folder / Bot 图标 */
+      .tname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tnode .dot { width: 7px; height: 7px; border-radius: 9999px; flex: none; }
+      .tnode .dot.run { background: var(--success); }
+      .tnode .dot.idle { background: var(--muted-fg); }
+      .tnode .dot.dan { background: var(--destructive); }
+      .tnode .dot.init { background: var(--info); box-shadow: 0 0 0 3px color-mix(in oklch, var(--info) 22%, transparent); }
+      .badge-sub { flex: none; font-size: 10px; color: var(--muted-fg); background: var(--border); border-radius: 9999px; padding: 0 6px; line-height: 16px; }
+      /* 行尾 hover 浮出操作（绝对定位，不撑宽行） */
+      .tact { margin-left: auto; display: none; align-items: center; gap: 2px; color: var(--muted-fg); }
+      .tnode:hover .tact { display: flex; }
+      .tact .tbtn { padding: 2px; border-radius: 4px; display: flex; }
+      .tact .tbtn:hover { background: var(--border); color: var(--fg); }
+      .ttime { margin-left: auto; font-size: 11px; color: var(--muted-fg); }
+      .tnode:hover .ttime { display: none; }
+      .tree-empty { padding: 7px 8px 7px 28px; color: var(--muted-fg); font-size: 13px; opacity: 0.85; }
+
+      /* ===== 中区画布 ===== */
+      .main-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+      /* 空态：居中问候 + composer */
+      .empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px; padding: 24px; }
+      .greet { font-size: 30px; font-weight: 600; letter-spacing: -0.5px; color: var(--fg); }
+      .greet .sub { display: block; font-size: 14px; font-weight: 400; color: var(--muted-fg); margin-top: 8px; text-align: center; }
+      .composer { width: 100%; max-width: 680px; }
+      .cbox { border: 1px solid var(--border); border-radius: 16px; background: var(--bg); box-shadow: 0 6px 20px -10px rgba(0, 0, 0, 0.1); padding: 14px 14px 10px; }
+      .cbox.focus { border-color: color-mix(in oklch, var(--primary) 55%, var(--border)); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 14%, transparent); }
+      .cph { font-size: 14px; color: var(--muted-fg); min-height: 40px; }
+      .crow { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+      .ctool { display: inline-flex; align-items: center; gap: 5px; height: 28px; padding: 0 9px; border-radius: 9px; font-size: 12px; color: var(--muted-fg); border: 1px solid transparent; }
+      .ctool .i { color: var(--muted-fg); }
+      .ctool:hover { background: var(--secondary); }
+      .ctool.icon { padding: 0 7px; }
+      .ctool.on { background: var(--secondary); color: var(--fg); border-color: var(--border); }
+      .cspacer { flex: 1; }
+      .cmodel { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 9px; border-radius: 9px; font-size: 12px; color: var(--fg); border: 1px solid var(--border); position: relative; }
+      .cmodel .lock { color: var(--muted-fg); }
+      .cmodel .sep { color: var(--muted-fg); }
+      .csend { width: 30px; height: 30px; border-radius: 9px; display: inline-flex; align-items: center; justify-content: center; }
+      .csend.dim { background: var(--secondary); color: var(--muted-fg); }
+      .csend.go { background: var(--primary); color: var(--primary-fg); }
+      .chips { display: flex; gap: 7px; margin-top: 12px; justify-content: center; flex-wrap: wrap; }
+      .chip { display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 9999px; font-size: 12px; color: var(--muted-fg); border: 1px solid var(--border); background: var(--bg); }
+      .chip .i { color: var(--muted-fg); }
+
+      /* 使用中态：对话流占位 */
+      .chat { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 46px 20px 18px; gap: 16px; overflow: hidden; position: relative; }
+      .msg { display: flex; gap: 12px; max-width: 88%; }
+      .msg .av { width: 28px; height: 28px; border-radius: 8px; flex: none; display: flex; align-items: center; justify-content: center; }
+      .msg .av.u { background: var(--secondary); color: var(--fg); }
+      .msg .av.a { background: var(--primary); color: var(--primary-fg); }
+      .msg .bd { font-size: 13px; color: var(--fg); }
+      .msg .bd .ln { height: 9px; border-radius: 5px; background: var(--secondary); margin-bottom: 7px; }
+      .msg.me { align-self: flex-end; flex-direction: row-reverse; }
+      .msg.me .bd { background: var(--secondary); border-radius: 12px; padding: 10px 12px; }
+      .chat-cmp { flex: none; padding: 12px 20px 16px; }
+      .ph-tag { position: absolute; top: 12px; right: 16px; font-size: 11px; color: var(--muted-fg); background: var(--secondary); border: 1px solid var(--border); border-radius: 9999px; padding: 3px 10px; }
+
+      /* ===== 右栏 workspace（工作面板 tab 壳） ===== */
+      .ws-tabs { flex: none; height: 38px; display: flex; align-items: center; gap: 2px; padding: 6px 6px 0; border-bottom: 1px solid var(--border); }
+      .ws-tab { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 11px; border-radius: 8px 8px 0 0; font-size: 12px; color: var(--muted-fg); }
+      .ws-tab .i { color: var(--muted-fg); }
+      .ws-tab.on { color: var(--fg); background: var(--bg); border: 1px solid var(--border); border-bottom-color: var(--bg); position: relative; top: 1px; font-weight: 500; }
+      .ws-tab.add { margin-left: 2px; color: var(--muted-fg); }
+      .ws-body { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--muted-fg); padding: 24px; text-align: center; }
+      .ph-ico { width: 40px; height: 40px; border-radius: 11px; background: var(--secondary); display: flex; align-items: center; justify-content: center; color: var(--muted-fg); }
+      .ph-t { font-size: 13px; color: var(--fg); font-weight: 500; }
+      .ph-s { font-size: 12px; color: var(--muted-fg); max-width: 220px; }
+
+      /* ===== 目录树 fileTree ===== */
+      .ft-head { flex: none; height: 38px; display: flex; align-items: center; gap: 8px; padding: 0 12px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; color: var(--fg); text-transform: uppercase; letter-spacing: 0.3px; }
+      .ft-head .act { margin-left: auto; color: var(--muted-fg); display: flex; gap: 6px; }
+      .ft-body { flex: 1; min-height: 0; padding: 8px 6px; display: flex; flex-direction: column; gap: 1px; }
+      .ft-row { display: flex; align-items: center; gap: 7px; height: 28px; border-radius: 7px; font-size: 13px; color: var(--fg); }
+      .ft-row:hover { background: color-mix(in oklch, var(--fg) 6%, transparent); }
+      .ft-row .i { color: var(--muted-fg); }
+      .ft-row.f { color: var(--muted-fg); }
+
+      /* ===== 结构拆解（S3） ===== */
+      .legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; margin-top: 16px; }
+      .lg-card { border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; padding: 14px 16px; }
+      .lg-card h4 { font-size: 13px; font-weight: 600; color: #1f2328; display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+      .lg-card .n { width: 20px; height: 20px; border-radius: 6px; background: #3d444d; color: #fff; font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; flex: none; }
+      .lg-card ul { list-style: none; font-size: 12.5px; color: #59636e; line-height: 1.7; }
+      .lg-card ul b { color: #1f2328; font-weight: 600; }
+      .zlabel { position: absolute; z-index: 5; background: #3d444d; color: #fff; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 7px; white-space: nowrap; box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.4); }
+      .zlabel.lt::after, .zlabel.tp::after { content: ""; position: absolute; }
+      .tdot { position: absolute; z-index: 6; width: 18px; height: 18px; border-radius: 9999px; background: #0969da; color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3); }
+
+      /* ===== 主题色板（S4） ===== */
+      .pal { border: 1px solid #d1d9e0; border-radius: 14px; overflow: hidden; background: #fff; }
+      .pal-row { display: flex; }
+      .pal-side { width: 120px; flex: none; padding: 16px 14px; display: flex; flex-direction: column; gap: 4px; justify-content: center; }
+      .pal-side.lt { background: #fff; }
+      .pal-side.dk { background: oklch(0.176 0.014 258.4); }
+      .pal-side .tt { font-size: 14px; font-weight: 600; }
+      .pal-side.lt .tt { color: #1f2328; }
+      .pal-side.dk .tt { color: #e6edf3; }
+      .pal-side .ss { font-size: 11px; color: #59636e; }
+      .pal-swatches { flex: 1; display: grid; grid-template-columns: repeat(8, 1fr); }
+      .sw { padding: 14px 10px; display: flex; flex-direction: column; gap: 6px; border-left: 1px solid rgba(140, 149, 159, 0.14); }
+      .sw .chip { width: 100%; height: 40px; border-radius: 8px; border: 1px solid rgba(140, 149, 159, 0.28); }
+      .sw .nm { font-size: 11px; font-weight: 600; }
+      .sw .vl { font-size: 9.5px; font-family: var(--mono); line-height: 1.3; }
+      .pal-row.lt .sw .nm { color: #1f2328; }
+      .pal-row.lt .sw .vl { color: #59636e; }
+      .pal-row.dk { background: oklch(0.176 0.014 258.4); }
+      .pal-row.dk .sw { border-left-color: rgba(255, 255, 255, 0.08); }
+      .pal-row.dk .sw .nm { color: #e6edf3; }
+      .pal-row.dk .sw .vl { color: #8b949e; }
+      .status-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+      .st-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: #1f2328; border: 1px solid #d1d9e0; border-radius: 9999px; padding: 5px 12px; background: #fff; }
+      .st-chip .d { width: 11px; height: 11px; border-radius: 9999px; }
+
+      /* ===== annotation block（house style 四维度） ===== */
+      .anno { border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; overflow: hidden; margin-top: 18px; }
+      .anno > .anno-h { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 11px 14px 4px; }
+      .anno-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; padding: 12px 14px 14px; align-items: start; }
+      .anno-card { border: 1px solid #d1d9e0; border-radius: 8px; background: #fff; overflow: hidden; }
+      .anno-card > .ac-h { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 10px 13px 7px; }
+      .anno-card.span2 { grid-column: 1 / -1; }
+      .anno ol { list-style: none; display: flex; flex-direction: column; }
+      .anno-card ol li { display: flex; gap: 10px; padding: 9px 13px; border-top: 1px solid #d1d9e0; font-size: 13px; line-height: 1.6; color: #59636e; }
+      .anno-card ol li b { color: #1f2328; font-weight: 600; }
+      .pin { flex: none; width: 18px; height: 18px; border-radius: 9999px; background: #0969da; color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+      .menulist { background: #fff; padding: 4px 13px 12px; font-size: 13px; line-height: 1.6; color: #59636e; }
+      .menulist .ml-grp { font-size: 11px; font-weight: 600; color: #3d444d; margin: 10px 0 4px; }
+      .menulist .ml-i { display: flex; gap: 8px; padding: 3px 0; }
+      .menulist .ml-i b { color: #1f2328; font-weight: 500; }
+      .menulist .ml-i.dz b { color: #cf222e; }
+      .menulist .ml-note { margin-top: 8px; padding-top: 8px; border-top: 1px solid #d1d9e0; color: #59636e; }
+      .menulist .ml-open { margin-top: 8px; padding: 7px 9px; border: 1px dashed rgba(9, 105, 218, 0.4); border-radius: 6px; background: rgba(9, 105, 218, 0.05); color: #59636e; }
+      .menulist .ml-open b { color: #0969da; }
+      .states { padding: 4px 13px 12px; }
+      .states dl { display: grid; grid-template-columns: 78px 1fr; gap: 8px 14px; font-size: 13px; line-height: 1.55; }
+      .states dt { color: #3d444d; font-weight: 600; }
+      .states dd { margin: 0; color: #59636e; }
+      .states dd b { color: #1f2328; font-weight: 500; }
+    </style>
+  </head>
+  <body>
+    <!-- ============ SVG SPRITE ============ -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="folder" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /></symbol>
+      <symbol id="folder-plus" viewBox="0 0 24 24"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" /><path d="M12 10v6M9 13h6" /></symbol>
+      <symbol id="pen" viewBox="0 0 24 24"><path d="M12 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path d="M18.4 2.6a1 1 0 0 1 3 3l-9 9-4 1 1-4z" /></symbol>
+      <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></symbol>
+      <symbol id="settings" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></symbol>
+      <symbol id="plugin" viewBox="0 0 24 24"><path d="M12 2v4M9 6h6v3a3 3 0 0 1-6 0z" /><path d="M12 12v4a4 4 0 0 0 4 4h2" /><circle cx="19" cy="20" r="2" /></symbol>
+      <symbol id="image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21" /></symbol>
+      <symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="kebab" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle cx="12" cy="19" r="1" /></symbol>
+      <symbol id="more-h" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
+      <symbol id="plus" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5v14" /></symbol>
+      <symbol id="terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6" /><path d="M12 19h8" /></symbol>
+      <symbol id="globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></symbol>
+      <symbol id="file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" /><path d="M14 2v4a2 2 0 0 0 2 2h4" /></symbol>
+      <symbol id="eye" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></symbol>
+      <symbol id="panel-l" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 3v18" /></symbol>
+      <symbol id="panel-r" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M15 3v18" /></symbol>
+      <symbol id="filetree" viewBox="0 0 24 24"><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="10" width="7" height="5" rx="1" /><rect x="14" y="17" width="7" height="4" rx="1" /><path d="M9 5.5h5M9 12.5h5M9 19.5h5M9 5.5V19.5" /></symbol>
+      <symbol id="lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></symbol>
+      <symbol id="brain" viewBox="0 0 24 24"><path d="M12 5a3 3 0 1 0-5.9.7A3 3 0 0 0 4 9a3 3 0 0 0 1 5.6V16a3 3 0 0 0 5 2 3 3 0 0 0 5-2v-1.4A3 3 0 0 0 20 9a3 3 0 0 0-2.1-3.3A3 3 0 0 0 12 5z" /></symbol>
+      <symbol id="clip" viewBox="0 0 24 24"><path d="m21.4 11-9.2 9.2a6 6 0 0 1-8.5-8.5l8.6-8.6A4 4 0 1 1 18 8.8l-8.6 8.6a2 2 0 0 1-2.8-2.9l8.5-8.5" /></symbol>
+      <symbol id="up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7" /><path d="M12 19V5" /></symbol>
+      <symbol id="branch" viewBox="0 0 24 24"><line x1="6" x2="6" y1="3" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></symbol>
+      <symbol id="sliders" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4" /><line x1="10" x2="3" y1="4" y2="4" /><line x1="21" x2="12" y1="12" y2="12" /><line x1="8" x2="3" y1="12" y2="12" /><line x1="21" x2="16" y1="20" y2="20" /><line x1="12" x2="3" y1="20" y2="20" /><line x1="14" x2="14" y1="2" y2="6" /><line x1="8" x2="8" y1="10" y2="14" /><line x1="16" x2="16" y1="18" y2="22" /></symbol>
+      <symbol id="robot" viewBox="0 0 24 24"><rect width="16" height="12" x="4" y="8" rx="2" /><path d="M12 4v4" /><circle cx="12" cy="4" r="1" /><path d="M9 13v2M15 13v2M2 14h2M20 14h2" /></symbol>
+      <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></symbol>
+      <symbol id="spark" viewBox="0 0 24 24"><path d="M9.9 15.5A2 2 0 0 0 8.5 14L2.4 12.5a.5.5 0 0 1 0-1L8.5 10a2 2 0 0 0 1.4-1.4L11.5 2.4a.5.5 0 0 1 1 0L14 8.5a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z" /></symbol>
+      <symbol id="gauge" viewBox="0 0 24 24"><path d="m12 14 4-4" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></symbol>
+      <symbol id="cols" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M12 3v18" /></symbol>
+      <symbol id="copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+      <symbol id="trash" viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></symbol>
+    </svg>
+
+    <!-- ============ BOARD HEADER ============ -->
+    <div class="board-h">
+      <h1>
+        <span class="logo"><svg class="i lg"><use href="#gauge" /></svg></span>
+        Helm · UI 设计稿 · 主界面布局 + 主题色（参照 CodePilot · 骨架版）
+      </h1>
+      <p class="sub">
+        本地需求设计稿（gate-1 · 待董事长看 PNG）。需求 <b>2026-06-27-codepilot-layout</b>：参照开源项目 <b>CodePilot</b> 把 Helm 主界面的<b>布局结构</b>与<b>主题色</b>改版。
+        本版<b>只做布局骨架 + 主题色，细节标「后续」</b>。核心 = <b>一条贯穿整宽的统一顶栏</b> + 主体 <b>4 部分</b>（① 左侧栏 ② 中区画布 ③ 右侧栏 ④ 目录树）+ <b>3 个独立 toggle</b>（左栏 / 右栏 / 目录树，各自独立、可同时展开、additive 非互斥）。
+        主题换成 CodePilot 的 <b>「github」主题（内部命名 codePilot）</b> —— <b>GitHub Primer 浅色：冷灰中性 + GitHub 蓝仅点缀</b>，浅 + 深双适配。<b style="color: #cf222e">关键纠正</b>：列表 / 导航<b>选中态 = 很淡的灰</b>（sidebar-accent #eaeef2 + 深灰字 #3d444d + 加粗），<b>绝非黑底白字</b>；primary 蓝（#0969da）只用于主按钮 / 链接 / focus。所有色值按 CodePilot 源码（<b>themes/github.json</b> + <b>ChatListPanel/UnifiedTopBar/card-primitives.tsx</b>）逐项取值。
+      </p>
+    </div>
+
+    <div class="req-log">
+      <div class="rl-h"><svg class="i sm"><use href="#clock" /></svg> 需求日志</div>
+      <table>
+        <tr>
+          <th style="width: 110px">日期</th>
+          <th>需求</th>
+          <th style="width: 420px">关键决策</th>
+        </tr>
+        <tr>
+          <td>2026-06-27</td>
+          <td>主界面布局 + 主题色参照 CodePilot 改版 —— 第一步只画布局骨架 + 主题色</td>
+          <td>
+            <span class="pill new">统一顶栏（横跨整宽）</span>
+            <span class="pill new">4 部分主体</span>
+            <span class="pill new">3 独立 toggle · additive</span>
+            <span class="pill p0">细节标后续</span>
+          </td>
+        </tr>
+        <tr>
+          <td>2026-06-27</td>
+          <td>gate-1 返工（董事长：布局对、主题色错）—— 整套换 GitHub 浅色、选中态纠正</td>
+          <td>
+            <span class="pill new">主题 = github.json「codePilot」</span>
+            <span class="pill new">选中态 = 淡灰 #eaeef2（非黑！）</span>
+            <span class="pill new">卡片改 GitHub 扁平（1px 边框）</span>
+            <span class="pill new">右栏默认 480 · 标 min/max</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="nav-idx">
+      <a href="#s1" class="new">S1 主页·空态（浅）</a>
+      <a href="#s2" class="new">S2 使用中·4 区全展开</a>
+      <a href="#s3" class="new">S3 顶栏 + 4 部分 + 3 toggle 拆解</a>
+      <a href="#s4" class="new">S4 主题色板（浅 + 深）</a>
+    </div>
+
+    <div class="note">
+      <svg class="i sm"><use href="#spark" /></svg>
+      <span>
+        交互标注：蓝色圆点 <span class="pin" style="width: 16px; height: 16px; vertical-align: middle">1</span> 标在控件旁，对应注解块「点击效果」编号；设备框内只画真实 UI，流程 / 跳转 / 平台逻辑写进注解。
+        <b>本版桌面优先；细节态（hover/active/运行/空/加载/错误/离线/右键全文案）多数标「后续」，本版聚焦结构骨架与主题色保真。</b>
+      </span>
+    </div>
+
+    <!-- ============================================================ S1 ============================================================ -->
+    <section class="screen" id="s1">
+      <div class="screen-head">
+        <span class="tag new">布局骨架 · 1</span>
+        <h2>主页 · 默认空态（浅色）</h2>
+        <p>
+          连上主机后落地的空态。<b>统一顶栏</b>横跨整宽（透明、融入窗口背景）：左 = 交通灯 + <b>左栏开关</b> + 标题「新对话」+ 项目名（弱化）+ ··· 菜单；右 = <b>develop 分支</b> + <b>目录树开关</b> + <b>右栏开关</b>。
+          顶栏下方是 <b>4 张浮动卡片</b>同一 y 起：本屏只展开 ① 左栏（<b>Helm 自己的</b>：主机切换器胶囊 + 新对话 + 搜索会话 + 对话树「项目→对话→subagent」 + 设置）+ ② 中区（居中问候「晚上好」+ Composer），③ 右栏与 ④ 目录树<b>收起</b>。
+          <b>微透 vibrancy 分层</b>：窗口背景层 = macOS 'sidebar' 磨砂材质（顶栏 + gutter 留白直接露这层 → 整窗微透磨砂）；<b>左栏 = white 58% 半透磨砂</b>（带窗口 tint）；<b>中区/右栏/目录树 = 实色白卡 + 1px 边框 #d1d9e0，扁平绝不玻璃</b>。<b>「新对话」是 ghost 行</b>，选中态用很淡的灰。<b>CodePilot 只接管「外壳 + 主题色」，左栏内部是 Helm 对话树。</b>
+        </p>
+      </div>
+      <div class="frame" id="shot1">
+        <div class="win">
+          <!-- 统一顶栏 -->
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg><span class="pinb">1</span></div>
+            <span class="tb-title">新对话</span>
+            <button class="tb-proj"><span>paseo-main</span><span class="pinb">2</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg><span class="pinb">3</span></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>2</span><span class="pinb">4</span></button>
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg><span class="pinb">5</span></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg><span class="pinb">6</span></div>
+            </div>
+          </div>
+          <!-- 内容行 -->
+          <div class="row">
+            <!-- ① 左栏 -->
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">7</span></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话<span class="pinb" style="position: static; margin-left: auto">8</span></div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span><span class="pinb">9</span></div>
+                <div class="sb-sec">项目 <span class="act"><svg class="i xs"><use href="#folder-plus" /></svg></span></div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span><span class="pinb">12</span></div>
+                  <div class="tree-empty">暂无对话</div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot">
+                  <div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置<span class="pinb">13</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="gutter hot"><span class="wbub"><span class="ar">↔</span> 拖拽改左栏宽 · 180–300<span class="pinb" style="position: static; margin-left: 5px">14</span></span></div>
+            <!-- ② 中区画布 -->
+            <div class="card main">
+              <div class="main-wrap">
+                <div class="empty">
+                  <div class="greet">晚上好<span class="sub">今天想构建点什么？</span></div>
+                  <div class="composer">
+                    <div class="cbox focus">
+                      <div class="cph">问点什么，或让代理开始干活…<span class="pinb" style="position: static; margin-left: 4px">10</span></div>
+                      <div class="crow">
+                        <div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div>
+                        <div class="ctool on"><svg class="i sm"><use href="#brain" /></svg> 思考</div>
+                        <div class="ctool"><svg class="i sm"><use href="#globe" /></svg> 联网</div>
+                        <div class="cspacer"></div>
+                        <div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> Claude Code <span class="sep">·</span> GLM <span class="sep">·</span> glm-4.6 <svg class="i sm"><use href="#chev-d" /></svg><span class="pinb">11</span></div>
+                        <div class="csend dim"><svg class="i sm"><use href="#up" /></svg></div>
+                      </div>
+                    </div>
+                    <div class="chips">
+                      <span class="chip"><svg class="i xs"><use href="#folder" /></svg> paseo-main</span>
+                      <span class="chip"><svg class="i xs"><use href="#sliders" /></svg> 默认模式</span>
+                      <span class="chip"><svg class="i xs"><use href="#branch" /></svg> develop</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- ③ 右栏 + ④ 目录树：收起（不渲染卡片，仅顶栏 toggle 可唤出，见 S2） -->
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>左栏开关（toggle 1 · panel_left）</b>：收起 / 展开左栏。位于交通灯右侧（顶栏左）。激活态 = 当前展开（淡灰填充底（#eaeef2 · 非黑））。三个 toggle <b>各自独立、互不影响</b>。</div></li>
+              <li><span class="pin">2</span><div><b>项目名面包屑（ghost · 无边框无底）</b>：静止 muted 灰字、<b>无边框无底</b>；hover 才浮极淡灰底（#f6f8fa）+ 字变深。点击在 Finder 打开工作目录。</div></li>
+              <li><span class="pin">3</span><div><b>··· 更多菜单</b>：对当前对话的操作菜单 —— 分屏 / 重命名 / 复制 ID / 删除（4 项，详见下方右键菜单块）。</div></li>
+              <li><span class="pin">4</span><div><b>当前分支标签（裸 button · 无边框无底）</b>：git 图标 + 分支名 develop + 脏文件数（amber 小点 2）；hover 字变深。点击跳右栏「审查 / Git」tab。<b>非</b> toggle、<b>非</b>选中色。</div></li>
+              <li><span class="pin">5</span><div><b>目录树开关（toggle 3 · file_tree）</b>：独立展开 / 收起 ④ 目录树（最外侧卡片）。本屏目录树收起 → 按钮默认态。</div></li>
+              <li><span class="pin">6</span><div><b>右栏开关（toggle 2 · panel_right）</b>：独立展开 / 收起 ③ 右侧栏（工作面板）。本屏右栏收起 → 按钮默认态。</div></li>
+              <li><span class="pin">7</span><div><b>主机切换器胶囊（Helm 净新 · 左栏顶 · 全栏宽）</b>：绿点 = 主机在线；点开下拉切主机 / 加主机（CodePilot 无多主机，此为 Helm 净新）。<b>交互后续</b>。</div></li>
+              <li><span class="pin">8</span><div><b>新对话（ghost 行 · SquarePen 图标）</b>：清空中区为草稿空态、聚焦 Composer（本屏即此态）。<b>非实心高亮</b>，hover 才淡灰。</div></li>
+              <li><span class="pin">9</span><div><b>搜索会话</b>：打开全局搜索（⌘K 同等触发）。<b>后续</b>：搜索面板细节另出稿。</div></li>
+              <li><span class="pin">10</span><div><b>Composer 输入</b>：聚焦即出现聚焦环（GitHub 蓝 14% 光晕）；输入后发送键由灰 dim 转蓝 primary 可发。<b>后续</b>：附件 / @ / 语音等细节。</div></li>
+              <li><span class="pin">11</span><div><b>模型选择器（内联底栏右）</b>：提供方🔒 · 中转站 · 模型三层。<b>后续</b>：级联菜单细节沿用既有设计。</div></li>
+              <li><span class="pin">12</span><div><b>对话树 · 项目行（Folder + 本地目录名）</b>：chevron 前置（展开 90°/收起 0°，仅可展开行显示）；点击展 / 收；hover 行尾浮「新建对话」。下挂对话(根 · Bot 机器人图标)→ subagent(小 Bot)<b>无限嵌套</b>、每层缩进。<b>选中 + hover 都用淡灰底</b>。本屏项目空 → 缩进显「暂无对话」。</div></li>
+              <li><span class="pin">13</span><div><b>设置（左栏底部 · 齿轮 · 无分隔线）</b>：直接坐底、<b>上方无横线</b>；点击进入设置。<b>后续</b>：设置内部 IA 属另一需求，本主壳只露入口。</div></li>
+              <li><span class="pin">14</span><div><b>左栏↔画布边界（ResizeGutter · 拖拽手柄）</b>：常态浮淡灰竖线提示可拖，hover 出 <b>col-resize</b> 竖线，可<b>左右拖拽改左栏宽（180–300，默认 240）</b>、按工作区记忆。三条卡间边界同理（左↔中 / 中↔右 / 右↔目录树）；本屏 demo 左↔中边界拖拽态 + 宽度气泡。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>桌面优先</b>：统一顶栏（h40 · 透明融入窗口磨砂背景）+ 内容行 4 卡（左栏 240 · 中区 flex-1 · 右栏 480 · 目录树 280，卡间 8px ResizeGutter）。外壳 padding 8/16/16。<b>紧凑 / 手机态：后续</b>（顶栏右控件折叠进溢出菜单、4 卡改抽屉叠层）。</dd>
+                <dt>微透</dt>
+                <dd><b>vibrancy 分层</b>：窗口背景 = 'sidebar' 磨砂材质（顶栏 + gutter 露这层）；左栏 = white 58% 半透磨砂；中区/右栏/目录树 = 实色白卡，<b>不玻璃化</b>。</dd>
+                <dt>默认</dt>
+                <dd>左栏展开 + 中区空态（居中「晚上好」+ 聚焦 Composer）；右栏 / 目录树收起；主机在线（绿点）。</dd>
+                <dt>悬浮</dt>
+                <dd>顶栏按钮 / 左栏行 / 树节点 hover 显淡灰底（sidebar-accent #eaeef2）；顶栏 ghost 胶囊 hover 浮 #f6f8fa；ResizeGutter hover 显中央 2px 提示线（见 S3）。</dd>
+                <dt>活跃</dt>
+                <dd>左栏开关高亮（淡灰填充 #eaeef2 · 非黑）= 左栏展开中；「新对话」为 ghost 行（hover 才淡灰，非实心高亮）；选中对话树节点 = 淡灰底 + 深灰字。</dd>
+                <dt>运行</dt>
+                <dd>空态无运行对话；后台运行对话在对话树显绿运行点、subagent 显小 Bot + 状态点（见 S2）。</dd>
+                <dt>禁用</dt>
+                <dd>空输入时发送键 dim。</dd>
+                <dt>空</dt>
+                <dd><b>本屏即空态</b>：无对话 → 居中 Composer 直接可打字；项目展开缩进显「暂无对话」。</dd>
+                <dt>加载 / 错误 / 离线</dt>
+                <dd><b>后续</b>：切主机 / 拉目录加载指示、发送失败提示、主机离线红点 + 重连提示条 —— 与产品经理对齐后补屏。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-grp">顶栏 ··· 菜单（对当前对话 · 4 项，对应 UnifiedTopBar.tsx）</div>
+              <div class="ml-i"><b>分屏</b> — 把当前对话加入分屏（≥2 列时并排）。</div>
+              <div class="ml-i"><b>重命名</b> — 弹输入框改对话标题。</div>
+              <div class="ml-i"><b>复制 ID</b> — 复制会话 ID 到剪贴板 + toast。</div>
+              <div class="ml-i dz"><b>删除</b> — 二次确认后删除对话（危险项 · 红）。</div>
+              <div class="ml-grp">左栏对话树节点右键（沿用既有 home-shell · 按节点类型不同）</div>
+              <div class="ml-i"><b>项目行</b> — 新建对话 / pin / 在 Finder 显示 / 工作树 / 重命名 / 归档 / 移除。</div>
+              <div class="ml-i"><b>对话(根)行</b> — 重命名 / 复制对话 / 移动到目录 / 归档 / 在 Finder 显示 / 删除。</div>
+              <div class="ml-i"><b>subagent 行</b> — 重命名 / 跳到父对话 / 剥离为独立对话 / 归档（从父 track 移除）/ 删除。</div>
+              <div class="ml-note">完整对话树右键文案见既有 <b>home-shell s6</b>；本结构版照搬其语义，仅换 GitHub codePilot 主题皮肤，<b>不改菜单逻辑</b>。</div>
+              <div class="ml-open"><b>与 CodePilot 的边界</b>：<b>CodePilot 只接管「外壳（统一顶栏 + 4 区结构）+ 主题色」，左栏内部是 Helm 自己的对话树</b>（删掉 CodePilot 的「插件 / 素材库」）。另：顶栏右侧分支 + 两 toggle CodePilot 仅在对话详情页出现，本稿让 <b>3 toggle + 分支在空态也常驻</b>（董事长「统一顶栏 + 3 独立 toggle 始终在」）；<b>主机切换器</b>（多主机 · CodePilot 无）已画在左栏顶（pin 7 · 交互后续）。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S2 ============================================================ -->
+    <section class="screen" id="s2">
+      <div class="screen-head">
+        <span class="tag new">布局骨架 · 2</span>
+        <h2>主页 · 使用中 · 4 区全展开（3 toggle 全开 · 中区收窄）</h2>
+        <p>
+          一条对话进行中，<b>3 个 toggle 全部打开</b>：① 左栏（Helm 对话树）+ ② 中区（对话流，内容标「后续保持现状」）+ ③ 右栏（工作面板 tab 壳：审查 / 终端 / 浏览器 / 文件预览，占位）+ ④ 目录树（文件树，占位）。
+          体现 <b>additive 非互斥</b> —— 四区同屏共存、中区 flex-1 随之<b>收窄</b>。顶栏右侧目录树开关 + 右栏开关均进入<b>淡灰激活态</b>（#eaeef2 · 非黑）。
+        </p>
+      </div>
+      <div class="frame" id="shot2">
+        <div class="win">
+          <!-- 统一顶栏（对话详情态：标题为对话名，右侧两 toggle 激活） -->
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <span class="tb-title">重构 checkout 子系统</span>
+            <button class="tb-proj"><span>paseo-main</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>2</span></button>
+              <div class="tbtn on"><svg class="i md"><use href="#filetree" /></svg><span class="pinb">2</span></div>
+              <div class="tbtn on"><svg class="i md"><use href="#panel-r" /></svg><span class="pinb">1</span></div>
+            </div>
+          </div>
+          <!-- 内容行：4 卡全展开 -->
+          <div class="row">
+            <!-- ① 左栏 · Helm 对话树（项目 → 对话(根) → subagent 无限嵌套） -->
+            <div class="card sidebar">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话 <span class="kbd">⌘K</span></div>
+                <div class="sb-sec">项目 <span class="act"><svg class="i xs"><use href="#folder-plus" /></svg></span></div>
+                <div class="tree">
+                  <!-- 项目（目录）展开 -->
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <!-- 对话(根) 选中 + 有 subagent -->
+                  <div class="tnode on" style="padding-left: 24px"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#robot" /></svg><span class="tname">重构 checkout 子系统</span><span class="badge-sub">2</span><span class="pinb">3</span></div>
+                  <!-- subagent 运行 -->
+                  <div class="tnode" style="padding-left: 42px"><span class="twedge leaf"></span><svg class="i xs ti"><use href="#robot" /></svg><span class="dot run"></span><span class="tname">写单测</span></div>
+                  <!-- subagent idle -->
+                  <div class="tnode" style="padding-left: 42px"><span class="twedge leaf"></span><svg class="i xs ti"><use href="#robot" /></svg><span class="dot idle"></span><span class="tname">跑覆盖率</span></div>
+                  <!-- 对话(根) 运行中 -->
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot run"></span><span class="tname">修复侧边栏 toggle</span></div>
+                  <!-- 对话(根) idle -->
+                  <div class="tnode" style="padding-left: 24px"><span class="twedge leaf"></span><span class="dot idle"></span><span class="tname">VoiceSession 迁移</span><span class="ttime">3 分钟前</span></div>
+                </div>
+                <div class="sb-spacer"></div>
+                <div class="sb-foot">
+                  <div class="sb-item"><svg class="i sm"><use href="#settings" /></svg> 设置</div>
+                </div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <!-- ② 中区 · 对话流（收窄） -->
+            <div class="card main">
+              <div class="main-wrap">
+                <div class="chat">
+                  <span class="ph-tag">对话流 · 后续保持现状<span class="pinb" style="position: static; margin-left: 5px">3</span></span>
+                  <div class="msg me"><div class="av u"><svg class="i sm"><use href="#robot" /></svg></div><div class="bd" style="background: var(--secondary); border-radius: 12px; padding: 10px 12px">把 checkout 读取逻辑抽成独立 session</div></div>
+                  <div class="msg"><div class="av a"><svg class="i sm"><use href="#spark" /></svg></div><div class="bd" style="width: 100%"><div class="ln" style="width: 90%"></div><div class="ln" style="width: 96%"></div><div class="ln" style="width: 72%"></div><div class="ln" style="width: 84%; margin-bottom: 0"></div></div></div>
+                </div>
+                <div class="chat-cmp">
+                  <div class="cbox">
+                    <div class="cph">继续输入…</div>
+                    <div class="crow">
+                      <div class="ctool icon"><svg class="i sm"><use href="#clip" /></svg></div>
+                      <div class="cspacer"></div>
+                      <div class="cmodel"><svg class="i sm lock"><use href="#lock" /></svg> GLM <svg class="i sm"><use href="#chev-d" /></svg></div>
+                      <div class="csend go"><svg class="i sm"><use href="#up" /></svg></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <!-- ③ 右栏 · 工作面板 tab 壳 -->
+            <div class="card workspace">
+              <div class="ws-tabs">
+                <div class="ws-tab on"><svg class="i sm"><use href="#cols" /></svg> 审查</div>
+                <div class="ws-tab"><svg class="i sm"><use href="#terminal" /></svg> 终端</div>
+                <div class="ws-tab"><svg class="i sm"><use href="#globe" /></svg> 浏览器</div>
+                <div class="ws-tab"><svg class="i sm"><use href="#eye" /></svg> 文件预览</div>
+                <div class="ws-tab add"><svg class="i sm"><use href="#plus" /></svg></div>
+              </div>
+              <div class="ws-body">
+                <div class="ph-ico"><svg class="i md"><use href="#cols" /></svg></div>
+                <div class="ph-t">工作面板</div>
+                <div class="ph-s">审查 / 终端 / 浏览器 / 文件预览 的 tab 内容<br /><b style="color: var(--fg)">后续</b>填充<span class="pinb" style="position: static; margin-left: 5px">4</span></div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <!-- ④ 目录树 fileTree（最外侧） -->
+            <div class="card filetree">
+              <div class="ft-head"><svg class="i sm"><use href="#filetree" /></svg> 文件<span class="act"><svg class="i sm"><use href="#search" /></svg><svg class="i sm"><use href="#chev-d" /></svg></span></div>
+              <div class="ft-body">
+                <div class="ft-row"><svg class="i sm"><use href="#chev-d" /></svg><svg class="i sm"><use href="#folder" /></svg> packages</div>
+                <div class="ft-row f" style="padding-left: 22px"><svg class="i sm"><use href="#chev-r" /></svg><svg class="i sm"><use href="#folder" /></svg> server</div>
+                <div class="ft-row f" style="padding-left: 22px"><svg class="i sm"><use href="#chev-r" /></svg><svg class="i sm"><use href="#folder" /></svg> app</div>
+                <div class="ft-row f" style="padding-left: 26px"><svg class="i sm" style="opacity: 0"><use href="#file" /></svg><svg class="i sm"><use href="#file" /></svg> index.tsx</div>
+                <div class="ft-row f"><svg class="i sm" style="opacity: 0"><use href="#file" /></svg><svg class="i sm"><use href="#file" /></svg> CLAUDE.md</div>
+                <div class="ft-row f"><svg class="i sm" style="opacity: 0"><use href="#file" /></svg><svg class="i sm"><use href="#file" /></svg> package.json</div>
+                <div class="ws-body" style="flex: 1; padding-top: 30px"><div class="ph-s">文件树 · <b style="color: var(--fg)">后续</b>填充<span class="pinb" style="position: static; margin-left: 5px">5</span></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>右栏开关（panel_right）= 激活态</b>：当前右栏展开 → 按钮淡灰填充（#eaeef2 · 非黑）。再点收起右栏、中区变宽。<b>独立</b>于左栏 / 目录树。</div></li>
+              <li><span class="pin">2</span><div><b>目录树开关（file_tree）= 激活态</b>：当前目录树展开 → 按钮淡灰填充（#eaeef2 · 非黑）。再点收起目录树。<b>独立</b>，可与右栏同时开（本屏即同开）。</div></li>
+              <li><span class="pin">3</span><div><b>对话流（中区）</b>：本版<b>不改</b>对话内容形态，标「后续保持现状」。结构改版只把对话流装进新的中区浮动卡片。</div></li>
+              <li><span class="pin">4</span><div><b>右栏 tab（审查 / 终端 / 浏览器 / 文件预览 / +）</b>：点 tab 切面板、+ 新建 tab。<b>tab 内容本版占位、后续填充</b>。</div></li>
+              <li><span class="pin">5</span><div><b>目录树</b>：文件树浏览，点文件在右栏「文件预览」tab 打开。<b>树内容本版占位、后续填充</b>。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）· 3 toggle 独立性</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>4 区全展开</b>：左栏 240 + 中区 flex-1（被挤到最窄）+ 右栏 480 + 目录树 280，卡间 8px gutter。这是中区<b>最窄</b>态；任一 toggle 关闭则中区相应变宽。</dd>
+                <dt>独立 toggle</dt>
+                <dd><b>三者 additive 非互斥</b>：左栏开关 / 右栏开关 / 目录树开关各控自己那块，<b>互不自动关闭对方</b>，可任意组合（仅左 / 左+右 / 左+树 / 全开 / 全关…共 8 种）。本屏 = 全开。</dd>
+                <dt>活跃</dt>
+                <dd>顶栏目录树 + 右栏两 toggle 进入淡灰填充态（#eaeef2）；左栏当前对话行淡灰选中（#eaeef2 + 深灰字）；右栏「审查」tab 选中（白底 + 上边框）。</dd>
+                <dt>运行</dt>
+                <dd>左栏「修复侧边栏 toggle」对话显绿运行点（后台流式中）。<b>细节后续</b>。</dd>
+                <dt>悬浮 / 加载 / 错误 / 空 / 离线</dt>
+                <dd><b>后续</b>：本版聚焦 4 区结构与 toggle 独立性；各区内部细节态随对应模块需求补齐。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">本屏右栏 tab、目录树文件行的右键菜单<b>本版标后续</b>（关闭 tab / 移到另一侧 / 在 Finder 打开 / 复制路径 等），随各模块需求出稿。顶栏 ··· 菜单同 S1（分屏 / 重命名 / 复制 ID / 删除）。</div>
+              <div class="ml-open"><b>面板顺序（逐像素对照 CodePilot AppShell）</b>：内容行从左到右严格为 <b>左栏 → 中区 → 右栏(workspace) → 目录树(fileTree，最外侧)</b>；ResizeGutter 8px 居于相邻两卡之间。各卡默认宽：左栏 240（180–300）· 右栏 480（320–800）· 目录树 280（220–500），均可拖宽。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S3 ============================================================ -->
+    <section class="screen" id="s3">
+      <div class="screen-head">
+        <span class="tag new">核心结构 · 3</span>
+        <h2>顶栏 + 4 部分 + 3 toggle · 布局拆解</h2>
+        <p>
+          核心结构屏。把 <b>[统一顶栏 / ① 左栏 / ② 中区 / ③ 右栏 / ④ 目录树]</b> 拆解标清，标注 <b>3 个独立 toggle</b> 各自位置（蓝点）+ additive 规则 + 浮动卡片几何（圆角 / 投影 / 间距）。下方图例给精确数值。
+        </p>
+      </div>
+      <div class="frame" id="shot3">
+        <div class="win" style="height: 560px">
+          <!-- 顶栏：标注 toggle 位置 -->
+          <div class="topbar" style="position: relative">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on" style="position: relative"><svg class="i md"><use href="#panel-l" /></svg><span class="tdot" style="top: -12px; left: 50%; transform: translateX(-50%)">A</span></div>
+            <span class="tb-title">对话标题</span>
+            <button class="tb-proj"><span>项目名（弱化）</span></button>
+            <div class="tbtn"><svg class="i md"><use href="#more-h" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right" style="position: relative">
+              <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span><span class="dirty"><span class="d"></span>2</span></button>
+              <div class="tbtn on" style="position: relative"><svg class="i md"><use href="#filetree" /></svg><span class="tdot" style="top: -12px; left: 50%; transform: translateX(-50%)">C</span></div>
+              <div class="tbtn on" style="position: relative"><svg class="i md"><use href="#panel-r" /></svg><span class="tdot" style="top: -12px; left: 50%; transform: translateX(-50%)">B</span></div>
+            </div>
+            <span class="zlabel" style="top: -2px; left: 50%; transform: translateX(-50%); background: #0969da">统一顶栏 · 横跨整宽 · 透明融入窗口背景 · h40</span>
+          </div>
+          <!-- 4 区 + gutter，带 z 标签 -->
+          <div class="row">
+            <div class="card sidebar" style="position: relative">
+              <div class="sb-body">
+                <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话</div>
+                <div class="sb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on" style="padding-left: 24px"><span class="twedge leaf"></span><svg class="i sm ti"><use href="#robot" /></svg><span class="tname">重构选择器</span></div>
+                </div>
+              </div>
+              <span class="zlabel" style="top: 10px; left: 10px">① 左栏 240（180–300）· Helm 对话树</span>
+            </div>
+            <div class="gutter hot"></div>
+            <div class="card main" style="position: relative; align-items: center; justify-content: center">
+              <div class="ws-body">
+                <div class="ph-ico"><svg class="i md"><use href="#spark" /></svg></div>
+                <div class="ph-t">② 中区画布 · flex-1</div>
+                <div class="ph-s">对话区，自适应填满剩余宽度。任一侧栏 toggle 开关 → 中区随之收窄 / 变宽。</div>
+              </div>
+              <span class="zlabel" style="top: 10px; left: 10px">② 中区 flex-1</span>
+            </div>
+            <div class="gutter hot"></div>
+            <div class="card workspace" style="position: relative">
+              <div class="ws-tabs">
+                <div class="ws-tab on"><svg class="i sm"><use href="#cols" /></svg> 审查</div>
+                <div class="ws-tab"><svg class="i sm"><use href="#terminal" /></svg> 终端</div>
+                <div class="ws-tab add"><svg class="i sm"><use href="#plus" /></svg></div>
+              </div>
+              <div class="ws-body"><div class="ph-s">工作面板 tab 壳</div></div>
+              <span class="zlabel" style="top: 48px; left: 10px">③ 右栏 480（320–800）· workspace</span>
+            </div>
+            <div class="gutter hot"></div>
+            <div class="card filetree" style="position: relative">
+              <div class="ft-head"><svg class="i sm"><use href="#filetree" /></svg> 文件</div>
+              <div class="ft-body">
+                <div class="ft-row"><svg class="i sm"><use href="#folder" /></svg> packages</div>
+                <div class="ft-row f"><svg class="i sm"><use href="#file" /></svg> CLAUDE.md</div>
+              </div>
+              <span class="zlabel" style="top: 48px; left: 10px">④ 目录树 280（220–500）· 最外侧</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="legend">
+        <div class="lg-card">
+          <h4><span class="n">A</span>左栏开关 toggle</h4>
+          <ul>
+            <li>顶栏左，紧挨交通灯（panel_left 图标）</li>
+            <li>控制 <b>① 左栏</b> 收 / 展</li>
+            <li>激活态 = <b>sidebar-accent 淡灰底</b>（#eaeef2，非黑）</li>
+          </ul>
+        </div>
+        <div class="lg-card">
+          <h4><span class="n">B</span>右栏开关 toggle</h4>
+          <ul>
+            <li>顶栏右（panel_right 图标，最右）</li>
+            <li>控制 <b>③ 右栏 workspace</b> 收 / 展</li>
+            <li>独立、可与 A/C 任意组合</li>
+          </ul>
+        </div>
+        <div class="lg-card">
+          <h4><span class="n">C</span>目录树开关 toggle</h4>
+          <ul>
+            <li>顶栏右（file_tree 图标，分支与右栏开关之间）</li>
+            <li>控制 <b>④ 目录树 fileTree</b> 收 / 展</li>
+            <li>独立、可与 A/B 任意组合</li>
+          </ul>
+        </div>
+        <div class="lg-card">
+          <h4><svg class="i sm" style="color: #3d444d"><use href="#spark" /></svg> additive 规则</h4>
+          <ul>
+            <li>三 toggle <b>互不互斥</b>，各控自己那块</li>
+            <li>不自动关闭对方，可同时全开</li>
+            <li>共 <b>8 种</b>组合，中区自适应填充</li>
+          </ul>
+        </div>
+        <div class="lg-card">
+          <h4><svg class="i sm" style="color: #3d444d"><use href="#gauge" /></svg> 卡片几何（GitHub 扁平）</h4>
+          <ul>
+            <li>圆角 <b>12px</b>（radius 基准 12px）</li>
+            <li>清晰 <b>1px 边框</b> #d1d9e0 + <b>轻投影</b>（无玻璃内高光）</li>
+            <li>外壳 padding <b>8 / 16 / 16</b>，左栏 #f6f8fa 纯色</li>
+          </ul>
+        </div>
+        <div class="lg-card">
+          <h4><svg class="i sm" style="color: #3d444d"><use href="#cols" /></svg> 面板拖拽 min / max</h4>
+          <ul>
+            <li>左栏 <b>180 / 300</b> · 默认 240</li>
+            <li>右栏 <b>320 / 800</b> · 默认 <b>480</b></li>
+            <li>目录树 <b>220 / 500</b> · 默认 280</li>
+            <li>卡间 8px 手柄 · hover 出 2px 竖线 · col-resize · 按工作区记忆宽</li>
+          </ul>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果 / 状态 / 右键</div>
+            <div class="states">
+              <dl>
+                <dt>A 左栏</dt>
+                <dd>点击收 / 展左栏；展开时按钮 secondary 高亮。</dd>
+                <dt>B 右栏</dt>
+                <dd>点击收 / 展右栏（workspace）；独立。</dd>
+                <dt>C 目录树</dt>
+                <dd>点击收 / 展目录树（fileTree，最外侧）；独立。</dd>
+                <dt>gutter</dt>
+                <dd>相邻两卡间 8px ResizeGutter；拖拽改卡宽（左栏 180–300 / 目录树 220–500），双击复位默认宽；hover / 拖拽显中央 2px 提示线（本屏三条 gutter 画成 hover 态示意）。</dd>
+                <dt>布局</dt>
+                <dd><b>桌面优先</b>。紧凑 / 手机态<b>后续</b>：顶栏右控件收进溢出菜单，4 卡改为抽屉叠层、一次只显一区。</dd>
+                <dt>右键</dt>
+                <dd>结构层无新增右键菜单；各区右键沿用各自模块（顶栏 ··· = 分屏/重命名/复制ID/删除）。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S4 ============================================================ -->
+    <section class="screen" id="s4">
+      <div class="screen-head">
+        <span class="tag new">主题色 · 4</span>
+        <h2>主题色板（浅 + 深）· 所有页面适配</h2>
+        <p>
+          CodePilot <b>「github」</b>主题令牌（themes/github.json 原值 · 内部命名 <b>codePilot</b>）。浅色一行、深色一行，每 swatch 标 token + 值。<b>GitHub Primer 冷灰中性</b>：背景 #fff、左栏 #f6f8fa、<b>选中 sb-accent #eaeef2 + 字 #3d444d</b>（很淡的灰，<b style="color: #cf222e">不是黑</b>）、primary 蓝 #0969da 仅点缀。右下深色模式主页缩略，证明浅 / 深双适配。
+        </p>
+      </div>
+      <div id="shot4" style="padding: 2px">
+        <div class="pal">
+          <!-- 浅色行 · GitHub Primer light -->
+          <div class="pal-row lt">
+            <div class="pal-side lt"><span class="tt">浅色 Light</span><span class="ss">codePilot · github.json</span></div>
+            <div class="pal-swatches">
+              <div class="sw"><div class="chip" style="background: oklch(1 0 0)"></div><span class="nm">background</span><span class="vl">#ffffff</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.254 0.011 254)"></div><span class="nm">foreground</span><span class="vl">#1f2328</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.540 0.191 257.5)"></div><span class="nm">primary · 蓝</span><span class="vl">#0969da</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.978 0.003 247.9)"></div><span class="nm">sidebar</span><span class="vl">#f6f8fa</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.947 0.007 247.9)"></div><span class="nm">选中 sb-accent</span><span class="vl">#eaeef2</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.338 0.015 252.3)"></div><span class="nm">选中字 sb-acc-fg</span><span class="vl">#3d444d</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.531 0.017 251.3)"></div><span class="nm">muted-fg</span><span class="vl">#59636e</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.876 0.012 248)"></div><span class="nm">border</span><span class="vl">#d1d9e0</span></div>
+            </div>
+          </div>
+          <!-- 深色行 · GitHub Primer dark -->
+          <div class="pal-row dk">
+            <div class="pal-side dk"><span class="tt">深色 Dark</span><span class="ss">.dark 覆盖</span></div>
+            <div class="pal-swatches">
+              <div class="sw"><div class="chip" style="background: oklch(0.176 0.014 258.4)"></div><span class="nm">background</span><span class="vl">#0d1117</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.943 0.011 243.7)"></div><span class="nm">foreground</span><span class="vl">#e6edf3</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.569 0.202 259.7)"></div><span class="nm">primary · 蓝</span><span class="vl">#1f6feb</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.104 0.019 248.3)"></div><span class="nm">sidebar</span><span class="vl">#010409</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.267 0.015 256.8)"></div><span class="nm">选中 sb-accent</span><span class="vl">#21262d</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.220 0.016 256.8)"></div><span class="nm">card</span><span class="vl">#161b22</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.662 0.018 250.9)"></div><span class="nm">muted-fg</span><span class="vl">#8b949e</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.330 0.015 252.3)"></div><span class="nm">border</span><span class="vl">#30363d</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="status-row">
+          <span class="st-chip"><span class="d" style="background: #1a7f37"></span> 成功绿 · #1a7f37</span>
+          <span class="st-chip"><span class="d" style="background: #9a6700"></span> 警告橙 · #9a6700</span>
+          <span class="st-chip"><span class="d" style="background: #cf222e"></span> 错误红 · #cf222e</span>
+          <span class="st-chip"><span class="d" style="background: #0969da"></span> 信息蓝 · #0969da</span>
+        </div>
+
+        <!-- 深色模式主页缩略：证明所有页面浅/深双适配 -->
+        <div class="dark" style="margin-top: 18px">
+          <div class="frame" style="max-width: 760px">
+            <div class="win" style="height: 380px; padding: 8px 12px 12px">
+              <div class="topbar">
+                <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+                <span class="tb-title">新对话</span>
+                <button class="tb-proj"><span>paseo-main</span></button>
+                <div class="tb-spacer"></div>
+                <div class="tb-right">
+                  <button class="tb-branch"><svg class="i sm"><use href="#branch" /></svg><span>develop</span></button>
+                  <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+                  <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="card sidebar" style="width: 180px">
+                  <div class="sb-body">
+                    <div class="host-switch"><div class="host-pill"><span class="hdot"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm"><use href="#chev-d" /></svg></div></div>
+                    <div class="sb-new"><svg class="i sm"><use href="#pen" /></svg> 新对话</div>
+                    <div class="sb-item"><svg class="i sm"><use href="#search" /></svg> 搜索会话</div>
+                    <div class="sb-sec">项目</div>
+                    <div class="tree">
+                      <div class="tnode proj"><span class="twedge exp"><svg class="i xs chev"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                      <div class="tnode on" style="padding-left: 24px"><span class="twedge leaf"></span><svg class="i sm ti"><use href="#robot" /></svg><span class="tname">重构选择器</span></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="gutter"></div>
+                <div class="card main">
+                  <div class="empty" style="gap: 16px">
+                    <div class="greet" style="font-size: 22px">晚上好<span class="sub" style="font-size: 12px">今天想构建点什么？</span></div>
+                    <div class="composer" style="max-width: 380px">
+                      <div class="cbox focus" style="padding: 10px 12px 8px">
+                        <div class="cph" style="min-height: 26px; font-size: 13px">问点什么…</div>
+                        <div class="crow">
+                          <div class="ctool on" style="height: 24px"><svg class="i xs"><use href="#brain" /></svg> 思考</div>
+                          <div class="cspacer"></div>
+                          <div class="cmodel" style="height: 24px"><svg class="i xs lock"><use href="#lock" /></svg> GLM <svg class="i xs"><use href="#chev-d" /></svg></div>
+                          <div class="csend dim" style="width: 24px; height: 24px"><svg class="i xs"><use href="#up" /></svg></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">主题 · 点击效果 / 状态 / 右键</div>
+            <div class="states">
+              <dl>
+                <dt>切换</dt>
+                <dd>浅 / 深由系统外观或设置里手动切换驱动（<b>后续</b>由设置模块提供开关）。<b>所有页面</b>（首页 / 对话页 / 设置…）共用同一套令牌，统一适配。</dd>
+                <dt>主色 primary</dt>
+                <dd><b>GitHub 蓝 #0969da</b>（深 #1f6feb），<b>只点缀</b>：主操作按钮（发送键）、链接、focus 蓝环、品牌强调。<b>绝不</b>铺选中行、不铺大面积。原 Helm 绿 #20744A 在此版<b>退场</b>。</dd>
+                <dt>选中态</dt>
+                <dd><b>列表 / 导航激活·选中</b>（新对话当前项 / 当前会话 / 当前导航）= 底 <b>sidebar-accent #eaeef2（很淡的灰）</b> + 字 <b>#3d444d 深灰</b> + 加粗。<b style="color: #cf222e">绝不是黑底白字、绝不用 primary。</b>hover 同为淡灰底。</dd>
+                <dt>状态色</dt>
+                <dd>成功绿 / 警告橙 / 错误红 / 信息蓝仅用于<b>语义反馈</b>（运行点 / 脏文件 / 错误条），不进主壳常规底色。</dd>
+                <dt>布局</dt>
+                <dd>色板屏无设备交互；深色缩略证明浅 / 深双适配。<b>后续</b>：每个页面单独出深色稿由各模块负责。</dd>
+                <dt>右键</dt>
+                <dd>无。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 截图辅助：?only=sN 时只显该屏的视觉（隐藏看板/标题/注解），供逐屏 PNG 渲染；无参数=正常整版设计板。 -->
+    <script>
+      (function () {
+        var p = new URLSearchParams(location.search);
+        var only = p.get("only");
+        if (!only) return;
+        ["board-h", "req-log", "nav-idx", "note"].forEach(function (c) {
+          document.querySelectorAll("." + c).forEach(function (el) { el.style.display = "none"; });
+        });
+        document.querySelectorAll("section.screen").forEach(function (sec) {
+          if (sec.id !== only) { sec.style.display = "none"; return; }
+          sec.style.margin = "0 auto";
+          sec.querySelectorAll(".screen-head, .anno").forEach(function (el) { el.style.display = "none"; });
+        });
+        document.body.style.padding = "28px 28px";
+        document.body.style.maxWidth = "none";
+      })();
+    </script>
+  </body>
+</html>
