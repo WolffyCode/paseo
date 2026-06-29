@@ -51,12 +51,15 @@ export function getWindowBackgroundColor(theme: WindowTheme): string {
   return theme === "dark" ? "#181B1A" : "#ffffff";
 }
 
-// Window backing surface for the BrowserWindow constructor. On macOS we go
-// transparent + vibrancy so the renderer's translucent shell (gutters between the
-// floating cards) reveals the NSVisualEffectView — matching CodePilot/Codex.app's
-// `menu` material. Off mac there is no window vibrancy, so we keep a solid opaque
-// backdrop. loadURL resets the compositor's backing colour, so the mac branch must
-// be re-applied at runtime after every load — see reapplyDarwinWindowSurface.
+// Window backing surface for the BrowserWindow constructor. On macOS we go fully
+// transparent with NO system vibrancy: the renderer paints its OWN translucent
+// light-blue backdrop (~0.72 alpha) as the single layer between the floating cards
+// and the real desktop, so the desktop shows through directly. A system `menu`
+// material would render as an opaque white wash over the desktop — the very thing
+// that made the window "go white" — so we attach no material at all. Off mac there
+// is no window transparency, so we keep a solid opaque backdrop. loadURL resets the
+// compositor's backing colour, so the mac branch must be re-applied at runtime after
+// every load — see reapplyDarwinWindowSurface.
 export function getWindowSurfaceOptions(
   platform: NodeJS.Platform,
   theme: WindowTheme,
@@ -70,17 +73,19 @@ export function getWindowSurfaceOptions(
       // parser treats rgb=0/alpha=0 as opaque white (issue #20357); this is the
       // documented workaround that yields a transparent backing layer.
       backgroundColor: "#00ffffff",
-      vibrancy: "menu",
+      // No `vibrancy` and no `visualEffectState`: we want a bare transparent window,
+      // not a system NSVisualEffectView, so the renderer's translucent backdrop is the
+      // only thing tinting the desktop behind the window.
       transparent: true,
-      visualEffectState: "followWindow",
     };
   }
   return { backgroundColor: getWindowBackgroundColor(theme) };
 }
 
-// Re-attach the macOS vibrancy surface after a navigation. loadURL resets the
+// Reset the macOS window backing surface after a navigation. loadURL resets the
 // chromium compositor's backing colour to opaque (the "white window after every
-// load" bug), so we mirror the constructor options at runtime. No-op off mac.
+// load" bug) and can leave a stale system material attached, so we mirror the
+// constructor's transparent backing AND explicitly clear any vibrancy. No-op off mac.
 export function reapplyDarwinWindowSurface(win: BrowserWindow, theme: WindowTheme): void {
   if (process.platform !== "darwin") {
     return;
@@ -90,14 +95,11 @@ export function reapplyDarwinWindowSurface(win: BrowserWindow, theme: WindowThem
     if (surface.backgroundColor) {
       win.setBackgroundColor(surface.backgroundColor);
     }
-    if (surface.vibrancy) {
-      // The constructor-option vibrancy union still carries the deprecated
-      // 'appearance-based' member, which setVibrancy() rejects; our value is always
-      // 'menu', so narrow to the method's parameter type.
-      win.setVibrancy(surface.vibrancy as Parameters<BrowserWindow["setVibrancy"]>[0]);
-    }
+    // Detach any system vibrancy material (null = none). We render our own translucent
+    // backdrop, so an NSVisualEffectView would only wash the desktop out to opaque white.
+    win.setVibrancy(null);
   } catch (err) {
-    console.warn("[vibrancy] runtime re-apply of the macOS window surface failed:", err);
+    console.warn("[vibrancy] runtime reset of the macOS window surface failed:", err);
   }
 }
 

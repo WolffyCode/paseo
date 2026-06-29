@@ -61,12 +61,31 @@ describe("SHELL_TOKENS", () => {
     expect(Object.keys(SHELL_TOKENS.light).sort()).toEqual(Object.keys(SHELL_TOKENS.dark).sort());
   });
 
-  // The tokens carry the shell's own design values (Approach C periwinkle backdrop,
-  // translucent-white cards, codePilot github palette) — self-contained, no app token pull.
-  it("carries the design's backdrop and surface values", () => {
-    expect(SHELL_TOKENS.light.backdrop).toBe("rgba(190, 210, 238, 0.86)");
+  // The tokens carry the shell's own design values (bilinear periwinkle gradient backdrop,
+  // opaque cards, codePilot github palette) — self-contained, no app token pull. The light
+  // periwinkle corners are the TRUE rendered colours of the design's `--win-backdrop`
+  // (ui.html): the diagonal white-glow + periwinkle-glow + 152deg base
+  // (#d8e2f1→#cbd8eb→#d5e0f0), sampled per-corner in real Chrome. The bilinear backdrop
+  // re-creates that diagonal — bright top-left, deep periwinkle bottom-right — and the flat
+  // `backdrop` is the mean of the four corners (the web flash base / native solid).
+  it("carries the design's backdrop, gradient corners, and surface values", () => {
+    // Flat fallback solid = mean of the four design-rendered corners (web flash base + native).
+    expect(SHELL_TOKENS.light.backdrop).toBe("rgb(207, 220, 237)");
     expect(SHELL_TOKENS.dark.backdrop).toBe("#0d1117");
-    expect(SHELL_TOKENS.light.surfaceCard).toContain("rgba(255, 255, 255");
+    // The four window corners read straight off the rendered design backdrop: top-left carries
+    // the white radial glow (brightest), bottom-right the periwinkle radial (deepest/bluest),
+    // the other two sit on the base gradient. Pinned exactly so a tweak can't silently drift them.
+    expect(SHELL_TOKENS.light.backdropGradient).toEqual({
+      topLeft: "rgb(228, 235, 245)",
+      topRight: "rgb(204, 217, 235)",
+      bottomLeft: "rgb(204, 217, 235)",
+      bottomRight: "rgb(193, 209, 233)",
+    });
+    // The sidebar rail is an opaque pale cyan-tint; content cards are an opaque solid white (the
+    // cards are NOT frosted — they sit solid over the translucent window backdrop, desktop shows
+    // through the BACKDROP, never through a card).
+    expect(SHELL_TOKENS.light.surfaceSidebar).toBe("rgb(228, 238, 240)");
+    expect(SHELL_TOKENS.light.surfaceCard).toBe("rgb(255, 255, 255)");
   });
 });
 

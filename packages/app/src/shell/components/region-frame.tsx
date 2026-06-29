@@ -1,20 +1,22 @@
 import { observer } from "mobx-react-lite";
 import { type ReactNode, useMemo } from "react";
 import { StyleSheet, View, type ViewStyle } from "react-native";
-import { CARD_RADIUS, WEB_CARD_SHADOW, WEB_FROSTED } from "../theme/shell-tokens";
+import { CARD_RADIUS, WEB_CARD_SHADOW } from "../theme/shell-tokens";
 import { themeModel } from "../theme/theme-model";
 
-// One floating card in the shell. Pure presentation: a translucent-white surface with the
-// shell's card radius + soft lift, no hard gray border (the edge is the inset highlight
-// ring so adjacent cards don't read as a double divider in the gutters). The sidebar surface
-// is the frosted rail; main flex-fills; content cards take an explicit width owned by the
-// model. `observer` so a scheme flip repaints the surface color.
+// One floating card in the shell. Pure presentation: an OPAQUE solid surface with the shell's
+// card radius + soft lift, no hard gray border (the edge is the inset highlight ring so adjacent
+// cards don't read as a double divider in the gutters). The cards are deliberately NOT frosted:
+// they sit solid over the translucent light-blue window backdrop (the desktop shows through the
+// BACKDROP, never through the cards). The sidebar takes its own pale rail surface, main flex-fills,
+// content cards take an explicit width owned by the model. `observer` so a scheme flip repaints
+// the surface color.
 
 export type RegionFrameKind = "sidebar" | "main" | "content";
 
-// Web-only CSS escapes (boxShadow / backdropFilter) cast once to the RN style type.
+// Web-only CSS escape (boxShadow) cast once to the RN style type. No backdrop-filter: the cards
+// are solid, not frosted.
 const WEB_CARD = WEB_CARD_SHADOW as ViewStyle | null;
-const WEB_RAIL = WEB_FROSTED as ViewStyle | null;
 
 export const RegionFrame = observer(function RegionFrame({
   kind,
@@ -34,7 +36,6 @@ export const RegionFrame = observer(function RegionFrame({
       kind === "main" || width == null ? null : { width },
       { backgroundColor: surface },
       WEB_CARD,
-      kind === "sidebar" ? WEB_RAIL : null,
     ],
     [kind, width, surface],
   );

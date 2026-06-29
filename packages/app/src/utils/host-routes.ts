@@ -1,4 +1,5 @@
 import { Buffer } from "buffer";
+import { getIsElectronMac } from "@/constants/platform";
 
 type NullableString = string | null | undefined;
 const BASE64_WORKSPACE_ID_PREFIX = "b64_";
@@ -411,6 +412,17 @@ export function buildHostNewWorkspaceRoute(
     return `${base}/new` as const;
   }
   return `${base}/new?${query}` as const;
+}
+
+// The single source of truth for where a freshly-connected host lands. Desktop macOS lands on
+// the new shell (/home) — the conversation surface rebuilt transparent from the ground up so the
+// real desktop shows through — instead of the legacy new-conversation screen. Off mac (browser
+// web + native) keeps /new until those surfaces migrate to the shell. Startup routing calls this
+// so the landing destination is decided in ONE place, never patched per-route.
+// Desktop-first migration gate: drop the platform branch (always /home) once web/native adopt the
+// shell. getIsElectronMac() is false under node, so startup-routing tests keep asserting /new.
+export function buildHostLandingRoute(serverId: string) {
+  return getIsElectronMac() ? buildHostHomeRoute(serverId) : buildHostNewWorkspaceRoute(serverId);
 }
 
 export const SETTINGS_SECTION_SLUGS = [

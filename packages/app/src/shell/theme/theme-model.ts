@@ -14,13 +14,28 @@ export type ThemeScheme = "light" | "dark";
 // the SAME field set with different values — that identical key set is exactly why
 // `tokens.X` can never resolve to undefined regardless of scheme.
 export interface ShellTokens {
-  // Approach C: the solid periwinkle backdrop behind the floating cards (the no-vibrancy
-  // fallback). On macOS Electron the root is painted transparent so window vibrancy reads
-  // through (see SHELL_USES_VIBRANCY); this is the fallback for browser web / non-mac.
+  // The flat solid behind the cards: on web/electron it is the base under the gradient layer (a
+  // brief flash before that layer paints); on native it is the only backdrop (no CSS gradients).
+  // Set to the average of the four gradient corners so the flat fallback matches the overall tone.
   backdrop: string;
-  // Floating-card surfaces, translucent white so the vibrancy/periwinkle reads faintly
-  // through. The sidebar rail is more translucent (frosted); content cards near opaque.
+  // The four window corners of the bilinear backdrop gradient (web/electron). The shell backdrop
+  // layer interpolates these across the whole window. They are the TRUE rendered corners of the
+  // design's `--win-backdrop` (ui.html), so the diagonal reads as the design does: bright top-left
+  // (the white radial glow), deep periwinkle bottom-right (the blue radial glow). On macOS Electron
+  // the backdrop is painted at <1 group opacity so the real desktop shows through this light-blue
+  // wash; the corner colors themselves stay fully opaque.
+  backdropGradient: {
+    topLeft: string;
+    topRight: string;
+    bottomLeft: string;
+    bottomRight: string;
+  };
+  // The left sidebar rail surface: an opaque pale cyan-tint (chairman-fixed) — a flat solid, so it
+  // presents that exact color sitting over the translucent backdrop.
   surfaceSidebar: string;
+  // Content/main card surfaces: an OPAQUE solid (the cards are not frosted/translucent). Cards sit
+  // solid over the translucent window backdrop — the desktop shows through the BACKDROP, never
+  // through a card.
   surfaceCard: string;
   foreground: string;
   foregroundMuted: string;
@@ -38,13 +53,21 @@ export interface ShellTokens {
   gutterDrag: string;
 }
 
-// The two token sets, carried by the model. Values come straight from the shell ui.html
-// (codePilot "github" palette + Approach C periwinkle backdrop + translucent-white cards).
+// The two token sets, carried by the model. Values come straight from the design (codePilot
+// "github" palette + the four-corner backdrop sampled from the design's `--win-backdrop` +
+// solid cards floating over a translucent window backdrop). The backdrop is made translucent by
+// ShellBackdrop's group opacity, not by alpha on these colors.
 export const SHELL_TOKENS: Record<ThemeScheme, ShellTokens> = {
   light: {
-    backdrop: "rgba(190, 210, 238, 0.86)",
-    surfaceSidebar: "rgba(255, 255, 255, 0.60)",
-    surfaceCard: "rgba(255, 255, 255, 0.82)",
+    backdrop: "rgb(207, 220, 237)",
+    backdropGradient: {
+      topLeft: "rgb(228, 235, 245)",
+      topRight: "rgb(204, 217, 235)",
+      bottomLeft: "rgb(204, 217, 235)",
+      bottomRight: "rgb(193, 209, 233)",
+    },
+    surfaceSidebar: "rgb(228, 238, 240)",
+    surfaceCard: "rgb(255, 255, 255)",
     foreground: "#1f2328",
     foregroundMuted: "#59636e",
     border: "#d1d9e0",
@@ -58,8 +81,14 @@ export const SHELL_TOKENS: Record<ThemeScheme, ShellTokens> = {
   },
   dark: {
     backdrop: "#0d1117",
-    surfaceSidebar: "rgba(13, 17, 23, 0.62)",
-    surfaceCard: "rgba(22, 27, 34, 0.85)",
+    backdropGradient: {
+      topLeft: "rgb(24, 30, 42)",
+      topRight: "rgb(22, 27, 36)",
+      bottomLeft: "rgb(13, 17, 23)",
+      bottomRight: "rgb(15, 19, 27)",
+    },
+    surfaceSidebar: "rgb(13, 17, 23)",
+    surfaceCard: "rgb(22, 27, 34)",
     foreground: "#e6edf3",
     foregroundMuted: "#8b949e",
     border: "#30363d",

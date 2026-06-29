@@ -25,6 +25,7 @@ import { RightPanelLauncher } from "@/screens/workspace/right-panel-launcher";
 import type { WorkspaceToolsAddHandlers } from "@/screens/workspace/workspace-desktop-tabs-row";
 import { ScreenHeader } from "@/components/headers/screen-header";
 import { HEADER_INNER_HEIGHT, MAX_CONTENT_WIDTH, useIsCompactFormFactor } from "@/constants/layout";
+import { getIsElectronMac } from "@/constants/platform";
 import { useToast } from "@/contexts/toast-context";
 import { useAgentInputDraft } from "@/composer/draft/input-draft";
 import { useGithubSearchQuery } from "@/git/use-github-search-query";
@@ -1828,6 +1829,16 @@ export function NewWorkspaceScreen({
     [isCompact, isAgentListOpen],
   );
 
+  // macOS Electron: drop the opaque surface0 fill so the home shell's translucent backdrop (and
+  // the real desktop behind it) shows through the center; the composer + form keep their own solid
+  // surfaces. Off mac the screen fills surface0 as before — zero regression. getIsElectronMac() is
+  // process-stable (cached), so this resolves once.
+  const containerStyle = useMemo(
+    () =>
+      getIsElectronMac() ? [styles.container, styles.containerMacTransparent] : styles.container,
+    [],
+  );
+
   // 反馈6(简化版): the right-panel toggle (□) only appears once a project/dir is chosen.
   const { screenHeaderRight, rightPanelBody } = useNewWorkspaceRightPanel({
     isCompact,
@@ -1840,7 +1851,7 @@ export function NewWorkspaceScreen({
 
   return (
     <FileDropZone onFilesDropped={handleFilesDropped}>
-      <View style={styles.container}>
+      <View style={containerStyle}>
         <ScreenHeader
           left={screenHeaderLeft}
           leftStyle={collapsedToggleStyle}
@@ -1895,6 +1906,10 @@ const styles = StyleSheet.create((theme) => ({
     flex: 1,
     backgroundColor: theme.colors.surface0,
     userSelect: "none",
+  },
+  // macOS Electron override: transparent so the translucent shell backdrop + desktop show through.
+  containerMacTransparent: {
+    backgroundColor: "transparent",
   },
   bodyRow: {
     flex: 1,

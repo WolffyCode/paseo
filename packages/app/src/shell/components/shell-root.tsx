@@ -2,6 +2,7 @@ import { observer } from "mobx-react-lite";
 import { Fragment, useLayoutEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { StyleSheet, View } from "react-native";
+import { getIsElectronMac } from "@/constants/platform";
 import { useColorScheme } from "@/hooks/use-color-scheme";
 import { useAppSettings } from "@/hooks/use-settings";
 import { DEFAULT_LOCALE, parseAppLanguage } from "@/i18n/locales";
@@ -13,6 +14,7 @@ import { RegionFrame } from "./region-frame";
 import { RegionGutter } from "./region-gutter";
 import { RegionPlaceholder } from "./region-placeholder";
 import { SettingsEntry } from "./settings-entry";
+import { ShellBackdrop } from "./shell-backdrop";
 import { TopBar } from "./top-bar";
 
 // The one bridge from app inputs to the shell models: the route context, the theme scheme
@@ -51,14 +53,18 @@ export const ShellRoot = observer(function ShellRoot({ ctx }: { ctx: ShellContex
   const visible = shellModel.visibleRegions;
   const isSettings = shellModel.currentPage === "settings";
   const { showsShell, workspaceKey } = shellModel;
-  // Approach C: always paint the (semi-transparent) periwinkle backdrop so the "蓝底" is
-  // guaranteed — a white ancestor layer sits behind shell-root and would otherwise block both
-  // the fallback AND the window vibrancy, leaving the shell pure white. The alpha still lets
-  // mac vibrancy read through once that ancestor stops painting white.
+  // The shell-root base fill. On macOS Electron it is transparent so the half-transparent
+  // ShellBackdrop is the ONLY layer behind the cards and the real desktop shows through it (the
+  // app's transparent ancestor chain in _layout lets the desktop reach here). Off mac (browser web
+  // + native) there is no desktop to reveal, so we paint the opaque flat backdrop as the base — a
+  // white ancestor would otherwise show through. ShellBackdrop paints over this base (the bilinear
+  // gradient on web/electron, a flat solid on native) as the first child, behind the top bar + cards.
   const backdrop = themeModel.tokens.backdrop;
-  const rootStyle = useMemo(() => [styles.root, { backgroundColor: backdrop }], [backdrop]);
+  const rootBg = getIsElectronMac() ? "transparent" : backdrop;
+  const rootStyle = useMemo(() => [styles.root, { backgroundColor: rootBg }], [rootBg]);
   return (
     <View style={rootStyle} testID="shell-root">
+      <ShellBackdrop />
       {showsShell ? <TopBar /> : null}
       <View style={styles.row}>
         {visible.left != null ? (

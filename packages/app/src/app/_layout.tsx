@@ -1,6 +1,7 @@
 import "@/styles/unistyles";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { PortalProvider } from "@gorhom/portal";
+import { DarkTheme, DefaultTheme, ThemeProvider, type Theme } from "@react-navigation/native";
 import { QueryClientProvider } from "@tanstack/react-query";
 import * as Linking from "expo-linking";
 import * as Notifications from "expo-notifications";
@@ -28,8 +29,7 @@ import { DownloadToast } from "@/components/download-toast";
 import { QuittingOverlay } from "@/components/quitting-overlay";
 import { KeyboardShortcutsDialog } from "@/components/keyboard-shortcuts-dialog";
 import { LeftSidebar } from "@/components/left-sidebar";
-import { HomeShell } from "@/screens/home-shell/home-shell";
-import { useShellLayoutStore } from "@/stores/shell-layout-store";
+import { shellModel } from "@/shell/model/shell-model";
 import { TrafficLights } from "@/components/desktop/traffic-lights";
 import { useSuppressBrowserContextMenu } from "@/hooks/use-suppress-browser-context-menu";
 import { ProjectPickerModal } from "@/components/project-picker-modal";
@@ -38,7 +38,7 @@ import { WorkspaceSetupDialog } from "@/components/workspace-setup-dialog";
 import { WorkspaceShortcutTargetsSubscriber } from "@/components/workspace-shortcut-targets-subscriber";
 import { FloatingPanelPortalHost } from "@/components/ui/floating-panel-portal";
 import { getIsElectronRuntime, useIsCompactFormFactor } from "@/constants/layout";
-import { isNative, isWeb } from "@/constants/platform";
+import { getIsElectronMac, isNative, isWeb } from "@/constants/platform";
 import {
   HorizontalScrollProvider,
   useHorizontalScrollOptional,
@@ -95,7 +95,6 @@ import { resolveActiveHost } from "@/utils/active-host";
 import { canOpenLeftSidebarGesture } from "@/utils/sidebar-animation-state";
 import {
   buildHostRootRoute,
-  isHostHomePathname,
   parseHostAgentRouteFromPathname,
   parseServerIdFromPathname,
   parseWorkspaceOpenIntent,
@@ -436,8 +435,6 @@ function AppContainer({
   const { settings, updateSettings } = useAppSettings();
   const toggleMobileAgentList = usePanelStore((state) => state.toggleMobileAgentList);
   const toggleFocusMode = usePanelStore((state) => state.toggleFocusMode);
-  const isFocusModeEnabled = usePanelStore((state) => state.desktop.focusModeEnabled);
-  const toggleShellRegion = useShellLayoutStore((state) => state.toggleRegion);
 
   // 抑制非自定义区域的浏览器默认右键菜单(反馈: 空白区域右键 Copy/Paste 删掉)。web only, native noop。
   useSuppressBrowserContextMenu();
@@ -452,18 +449,13 @@ function AppContainer({
   useCompactWebViewportZoomLock(isCompactLayout);
   const chromeEnabled = chromeEnabledOverride ?? daemons.length > 0;
   const pathname = usePathname();
-  // The new desktop shell route renders its own chrome (top bar + region cards), so it must
-  // bypass the legacy HomeShell wrapper here — otherwise the two stack and double-chrome.
-  // Minimal, additive gate: every other route keeps the legacy wrapper untouched. Drop this
-  // when HomeShell is retired and /home (plus future content routes) own the shell outright.
-  const isNewShellRoute = isHostHomePathname(pathname);
   const activeServerId = useMemo(
     () => resolveActiveHost({ hosts: daemons, pathname })?.serverId ?? null,
     [daemons, pathname],
   );
-  // On desktop the left card's open/close truth lives in shell-layout-store, so the
+  // On desktop the left card's open/close truth lives in the shell model, so the
   // left-sidebar and "both sidebars" shortcuts toggle it; mobile keeps panel-store.
-  const toggleShellLeft = useCallback(() => toggleShellRegion("left"), [toggleShellRegion]);
+  const toggleShellLeft = useCallback(() => shellModel.toggleLeft(), []);
   const toggleAgentList = isCompactLayout ? toggleMobileAgentList : toggleShellLeft;
   const toggleDesktopSidebars = toggleShellLeft;
   // TODO: stop matching pathname here as a branch. `chromeEnabled` should not
@@ -485,23 +477,20 @@ function AppContainer({
   useGlobalNewWorkspaceAction();
 
   const content = (
-    <View style={layoutStyles.surfaceFill}>
+    <View
+      style={getIsElectronMac() ? layoutStyles.surfaceFillTransparent : layoutStyles.surfaceFill}
+    >
       {/* Web-only DOM traffic lights (Electron uses OS-native ones) — keeps browser chrome identical
           to the desktop app, 反馈: 不做两套 UI。Renders null on Electron/native internally. The unified
           top bar reserves the left footprint; these draw the actual browser window buttons into it. */}
       <TrafficLights />
-      {isCompactLayout || isNewShellRoute ? (
-        <View style={rowStyle}>
-          <View style={flexStyle}>{children}</View>
-        </View>
-      ) : (
-        <HomeShell
-          selectedAgentId={selectedAgentId}
-          chromeEnabled={chromeEnabled && !isFocusModeEnabled}
-        >
-          {children}
-        </HomeShell>
-      )}
+      {/* The legacy HomeShell chrome is OFF the route tree. Welcome + the connected-host
+          conversation now live in the new shell (app/src/shell), which paints its own top bar +
+          floating cards. Every route renders bare on the transparent root, so no opaque legacy
+          shell background sits between the shell and the real desktop. */}
+      <View style={rowStyle}>
+        <View style={flexStyle}>{children}</View>
+      </View>
       <FloatingPanelPortalHost />
       {isCompactLayout && chromeEnabled && <LeftSidebar selectedAgentId={selectedAgentId} />}
       <DownloadToast />
@@ -894,28 +883,44 @@ function FaviconStatusSync() {
 
 function RootStack() {
   const { theme } = useUnistyles();
+  // macOS Electron: the whole window is translucent so the real desktop shows through the shell's
+  // backdrop. Make the navigator's scene background AND its theme background transparent so no
+  // opaque navigation layer sits between the shell and the desktop. Off mac (browser web + native):
+  // unchanged opaque scene background — zero regression.
+  const transparentScene = getIsElectronMac();
   const stackScreenOptions = useMemo(
     () => ({
       headerShown: false,
       animation: "none" as const,
       contentStyle: {
-        backgroundColor: theme.colors.surface0,
+        backgroundColor: transparentScene ? "transparent" : theme.colors.surface0,
       },
     }),
-    [theme.colors.surface0],
+    [theme.colors.surface0, transparentScene],
   );
+  // React Navigation also fills its container with theme.colors.background (DefaultTheme's light
+  // gray / DarkTheme's near-black). Override that to transparent on mac so it doesn't reintroduce
+  // an opaque layer; off mac keep the stock theme so nothing changes.
+  const navTheme = useMemo<Theme>(() => {
+    const base = UnistylesRuntime.colorScheme === "dark" ? DarkTheme : DefaultTheme;
+    if (!transparentScene) {
+      return base;
+    }
+    return { ...base, colors: { ...base.colors, background: "transparent" } };
+  }, [transparentScene]);
   return (
-    <Stack screenOptions={stackScreenOptions}>
-      <Stack.Screen name="index" />
-      <Stack.Screen name="welcome" />
-      <Stack.Protected guard={true}>
-        <Stack.Screen name="settings/index" />
-        <Stack.Screen name="settings/[section]" />
-        <Stack.Screen name="settings/projects/index" />
-        <Stack.Screen name="settings/projects/[projectKey]" />
-        <Stack.Screen name="pair-scan" />
-      </Stack.Protected>
-      {/*
+    <ThemeProvider value={navTheme}>
+      <Stack screenOptions={stackScreenOptions}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="welcome" />
+        <Stack.Protected guard={true}>
+          <Stack.Screen name="settings/index" />
+          <Stack.Screen name="settings/[section]" />
+          <Stack.Screen name="settings/projects/index" />
+          <Stack.Screen name="settings/projects/[projectKey]" />
+          <Stack.Screen name="pair-scan" />
+        </Stack.Protected>
+        {/*
         Every per-host screen (new / index / sessions / workspace / agent / settings /
         open-project) lives under app/h/[serverId]/_layout.tsx, so to the root navigator
         they are a SINGLE route — the "h/[serverId]" group. Declaring the grandchildren
@@ -926,10 +931,11 @@ function RootStack() {
         own screen identity/retention (Slot + per-screen logic) — never reintroduce getId
         or dangerouslySingular for the workspace screen, which breaks Android native-stack.
       */}
-      <Stack.Screen name="h/[serverId]" />
-      <Stack.Screen name="settings/hosts/[serverId]/index" />
-      <Stack.Screen name="settings/hosts/[serverId]/[hostSection]" />
-    </Stack>
+        <Stack.Screen name="h/[serverId]" />
+        <Stack.Screen name="settings/hosts/[serverId]/index" />
+        <Stack.Screen name="settings/hosts/[serverId]/[hostSection]" />
+      </Stack>
+    </ThemeProvider>
   );
 }
 
@@ -986,7 +992,9 @@ function RootProviders({ children }: { children: ReactNode }) {
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={flexStyle}>
-      <View style={layoutStyles.surfaceFill}>
+      <View
+        style={getIsElectronMac() ? layoutStyles.surfaceFillTransparent : layoutStyles.surfaceFill}
+      >
         <RootProviders>
           <RuntimeProviders>
             <AppShell />
@@ -1001,5 +1009,11 @@ const layoutStyles = StyleSheet.create((theme) => ({
   surfaceFill: {
     flex: 1,
     backgroundColor: theme.colors.surface0,
+  },
+  // macOS Electron: transparent so the desktop shows through the translucent shell. The opaque
+  // surface0 fill is kept for browser web + native (no desktop behind the window to reveal).
+  surfaceFillTransparent: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
 }));

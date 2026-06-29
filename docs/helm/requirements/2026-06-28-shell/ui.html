@@ -1,0 +1,1128 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · UI 设计稿 · 壳子（纯骨架 · 统一顶栏 + 主体 · 对话页 / 设置页 · codePilot 浅色 GitHub 主题）</title>
+    <style>
+      /* =========================================================================
+         主题令牌 = CodePilot「github」主题（themes/github.json 原值）· 内部命名 codePilot
+         —— 色值逐项保留自上一版（壳子的唯一色源），不自创。
+         GitHub Primer 浅色：冷灰中性 + GitHub 蓝仅点缀；选中态 = 很淡的灰
+         （sidebar-accent #eaeef2 + 深灰字 #3d444d），绝非黑底白字 / 绝非 primary。
+         oklch 为准（headless Chrome 支持），hex 为近似兜底。
+         ========================================================================= */
+      :root {
+        --bg: oklch(1 0 0);                        /* #ffffff 主背景/中区/右栏/目录树/设置内容 */
+        --fg: oklch(0.254 0.011 254);             /* #1f2328 主文字·近黑 */
+        --card: oklch(1 0 0);                      /* #ffffff */
+        --primary: oklch(0.540 0.191 257.5);      /* #0969da GitHub 蓝 · 仅按钮/链接/focus/品牌强调 */
+        --primary-fg: oklch(1 0 0);               /* #ffffff 蓝底白字 */
+        --secondary: oklch(0.947 0.007 247.9);    /* #eaeef2 次级浅灰底 */
+        --secondary-fg: oklch(0.338 0.015 252.3); /* #3d444d */
+        --muted: oklch(0.947 0.007 247.9);        /* #eaeef2 */
+        --muted-fg: oklch(0.531 0.017 251.3);     /* #59636e 次要文字灰 */
+        --accent: oklch(0.978 0.003 247.9);       /* #f6f8fa 极淡冷灰·hover 底（顶栏 ghost / 文件行 hover） */
+        --accent-fg: oklch(0.338 0.015 252.3);    /* #3d444d */
+        --border: oklch(0.876 0.012 248);         /* #d1d9e0 边框浅灰 */
+        --input: oklch(0.876 0.012 248);
+        --ring: oklch(0.540 0.191 257.5);         /* #0969da focus 蓝环 */
+        --sidebar: oklch(0.978 0.003 247.9);      /* #f6f8fa 左栏背景·浅冷灰 */
+        --sidebar-accent: oklch(0.947 0.007 247.9);    /* #eaeef2 选中/hover 高亮·很淡的灰（不是黑！） */
+        --sidebar-accent-fg: oklch(0.338 0.015 252.3); /* #3d444d 选中态文字·深灰 */
+        --destructive: oklch(0.552 0.205 24.5);   /* #cf222e 危险红 */
+        --success: oklch(0.503 0.137 152);        /* ≈#1a7f37 成功绿 */
+        --warning: oklch(0.555 0.118 75);         /* ≈#9a6700 警告橙 */
+        --info: oklch(0.540 0.191 257.5);         /* #0969da 信息蓝 */
+        --radius: 12px;
+        --r-card: 12px;       /* 浮动卡片圆角 */
+        --r-ctrl: 6px;        /* 控件圆角 */
+        --r-sm: 6px;
+        --card-drop: 0 1px 0 rgba(31, 35, 40, 0.04), 0 1px 3px rgba(31, 35, 40, 0.08);
+        --card-ring: 0 0 #0000;
+        /* 方案C: 整体背景 = 透明窗 macOS vibrancy + 此淡蓝 CSS 兜底; 本 mockup 无 vibrancy, 画的是兜底可见色 —— 白卡浮在淡蓝 periwinkle 上 */
+        --win-backdrop:
+          radial-gradient(135% 90% at 12% -10%, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 55%),
+          radial-gradient(120% 120% at 108% 115%, rgba(160, 184, 222, 0.52), rgba(160, 184, 222, 0) 52%),
+          linear-gradient(152deg, #d8e2f1 0%, #cbd8eb 50%, #d5e0f0 100%);
+        --win-shadow: 0 12px 30px -16px rgba(31, 35, 40, 0.16), 0 2px 6px -3px rgba(31, 35, 40, 0.10);
+        --ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+      .dark {
+        --bg: oklch(0.176 0.014 258.4);           /* #0d1117 */
+        --fg: oklch(0.943 0.011 243.7);           /* #e6edf3 近白 */
+        --card: oklch(0.220 0.016 256.8);         /* #161b22 */
+        --primary: oklch(0.569 0.202 259.7);      /* #1f6feb GitHub 蓝(深) */
+        --primary-fg: oklch(1 0 0);
+        --secondary: oklch(0.267 0.015 256.8);    /* #21262d */
+        --secondary-fg: oklch(0.857 0.014 248);
+        --muted: oklch(0.267 0.015 256.8);
+        --muted-fg: oklch(0.662 0.018 250.9);     /* ≈#8b949e */
+        --accent: oklch(0.246 0.015 256.8);       /* #1c2128 */
+        --accent-fg: oklch(0.943 0.011 243.7);
+        --border: oklch(0.330 0.015 252.3);       /* #30363d */
+        --input: oklch(0.330 0.015 252.3);
+        --ring: oklch(0.569 0.202 259.7);
+        --sidebar: oklch(0.104 0.019 248.3);      /* #010409 左栏(深) */
+        --sidebar-accent: oklch(0.267 0.015 256.8);    /* #21262d 选中(深) */
+        --sidebar-accent-fg: oklch(0.943 0.011 243.7); /* #e6edf3 */
+        --destructive: oklch(0.665 0.205 27.0);   /* #f85149 */
+        --success: oklch(0.65 0.15 152);          /* ≈#3fb950 */
+        --warning: oklch(0.74 0.13 80);           /* ≈#d29922 */
+        --info: oklch(0.569 0.202 259.7);
+        --card-drop: 0 1px 0 rgba(1, 4, 9, 0.30), 0 1px 3px rgba(1, 4, 9, 0.40);
+        --win-backdrop:
+          radial-gradient(135% 90% at 12% -10%, rgba(60, 72, 92, 0.50), rgba(60, 72, 92, 0) 55%),
+          radial-gradient(120% 120% at 108% 115%, rgba(20, 28, 44, 0.70), rgba(20, 28, 44, 0) 50%),
+          linear-gradient(152deg, #11151c 0%, #0b0e14 55%, #0d1117 100%);
+        --win-shadow: 0 12px 30px -16px rgba(0, 0, 0, 0.60), 0 2px 6px -3px rgba(0, 0, 0, 0.50);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body {
+        background: #eaeef2;
+        color: var(--fg);
+        font-family: var(--ui);
+        -webkit-font-smoothing: antialiased;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+      body { padding: 40px 32px 120px; }
+      button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+      svg.i { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+      .i.xs { width: 12px; height: 12px; }
+      .i.sm { width: 14px; height: 14px; }
+      .i.md { width: 16px; height: 16px; }
+      .i.lg { width: 22px; height: 22px; }
+
+      /* ===== board header ===== */
+      .board-h { max-width: 1480px; margin: 0 auto 24px; }
+      .board-h h1 { font-size: 30px; font-weight: 600; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px; color: #1f2328; }
+      .board-h h1 .logo { width: 34px; height: 34px; border-radius: 9px; background: #0969da; display: flex; align-items: center; justify-content: center; color: #fff; }
+      .board-h .sub { color: #59636e; font-size: 14px; margin-top: 8px; max-width: 1080px; }
+      .board-h .sub b { color: #1f2328; font-weight: 600; }
+      .req-log { max-width: 1480px; margin: 0 auto 18px; border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; overflow: hidden; }
+      .req-log .rl-h { padding: 10px 16px; background: #eaeef2; font-size: 12px; font-weight: 600; color: #59636e; letter-spacing: 0.4px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #d1d9e0; }
+      .req-log table { width: 100%; border-collapse: collapse; font-size: 14px; }
+      .req-log td, .req-log th { padding: 8px 16px; text-align: left; border-top: 1px solid #d1d9e0; vertical-align: top; }
+      .req-log th { color: #59636e; font-weight: 500; font-size: 12px; }
+      .req-log td:first-child { color: #59636e; white-space: nowrap; font-variant-numeric: tabular-nums; }
+      .pill { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+      .pill.p0 { color: #3d444d; background: rgba(120, 113, 108, 0.16); }
+      .pill.new { color: #0969da; background: rgba(9, 105, 218, 0.12); }
+      .pill.cut { color: #9a6700; background: rgba(154, 103, 0, 0.13); }
+      .nav-idx { max-width: 1480px; margin: 0 auto 30px; display: flex; flex-wrap: wrap; gap: 8px; }
+      .nav-idx a { font-size: 12px; color: #59636e; text-decoration: none; padding: 5px 11px; border: 1px solid #d1d9e0; border-radius: 9999px; background: #f6f8fa; }
+      .nav-idx a:hover { color: #1f2328; background: #eaeef2; }
+      .nav-idx a.new { color: #0969da; border-color: rgba(9, 105, 218, 0.3); }
+      .note { max-width: 1480px; margin: 0 auto 30px; font-size: 13px; color: #59636e; display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border: 1px dashed #d1d9e0; border-radius: 10px; background: #f6f8fa; }
+      .note b { color: #1f2328; }
+
+      /* ===== screen scaffold ===== */
+      .screen { max-width: 1480px; margin: 0 auto 60px; scroll-margin-top: 20px; }
+      .screen-head { margin-bottom: 14px; }
+      .screen-head .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #3d444d; background: rgba(120, 113, 108, 0.16); padding: 2px 9px; border-radius: 9999px; margin-bottom: 8px; }
+      .screen-head .tag.new { color: #0969da; background: rgba(9, 105, 218, 0.12); }
+      .screen-head h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.2px; color: #1f2328; }
+      .screen-head p { color: #59636e; font-size: 14px; margin-top: 5px; max-width: 1080px; }
+      .screen-head p b { color: #1f2328; font-weight: 600; }
+
+      /* =========================================================================
+         FRAME = macOS 浮窗（窗口背景 + 整窗大投影 + 圆角 16px）
+         ========================================================================= */
+      .frame { border-radius: 16px; overflow: hidden; background: var(--win-backdrop); box-shadow: var(--win-shadow); position: relative; }
+      .win { display: flex; flex-direction: column; gap: 4px; padding: 8px 16px 16px; height: 600px; }
+      .win.short { height: 420px; }
+
+      /* ===== 统一顶栏（透明，融入 gutter 背景，横跨整宽，h40） =====
+         壳层只放：交通灯 + 区域 toggle 按钮/图标 +（设置页）返回钮 + 中央占位 slot。
+         旧壳的标题 / 项目面包屑 / ··· 菜单 / 分支标签 全部移除。 */
+      .topbar { height: 40px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 2px; }
+      .lights { display: flex; gap: 8px; padding-left: 4px; margin-right: 6px; }
+      .lights span { width: 12px; height: 12px; border-radius: 9999px; }
+      .lights .r { background: #ff5f57; }
+      .lights .y { background: #febc2e; }
+      .lights .g { background: #28c840; }
+      .tbtn { width: 28px; height: 28px; border-radius: 8px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted-fg); position: relative; flex: none; }
+      .tbtn:hover, .tbtn.is-hover { background: color-mix(in oklch, var(--fg) 7%, transparent); color: var(--fg); }
+      .tbtn.on { background: var(--secondary); color: var(--fg); }       /* 区域展开时 toggle 进入 secondary 激活态（#eaeef2 · 非黑） */
+      .tb-back { height: 28px; padding: 0 10px 0 6px; border-radius: var(--r-ctrl); font-size: 13px; color: var(--muted-fg); display: inline-flex; align-items: center; gap: 3px; position: relative; }
+      .tb-back:hover, .tb-back.is-hover { background: var(--accent); color: var(--fg); }
+      .tb-spacer { flex: 1; }
+      .tb-right { display: flex; align-items: center; gap: 4px; }
+      .tb-slot { font-size: 12px; font-weight: 500; color: color-mix(in oklch, var(--muted-fg) 72%, transparent); border: 1px dashed var(--border); border-radius: 9999px; padding: 3px 14px; white-space: nowrap; }
+      .pinb { display: inline-flex; align-items: center; justify-content: center; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 9999px; background: var(--primary); color: var(--primary-fg); font-size: 10px; font-weight: 700; position: absolute; top: -5px; right: -5px; font-variant-numeric: tabular-nums; }
+
+      /* ===== 内容行（gap 0，卡间靠 8px ResizeGutter） ===== */
+      .row { flex: 1; min-height: 0; display: flex; gap: 0; }
+
+      /* ===== 浮动卡片（GitHub 扁平：12px 圆角 + 1px 边框 + 轻投影） ===== */
+      .card { height: 100%; border-radius: var(--r-card); border: 1px solid var(--border); box-shadow: var(--card-drop); overflow: hidden; display: flex; flex-direction: column; flex: none; position: relative; }
+      .card.main { flex: 1; min-width: 0; background: var(--bg); }
+      .card.sidebar { width: 240px; background: var(--sidebar); }        /* 左栏 · min180/max300/默认240 */
+      .card.workspace { width: 480px; background: var(--bg); }            /* 右栏(工作面板) · min320/max800/默认480 */
+      .card.filetree { width: 280px; background: var(--bg); }             /* 目录树 · min220/max500/默认280 */
+      .card.set-nav { width: 240px; background: var(--sidebar); }         /* 设置左导航 · 同左栏几何，可开合 */
+      .card.set-content { flex: 1; min-width: 0; background: var(--bg); } /* 设置内容 */
+
+      /* ResizeGutter（8px，常态淡灰竖线，hover/拖拽加长加深 + col-resize） */
+      .gutter { width: 8px; flex: none; align-self: stretch; display: flex; align-items: center; justify-content: center; cursor: col-resize; position: relative; }
+      .gutter::after { content: ""; width: 3px; height: 40px; border-radius: 3px; background: color-mix(in oklch, var(--fg) 13%, transparent); transition: all 0.12s; }
+      .gutter:hover::after, .gutter.hot::after, .gutter.is-hover::after { height: 120px; background: color-mix(in oklch, var(--fg) 32%, transparent); }
+      .wbub { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); white-space: nowrap; font-size: 11px; font-weight: 500; color: var(--fg); background: var(--card); border: 1px solid var(--border); border-radius: 9999px; padding: 3px 9px; box-shadow: var(--card-drop); display: inline-flex; align-items: center; gap: 5px; z-index: 6; }
+      .wbub .ar { color: var(--muted-fg); font-size: 12px; font-weight: 700; }
+
+      /* =========================================================================
+         ZONE = 空区域占位容器（壳层核心）
+         每个区域 = 真实卡片几何（宽/边框/位置保真）+ 内部一律「虚线空占位 + 区域名」。
+         内容（对话树/对话流/工作面板/文件树/设置导航/设置详情）全归各自模块，本壳稿不画。
+         ========================================================================= */
+      .zone { flex: 1; min-height: 0; margin: 8px; border: 1px dashed var(--border); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; padding: 16px 14px; text-align: center; }
+      .zone .zi { width: 40px; height: 40px; border-radius: 11px; background: var(--secondary); display: flex; align-items: center; justify-content: center; color: var(--muted-fg); }
+      .zone .zt { font-size: 13px; font-weight: 600; color: var(--fg); }
+      .zone .zs { font-size: 11.5px; line-height: 1.5; color: var(--muted-fg); max-width: 230px; }
+      .zone .ztag { font-size: 10px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted-fg); border: 1px solid var(--border); border-radius: 9999px; padding: 2px 9px; margin-top: 2px; }
+
+      /* ===== 左栏底「设置」入口（壳层唯一保留的左栏内控件 · 页切换用） ===== */
+      .sb-foot { flex: none; padding: 0 8px 8px; }
+      .set-entry { display: flex; align-items: center; gap: 9px; width: 100%; height: 36px; padding: 0 10px; border-radius: var(--r-ctrl); color: var(--fg); font-size: 13px; position: relative; }
+      .set-entry .i { color: var(--muted-fg); }
+      .set-entry:hover, .set-entry.is-hover { background: var(--sidebar-accent); }
+      .set-entry .pinb { top: 50%; right: 8px; transform: translateY(-50%); }
+
+      /* ===== 开关组合矩阵（S3 缩略） ===== */
+      .mtx { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-top: 4px; }
+      .mini { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--win-backdrop); box-shadow: var(--card-drop); }
+      .mini-h { font-size: 11px; font-weight: 600; color: var(--fg); padding: 8px 11px 0; display: flex; align-items: center; gap: 6px; }
+      .mini-h .tg { font-size: 10px; font-weight: 600; color: var(--muted-fg); margin-left: auto; font-family: var(--mono); }
+      .mini-win { height: 116px; padding: 7px 9px 9px; display: flex; flex-direction: column; gap: 4px; }
+      .mini-bar { height: 13px; display: flex; align-items: center; gap: 3px; padding: 0 1px; }
+      .mini-bar .l { width: 5px; height: 5px; border-radius: 999px; }
+      .mini-bar .tbtn-mini { width: 10px; height: 9px; border-radius: 2px; background: color-mix(in oklch, var(--fg) 10%, transparent); }
+      .mini-bar .tbtn-mini.on { background: var(--secondary); border: 1px solid var(--border); }
+      .mini-bar .sp { flex: 1; }
+      .mini-row { flex: 1; display: flex; gap: 2px; min-height: 0; }
+      .mini-card { border-radius: 4px; border: 1px dashed var(--border); background: var(--card); }
+      .mini-card.sb { width: 30px; background: var(--sidebar); }
+      .mini-card.mn { flex: 1; min-width: 0; }
+      .mini-card.ws { width: 44px; }
+      .mini-card.ft { width: 24px; }
+
+      /* ===== 状态样品（S3 / S4） ===== */
+      .swgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 4px; }
+      .swbox { border: 1px solid #d1d9e0; border-radius: 12px; background: #fff; overflow: hidden; }
+      .swbox > .swh { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 10px 13px 8px; border-bottom: 1px solid #eaeef2; }
+      .swstage { padding: 14px; display: flex; flex-direction: column; gap: 10px; background: var(--win-backdrop); }
+      .swstage.flat { background: #fff; }
+      .swline { display: flex; align-items: center; gap: 12px; }
+      .swline .cap { font-size: 11px; color: #59636e; width: 86px; flex: none; font-weight: 600; }
+      .swtop { display: inline-flex; gap: 6px; background: var(--win-backdrop); border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; }
+      .swrow { width: 200px; background: var(--sidebar); border: 1px solid var(--border); border-radius: 8px; padding: 5px; }
+      .swrow.lt { background: var(--bg); }
+
+      /* ===== 页切换流（S6） ===== */
+      .flowrow { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+      .flowmini { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--win-backdrop); box-shadow: var(--card-drop); width: 320px; }
+      .flowmini .fm-h { font-size: 11px; font-weight: 600; color: var(--fg); padding: 8px 11px 0; }
+      .flowarrow { display: flex; flex-direction: column; align-items: center; gap: 4px; color: #0969da; font-size: 12px; font-weight: 600; }
+      .flowarrow .ico { width: 36px; height: 36px; border-radius: 9999px; border: 1px solid rgba(9, 105, 218, 0.4); background: rgba(9, 105, 218, 0.07); display: flex; align-items: center; justify-content: center; }
+      .fm-zone { border: 1px dashed var(--border); border-radius: 4px; background: var(--card); display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--muted-fg); }
+
+      /* ===== 主题色板（S7） ===== */
+      .pal { border: 1px solid #d1d9e0; border-radius: 14px; overflow: hidden; background: #fff; }
+      .pal-row { display: flex; }
+      .pal-side { width: 120px; flex: none; padding: 16px 14px; display: flex; flex-direction: column; gap: 4px; justify-content: center; }
+      .pal-side.lt { background: #fff; }
+      .pal-side.dk { background: oklch(0.176 0.014 258.4); }
+      .pal-side .tt { font-size: 14px; font-weight: 600; }
+      .pal-side.lt .tt { color: #1f2328; }
+      .pal-side.dk .tt { color: #e6edf3; }
+      .pal-side .ss { font-size: 11px; color: #59636e; }
+      .pal-swatches { flex: 1; display: grid; grid-template-columns: repeat(8, 1fr); }
+      .sw { padding: 14px 10px; display: flex; flex-direction: column; gap: 6px; border-left: 1px solid rgba(140, 149, 159, 0.14); }
+      .sw .chip { width: 100%; height: 40px; border-radius: 8px; border: 1px solid rgba(140, 149, 159, 0.28); }
+      .sw .nm { font-size: 11px; font-weight: 600; }
+      .sw .vl { font-size: 9.5px; font-family: var(--mono); line-height: 1.3; }
+      .pal-row.lt .sw .nm { color: #1f2328; }
+      .pal-row.lt .sw .vl { color: #59636e; }
+      .pal-row.dk { background: oklch(0.176 0.014 258.4); }
+      .pal-row.dk .sw { border-left-color: rgba(255, 255, 255, 0.08); }
+      .pal-row.dk .sw .nm { color: #e6edf3; }
+      .pal-row.dk .sw .vl { color: #8b949e; }
+      .status-row { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+      .st-chip { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: #1f2328; border: 1px solid #d1d9e0; border-radius: 9999px; padding: 5px 12px; background: #fff; }
+      .st-chip .d { width: 11px; height: 11px; border-radius: 9999px; }
+
+      /* ===== annotation block（house style 四维度） ===== */
+      .anno { border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; overflow: hidden; margin-top: 18px; }
+      .anno > .anno-h { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 11px 14px 4px; }
+      .anno-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; padding: 12px 14px 14px; align-items: start; }
+      .anno-card { border: 1px solid #d1d9e0; border-radius: 8px; background: #fff; overflow: hidden; }
+      .anno-card > .ac-h { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 10px 13px 7px; }
+      .anno-card.span2 { grid-column: 1 / -1; }
+      .anno ol { list-style: none; display: flex; flex-direction: column; }
+      .anno-card ol li { display: flex; gap: 10px; padding: 9px 13px; border-top: 1px solid #d1d9e0; font-size: 13px; line-height: 1.6; color: #59636e; }
+      .anno-card ol li b { color: #1f2328; font-weight: 600; }
+      .pin { flex: none; width: 18px; height: 18px; border-radius: 9999px; background: #0969da; color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+      .menulist { background: #fff; padding: 4px 13px 12px; font-size: 13px; line-height: 1.6; color: #59636e; }
+      .menulist .ml-i { display: flex; gap: 8px; padding: 3px 0; }
+      .menulist .ml-i b { color: #1f2328; font-weight: 500; }
+      .menulist .ml-open { margin-top: 8px; padding: 7px 9px; border: 1px dashed rgba(9, 105, 218, 0.4); border-radius: 6px; background: rgba(9, 105, 218, 0.05); color: #59636e; }
+      .menulist .ml-open b { color: #0969da; }
+      .states { padding: 4px 13px 12px; }
+      .states dl { display: grid; grid-template-columns: 84px 1fr; gap: 8px 14px; font-size: 13px; line-height: 1.55; }
+      .states dt { color: #3d444d; font-weight: 600; }
+      .states dd { margin: 0; color: #59636e; }
+      .states dd b { color: #1f2328; font-weight: 500; }
+    </style>
+  </head>
+  <body>
+    <!-- ============ SVG SPRITE（仅壳层用到的图标） ============ -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="gauge" viewBox="0 0 24 24"><path d="m12 14 4-4" /><path d="M3.34 19a10 10 0 1 1 17.32 0" /></symbol>
+      <symbol id="panel-l" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M9 3v18" /></symbol>
+      <symbol id="panel-r" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M15 3v18" /></symbol>
+      <symbol id="filetree" viewBox="0 0 24 24"><rect x="14" y="3" width="7" height="5" rx="1" /><rect x="14" y="10" width="7" height="5" rx="1" /><rect x="14" y="17" width="7" height="4" rx="1" /><path d="M9 5.5h5M9 12.5h5M9 19.5h5M9 5.5V19.5" /></symbol>
+      <symbol id="message" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" /></symbol>
+      <symbol id="settings" viewBox="0 0 24 24"><path d="M12.2 2h-.4a2 2 0 0 0-2 2v.2a2 2 0 0 1-1 1.7l-.4.3a2 2 0 0 1-2 0l-.2-.1a2 2 0 0 0-2.7.7l-.2.4a2 2 0 0 0 .7 2.7l.2.1a2 2 0 0 1 1 1.7v.5a2 2 0 0 1-1 1.7l-.2.1a2 2 0 0 0-.7 2.7l.2.4a2 2 0 0 0 2.7.7l.2-.1a2 2 0 0 1 2 0l.4.3a2 2 0 0 1 1 1.7V20a2 2 0 0 0 2 2h.4a2 2 0 0 0 2-2v-.2a2 2 0 0 1 1-1.7l.4-.3a2 2 0 0 1 2 0l.2.1a2 2 0 0 0 2.7-.7l.2-.4a2 2 0 0 0-.7-2.7l-.2-.1a2 2 0 0 1-1-1.7v-.5a2 2 0 0 1 1-1.7l.2-.1a2 2 0 0 0 .7-2.7l-.2-.4a2 2 0 0 0-2.7-.7l-.2.1a2 2 0 0 1-2 0l-.4-.3a2 2 0 0 1-1-1.7V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></symbol>
+      <symbol id="sliders" viewBox="0 0 24 24"><line x1="21" x2="14" y1="4" y2="4" /><line x1="10" x2="3" y1="4" y2="4" /><line x1="21" x2="12" y1="12" y2="12" /><line x1="8" x2="3" y1="12" y2="12" /><line x1="21" x2="16" y1="20" y2="20" /><line x1="12" x2="3" y1="20" y2="20" /><line x1="14" x2="14" y1="2" y2="6" /><line x1="8" x2="8" y1="10" y2="14" /><line x1="16" x2="16" y1="18" y2="22" /></symbol>
+      <symbol id="chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
+      <symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></symbol>
+      <symbol id="spark" viewBox="0 0 24 24"><path d="M9.9 15.5A2 2 0 0 0 8.5 14L2.4 12.5a.5.5 0 0 1 0-1L8.5 10a2 2 0 0 0 1.4-1.4L11.5 2.4a.5.5 0 0 1 1 0L14 8.5a2 2 0 0 0 1.4 1.4l6.1 1.6a.5.5 0 0 1 0 1L15.5 14a2 2 0 0 0-1.4 1.4l-1.6 6.1a.5.5 0 0 1-1 0z" /></symbol>
+      <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></symbol>
+    </svg>
+
+    <!-- ============ BOARD HEADER ============ -->
+    <div class="board-h">
+      <h1>
+        <span class="logo"><svg class="i lg"><use href="#gauge" /></svg></span>
+        Helm · UI 设计稿 · 壳子（纯骨架）
+      </h1>
+      <p class="sub">
+        本地需求设计稿（gate-1 复审 · 待董事长看 PNG）。需求 <b>2026-06-28-shell</b>：把 Helm 主壳重写为「<b>统一顶栏 + 主体</b>」上下布局，主体承载<b>两种页面</b>：① <b>对话页</b>（左栏 + 中区 + 右栏 + 目录树）② <b>设置页</b>（左导航 + 内容）。
+        <b style="color: #9a6700">gate-1 反馈：壳子东西太多。</b>本版按反馈<b>收窄成纯骨架</b>——壳子 = 只有<b>布局规则 + 全态交互 + 对应按钮图标</b>。各内容区一律换成<b>虚线空占位 + 区域名</b>；删掉对话树 / 搜索 / 项目 / host 切换器 / 右键菜单 / 消息 / Composer / 右栏 tab 内容 / 目录树文件 / 设置导航项 / 面包屑 / ··· 菜单 / 分支标签。
+        配色 / 圆角 / 几何 / hover 特效<b>原样保留 codePilot 浅色 GitHub（github.json）主题</b>。<b>桌面 only；移动 / 紧凑态 deferred</b>。
+      </p>
+    </div>
+
+    <div class="req-log">
+      <div class="rl-h"><svg class="i sm"><use href="#clock" /></svg> 需求日志</div>
+      <table>
+        <tr>
+          <th style="width: 110px">日期</th>
+          <th>需求</th>
+          <th style="width: 520px">关键决策</th>
+        </tr>
+        <tr>
+          <td>2026-06-28</td>
+          <td>壳子（layout shell）<b>纯骨架</b>重写 —— 统一顶栏 + 主体；对话页 / 设置页两页；全交互态</td>
+          <td>
+            <span class="pill cut">gate-1：壳子太满 → 剥成纯骨架</span>
+            <span class="pill new">各区 = 虚线空占位 + 区域名</span>
+            <span class="pill new">顶栏只留交通灯 + 区域 toggle + 返回钮</span>
+            <span class="pill new">返回钮移到顶栏左上（不在左栏）</span>
+            <span class="pill new">设置左导航也可开 / 收（独立 toggle）</span>
+            <span class="pill new">设置入口在对话页左栏最下</span>
+            <span class="pill new">3 独立 toggle · additive</span>
+            <span class="pill p0">配色 / 几何沿用 codePilot github.json</span>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="nav-idx">
+      <a href="#s1" class="new">S1 对话页 · 骨架默认态</a>
+      <a href="#s2" class="new">S2 对话页 · 四区全展开</a>
+      <a href="#s3" class="new">S3 开关组合矩阵 + 拖拽改宽三态</a>
+      <a href="#s4" class="new">S4 壳层全交互态拆解（定格 hover/active）</a>
+      <a href="#s5" class="new">S5 设置页（返回钮 + 左导航开 / 收）</a>
+      <a href="#s6" class="new">S6 对话页 ↔ 设置页 切换回路</a>
+      <a href="#s7" class="new">S7 主题色板（浅 + 深骨架壳）</a>
+    </div>
+
+    <div class="note">
+      <svg class="i sm"><use href="#spark" /></svg>
+      <span>
+        <b>本壳稿 = 纯骨架</b>：设备框内只画「壳的布局规则 + 区域空占位 + 顶栏按钮」；每个区域内部一律是<b>虚线占位框 + 区域名 + 「该填什么、属哪个模块」</b>的说明，<b>不画任何真实内容</b>。
+        交互标注：蓝色圆点 <span class="pin" style="width: 16px; height: 16px; vertical-align: middle">1</span> 标在控件旁，对应注解块「点击效果」编号。
+        hover / 拖拽等动态态在静态 PNG 里用 <code>.is-hover / .hot</code> 辅助类「定格」呈现（见 S4），以便逐态亲眼核对。
+      </span>
+    </div>
+
+    <!-- ============================================================ S1 ============================================================ -->
+    <section class="screen" id="s1">
+      <div class="screen-head">
+        <span class="tag new">对话页 · 1</span>
+        <h2>对话页 · 骨架默认态（壳基线 · 浅色）</h2>
+        <p>
+          连上主机后落地的对话页 = <b>壳基线</b>。<b>统一顶栏</b>横跨整宽（透明、融入窗口背景）：左 = 交通灯 + <b>左栏 toggle</b>；中 = <b>标题 / 上下文占位 slot</b>（虚线胶囊，内容属对话模块）；右 = <b>目录树 toggle</b> + <b>右栏 toggle</b>。<b>旧壳的标题文字 / 项目面包屑 / ··· 菜单 / 分支标签全部移除。</b>
+          顶栏下方主体：本屏展开 ① <b>左栏</b>（空占位「对话树区」+ 底部唯一保留的<b>「设置」入口</b>）+ ② <b>中区</b>（空占位「对话区」）；③ 右栏 + ④ 目录树<b>收起</b>。左↔中边界画成拖拽态示意（ResizeGutter）。
+        </p>
+      </div>
+      <div class="frame" id="shot1">
+        <div class="win">
+          <!-- 统一顶栏（对话页：左 toggle + 中占位 + 右二 toggle） -->
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg><span class="pinb">1</span></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-slot">标题 / 上下文 · 占位<span class="pinb" style="position: static; margin-left: 6px">4</span></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg><span class="pinb">2</span></div>
+              <div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg><span class="pinb">3</span></div>
+            </div>
+          </div>
+          <!-- 内容行 -->
+          <div class="row">
+            <!-- ① 左栏（空占位 + 底部设置入口） -->
+            <div class="card sidebar">
+              <div class="zone">
+                <div class="zi"><svg class="i lg"><use href="#panel-l" /></svg></div>
+                <div class="zt">左栏 · 对话树区<span class="pinb" style="position: static; margin-left: 6px">5</span></div>
+                <div class="zs">host 切换器 / 新对话 / 搜索 / 项目 → 对话 → subagent 树</div>
+                <div class="ztag">空占位 · 属对话树模块</div>
+              </div>
+              <div class="sb-foot">
+                <button class="set-entry"><svg class="i sm"><use href="#settings" /></svg> 设置<span class="pinb">7</span></button>
+              </div>
+            </div>
+            <div class="gutter hot"><span class="wbub"><span class="ar">↔</span> 拖拽改左栏宽 · 180–300<span class="pinb" style="position: static; margin-left: 5px">8</span></span></div>
+            <!-- ② 中区（空占位） -->
+            <div class="card main">
+              <div class="zone">
+                <div class="zi"><svg class="i lg"><use href="#message" /></svg></div>
+                <div class="zt">中区 · 对话区<span class="pinb" style="position: static; margin-left: 6px">6</span></div>
+                <div class="zs">空态问候 / Composer / 对话流 —— 全属对话模块，本壳稿不画。中区恒在、flex-1 自适应填满剩余宽。</div>
+                <div class="ztag">空占位 · 属对话模块</div>
+              </div>
+            </div>
+            <!-- ③ 右栏 + ④ 目录树：收起（仅顶栏 toggle 可唤出，见 S2） -->
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>左栏 toggle（panel_left）</b>：收 / 展 ① 左栏。交通灯右侧。<b>激活态</b> = 当前展开（secondary 淡灰填充 #eaeef2 · 非黑）。三 toggle <b>各自独立</b>。</div></li>
+              <li><span class="pin">2</span><div><b>目录树 toggle（file_tree）</b>：独立展 / 收 ④ 目录树（最外侧卡）。本屏收起 → 默认（无填充）。</div></li>
+              <li><span class="pin">3</span><div><b>右栏 toggle（panel_right）</b>：独立展 / 收 ③ 右栏（工作面板）。本屏收起 → 默认（无填充）。</div></li>
+              <li><span class="pin">4</span><div><b>顶栏中央占位 slot（虚线胶囊）</b>：当前对话标题 / 上下文将渲染于此，<b>属对话模块</b>；壳层只占这块布局位、不画内容。<b>非</b>可点（占位）。</div></li>
+              <li><span class="pin">5</span><div><b>左栏空占位「对话树区」</b>：壳层只画虚线占位框 + 区域名；真实内容（host 切换器 / 新对话 / 搜索 / 项目→对话树）<b>属对话树模块</b>。</div></li>
+              <li><span class="pin">6</span><div><b>中区空占位「对话区」</b>：壳层只把对话区装进中区浮卡；空态问候 / Composer / 对话流<b>属对话模块</b>。</div></li>
+              <li><span class="pin">7</span><div><b>设置入口（左栏底部 · 齿轮 · 无分隔线）</b>：壳层<b>唯一保留</b>的左栏内控件；直接坐底、上方无横线；hover 浮淡灰底；点击<b>切到设置页</b>（见 S5 / S6）。这是对话页→设置页的<b>唯一入口</b>。</div></li>
+              <li><span class="pin">8</span><div><b>左栏↔中区边界（ResizeGutter）</b>：常态浮淡灰竖线提示可拖；hover / 拖拽出 <b>col-resize</b> 加长竖线 + 宽度气泡，可左右拖改左栏宽（<b>180–300 · 默认 240</b>）、双击复位、按工作区记忆。各相邻区间均有此 8px gutter。本屏定格左↔中拖拽态。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>桌面 only</b>：上下两段——统一顶栏（h40 · 透明）+ 内容行。内容行卡序固定 <b>左栏 240 → 中区 flex-1 → 右栏 480 → 目录树 280</b>，卡间 8px ResizeGutter。外壳 padding 8/16/16，卡圆角 12 / 控件 6 / frame 16。<b>紧凑 / 手机态：deferred</b>（顶栏右控件折叠进溢出菜单、各区改抽屉叠层）。</dd>
+                <dt>默认</dt>
+                <dd>左栏展开 + 中区在；右栏 / 目录树收起。各区内部 = 空占位。</dd>
+                <dt>悬浮</dt>
+                <dd>顶栏 toggle hover = fg 7% 叠加；设置入口 hover = sidebar-accent #eaeef2；ResizeGutter hover 出中央加长竖线（见 S4）。</dd>
+                <dt>活跃 / 展开</dt>
+                <dd>左栏 toggle 高亮（secondary 填充 #eaeef2 · 非黑）= 左栏展开中。toggle 收起态 = 无填充。</dd>
+                <dt>运行 / 加载 / 错误 / 离线</dt>
+                <dd><b>壳层不定义</b>——各区内容态（对话运行点 / 主机在线离线 / 列表加载骨架 / 错误条）属对应模块，本壳稿空占位。</dd>
+                <dt>空</dt>
+                <dd><b>本屏即壳骨架空态</b>：所有内容区皆空占位（虚线框 + 区域名）。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i"><b>壳层无右键菜单。</b>对话树项目 / 对话 / subagent 行的右键、顶栏 ··· 菜单等<b>全部属对话树模块</b>，随该模块需求落地，本壳稿不含。</div>
+              <div class="ml-open"><b>壳层职责边界</b>：壳子只负责<b>统一顶栏 + 上下布局 + 四区拆分 + 3 个 toggle + 页切换（设置入口 / 返回）+ ResizeGutter</b>。各区<b>内容</b>（对话树 / 对话流 / 工作面板 / 文件树 / 设置导航 / 设置详情）一律归各自模块。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S2 ============================================================ -->
+    <section class="screen" id="s2">
+      <div class="screen-head">
+        <span class="tag new">对话页 · 2</span>
+        <h2>对话页 · 四区全展开（3 toggle 全开 · additive · 中区最窄）</h2>
+        <p>
+          <b>3 个 toggle 全部打开</b>：① 左栏 + ② 中区 + ③ 右栏 + ④ 目录树 同屏。体现 <b>additive 非互斥</b>——四区共存、中区 flex-1 随之<b>收窄到最窄</b>。顶栏右侧目录树 toggle + 右栏 toggle 进入<b>淡灰激活态</b>（#eaeef2 · 非黑）。四区内部一律空占位。
+        </p>
+      </div>
+      <div class="frame" id="shot2">
+        <div class="win">
+          <div class="topbar">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+            <div class="tb-spacer"></div>
+            <div class="tb-slot">标题 / 上下文 · 占位</div>
+            <div class="tb-spacer"></div>
+            <div class="tb-right">
+              <div class="tbtn on"><svg class="i md"><use href="#filetree" /></svg><span class="pinb">2</span></div>
+              <div class="tbtn on"><svg class="i md"><use href="#panel-r" /></svg><span class="pinb">1</span></div>
+            </div>
+          </div>
+          <div class="row">
+            <!-- ① 左栏 -->
+            <div class="card sidebar">
+              <div class="zone">
+                <div class="zi"><svg class="i lg"><use href="#panel-l" /></svg></div>
+                <div class="zt">左栏 · 对话树区</div>
+                <div class="zs">空占位</div>
+                <div class="ztag">属对话树模块</div>
+              </div>
+              <div class="sb-foot">
+                <button class="set-entry"><svg class="i sm"><use href="#settings" /></svg> 设置</button>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <!-- ② 中区（收窄） -->
+            <div class="card main">
+              <div class="zone">
+                <div class="zi"><svg class="i lg"><use href="#message" /></svg></div>
+                <div class="zt">中区 · 对话区</div>
+                <div class="zs">flex-1 · 四区全开时被挤到最窄</div>
+                <div class="ztag">属对话模块</div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <!-- ③ 右栏 -->
+            <div class="card workspace">
+              <div class="zone">
+                <div class="zi"><svg class="i lg"><use href="#panel-r" /></svg></div>
+                <div class="zt">右栏 · 工作面板区<span class="pinb" style="position: static; margin-left: 6px">3</span></div>
+                <div class="zs">审查 / 终端 / 浏览器 / 文件预览 等 tab 及其内容</div>
+                <div class="ztag">空占位 · 属工作面板模块</div>
+              </div>
+            </div>
+            <div class="gutter"></div>
+            <!-- ④ 目录树 -->
+            <div class="card filetree">
+              <div class="zone">
+                <div class="zi"><svg class="i lg"><use href="#filetree" /></svg></div>
+                <div class="zt">目录树区<span class="pinb" style="position: static; margin-left: 6px">4</span></div>
+                <div class="zs">工作目录文件树浏览</div>
+                <div class="ztag">空占位 · 属目录树模块</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>右栏 toggle（panel_right）= 激活态</b>：当前右栏展开 → 按钮 secondary 填充（#eaeef2 · 非黑）。再点收起、中区变宽。<b>独立</b>于左栏 / 目录树。</div></li>
+              <li><span class="pin">2</span><div><b>目录树 toggle（file_tree）= 激活态</b>：当前目录树展开 → 按钮 secondary 填充。再点收起。<b>独立</b>，可与右栏同开（本屏即同开）。</div></li>
+              <li><span class="pin">3</span><div><b>右栏空占位「工作面板区」</b>：壳层只画卡 + 空占位框；tab 列（审查 / 终端 / 浏览器 / 文件预览）+ tab 内容 + tab 拖拽重排<b>全属工作面板模块</b>。</div></li>
+              <li><span class="pin">4</span><div><b>目录树空占位</b>：壳层只画卡 + 空占位框；文件树 / 文件预览跳转<b>属目录树模块</b>。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）· 3 toggle 独立性</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>4 区全展开</b>：左栏 240 + 中区 flex-1（被挤到最窄）+ 右栏 480 + 目录树 280，卡间 8px gutter。卡序严格 <b>左栏 → 中区 → 右栏 → 目录树（最外侧）</b>。这是中区<b>最窄</b>态。</dd>
+                <dt>独立 toggle</dt>
+                <dd><b>三者 additive 非互斥</b>：左栏 / 右栏 / 目录树各控自己那块，<b>互不自动关闭对方</b>，共 <b>8 种</b>组合（见 S3）。本屏 = 全开。</dd>
+                <dt>展开 / 活跃</dt>
+                <dd>顶栏目录树 + 右栏两 toggle secondary 填充（#eaeef2）；左栏 toggle 同为展开态。</dd>
+                <dt>悬浮 / 拖拽</dt>
+                <dd>见 S4 定格；四区间三条 gutter 均可拖拽改宽。</dd>
+                <dt>运行 / 加载 / 错误 / 空 / 离线</dt>
+                <dd>各区内部态属对应模块（本壳稿四区皆空占位）。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i"><b>壳层无右键菜单。</b>右栏 tab 右键 / 目录树文件右键<b>属各自模块</b>。</div>
+              <div class="ml-open"><b>面板顺序（壳层硬约束）</b>：内容行从左到右严格为 <b>左栏 → 中区 → 右栏(workspace) → 目录树(fileTree，最外侧)</b>；ResizeGutter 8px 居相邻两卡之间。默认宽：左栏 240（180–300）· 右栏 480（320–800）· 目录树 280（220–500），均可拖宽。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S3 ============================================================ -->
+    <section class="screen" id="s3">
+      <div class="screen-head">
+        <span class="tag new">布局规则 · 3</span>
+        <h2>开关组合矩阵（8 种 · additive）+ 拖拽改宽三态</h2>
+        <p>
+          3 个 toggle 各控一区、<b>互不互斥</b> → 共 <b>2³ = 8 种</b>组合，中区(main)恒在并自适应填充。下方 8 张缩略逐态画出（标注 L/R/T 三 toggle 开关位，各区用虚线空卡示意）。右侧给 <b>ResizeGutter 三态</b>（默认 / hover / 拖拽）+ 各面板 min/max/默认宽。
+        </p>
+      </div>
+      <div id="shot3">
+        <div class="mtx">
+          <!-- 1 全关 -->
+          <div class="mini">
+            <div class="mini-h">全关（仅中区）<span class="tg">L· R· T·</span></div>
+            <div class="mini-win">
+              <div class="mini-bar"><span class="l" style="background:#ff5f57"></span><span class="l" style="background:#febc2e"></span><span class="l" style="background:#28c840"></span><span class="tbtn-mini"></span><span class="sp"></span><span class="tbtn-mini"></span><span class="tbtn-mini"></span></div>
+              <div class="mini-row"><div class="mini-card mn"></div></div>
+            </div>
+          </div>
+          <!-- 2 仅左 -->
+          <div class="mini">
+            <div class="mini-h">仅左栏<span class="tg">L● R· T·</span></div>
+            <div class="mini-win">
+              <div class="mini-bar"><span class="l" style="background:#ff5f57"></span><span class="l" style="background:#febc2e"></span><span class="l" style="background:#28c840"></span><span class="tbtn-mini on"></span><span class="sp"></span><span class="tbtn-mini"></span><span class="tbtn-mini"></span></div>
+              <div class="mini-row"><div class="mini-card sb"></div><div class="mini-card mn"></div></div>
+            </div>
+          </div>
+          <!-- 3 仅右 -->
+          <div class="mini">
+            <div class="mini-h">仅右栏<span class="tg">L· R● T·</span></div>
+            <div class="mini-win">
+              <div class="mini-bar"><span class="l" style="background:#ff5f57"></span><span class="l" style="background:#febc2e"></span><span class="l" style="background:#28c840"></span><span class="tbtn-mini"></span><span class="sp"></span><span class="tbtn-mini"></span><span class="tbtn-mini on"></span></div>
+              <div class="mini-row"><div class="mini-card mn"></div><div class="mini-card ws"></div></div>
+            </div>
+          </div>
+          <!-- 4 仅树 -->
+          <div class="mini">
+            <div class="mini-h">仅目录树<span class="tg">L· R· T●</span></div>
+            <div class="mini-win">
+              <div class="mini-bar"><span class="l" style="background:#ff5f57"></span><span class="l" style="background:#febc2e"></span><span class="l" style="background:#28c840"></span><span class="tbtn-mini"></span><span class="sp"></span><span class="tbtn-mini on"></span><span class="tbtn-mini"></span></div>
+              <div class="mini-row"><div class="mini-card mn"></div><div class="mini-card ft"></div></div>
+            </div>
+          </div>
+          <!-- 5 左+右 -->
+          <div class="mini">
+            <div class="mini-h">左 + 右<span class="tg">L● R● T·</span></div>
+            <div class="mini-win">
+              <div class="mini-bar"><span class="l" style="background:#ff5f57"></span><span class="l" style="background:#febc2e"></span><span class="l" style="background:#28c840"></span><span class="tbtn-mini on"></span><span class="sp"></span><span class="tbtn-mini"></span><span class="tbtn-mini on"></span></div>
+              <div class="mini-row"><div class="mini-card sb"></div><div class="mini-card mn"></div><div class="mini-card ws"></div></div>
+            </div>
+          </div>
+          <!-- 6 左+树 -->
+          <div class="mini">
+            <div class="mini-h">左 + 树<span class="tg">L● R· T●</span></div>
+            <div class="mini-win">
+              <div class="mini-bar"><span class="l" style="background:#ff5f57"></span><span class="l" style="background:#febc2e"></span><span class="l" style="background:#28c840"></span><span class="tbtn-mini on"></span><span class="sp"></span><span class="tbtn-mini on"></span><span class="tbtn-mini"></span></div>
+              <div class="mini-row"><div class="mini-card sb"></div><div class="mini-card mn"></div><div class="mini-card ft"></div></div>
+            </div>
+          </div>
+          <!-- 7 右+树 -->
+          <div class="mini">
+            <div class="mini-h">右 + 树<span class="tg">L· R● T●</span></div>
+            <div class="mini-win">
+              <div class="mini-bar"><span class="l" style="background:#ff5f57"></span><span class="l" style="background:#febc2e"></span><span class="l" style="background:#28c840"></span><span class="tbtn-mini"></span><span class="sp"></span><span class="tbtn-mini on"></span><span class="tbtn-mini on"></span></div>
+              <div class="mini-row"><div class="mini-card mn"></div><div class="mini-card ws"></div><div class="mini-card ft"></div></div>
+            </div>
+          </div>
+          <!-- 8 全开 -->
+          <div class="mini">
+            <div class="mini-h">全开（= S2）<span class="tg">L● R● T●</span></div>
+            <div class="mini-win">
+              <div class="mini-bar"><span class="l" style="background:#ff5f57"></span><span class="l" style="background:#febc2e"></span><span class="l" style="background:#28c840"></span><span class="tbtn-mini on"></span><span class="sp"></span><span class="tbtn-mini on"></span><span class="tbtn-mini on"></span></div>
+              <div class="mini-row"><div class="mini-card sb"></div><div class="mini-card mn"></div><div class="mini-card ws"></div><div class="mini-card ft"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ResizeGutter 三态 + min/max -->
+        <div class="swgrid" style="margin-top: 16px">
+          <div class="swbox">
+            <div class="swh">ResizeGutter · 三态（8px 手柄）</div>
+            <div class="swstage">
+              <div class="swline"><span class="cap">默认</span><div style="display:flex;align-items:center;height:120px"><div class="card" style="width:60px;height:100%;background:var(--sidebar)"></div><div class="gutter"></div><div class="card" style="width:60px;height:100%;background:var(--bg)"></div></div></div>
+              <div class="swline"><span class="cap">hover</span><div style="display:flex;align-items:center;height:120px"><div class="card" style="width:60px;height:100%;background:var(--sidebar)"></div><div class="gutter is-hover"></div><div class="card" style="width:60px;height:100%;background:var(--bg)"></div></div></div>
+              <div class="swline"><span class="cap">拖拽中</span><div style="display:flex;align-items:center;height:120px;position:relative"><div class="card" style="width:60px;height:100%;background:var(--sidebar)"></div><div class="gutter hot"><span class="wbub"><span class="ar">↔</span> 248</span></div><div class="card" style="width:80px;height:100%;background:var(--bg)"></div></div></div>
+            </div>
+          </div>
+          <div class="swbox">
+            <div class="swh">面板 min / max / 默认 宽（按工作区记忆）</div>
+            <div class="swstage flat">
+              <div class="states" style="padding:2px 2px">
+                <dl>
+                  <dt>① 左栏</dt><dd><b>180 / 300</b> · 默认 240</dd>
+                  <dt>② 中区</dt><dd><b>flex-1</b> · 自适应填满剩余宽，无固定宽</dd>
+                  <dt>③ 右栏</dt><dd><b>320 / 800</b> · 默认 <b>480</b></dd>
+                  <dt>④ 目录树</dt><dd><b>220 / 500</b> · 默认 280</dd>
+                  <dt>手柄</dt><dd>卡间 8px · hover / 拖拽出加长竖线 · <b>col-resize</b> · 双击复位默认 · 宽度气泡跟随</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果 / 状态 / 右键</div>
+            <div class="states">
+              <dl>
+                <dt>toggle</dt>
+                <dd>L/R/T 三按钮各点一下切自己那区的展 / 收；展开时按钮 secondary 填充（#eaeef2）。<b>不联动、不互斥</b>——8 种组合全合法，中区永远在。</dd>
+                <dt>gutter</dt>
+                <dd>相邻两卡间 8px ResizeGutter；拖拽改卡宽（夹到各自 min/max），双击复位默认宽；hover / 拖拽显加长竖线 + 宽度气泡。三态如左图。</dd>
+                <dt>布局</dt>
+                <dd><b>桌面 only</b>。<b>紧凑 / 手机态 deferred</b>：顶栏右控件收进溢出菜单，各区改抽屉叠层、一次只显一区。</dd>
+                <dt>空 / 加载 / 错误 / 离线</dt>
+                <dd>本屏为结构规则图，各区皆空占位；内容态见各模块。</dd>
+                <dt>右键</dt>
+                <dd>壳层无右键菜单。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S4 ============================================================ -->
+    <section class="screen" id="s4">
+      <div class="screen-head">
+        <span class="tag new">全交互态 · 4</span>
+        <h2>壳层全交互态拆解（静态定格 hover / active / 拖拽）</h2>
+        <p>
+          壳层<b>每个可点元素</b>逐态<b>并排定格</b>（hover 在静态 PNG 用 <code>.is-hover</code> 辅助类呈现，等价 <code>:hover</code> 规则）：顶栏区域 toggle（默认 / hover / 展开激活）、设置入口（默认 / hover）、设置页返回钮（默认 / hover）、设置导航 toggle（默认 / hover / 展开激活）、ResizeGutter（默认 / hover / 拖拽）、空占位 zone 示意。<b>所有色值 = codePilot github.json</b>，hover / 选中一律用很淡的灰，<b style="color:#cf222e">绝不黑底白字 / 绝不 primary 铺底</b>。
+        </p>
+      </div>
+      <div id="shot4">
+        <div class="swgrid">
+          <!-- 顶栏 toggle 三态 -->
+          <div class="swbox">
+            <div class="swh">顶栏区域 toggle · 默认 / hover / 展开激活</div>
+            <div class="swstage">
+              <div class="swline"><span class="cap">默认</span><div class="swtop"><div class="tbtn"><svg class="i md"><use href="#panel-l" /></svg></div><div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div><div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div></div></div>
+              <div class="swline"><span class="cap">hover</span><div class="swtop"><div class="tbtn is-hover"><svg class="i md"><use href="#panel-l" /></svg></div><div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div><div class="tbtn"><svg class="i md"><use href="#panel-r" /></svg></div></div></div>
+              <div class="swline"><span class="cap">展开激活</span><div class="swtop"><div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div><div class="tbtn on"><svg class="i md"><use href="#filetree" /></svg></div><div class="tbtn on"><svg class="i md"><use href="#panel-r" /></svg></div></div></div>
+              <div class="swline"><span class="cap">说明</span><div style="font-size:12px;color:#59636e">默认 muted 灰；hover = fg 7% 叠加 + 字变深；展开激活 = secondary 填充 <b style="color:#1f2328">#eaeef2</b>（非黑）。</div></div>
+            </div>
+          </div>
+          <!-- 设置入口 + 返回钮 -->
+          <div class="swbox">
+            <div class="swh">设置入口（左栏底）/ 返回钮（设置页顶栏）· 默认 / hover</div>
+            <div class="swstage">
+              <div class="swline"><span class="cap">入口·默认</span><div class="swrow"><button class="set-entry"><svg class="i sm"><use href="#settings" /></svg> 设置</button></div></div>
+              <div class="swline"><span class="cap">入口·hover</span><div class="swrow"><button class="set-entry is-hover"><svg class="i sm"><use href="#settings" /></svg> 设置</button></div></div>
+              <div class="swline"><span class="cap">返回·默认</span><div class="swtop"><button class="tb-back"><svg class="i sm"><use href="#chev-l" /></svg> 返回</button></div></div>
+              <div class="swline"><span class="cap">返回·hover</span><div class="swtop"><button class="tb-back is-hover"><svg class="i sm"><use href="#chev-l" /></svg> 返回</button></div></div>
+            </div>
+          </div>
+          <!-- 设置导航 toggle 三态 -->
+          <div class="swbox">
+            <div class="swh">设置导航 toggle · 默认 / hover / 展开激活</div>
+            <div class="swstage">
+              <div class="swline"><span class="cap">默认</span><div class="swtop"><div class="tbtn"><svg class="i md"><use href="#panel-l" /></svg></div></div></div>
+              <div class="swline"><span class="cap">hover</span><div class="swtop"><div class="tbtn is-hover"><svg class="i md"><use href="#panel-l" /></svg></div></div></div>
+              <div class="swline"><span class="cap">展开激活</span><div class="swtop"><div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div></div></div>
+              <div class="swline"><span class="cap">说明</span><div style="font-size:12px;color:#59636e">设置页左导航的开 / 收 toggle，<b style="color:#1f2328">行为同对话页左栏 toggle</b>；位于设置页顶栏交通灯右侧。</div></div>
+            </div>
+          </div>
+          <!-- ResizeGutter 三态 -->
+          <div class="swbox">
+            <div class="swh">ResizeGutter · 默认 / hover / 拖拽</div>
+            <div class="swstage">
+              <div class="swline"><span class="cap">默认</span><div style="display:flex;align-items:center;height:96px"><div class="card" style="width:54px;height:100%;background:var(--sidebar)"></div><div class="gutter"></div><div class="card" style="width:54px;height:100%;background:var(--bg)"></div></div></div>
+              <div class="swline"><span class="cap">hover</span><div style="display:flex;align-items:center;height:96px"><div class="card" style="width:54px;height:100%;background:var(--sidebar)"></div><div class="gutter is-hover"></div><div class="card" style="width:54px;height:100%;background:var(--bg)"></div></div></div>
+              <div class="swline"><span class="cap">拖拽中</span><div style="display:flex;align-items:center;height:96px;position:relative"><div class="card" style="width:54px;height:100%;background:var(--sidebar)"></div><div class="gutter hot"><span class="wbub"><span class="ar">↔</span> 248</span></div><div class="card" style="width:72px;height:100%;background:var(--bg)"></div></div></div>
+            </div>
+          </div>
+          <!-- 空占位 zone 示意 -->
+          <div class="swbox">
+            <div class="swh">空区域占位 zone · 统一样式（壳层内容区）</div>
+            <div class="swstage flat" style="padding:14px">
+              <div class="card" style="height:188px;background:var(--bg)">
+                <div class="zone">
+                  <div class="zi"><svg class="i lg"><use href="#message" /></svg></div>
+                  <div class="zt">区域名</div>
+                  <div class="zs">该填什么 · 一句话</div>
+                  <div class="ztag">空占位 · 属 XX 模块</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- 主题色 token 速查 -->
+          <div class="swbox">
+            <div class="swh">壳层 hover / 激活 用色（不自创）</div>
+            <div class="swstage flat">
+              <div class="states" style="padding:2px 2px">
+                <dl>
+                  <dt>toggle hover</dt><dd>fg 7% 叠加（顶栏按钮）</dd>
+                  <dt>ghost hover</dt><dd>accent <b>#f6f8fa</b>（返回钮）</dd>
+                  <dt>行 hover</dt><dd>sidebar-accent <b>#eaeef2</b>（设置入口）</dd>
+                  <dt>展开激活</dt><dd>secondary <b>#eaeef2</b> 填充（toggle on）</dd>
+                  <dt>占位虚线</dt><dd>border <b>#d1d9e0</b> dashed</dd>
+                </dl>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">壳层状态语义（统一）</div>
+            <div class="states">
+              <dl>
+                <dt>hover</dt>
+                <dd>顶栏 / 设置导航 toggle = fg 7% 叠加；返回钮（ghost）= accent #f6f8fa；设置入口（行）= sidebar-accent #eaeef2；ResizeGutter = 中央加长加深竖线。<b>统一用很淡的灰，绝不黑底白字。</b></dd>
+                <dt>活跃 / 展开</dt>
+                <dd>toggle 展开 = secondary 填充 #eaeef2（左栏 / 右栏 / 目录树 / 设置导航四个 toggle 同此态）。<b style="color:#cf222e">绝不用 primary 蓝铺底。</b></dd>
+                <dt>拖拽</dt>
+                <dd>ResizeGutter 拖拽中 = 加长竖线 + 跟随宽度气泡 + col-resize 光标；松手按工作区记忆。</dd>
+                <dt>禁用 / 加载 / 错误 / 离线 / 空</dt>
+                <dd><b>壳层不产生</b>这些态——它们属各区内容模块（如主机离线、列表加载、发送禁用）。壳层唯一的「空」= 各区空占位（本壳稿全程态）。</dd>
+                <dt>布局</dt>
+                <dd>状态样品网格，无设备交互。桌面 only。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果 / 右键</div>
+            <div class="states">
+              <dl>
+                <dt>点击</dt>
+                <dd>顶栏 toggle = 收 / 展对应区；设置入口 = 切到设置页；返回钮 = 切回对话页；设置导航 toggle = 收 / 展设置左导航；gutter = 拖拽改宽 / 双击复位。</dd>
+                <dt>右键</dt>
+                <dd>壳层<b>无</b>右键菜单（样品集）。各区内容右键属对应模块。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S5 ============================================================ -->
+    <section class="screen" id="s5">
+      <div class="screen-head">
+        <span class="tag new">设置页 · 5</span>
+        <h2>设置页（返回钮在顶栏 + 左导航可开 / 收 + 内容占位）</h2>
+        <p>
+          点对话页左栏底「设置」后切到的<b>第二种页面 = 设置页</b>。同样的<b>上下布局</b>（顶栏 + 主体），主体换成 <b>[左导航 | 设置内容]</b>。<b>两处修正</b>：① <b>「返回」按钮画在顶栏左上角</b>（交通灯 + 设置导航 toggle 右边），<b>不在左侧栏</b>；② <b>左导航也可展开 / 收起</b>——顶栏给它一个独立 toggle，下面画<b>展开态</b>（左图）+ <b>收起态</b>（右图）。两区内部一律空占位。
+        </p>
+      </div>
+      <div id="shot5">
+        <div style="display:flex;gap:18px;flex-wrap:wrap;align-items:flex-start">
+          <!-- 5a 左导航展开 -->
+          <div style="flex:1;min-width:520px">
+            <div style="font-size:12px;font-weight:600;color:#59636e;margin-bottom:8px">5a · 左导航展开（toggle on）</div>
+            <div class="frame" id="shot5a">
+              <div class="win short">
+                <!-- 设置页顶栏：交通灯 + 设置导航 toggle + 返回钮 + 占位 slot -->
+                <div class="topbar">
+                  <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                  <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg><span class="pinb">1</span></div>
+                  <button class="tb-back"><svg class="i sm"><use href="#chev-l" /></svg> 返回<span class="pinb">2</span></button>
+                  <div class="tb-spacer"></div>
+                  <div class="tb-slot">设置 · 占位</div>
+                  <div class="tb-spacer"></div>
+                </div>
+                <div class="row">
+                  <!-- 左导航（空占位） -->
+                  <div class="card set-nav">
+                    <div class="zone">
+                      <div class="zi"><svg class="i lg"><use href="#sliders" /></svg></div>
+                      <div class="zt">设置导航区<span class="pinb" style="position:static;margin-left:6px">3</span></div>
+                      <div class="zs">主机段（主机 / 模型与提供方 / 用量…）+ 应用段（通用 / 外观 / 快捷键 / 诊断 / 关于）</div>
+                      <div class="ztag">空占位 · 属设置模块</div>
+                    </div>
+                  </div>
+                  <div class="gutter"></div>
+                  <!-- 设置内容（空占位） -->
+                  <div class="card set-content">
+                    <div class="zone">
+                      <div class="zi"><svg class="i lg"><use href="#settings" /></svg></div>
+                      <div class="zt">设置内容区（master-detail）<span class="pinb" style="position:static;margin-left:6px">4</span></div>
+                      <div class="zs">选中左导航某项 → 此处渲染对应设置详情</div>
+                      <div class="ztag">空占位 · 属各设置子需求</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- 5b 左导航收起 -->
+          <div style="flex:1;min-width:440px">
+            <div style="font-size:12px;font-weight:600;color:#59636e;margin-bottom:8px">5b · 左导航收起（toggle off · 内容占满）</div>
+            <div class="frame" id="shot5b">
+              <div class="win short">
+                <div class="topbar">
+                  <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                  <div class="tbtn"><svg class="i md"><use href="#panel-l" /></svg><span class="pinb">5</span></div>
+                  <button class="tb-back"><svg class="i sm"><use href="#chev-l" /></svg> 返回</button>
+                  <div class="tb-spacer"></div>
+                  <div class="tb-slot">设置 · 占位</div>
+                  <div class="tb-spacer"></div>
+                </div>
+                <div class="row">
+                  <!-- 左导航收起 → 不渲染；设置内容占满 -->
+                  <div class="card set-content">
+                    <div class="zone">
+                      <div class="zi"><svg class="i lg"><use href="#settings" /></svg></div>
+                      <div class="zt">设置内容区（占满整宽）</div>
+                      <div class="zs">左导航收起后，内容区 flex-1 占满。再点顶栏 toggle 唤回左导航。</div>
+                      <div class="ztag">空占位 · 属各设置子需求</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（逐控件）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>设置导航 toggle（顶栏 · panel_left 图标）</b>：<b>修正②</b>——设置页左导航也可开 / 收，行为同对话页左栏 toggle。展开 = secondary 填充（5a）；收起 = 无填充、左导航卡不渲染、内容占满（5b）。位于交通灯右侧。</div></li>
+              <li><span class="pin">2</span><div><b>返回钮（顶栏左上 · chevron-left + 返回）</b>：<b>修正①</b>——返回按钮画在<b>顶栏左上角</b>（设置导航 toggle 右边），<b>不在左侧栏</b>。点击退出设置页、<b>切回对话页</b>（回到进入设置前的对话 / 空态）。hover 浮 #f6f8fa 淡底。这是设置页→对话页的<b>唯一回路</b>。</div></li>
+              <li><span class="pin">3</span><div><b>左导航空占位「设置导航区」</b>：壳层只画卡 + 虚线占位；真实导航项（主机段 / 应用段分组与各 tab）<b>属设置模块</b>，随各设置子需求落地。</div></li>
+              <li><span class="pin">4</span><div><b>设置内容空占位「内容区」</b>：master-detail 的 detail；选中导航项渲染对应详情。<b>本壳稿只占位</b>——主机 / 模型与提供方 / 用量 / 通用 / 外观 / 快捷键 / 诊断 / 关于各属对应子需求。</div></li>
+              <li><span class="pin">5</span><div><b>收起态 toggle（5b）</b>：同 1 但当前为收起（无填充）；左导航卡消失、内容区占满整宽。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">状态（含布局）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>桌面 only</b>：同壳上下布局——顶栏（交通灯 + 设置导航 toggle + 返回钮 + 中央占位 slot；<b>无右栏 / 目录树 toggle</b>，设置页只有左导航一块可开合）+ 主体 master-detail（左导航 240 · 同左栏几何 + 内容 flex-1，卡间 8px gutter）。<b>紧凑 / 手机：deferred</b>。</dd>
+                <dt>默认</dt>
+                <dd>进入设置默认左导航展开（toggle on）；内容区落某默认项（属设置模块）。</dd>
+                <dt>悬浮</dt>
+                <dd>返回钮 hover = #f6f8fa；设置导航 toggle hover = fg 7%；内容区控件 hover 属各子需求。</dd>
+                <dt>展开 / 收起</dt>
+                <dd>左导航 toggle 控其开 / 收：展开（5a）= 左导航 240 + 内容；收起（5b）= 仅内容、占满整宽。<b>与对话页左栏 toggle 同机制。</b></dd>
+                <dt>空 / 加载 / 错误 / 离线</dt>
+                <dd>内容区各态属各子需求（本壳稿两区皆空占位）。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i"><b>壳层无右键菜单。</b>设置导航项 / 内容区内若有可右击项，属对应设置子需求。</div>
+              <div class="ml-open"><b>两页切换回路</b>：对话页左栏底「设置」→ 设置页；设置页<b>顶栏</b>「返回」→ 对话页。<b>设置是覆盖式第二页</b>（替换整个主体），非弹窗、非右侧抽屉。详见 S6。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S6 ============================================================ -->
+    <section class="screen" id="s6">
+      <div class="screen-head">
+        <span class="tag new">页切换 · 6</span>
+        <h2>对话页 ↔ 设置页 · 切换回路</h2>
+        <p>
+          壳层<b>唯一</b>的页面切换：对话页左栏底<b>「设置」入口</b> → 设置页；设置页<b>顶栏「返回」</b> → 对话页。<b>设置是覆盖式第二页</b>，替换整个主体（非弹窗 / 非抽屉）；返回回到进入前的对话 / 空态。注意返回钮在<b>顶栏左上</b>（不在左导航），左导航另有自己的开 / 收 toggle。
+        </p>
+      </div>
+      <div id="shot6">
+        <div class="swbox">
+          <div class="swh">对话页 ↔ 设置页 · 切换回路</div>
+          <div class="swstage flat" style="padding:20px">
+            <div class="flowrow">
+              <div class="flowmini">
+                <div class="fm-h">对话页（左栏底「设置」入口）</div>
+                <div class="win short" style="height:158px;padding:6px 8px 8px;gap:3px">
+                  <div class="mini-bar"><span class="l" style="background:#ff5f57"></span><span class="l" style="background:#febc2e"></span><span class="l" style="background:#28c840"></span><span class="tbtn-mini on"></span><span class="sp"></span><span class="tbtn-mini"></span><span class="tbtn-mini"></span></div>
+                  <div class="mini-row" style="gap:3px">
+                    <div class="mini-card sb" style="width:96px;display:flex;flex-direction:column;padding:4px">
+                      <div class="fm-zone" style="flex:1;margin-bottom:3px">对话树区</div>
+                      <div class="set-entry" style="height:22px;font-size:11px;background:var(--sidebar-accent)"><svg class="i sm"><use href="#settings" /></svg> 设置</div>
+                    </div>
+                    <div class="mini-card mn" style="display:flex"><div class="fm-zone" style="flex:1;margin:3px">对话区</div></div>
+                  </div>
+                </div>
+              </div>
+              <div class="flowarrow"><div class="ico"><svg class="i md"><use href="#chev-r" /></svg></div>点「设置」</div>
+              <div class="flowmini">
+                <div class="fm-h">设置页（顶栏「返回」+ 左导航可收）</div>
+                <div class="win short" style="height:158px;padding:6px 8px 8px;gap:3px">
+                  <div class="mini-bar"><span class="tbtn-mini on"></span><span style="display:inline-flex;align-items:center;gap:2px;font-size:9px;color:var(--muted-fg);margin-left:3px"><svg class="i xs"><use href="#chev-l" /></svg>返回</span><span class="sp"></span></div>
+                  <div class="mini-row" style="gap:3px">
+                    <div class="mini-card sb" style="width:80px;display:flex"><div class="fm-zone" style="flex:1;margin:3px">设置导航</div></div>
+                    <div class="mini-card mn" style="display:flex"><div class="fm-zone" style="flex:1;margin:3px">设置内容</div></div>
+                  </div>
+                </div>
+              </div>
+              <div class="flowarrow"><div class="ico"><svg class="i md"><use href="#chev-l" /></svg></div>点顶栏「返回」</div>
+              <div style="font-size:12px;color:#59636e;max-width:160px">设置是<b style="color:#1f2328">覆盖式第二页</b>，替换整个主体；返回回到进入前的对话 / 空态。返回钮在<b style="color:#1f2328">顶栏左上</b>，非左导航。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">切换点击效果 / 状态 / 右键</div>
+            <div class="states">
+              <dl>
+                <dt>设置入口</dt>
+                <dd>对话页左栏<b>最下方</b>齿轮「设置」；点击 = 主体由对话页<b>覆盖切换</b>为设置页（顶栏同步换成设置页顶栏：返回钮 + 设置导航 toggle）。hover = sidebar-accent #eaeef2。</dd>
+                <dt>返回</dt>
+                <dd>设置页<b>顶栏左上</b>「返回」；点击 = 切回对话页，恢复进入前的对话 / 空态与三 toggle 布局。hover = accent #f6f8fa。</dd>
+                <dt>覆盖关系</dt>
+                <dd>两页<b>互斥</b>：同一时刻只显一页；设置页<b>替换</b>整个主体（顶栏 + 内容行），<b>不是</b>弹窗 / 右侧抽屉。</dd>
+                <dt>布局</dt>
+                <dd>桌面 only；切换为整页替换（无动画规格则用即时切换，过渡属实现细节）。<b>紧凑 / 手机 deferred</b>。</dd>
+                <dt>加载 / 错误 / 离线 / 空</dt>
+                <dd>切换是纯前端路由，无加载 / 错误态；各页内部态属各模块。</dd>
+                <dt>右键</dt>
+                <dd>无。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ S7 ============================================================ -->
+    <section class="screen" id="s7">
+      <div class="screen-head">
+        <span class="tag new">主题色 · 7</span>
+        <h2>主题色板（浅 + 深）· 沿用 codePilot github.json</h2>
+        <p>
+          codePilot <b>「github」</b>主题令牌（themes/github.json 原值 · 内部命名 <b>codePilot</b>）。浅色一行、深色一行，每 swatch 标 token + 值。<b>GitHub Primer 冷灰中性</b>：背景 #fff、左栏 #f6f8fa、<b>选中 / 展开 = sb-accent #eaeef2 + 字 #3d444d</b>（很淡的灰，<b style="color: #cf222e">不是黑</b>）、primary 蓝 #0969da 仅点缀。右下给<b>深色骨架壳缩略</b>，证明浅 / 深双适配。
+        </p>
+      </div>
+      <div id="shot7" style="padding: 2px">
+        <div class="pal">
+          <div class="pal-row lt">
+            <div class="pal-side lt"><span class="tt">浅色 Light</span><span class="ss">codePilot · github.json</span></div>
+            <div class="pal-swatches">
+              <div class="sw"><div class="chip" style="background: oklch(1 0 0)"></div><span class="nm">background</span><span class="vl">#ffffff</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.254 0.011 254)"></div><span class="nm">foreground</span><span class="vl">#1f2328</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.540 0.191 257.5)"></div><span class="nm">primary · 蓝</span><span class="vl">#0969da</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.978 0.003 247.9)"></div><span class="nm">sidebar</span><span class="vl">#f6f8fa</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.947 0.007 247.9)"></div><span class="nm">选中/展开 sb-accent</span><span class="vl">#eaeef2</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.338 0.015 252.3)"></div><span class="nm">选中字 sb-acc-fg</span><span class="vl">#3d444d</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.531 0.017 251.3)"></div><span class="nm">muted-fg</span><span class="vl">#59636e</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.876 0.012 248)"></div><span class="nm">border</span><span class="vl">#d1d9e0</span></div>
+            </div>
+          </div>
+          <div class="pal-row dk">
+            <div class="pal-side dk"><span class="tt">深色 Dark</span><span class="ss">.dark 覆盖</span></div>
+            <div class="pal-swatches">
+              <div class="sw"><div class="chip" style="background: oklch(0.176 0.014 258.4)"></div><span class="nm">background</span><span class="vl">#0d1117</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.943 0.011 243.7)"></div><span class="nm">foreground</span><span class="vl">#e6edf3</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.569 0.202 259.7)"></div><span class="nm">primary · 蓝</span><span class="vl">#1f6feb</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.104 0.019 248.3)"></div><span class="nm">sidebar</span><span class="vl">#010409</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.267 0.015 256.8)"></div><span class="nm">选中/展开 sb-accent</span><span class="vl">#21262d</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.220 0.016 256.8)"></div><span class="nm">card</span><span class="vl">#161b22</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.662 0.018 250.9)"></div><span class="nm">muted-fg</span><span class="vl">#8b949e</span></div>
+              <div class="sw"><div class="chip" style="background: oklch(0.330 0.015 252.3)"></div><span class="nm">border</span><span class="vl">#30363d</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="status-row">
+          <span class="st-chip"><span class="d" style="background: #1a7f37"></span> 成功绿 · #1a7f37</span>
+          <span class="st-chip"><span class="d" style="background: #9a6700"></span> 警告橙 · #9a6700</span>
+          <span class="st-chip"><span class="d" style="background: #cf222e"></span> 错误红 · #cf222e</span>
+          <span class="st-chip"><span class="d" style="background: #0969da"></span> 信息蓝 · #0969da</span>
+          <span style="font-size:12px;color:#59636e;align-self:center">语义色仅供各内容模块用，<b style="color:#1f2328">不进壳层常规底色</b>。</span>
+        </div>
+
+        <!-- 深色骨架壳缩略 -->
+        <div class="dark" style="margin-top: 18px">
+          <div class="frame" style="max-width: 760px">
+            <div class="win short" style="padding: 8px 12px 12px">
+              <div class="topbar">
+                <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                <div class="tbtn on"><svg class="i md"><use href="#panel-l" /></svg></div>
+                <div class="tb-spacer"></div>
+                <div class="tb-slot">标题 / 上下文 · 占位</div>
+                <div class="tb-spacer"></div>
+                <div class="tb-right">
+                  <div class="tbtn"><svg class="i md"><use href="#filetree" /></svg></div>
+                  <div class="tbtn on"><svg class="i md"><use href="#panel-r" /></svg></div>
+                </div>
+              </div>
+              <div class="row">
+                <div class="card sidebar" style="width: 180px">
+                  <div class="zone">
+                    <div class="zi"><svg class="i lg"><use href="#panel-l" /></svg></div>
+                    <div class="zt">左栏 · 对话树区</div>
+                    <div class="ztag">空占位</div>
+                  </div>
+                  <div class="sb-foot"><button class="set-entry"><svg class="i sm"><use href="#settings" /></svg> 设置</button></div>
+                </div>
+                <div class="gutter"></div>
+                <div class="card main">
+                  <div class="zone">
+                    <div class="zi"><svg class="i lg"><use href="#message" /></svg></div>
+                    <div class="zt">中区 · 对话区</div>
+                    <div class="ztag">空占位</div>
+                  </div>
+                </div>
+                <div class="gutter"></div>
+                <div class="card workspace" style="width: 200px">
+                  <div class="zone">
+                    <div class="zi"><svg class="i lg"><use href="#panel-r" /></svg></div>
+                    <div class="zt">右栏 · 工作面板区</div>
+                    <div class="ztag">空占位</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">主题 · 点击效果 / 状态 / 右键</div>
+            <div class="states">
+              <dl>
+                <dt>切换</dt>
+                <dd>浅 / 深由系统外观或设置「外观」项手动切换驱动（属设置子需求）。<b>所有页面</b>（对话页 / 设置页 / 占位区）共用同一套令牌，统一适配。</dd>
+                <dt>主色 primary</dt>
+                <dd><b>GitHub 蓝 #0969da</b>（深 #1f6feb），<b>只点缀</b>：链接、focus 蓝环、品牌强调、标注圆点。<b>绝不</b>铺选中 / 展开。原 Helm 绿 #20744A 在壳层<b>退场</b>。</dd>
+                <dt>选中 / 展开态</dt>
+                <dd>toggle 展开 / 列表选中 = 底 <b>sidebar-accent #eaeef2（很淡的灰）</b> + 字 <b>#3d444d 深灰</b>。<b style="color: #cf222e">绝不是黑底白字、绝不用 primary。</b>hover 同为淡灰底。</dd>
+                <dt>占位</dt>
+                <dd>各区空占位 = border #d1d9e0 虚线框 + muted-fg 文字 + secondary 图标底；浅 / 深均如此。</dd>
+                <dt>布局</dt>
+                <dd>色板屏无设备交互；深色骨架缩略证明浅 / 深双适配。</dd>
+                <dt>右键</dt>
+                <dd>无。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 截图辅助：?only=sN 时只显该屏视觉（隐藏看板/标题/注解），供逐屏 PNG 渲染；无参数=正常整版设计板。 -->
+    <script>
+      (function () {
+        var p = new URLSearchParams(location.search);
+        var only = p.get("only");
+        if (!only) return;
+        ["board-h", "req-log", "nav-idx", "note"].forEach(function (c) {
+          document.querySelectorAll("." + c).forEach(function (el) { el.style.display = "none"; });
+        });
+        document.querySelectorAll("section.screen").forEach(function (sec) {
+          if (sec.id !== only) { sec.style.display = "none"; return; }
+          sec.style.margin = "0 auto";
+          sec.querySelectorAll(".screen-head, .anno").forEach(function (el) { el.style.display = "none"; });
+        });
+        document.body.style.padding = "28px 28px";
+        document.body.style.maxWidth = "none";
+      })();
+    </script>
+  </body>
+</html>

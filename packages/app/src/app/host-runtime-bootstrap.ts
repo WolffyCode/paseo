@@ -1,7 +1,7 @@
 import type { DaemonStartResult } from "@/runtime/daemon-start-service";
 import type { HostRuntimeConnectionStatus } from "@/runtime/host-runtime";
 import type { Href } from "expo-router";
-import { buildHostNewWorkspaceRoute } from "@/utils/host-routes";
+import { buildHostLandingRoute } from "@/utils/host-routes";
 
 export interface HostRuntimeBootstrapStore {
   boot: () => void;
@@ -315,7 +315,7 @@ function resolveReadyIndexStartupRoute(input: ResolveIndexStartupRouteInput): St
   }
 
   if (input.anyOnlineHostServerId) {
-    return { kind: "redirect", href: buildHostNewWorkspaceRoute(input.anyOnlineHostServerId) };
+    return { kind: "redirect", href: buildHostLandingRoute(input.anyOnlineHostServerId) };
   }
 
   if (!input.hasSeenWelcome) {
@@ -337,7 +337,7 @@ function resolveReadyHostStartupRoute(input: ResolveHostStartupRouteInput): Star
 
   const fallbackServerId = input.hosts[0]?.serverId ?? null;
   if (fallbackServerId) {
-    return { kind: "redirect", href: buildHostNewWorkspaceRoute(fallbackServerId) };
+    return { kind: "redirect", href: buildHostLandingRoute(fallbackServerId) };
   }
 
   return { kind: "redirect", href: WELCOME_ROUTE };
@@ -348,7 +348,7 @@ function resolveReadyWelcomeStartupRoute(
   input: ResolveWelcomeStartupRouteInput,
 ): StartupRouteDecision {
   if (input.anyOnlineHostServerId) {
-    return { kind: "redirect", href: buildHostNewWorkspaceRoute(input.anyOnlineHostServerId) };
+    return { kind: "redirect", href: buildHostLandingRoute(input.anyOnlineHostServerId) };
   }
 
   return { kind: "render" };
