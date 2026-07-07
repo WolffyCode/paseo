@@ -1974,6 +1974,11 @@ const FileExplorerFileSchema = z.object({
 
 const FileExplorerDirectorySchema = z.object({
   path: z.string(),
+  // The host-resolved absolute directory path (expandUserPath + realpath, no literal "~"). Additive
+  // optional so old daemons that never send it still parse; the client uses it to build "~"-free
+  // absolute paths (reveal-in-Finder / copy-absolute-path) instead of guessing os.homedir.
+  // COMPAT(fileExplorerAbsolutePath): added in v0.1.X, drop the optional when daemon floor >= v0.1.X.
+  absolutePath: z.string().optional(),
   entries: z.array(FileExplorerEntrySchema),
 });
 
@@ -1984,6 +1989,73 @@ export const FileExplorerRequestSchema = z.object({
   mode: z.enum(["list", "file"]),
   requestId: z.string(),
   acceptBinary: z.boolean().optional(),
+});
+
+// Content/name search over the host filesystem (ripgrep when available, Node walk otherwise).
+// `mode` distinguishes name vs content matching; `basePath` narrows scope under `root`.
+// `progressive: true` opts in to fs.search.progress batches streamed BEFORE the final response, so
+// first hits paint sub-second while a wide root keeps scanning. Optional both ways: old daemons
+// strip the unknown field (plain full response); old clients never set it, so a new daemon never
+// sends them the progress message type. COMPAT(fsSearchProgressive): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+export const FsSearchRequestSchema = z.object({
+  type: z.literal("fs.search.request"),
+  root: z.string(),
+  query: z.string(),
+  mode: z.enum(["name", "content"]),
+  basePath: z.string().optional(),
+  limit: z.number().optional(),
+  progressive: z.boolean().optional(),
+  requestId: z.string(),
+});
+
+// FS structure writes (create/mkdir/rename/move/copy/delete). Each request is scoped to `root` and
+// the server rejects any resolved path that escapes it. Responses echo the landed path.
+export const FsCreateRequestSchema = z.object({
+  type: z.literal("fs.create.request"),
+  root: z.string(),
+  path: z.string(),
+  requestId: z.string(),
+});
+
+export const FsMkdirRequestSchema = z.object({
+  type: z.literal("fs.mkdir.request"),
+  root: z.string(),
+  path: z.string(),
+  requestId: z.string(),
+});
+
+export const FsRenameRequestSchema = z.object({
+  type: z.literal("fs.rename.request"),
+  root: z.string(),
+  path: z.string(),
+  newName: z.string(),
+  requestId: z.string(),
+});
+
+export const FsMoveRequestSchema = z.object({
+  type: z.literal("fs.move.request"),
+  root: z.string(),
+  from: z.string(),
+  toDir: z.string(),
+  requestId: z.string(),
+});
+
+export const FsCopyRequestSchema = z.object({
+  type: z.literal("fs.copy.request"),
+  root: z.string(),
+  from: z.string(),
+  toDir: z.string(),
+  requestId: z.string(),
+});
+
+// Delete a file, or recursively delete a directory, at `path` under `root`. A structure write like the
+// others above, so it shares the fsWrite capability gate (no new flag). The response echoes the removed
+// path. COMPAT(fsWrite): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+export const FsDeleteRequestSchema = z.object({
+  type: z.literal("fs.delete.request"),
+  root: z.string(),
+  path: z.string(),
+  requestId: z.string(),
 });
 
 export const ProjectIconRequestSchema = z.object({
@@ -2254,6 +2326,13 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   WorkspaceCreateRequestSchema,
   WorkspaceClearAttentionRequestSchema,
   FileExplorerRequestSchema,
+  FsSearchRequestSchema,
+  FsCreateRequestSchema,
+  FsMkdirRequestSchema,
+  FsRenameRequestSchema,
+  FsMoveRequestSchema,
+  FsCopyRequestSchema,
+  FsDeleteRequestSchema,
   ProjectIconRequestSchema,
   FileDownloadTokenRequestSchema,
   FileUploadRequestSchema,
@@ -2490,6 +2569,10 @@ export const ServerInfoStatusPayloadSchema = z
         vendorDiagnostics: z.boolean().optional(),
         // COMPAT(observedSubagentTree): added in v0.1.X, drop the gate when floor >= v0.1.X
         observedSubagentTree: z.boolean().optional(),
+        // COMPAT(fsSearch): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+        fsSearch: z.boolean().optional(),
+        // COMPAT(fsWrite): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+        fsWrite: z.boolean().optional(),
       })
       .optional(),
   })
@@ -3903,6 +3986,75 @@ export const FileExplorerResponseSchema = z.object({
   }),
 });
 
+// One content/name match. `line/preview/ranges` are optional content-hit metadata for highlighting;
+// they stay absent for name matches and for old daemons that never populate them.
+const FsSearchMatchSchema = z.object({
+  path: z.string(),
+  kind: z.enum(["file", "directory"]),
+  line: z.number().optional(),
+  preview: z.string().optional(),
+  ranges: z.array(z.object({ start: z.number(), end: z.number() })).optional(),
+});
+
+export const FsSearchResponseSchema = z.object({
+  type: z.literal("fs.search.response"),
+  payload: z.object({
+    requestId: z.string(),
+    matches: z.array(FsSearchMatchSchema),
+    truncated: z.boolean(),
+  }),
+});
+
+// One streamed batch of a progressive fs.search: zero or more of these precede the final
+// fs.search.response, which still carries the COMPLETE result set (the stream is a preview, not
+// the source of truth — clients replace accumulated batches with the final set, no dedup needed).
+// Sent ONLY when the request opted in with `progressive: true`, so old clients never see it.
+// COMPAT(fsSearchProgressive): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+export const FsSearchProgressSchema = z.object({
+  type: z.literal("fs.search.progress"),
+  payload: z.object({
+    requestId: z.string(),
+    matches: z.array(FsSearchMatchSchema),
+  }),
+});
+
+// Shared write-response payload: every FS write echoes the normalized landed path for the store to
+// reposition/refresh. `requestId` makes it a correlated response (auto-routed by the daemon client).
+const FsWriteResponsePayloadSchema = z.object({
+  requestId: z.string(),
+  path: z.string(),
+});
+
+export const FsCreateResponseSchema = z.object({
+  type: z.literal("fs.create.response"),
+  payload: FsWriteResponsePayloadSchema,
+});
+
+export const FsMkdirResponseSchema = z.object({
+  type: z.literal("fs.mkdir.response"),
+  payload: FsWriteResponsePayloadSchema,
+});
+
+export const FsRenameResponseSchema = z.object({
+  type: z.literal("fs.rename.response"),
+  payload: FsWriteResponsePayloadSchema,
+});
+
+export const FsMoveResponseSchema = z.object({
+  type: z.literal("fs.move.response"),
+  payload: FsWriteResponsePayloadSchema,
+});
+
+export const FsCopyResponseSchema = z.object({
+  type: z.literal("fs.copy.response"),
+  payload: FsWriteResponsePayloadSchema,
+});
+
+export const FsDeleteResponseSchema = z.object({
+  type: z.literal("fs.delete.response"),
+  payload: FsWriteResponsePayloadSchema,
+});
+
 const ProjectIconSchema = z.object({
   data: z.string(),
   mimeType: z.string(),
@@ -4341,6 +4493,14 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   PaseoWorktreeArchiveResponseSchema,
   CreatePaseoWorktreeResponseSchema,
   FileExplorerResponseSchema,
+  FsSearchResponseSchema,
+  FsSearchProgressSchema,
+  FsCreateResponseSchema,
+  FsMkdirResponseSchema,
+  FsRenameResponseSchema,
+  FsMoveResponseSchema,
+  FsCopyResponseSchema,
+  FsDeleteResponseSchema,
   ProjectIconResponseSchema,
   FileDownloadTokenResponseSchema,
   FileUploadResponseSchema,
@@ -4675,6 +4835,21 @@ export type ArchiveWorkspaceRequest = z.infer<typeof ArchiveWorkspaceRequestSche
 export type WorkspaceClearAttentionRequest = z.infer<typeof WorkspaceClearAttentionRequestSchema>;
 export type FileExplorerRequest = z.infer<typeof FileExplorerRequestSchema>;
 export type FileExplorerResponse = z.infer<typeof FileExplorerResponseSchema>;
+export type FsSearchRequest = z.infer<typeof FsSearchRequestSchema>;
+export type FsSearchResponse = z.infer<typeof FsSearchResponseSchema>;
+export type FsSearchProgress = z.infer<typeof FsSearchProgressSchema>;
+export type FsCreateRequest = z.infer<typeof FsCreateRequestSchema>;
+export type FsCreateResponse = z.infer<typeof FsCreateResponseSchema>;
+export type FsMkdirRequest = z.infer<typeof FsMkdirRequestSchema>;
+export type FsMkdirResponse = z.infer<typeof FsMkdirResponseSchema>;
+export type FsRenameRequest = z.infer<typeof FsRenameRequestSchema>;
+export type FsRenameResponse = z.infer<typeof FsRenameResponseSchema>;
+export type FsMoveRequest = z.infer<typeof FsMoveRequestSchema>;
+export type FsMoveResponse = z.infer<typeof FsMoveResponseSchema>;
+export type FsCopyRequest = z.infer<typeof FsCopyRequestSchema>;
+export type FsCopyResponse = z.infer<typeof FsCopyResponseSchema>;
+export type FsDeleteRequest = z.infer<typeof FsDeleteRequestSchema>;
+export type FsDeleteResponse = z.infer<typeof FsDeleteResponseSchema>;
 export type ProjectIconRequest = z.infer<typeof ProjectIconRequestSchema>;
 export type ProjectIconResponse = z.infer<typeof ProjectIconResponseSchema>;
 export type ProjectIcon = z.infer<typeof ProjectIconSchema>;

@@ -35,6 +35,19 @@ describe.skipIf(isPlatform("win32"))("service POSIX-only", () => {
     }
   });
 
+  it("returns the host-resolved absolute directory path (no literal '~') for the client", async () => {
+    // The client needs the "~"-free absolute root to build reveal / copy-absolute paths without
+    // guessing os.homedir; listDirectoryEntries echoes the realpath-resolved directory as absolutePath.
+    const root = await createTempDir("paseo-file-explorer-abs-");
+    try {
+      await mkdir(path.join(root, "src"), { recursive: true });
+      const result = await listDirectoryEntries({ root, relativePath: "src" });
+      expect(result.absolutePath).toBe(path.join(await realpath(root), "src"));
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
   it("rejects symlinked files that resolve outside the workspace", async () => {
     const root = await createTempDir("paseo-file-explorer-");
     const outsideRoot = await createTempDir("paseo-file-explorer-outside-");

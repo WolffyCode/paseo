@@ -175,6 +175,15 @@ import {
   readExplorerFileBytes,
   getDownloadableFileInfo,
 } from "./file-explorer/service.js";
+import {
+  copyEntry,
+  createDirectory,
+  createFile,
+  deleteEntry,
+  moveEntry,
+  renameEntry,
+} from "./file-explorer/write-service.js";
+import { searchFiles, type SearchMatch } from "./file-explorer/search-service.js";
 import { DownloadTokenStore } from "./file-download/token-store.js";
 import { PushTokenStore } from "./push/token-store.js";
 import {
@@ -698,6 +707,9 @@ export class Session {
   private readonly sessionLogger: pino.Logger;
   private readonly paseoHome: string;
   private readonly worktreesRoot: string | undefined;
+
+  // The session's one live fs.search scan; a newer request aborts it (supersede, see the handler).
+  private activeFsSearchAbort: AbortController | null = null;
 
   // Per-session MCP client and tools
   private agentMcpClient: Awaited<ReturnType<typeof experimental_createMCPClient>> | null = null;
@@ -1726,6 +1738,7 @@ export class Session {
       this.dispatchAgentLifecycleMessage(msg) ??
       this.dispatchAgentConfigMessage(msg) ??
       this.dispatchCheckoutMessage(msg) ??
+      this.dispatchFileSystemMessage(msg) ??
       this.dispatchWorkspaceAndProjectMessage(msg) ??
       this.dispatchProviderMessage(msg) ??
       this.dispatchTerminalMessage(msg) ??
@@ -2155,6 +2168,29 @@ export class Session {
         return this.handleStashPopRequest(msg);
       case "stash_list_request":
         return this.handleStashListRequest(msg);
+      default:
+        return undefined;
+    }
+  }
+
+  // Route the file-tree filesystem RPCs (content/name search + structure writes). Kept separate from
+  // the workspace/project dispatcher so each sub-dispatcher stays within the complexity budget.
+  private dispatchFileSystemMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    switch (msg.type) {
+      case "fs.search.request":
+        return this.handleFsSearchRequest(msg);
+      case "fs.create.request":
+        return this.handleFsCreateRequest(msg);
+      case "fs.mkdir.request":
+        return this.handleFsMkdirRequest(msg);
+      case "fs.rename.request":
+        return this.handleFsRenameRequest(msg);
+      case "fs.move.request":
+        return this.handleFsMoveRequest(msg);
+      case "fs.copy.request":
+        return this.handleFsCopyRequest(msg);
+      case "fs.delete.request":
+        return this.handleFsDeleteRequest(msg);
       default:
         return undefined;
     }
@@ -5714,6 +5750,188 @@ export class Session {
           requestId,
         },
       });
+    }
+  }
+
+  // Emit the correlated rpc_error for a failed dotted RPC. Shared by the fs.* write/search handlers
+  // so filesystem failures (collision/escape/missing) reach the client on its standard error channel.
+  private emitFsRpcError(requestType: string, requestId: string, error: unknown): void {
+    this.emit({
+      type: "rpc_error",
+      payload: {
+        requestId,
+        requestType,
+        error: getErrorMessage(error),
+        code: "fs_request_failed",
+      },
+    });
+  }
+
+  // Content/name search scoped to a workspace root. Delegates engine choice (ripgrep vs Node walk)
+  // to the search service; surfaces failures on the rpc_error channel rather than a partial result.
+  // Supersede semantics: a session runs ONE live scan at a time — a newer fs.search aborts the
+  // previous one (its rg child / walk stops burning I/O; it still resolves with partial findings,
+  // which the client's last-query-wins guard discards). With `progressive: true`, match batches are
+  // forwarded as fs.search.progress frames while the scan runs, so first hits paint sub-second.
+  private async handleFsSearchRequest(
+    request: Extract<SessionInboundMessage, { type: "fs.search.request" }>,
+  ): Promise<void> {
+    this.activeFsSearchAbort?.abort();
+    const abort = new AbortController();
+    this.activeFsSearchAbort = abort;
+    try {
+      const result = await searchFiles({
+        root: request.root,
+        query: request.query,
+        mode: request.mode,
+        basePath: request.basePath,
+        limit: request.limit,
+        signal: abort.signal,
+        ...(request.progressive
+          ? {
+              onMatches: (matches: SearchMatch[]) => {
+                this.emit({
+                  type: "fs.search.progress",
+                  payload: { requestId: request.requestId, matches },
+                });
+              },
+            }
+          : {}),
+      });
+      this.emit({
+        type: "fs.search.response",
+        payload: {
+          requestId: request.requestId,
+          matches: result.matches,
+          truncated: result.truncated,
+        },
+      });
+    } catch (error) {
+      this.sessionLogger.error({ err: error, root: request.root }, "Failed to fulfill fs.search");
+      this.emitFsRpcError(request.type, request.requestId, error);
+    } finally {
+      if (this.activeFsSearchAbort === abort) {
+        this.activeFsSearchAbort = null;
+      }
+    }
+  }
+
+  // Create an empty file under the workspace root, echoing the normalized landed path for the tree
+  // to position it. Collisions/missing-parent/escape become rpc_error (no silent overwrite).
+  private async handleFsCreateRequest(
+    request: Extract<SessionInboundMessage, { type: "fs.create.request" }>,
+  ): Promise<void> {
+    try {
+      const { path: landedPath } = await createFile({
+        root: request.root,
+        requestedPath: request.path,
+      });
+      this.emit({
+        type: "fs.create.response",
+        payload: { requestId: request.requestId, path: landedPath },
+      });
+    } catch (error) {
+      this.sessionLogger.error({ err: error, root: request.root }, "Failed to fulfill fs.create");
+      this.emitFsRpcError(request.type, request.requestId, error);
+    }
+  }
+
+  // Create a single directory under the workspace root (non-recursive: missing parent is an error).
+  private async handleFsMkdirRequest(
+    request: Extract<SessionInboundMessage, { type: "fs.mkdir.request" }>,
+  ): Promise<void> {
+    try {
+      const { path: landedPath } = await createDirectory({
+        root: request.root,
+        requestedPath: request.path,
+      });
+      this.emit({
+        type: "fs.mkdir.response",
+        payload: { requestId: request.requestId, path: landedPath },
+      });
+    } catch (error) {
+      this.sessionLogger.error({ err: error, root: request.root }, "Failed to fulfill fs.mkdir");
+      this.emitFsRpcError(request.type, request.requestId, error);
+    }
+  }
+
+  // Rename an entry in place; the service rejects separators in newName so it cannot relocate.
+  private async handleFsRenameRequest(
+    request: Extract<SessionInboundMessage, { type: "fs.rename.request" }>,
+  ): Promise<void> {
+    try {
+      const { path: landedPath } = await renameEntry({
+        root: request.root,
+        requestedPath: request.path,
+        newName: request.newName,
+      });
+      this.emit({
+        type: "fs.rename.response",
+        payload: { requestId: request.requestId, path: landedPath },
+      });
+    } catch (error) {
+      this.sessionLogger.error({ err: error, root: request.root }, "Failed to fulfill fs.rename");
+      this.emitFsRpcError(request.type, request.requestId, error);
+    }
+  }
+
+  // Move (cut/paste) an entry into a target directory under the same root.
+  private async handleFsMoveRequest(
+    request: Extract<SessionInboundMessage, { type: "fs.move.request" }>,
+  ): Promise<void> {
+    try {
+      const { path: landedPath } = await moveEntry({
+        root: request.root,
+        from: request.from,
+        toDir: request.toDir,
+      });
+      this.emit({
+        type: "fs.move.response",
+        payload: { requestId: request.requestId, path: landedPath },
+      });
+    } catch (error) {
+      this.sessionLogger.error({ err: error, root: request.root }, "Failed to fulfill fs.move");
+      this.emitFsRpcError(request.type, request.requestId, error);
+    }
+  }
+
+  // Copy (copy/paste) an entry into a target directory, recursing for directories.
+  private async handleFsCopyRequest(
+    request: Extract<SessionInboundMessage, { type: "fs.copy.request" }>,
+  ): Promise<void> {
+    try {
+      const { path: landedPath } = await copyEntry({
+        root: request.root,
+        from: request.from,
+        toDir: request.toDir,
+      });
+      this.emit({
+        type: "fs.copy.response",
+        payload: { requestId: request.requestId, path: landedPath },
+      });
+    } catch (error) {
+      this.sessionLogger.error({ err: error, root: request.root }, "Failed to fulfill fs.copy");
+      this.emitFsRpcError(request.type, request.requestId, error);
+    }
+  }
+
+  // Delete an entry (file unlinked, directory removed recursively) under the workspace root. The root
+  // itself, escapes, and missing targets become rpc_error (no silent success). Shares the fsWrite gate.
+  private async handleFsDeleteRequest(
+    request: Extract<SessionInboundMessage, { type: "fs.delete.request" }>,
+  ): Promise<void> {
+    try {
+      const { path: removedPath } = await deleteEntry({
+        root: request.root,
+        requestedPath: request.path,
+      });
+      this.emit({
+        type: "fs.delete.response",
+        payload: { requestId: request.requestId, path: removedPath },
+      });
+    } catch (error) {
+      this.sessionLogger.error({ err: error, root: request.root }, "Failed to fulfill fs.delete");
+      this.emitFsRpcError(request.type, request.requestId, error);
     }
   }
 

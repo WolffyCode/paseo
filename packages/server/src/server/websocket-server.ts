@@ -1180,6 +1180,10 @@ export class VoiceAssistantWebSocketServer {
         hostConfigFile: true,
         // COMPAT(vendorDiagnostics): added in v0.1.99, drop the gate when daemon floor >= v0.1.99.
         vendorDiagnostics: true,
+        // COMPAT(fsSearch): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+        fsSearch: true,
+        // COMPAT(fsWrite): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+        fsWrite: true,
       },
     };
   }
