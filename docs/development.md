@@ -298,6 +298,18 @@ Get the session ID from the agent JSON (`persistence.sessionId`), then:
 ~/.codex/sessions/{YYYY}/{MM}/{DD}/rollout-{timestamp}-{session-id}.jsonl
 ```
 
+## Agent self-verification (interactive browser driving)
+
+Agents verifying UI behavior should use the repo verify skill at
+`.claude/skills/verify/SKILL.md`: it boots the dev stack, keeps a persistent
+headless Chromium alive (CDP), and drives it with small step scripts —
+navigate/click/screenshot/WS-frame capture — with evidence collected under
+`.dev/verify/`. It documents the repo-specific gotchas (daemon port comes from
+`.dev/paseo-home/config.json`, top-bar toggles have no testIDs, web delete
+confirm is a native dialog, cold-Metro first load takes minutes). For
+repeatable regressions, prefer adding a spec to the existing
+`packages/app/e2e/` harness instead.
+
 ## Testing with Playwright MCP
 
 Point Playwright MCP at the running Expo web target. For root checkout dev, `npm run dev:app` reserves `http://localhost:8081`. For Paseo-managed worktree app services, use the service URL or port shown by Paseo for that worktree.

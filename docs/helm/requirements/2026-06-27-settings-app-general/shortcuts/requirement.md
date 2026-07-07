@@ -55,69 +55,69 @@
 
 ### 组 1 · 导航 Navigation（6）
 
-| 动作（中 / 英） | 作用一句话 | 当前键帽（占位·待校正） |
-| --- | --- | --- |
-| 跳转工作区 / Jump to workspace | 按序号直接跳到第 1–9 个工作区 | mod+1…9 |
-| 跳转标签 / Jump to tab | 按序号直接跳到当前工作区的第 1–9 个标签 | mod+alt+1…9 |
-| 上一个工作区 / Previous workspace | 切到上一个工作区 | mod+[ |
-| 下一个工作区 / Next workspace | 切到下一个工作区 | mod+] |
-| 上一个标签 / Previous tab | 切到当前工作区的上一个标签 | alt+shift+[ |
-| 下一个标签 / Next tab | 切到当前工作区的下一个标签 | alt+shift+] |
+| 动作（中 / 英）                   | 作用一句话                              | 当前键帽（占位·待校正） |
+| --------------------------------- | --------------------------------------- | ----------------------- |
+| 跳转工作区 / Jump to workspace    | 按序号直接跳到第 1–9 个工作区           | mod+1…9                 |
+| 跳转标签 / Jump to tab            | 按序号直接跳到当前工作区的第 1–9 个标签 | mod+alt+1…9             |
+| 上一个工作区 / Previous workspace | 切到上一个工作区                        | mod+[                   |
+| 下一个工作区 / Next workspace     | 切到下一个工作区                        | mod+]                   |
+| 上一个标签 / Previous tab         | 切到当前工作区的上一个标签              | alt+shift+[             |
+| 下一个标签 / Next tab             | 切到当前工作区的下一个标签              | alt+shift+]             |
 
 ### 组 2 · 标签与窗格 Tabs & Panes（13）
 
-| 动作（中 / 英） | 作用一句话 | 当前键帽（占位·待校正） |
-| --- | --- | --- |
-| 新建标签 / New tab | 在当前工作区新开一个标签 | mod+T |
-| 关闭当前标签 / Close current tab | 关闭当前标签 | mod+W |
-| 向右拆分窗格 / Split pane right | 把当前窗格向右拆分出新窗格 | mod+\ |
-| 向下拆分窗格 / Split pane down | 把当前窗格向下拆分出新窗格 | mod+shift+\ |
-| 聚焦左侧窗格 / Focus pane left | 把焦点移到左侧相邻窗格 | mod+shift+← |
-| 聚焦右侧窗格 / Focus pane right | 把焦点移到右侧相邻窗格 | mod+shift+→ |
-| 聚焦上方窗格 / Focus pane up | 把焦点移到上方相邻窗格 | mod+shift+↑ |
-| 聚焦下方窗格 / Focus pane down | 把焦点移到下方相邻窗格 | mod+shift+↓ |
-| 移动标签到左窗格 / Move tab left | 把当前标签移到左侧相邻窗格 | mod+shift+alt+← |
-| 移动标签到右窗格 / Move tab right | 把当前标签移到右侧相邻窗格 | mod+shift+alt+→ |
-| 移动标签到上窗格 / Move tab up | 把当前标签移到上方相邻窗格 | mod+shift+alt+↑ |
-| 移动标签到下窗格 / Move tab down | 把当前标签移到下方相邻窗格 | mod+shift+alt+↓ |
-| 关闭窗格 / Close pane | 关闭当前窗格 | mod+shift+W |
+| 动作（中 / 英）                   | 作用一句话                 | 当前键帽（占位·待校正） |
+| --------------------------------- | -------------------------- | ----------------------- |
+| 新建标签 / New tab                | 在当前工作区新开一个标签   | mod+T                   |
+| 关闭当前标签 / Close current tab  | 关闭当前标签               | mod+W                   |
+| 向右拆分窗格 / Split pane right   | 把当前窗格向右拆分出新窗格 | mod+\                   |
+| 向下拆分窗格 / Split pane down    | 把当前窗格向下拆分出新窗格 | mod+shift+\             |
+| 聚焦左侧窗格 / Focus pane left    | 把焦点移到左侧相邻窗格     | mod+shift+←             |
+| 聚焦右侧窗格 / Focus pane right   | 把焦点移到右侧相邻窗格     | mod+shift+→             |
+| 聚焦上方窗格 / Focus pane up      | 把焦点移到上方相邻窗格     | mod+shift+↑             |
+| 聚焦下方窗格 / Focus pane down    | 把焦点移到下方相邻窗格     | mod+shift+↓             |
+| 移动标签到左窗格 / Move tab left  | 把当前标签移到左侧相邻窗格 | mod+shift+alt+←         |
+| 移动标签到右窗格 / Move tab right | 把当前标签移到右侧相邻窗格 | mod+shift+alt+→         |
+| 移动标签到上窗格 / Move tab up    | 把当前标签移到上方相邻窗格 | mod+shift+alt+↑         |
+| 移动标签到下窗格 / Move tab down  | 把当前标签移到下方相邻窗格 | mod+shift+alt+↓         |
+| 关闭窗格 / Close pane             | 关闭当前窗格               | mod+shift+W             |
 
 ### 组 3 · 项目 Projects（4）
 
-| 动作（中 / 英） | 作用一句话 | 当前键帽（占位·待校正） |
-| --- | --- | --- |
-| 打开项目 / Open project | 打开项目选择器、进入一个项目 | mod+shift+O |
-| 新建工作区 / New workspace | 新建一个工作区 | mod+N |
-| 新建工作树 / New worktree | 新建一个工作树（worktree） | mod+O |
-| 归档工作树 / Archive worktree | 归档当前工作树 | mod+shift+Backspace |
+| 动作（中 / 英）               | 作用一句话                   | 当前键帽（占位·待校正） |
+| ----------------------------- | ---------------------------- | ----------------------- |
+| 打开项目 / Open project       | 打开项目选择器、进入一个项目 | mod+shift+O             |
+| 新建工作区 / New workspace    | 新建一个工作区               | mod+N                   |
+| 新建工作树 / New worktree     | 新建一个工作树（worktree）   | mod+O                   |
+| 归档工作树 / Archive worktree | 归档当前工作树               | mod+shift+Backspace     |
 
 ### 组 4 · 面板 Panels（13）
 
-| 动作（中 / 英） | 作用一句话 | 当前键帽（占位·待校正） |
-| --- | --- | --- |
-| 新建终端 / New terminal | 在工具面板新开一个终端 | mod+shift+T |
-| 审查变更 / Review changes | 打开变更审查（diff）面板 | ctrl+shift+G ⚠️ |
-| 打开文件 / Open file | 打开文件选择器、打开文件 | mod+P |
-| 新建侧边聊天 / New side chat | 新建一个侧边聊天 | mod+alt+S |
-| 切换工具面板 / Toggle tool panel | 显示 / 隐藏工具面板 | mod+alt+B |
-| 切换命令中心 / Toggle command center | 打开 / 关闭命令中心 | mod+K |
-| 显示快捷键 / Show keyboard shortcuts | 弹出快捷键帮助（焦点不在文本框 / 终端时可用） | ? |
-| 切换左侧栏 / Toggle left sidebar | 显示 / 隐藏左侧栏 | mod+B |
-| 切换右侧栏 / Toggle right sidebar | 显示 / 隐藏右侧栏 | mod+E |
-| 切换双侧栏 / Toggle both sidebars | 同时显示 / 隐藏左右侧栏 | mod+. |
-| 切换设置 / Toggle settings | 打开 / 关闭设置 | mod+, |
-| 切换专注模式 / Toggle focus mode | 进入 / 退出专注模式 | mod+shift+F |
-| 循环主题 / Cycle theme | 在主题间循环切换 | mod+alt+T |
+| 动作（中 / 英）                      | 作用一句话                                    | 当前键帽（占位·待校正） |
+| ------------------------------------ | --------------------------------------------- | ----------------------- |
+| 新建终端 / New terminal              | 在工具面板新开一个终端                        | mod+shift+T             |
+| 审查变更 / Review changes            | 打开变更审查（diff）面板                      | ctrl+shift+G ⚠️         |
+| 打开文件 / Open file                 | 打开文件选择器、打开文件                      | mod+P                   |
+| 新建侧边聊天 / New side chat         | 新建一个侧边聊天                              | mod+alt+S               |
+| 切换工具面板 / Toggle tool panel     | 显示 / 隐藏工具面板                           | mod+alt+B               |
+| 切换命令中心 / Toggle command center | 打开 / 关闭命令中心                           | mod+K                   |
+| 显示快捷键 / Show keyboard shortcuts | 弹出快捷键帮助（焦点不在文本框 / 终端时可用） | ?                       |
+| 切换左侧栏 / Toggle left sidebar     | 显示 / 隐藏左侧栏                             | mod+B                   |
+| 切换右侧栏 / Toggle right sidebar    | 显示 / 隐藏右侧栏                             | mod+E                   |
+| 切换双侧栏 / Toggle both sidebars    | 同时显示 / 隐藏左右侧栏                       | mod+.                   |
+| 切换设置 / Toggle settings           | 打开 / 关闭设置                               | mod+,                   |
+| 切换专注模式 / Toggle focus mode     | 进入 / 退出专注模式                           | mod+shift+F             |
+| 循环主题 / Cycle theme               | 在主题间循环切换                              | mod+alt+T               |
 
 ### 组 5 · 代理输入 Agent Input（5）
 
-| 动作（中 / 英） | 作用一句话 | 当前键帽（占位·待校正） |
-| --- | --- | --- |
-| 聚焦消息输入 / Focus message input | 把焦点移到消息输入框 | mod+L |
-| 切换语音模式 / Toggle voice mode | 开 / 关语音模式 | mod+shift+D |
-| 开/停听写 / Start/stop dictation | 开始 / 停止语音听写 | mod+D |
-| 中断代理 / Interrupt agent | 中断当前代理的运行 | Esc |
-| 静音/取消静音语音 / Mute/unmute voice mode | 语音模式下静音 / 取消静音 | Space |
+| 动作（中 / 英）                            | 作用一句话                | 当前键帽（占位·待校正） |
+| ------------------------------------------ | ------------------------- | ----------------------- |
+| 聚焦消息输入 / Focus message input         | 把焦点移到消息输入框      | mod+L                   |
+| 切换语音模式 / Toggle voice mode           | 开 / 关语音模式           | mod+shift+D             |
+| 开/停听写 / Start/stop dictation           | 开始 / 停止语音听写       | mod+D                   |
+| 中断代理 / Interrupt agent                 | 中断当前代理的运行        | Esc                     |
+| 静音/取消静音语音 / Mute/unmute voice mode | 语音模式下静音 / 取消静音 | Space                   |
 
 > **合计 6 + 13 + 4 + 13 + 5 = 41。**
 > **⚠️ 键位「待校正」实证（脚注）**：「审查变更 / Review changes」一行——其当前键帽显示为 **Ctrl+Shift+G**，但在 **Mac 上实际触发的是 ⌘（Cmd）+Shift+G**：**显示（Ctrl）≠ 实际（Cmd）**。这正是「现有键位映射不一定准」的实证。**本轮不修正此类映射**，所有键帽统一标「待校正」，准确映射后续轮次统一处理。
@@ -127,6 +127,7 @@
 ## 4. 核心流程（端到端 · 每条有入口有出口、无死胡同）
 
 ### A · 改键（Rebind）
+
 1. **入口**：某行点「改键 / Rebind」→ 该行进入**捕获态**（行高亮，期间全局快捷键被抑制，避免误触发别的动作）。
 2. **等待**：未按任何键时，行内显示提示 **Press shortcut…**（按下快捷键…）。
 3. **实时反馈**：用户按键时，行内**实时显示已按下的组合**；若只按住修饰键（如仅 ⌘/Shift）尚未构成完整组合，则实时显示当前按住的修饰键。
@@ -137,16 +138,19 @@
 8. **出口·离开自动取消**：捕获中若**离开本页（页面失焦）**→ **自动取消**本次捕获，不残留半截捕获态，无死胡同。
 
 ### B · 行级重置（Reset）
+
 - **入口**：某行已有自定义（override）时，该行显示「重置 / Reset」。
 - **动作**：点击 → 该行**恢复默认键帽**、自定义清除、「重置」按钮随之消失。
 - **出口**：回到该行默认态。
 
 ### C · 段头全部重置（Reset all）
+
 - **入口**：**任意一行存在自定义**时，列表段头出现「全部重置 / Reset all」。
 - **动作**：点击 → **所有自定义一次清空、全部恢复默认**、各行「重置」与段头「全部重置」一并消失。
 - **出口**：整张表回到全默认态。
 
 ### D · 移动端（native）
+
 - **入口**：移动端进入「快捷键」tab。
 - **表现**：整段只显示一句 **Keyboard shortcuts are only available on desktop**（键盘快捷键仅在桌面端可用）占位，**不列动作、无改键**。
 - **出口**：用户知情，非错误、非空白，无死胡同。
@@ -158,24 +162,30 @@
 > 与 UI 设计师同步：下列每个状态都要在 `shortcuts/ui.html` 有对应屏/态。锚点名供 UI 对齐，最终以 ui.html 逐屏注解为准。
 
 ### `ui.html#s-shortcuts`（快捷键 tab · 桌面默认态）
+
 - 5 组分段标题 + 各组若干行；每行：左动作名，右侧「键帽 + 改键」。
 - 默认：键帽显示当前（占位·待校正）值；行无自定义时**不显**「重置」；无任何自定义时段头**不显**「全部重置」。
 - hover：行 hover、「改键」按钮 hover 反馈；键帽本身不可点。
 - 点击效果：点「改键」→ 进入捕获态（见下）。
 
 ### `ui.html#s-shortcuts-capture-empty`（捕获态 · 等待）
+
 - 目标行高亮；键帽位置显示「Press shortcut…」提示；出现「取消」（尚无「完成」，因未捕获）。
 
 ### `ui.html#s-shortcuts-capture-combo`（捕获态 · 已按组合）
+
 - 目标行高亮；实时显示已捕获的组合 / 多段序列（或仅按住的修饰键）；出现「完成」+「取消」；Backspace 可逐段回退。
 
 ### `ui.html#s-shortcuts-override`（某行有自定义）
+
 - 该行键帽显示自定义值；该行出现「重置」；段头出现「全部重置」。
 
 ### `ui.html#s-shortcuts-reset-all`（段头全部重置可见）
+
 - 存在任意自定义时，列表段头显示「全部重置」；点击后回到全默认（→ 回 `s-shortcuts`）。
 
 ### `ui.html#s-shortcuts-mobile`（移动端不可用）
+
 - 整段单条占位文案「键盘快捷键仅在桌面端可用」，无列表、无操作。
 
 ---

@@ -8,11 +8,11 @@
 
 ## 0. 模块全景（现状·扎根真实代码）
 
-| 模块 | 分支 / 状态 | 落地代码（真实路径） |
-| --- | --- | --- |
-| **onboarding** | 已合 develop | `packages/app/src/screens/onboarding/*`（welcome/method-picker/connecting/error）+ `stores/onboarding-store.ts` |
-| **home-shell 主壳** | 分支 `home-shell`，P1 已 push（**未合 develop**） | 新建：`conversation-tree/{types,select,render}`、`components/sidebar/{host-switcher-pill,host-switcher-model,sidebar-window-chrome}`、`screens/workspace/{canvas-top-bar-chrome,canvas-top-bar-controls,right-panel-launcher}`、`stores/conversation-history-store`；**删除** `screens/onboarding/*` + `stores/onboarding-store`，**新增** `components/welcome-screen.tsx` |
-| **settings 设置** | 分支 `settings-ui`，gate-1 已批（分支 delta **仅设计稿**；但 **develop 基线已有 host 级 settings 实体代码**） | develop 已有：`app/settings/hosts/[serverId]/*`、`screens/settings/{host-page,providers-section}.tsx`、`screens/settings/appearance/`、`provider-usage/`（用 `useDaemonConfig`+`useHosts`+`useProviderUsage`，`buildSettingsHostSectionRoute` 路由）。设计：`docs/helm/requirements/2026-06-26-settings/{requirement.md,ui.html}` |
+| 模块                | 分支 / 状态                                                                                                   | 落地代码（真实路径）                                                                                                                                                                                                                                                                                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **onboarding**      | 已合 develop                                                                                                  | `packages/app/src/screens/onboarding/*`（welcome/method-picker/connecting/error）+ `stores/onboarding-store.ts`                                                                                                                                                                                                                                                            |
+| **home-shell 主壳** | 分支 `home-shell`，P1 已 push（**未合 develop**）                                                             | 新建：`conversation-tree/{types,select,render}`、`components/sidebar/{host-switcher-pill,host-switcher-model,sidebar-window-chrome}`、`screens/workspace/{canvas-top-bar-chrome,canvas-top-bar-controls,right-panel-launcher}`、`stores/conversation-history-store`；**删除** `screens/onboarding/*` + `stores/onboarding-store`，**新增** `components/welcome-screen.tsx` |
+| **settings 设置**   | 分支 `settings-ui`，gate-1 已批（分支 delta **仅设计稿**；但 **develop 基线已有 host 级 settings 实体代码**） | develop 已有：`app/settings/hosts/[serverId]/*`、`screens/settings/{host-page,providers-section}.tsx`、`screens/settings/appearance/`、`provider-usage/`（用 `useDaemonConfig`+`useHosts`+`useProviderUsage`，`buildSettingsHostSectionRoute` 路由）。设计：`docs/helm/requirements/2026-06-26-settings/{requirement.md,ui.html}`                                          |
 
 > ⚠️ **架构师勘察修正(已 PM 核实)：** ① settings **不是零代码**——develop 已落地 host 级 settings(providers 启停/ACP 新增/用量能力门 `providerUsageList` 均已通)；settings 实现 = **重构既有**,否则必造双真相源。② onboarding 是**反向分叉**:develop 是**已修复版**(`connectLocalCandidate` 延后连接 + `resolveStartupRoute` gate + `hasSeenWelcome`)、home-shell 是**回退版**(急切 auto-connect + welcome-screen 见 online 即跳),后者正是历史"欢迎页被跳过"翻车同款根因。
 >
@@ -27,6 +27,7 @@
 ### ① ★中转站(Vendor) 单一真相源 ↔ Composer 模型选择（董事长最强调）
 
 **现状（真实代码）：**
+
 - 现 model 真相源 = `provider-selection/provider-selection.ts`（`ProviderSelectorProvider{provider, modelSelection}`，模型来自 daemon `ProviderSnapshotEntry` / `AgentModelDefinition`，**按 provider 键，无 vendor 维**）+ `create-agent-preferences/preferences.ts`（`FormPreferences{provider, providerPreferences:Record<provider,{model}>, favoriteModels}`，客户端持久化的 per-provider 默认/收藏模型）。
 - `combined-model-selector.tsx`（1009 行）= 现 provider→model 两级选择器；"设置 ⚙" 调 `useProviderSettingsStore().open({serverId,provider})` 打开 provider 设置 modal（`provider-settings-store.ts` 只是个 visible 开关，**非数据源**）。
 - **中转站(vendor base_url+key) 层在 app 端完全不存在**（grep `vendor` 在 stores/components 零命中）。后端 `agents.providers`（`packages/server/src/server/persisted-config.ts` / `daemon-config-store.ts`）是其落点。
@@ -37,6 +38,7 @@
 ### ② host 单一真相源（设置 ↔ 主壳 ↔ 用量，切 host 全跟随）
 
 **现状（真实代码）：**
+
 - host 真相源 = `runtime/host-runtime.ts`（`HostRuntimeStore` 按 serverId 管 `HostRuntimeController` + hooks `useHosts/useHostRuntimeSnapshot/useHostRuntimeConnectionStatus/useHostMutations/useHostRegistryStatus`）。
 - **active host = 路由派生**：`utils/active-host.ts::resolveActiveHost` 从 pathname 解析 serverId（`parseServerIdFromPathname`）——**没有独立 active-host store**，已是单真相源范式。
 - 切 host = 导航到 host root route → 路由子树重挂 → `WorkspaceDeck` 加载新 serverId 数据。home-shell `host-switcher-pill.tsx` + `host-switcher-model.ts` 已封装此读取与切换。
@@ -46,6 +48,7 @@
 ### ③ onboarding → 主壳 → 设置 导航/状态连贯
 
 **现状（真实代码 · ⚠️冲突）：**
+
 - onboarding（develop）= `screens/onboarding/*` + `stores/onboarding-store.ts`。
 - **home-shell 分支删了整个 `screens/onboarding/*` + `onboarding-store`，新增 `components/welcome-screen.tsx`（338 行）**，且改了 `host-runtime.ts`（welcome-gate 前不 auto-connect，对应 `connectLocalCandidate` 延后）。
 - 这与历史教训"[Helm onboarding 验收=FAIL 欢迎页被跳过]"同源：home-shell 重做了 onboarding 落地路径。
@@ -55,6 +58,7 @@
 ### ④ 消除潜在双真相源
 
 **PM 勘察出的候选双真相源（待架构逐条定性 + 给归并方案）：**
+
 1. **模型默认值**：`create-agent-preferences`（客户端 per-provider 默认模型）↔ settings "设为当前中转站/模型"（写 daemon config）——**谁是真相源？** 倾向：vendor/模型默认归 daemon config 真相源，客户端 preferences 降级为 UI 记忆或废弃。
 2. **onboarding 连接逻辑**：onboarding-store ↔ welcome-screen ↔ host-runtime `connectLocalCandidate`——三处不能各连各的。
 3. **provider 启停/列表**：settings L1（启停 provider）↔ composer provider 列表（`provider-selection`）——同读 daemon provider 快照。
@@ -70,15 +74,16 @@
 
 **接缝依赖顺序（先接哪条）：**
 
-| 步 | 内容 | 依赖 | 并行 |
-| --- | --- | --- | --- |
-| **I0** | **vendor schema 扩展**（daemon `agents.providers[].vendors` + `features.providerVendors` 门 + `COMPAT()`；协议改动**最先落**，测后向兼容 + `currentVendor→env` 映射） | — | 协议先行 |
-| **I1** | `vendor-selection` 纯选择器层（镜像 `provider-selection.ts`，三纯函数，settings L3 + composer 共用） | I0 | — |
-| **I2** | settings **重构** L3 中转站详情（base_url+key+测速+放出模型+设默认+设当前，写 daemon config） | I0+I1 | 与 I3 并行 |
-| **I3** | composer 接 vendor（填 `CascadeSelection.vendor`、删 `vendor:null` 占位）= home-shell **P9 单胶囊三层级联** | I0+I1 | 与 I2 并行 |
-| #2 host / #3 onboarding | **不依赖 I0**，可独立先行（host 已统一；onboarding = 丢回退保 develop gate） | — | ✅ 独立 |
+| 步                      | 内容                                                                                                                                                                  | 依赖  | 并行       |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ---------- |
+| **I0**                  | **vendor schema 扩展**（daemon `agents.providers[].vendors` + `features.providerVendors` 门 + `COMPAT()`；协议改动**最先落**，测后向兼容 + `currentVendor→env` 映射） | —     | 协议先行   |
+| **I1**                  | `vendor-selection` 纯选择器层（镜像 `provider-selection.ts`，三纯函数，settings L3 + composer 共用）                                                                  | I0    | —          |
+| **I2**                  | settings **重构** L3 中转站详情（base_url+key+测速+放出模型+设默认+设当前，写 daemon config）                                                                         | I0+I1 | 与 I3 并行 |
+| **I3**                  | composer 接 vendor（填 `CascadeSelection.vendor`、删 `vendor:null` 占位）= home-shell **P9 单胶囊三层级联**                                                           | I0+I1 | 与 I2 并行 |
+| #2 host / #3 onboarding | **不依赖 I0**，可独立先行（host 已统一；onboarding = 丢回退保 develop gate）                                                                                          | —     | ✅ 独立    |
 
 **合并次序（谁先合 develop · onboarding 冲突在哪步解）：**
+
 1. **home-shell 先 rebase develop** —— **onboarding 反向分叉冲突在这一步一次解清**（丢 home-shell 回退、保 develop gate、welcome 屏 UI 二选一）；composer 的 `vendor:null` 占位**保留不接**。
 2. home-shell 合 develop（主壳骨架 + 已实现 P1 落地）。
 3. settings 落 I0+I1+I2 合 develop（重构既有 host settings，新增 vendor L3）。
@@ -95,17 +100,17 @@
 
 > 标 ★ = 最需拍板 / 阻塞集成。
 
-| # | 定夺项 | 来源 | PM 倾向 |
-| --- | --- | --- | --- |
+| #       | 定夺项                                                                                                                                                                                                                                                                                          | 来源                | PM 倾向                                                         |
+| ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- | --------------------------------------------------------------- |
 | **★O1** | **onboarding 单一落地路径**：保留 develop 已修复 gate（连接真相源 + `resolveStartupRoute` + `hasSeenWelcome`），**丢弃 home-shell 回退**——产品/架构已收敛。**唯一留给董事长** = welcome 屏 UI 形态（develop 多阶段 `OnboardingScreen` vs home-shell 单屏 `WelcomeScreen`，两套都挂同一 gate）。 | 产品 O1 + 架构 #3/1 | **保 develop gate**；welcome UI 倾向单屏但须董事长拍 + 同批删旧 |
-| **★O2** | **vendor schema 后端能力**（缺口 G1）：`agents.providers[].vendors` 结构化 base_url+key+放模型+当前 = 需新 daemon 能力 `features.providerVendors`，本轮做后端还是先门控占位？ | 架构 G1 | 本轮做（是 seam #1 前置，不做则 composer 跟随无真源） |
-| **★O3** | **vendor key 脱敏/回传策略**：影响 shape `apiKey` 是否 write-only（密码态读不回） | 架构 #3 | write-only（安全优先） |
-| **★O4** | **config.json(JSON 编辑器)作用域**：缩到 `MutableDaemonConfig` 子集 还是新增 `features.rawConfigFile` 全量 raw 读写？（缺口 G4） | 架构 #2/G4 | 待架构细化后定 |
-| **O5** | **模型默认归属**：默认收敛到 daemon 权威后，客户端 `create-agent-preferences.model` 降级为 UI 记忆还是废弃？（favorites 保留） | 产品 O2 + 架构 #4① | 降级为 UI 记忆 |
-| **O6** | **删除内置 provider / 一键装 agent CLI** 后端能力（缺口 G2/G3）排期：本轮做还是门控占位回落安装指引？ | 产品 O3 + 架构 #4 | 门控占位（诚实标注，不假装能用） |
-| **O7** | **composer 切中转站语义**：写 host 级 `currentVendorId`（倾向）vs per-draft 覆盖 | 架构 #6 | host 级 currentVendorId |
-| **O8** | `provider-settings-store`（visible 开关）去留：改深链后倾向废弃 | 架构 #5 | 废弃（深链取代） |
-| **O9** | **用量三缺口**（时间切换/估算金额/按模型）：目标态克制呈现 vs 移出默认视图 | 产品能力缺口 | 目标态克制（已门控 `providerUsageList`） |
+| **★O2** | **vendor schema 后端能力**（缺口 G1）：`agents.providers[].vendors` 结构化 base_url+key+放模型+当前 = 需新 daemon 能力 `features.providerVendors`，本轮做后端还是先门控占位？                                                                                                                   | 架构 G1             | 本轮做（是 seam #1 前置，不做则 composer 跟随无真源）           |
+| **★O3** | **vendor key 脱敏/回传策略**：影响 shape `apiKey` 是否 write-only（密码态读不回）                                                                                                                                                                                                               | 架构 #3             | write-only（安全优先）                                          |
+| **★O4** | **config.json(JSON 编辑器)作用域**：缩到 `MutableDaemonConfig` 子集 还是新增 `features.rawConfigFile` 全量 raw 读写？（缺口 G4）                                                                                                                                                                | 架构 #2/G4          | 待架构细化后定                                                  |
+| **O5**  | **模型默认归属**：默认收敛到 daemon 权威后，客户端 `create-agent-preferences.model` 降级为 UI 记忆还是废弃？（favorites 保留）                                                                                                                                                                  | 产品 O2 + 架构 #4①  | 降级为 UI 记忆                                                  |
+| **O6**  | **删除内置 provider / 一键装 agent CLI** 后端能力（缺口 G2/G3）排期：本轮做还是门控占位回落安装指引？                                                                                                                                                                                           | 产品 O3 + 架构 #4   | 门控占位（诚实标注，不假装能用）                                |
+| **O7**  | **composer 切中转站语义**：写 host 级 `currentVendorId`（倾向）vs per-draft 覆盖                                                                                                                                                                                                                | 架构 #6             | host 级 currentVendorId                                         |
+| **O8**  | `provider-settings-store`（visible 开关）去留：改深链后倾向废弃                                                                                                                                                                                                                                 | 架构 #5             | 废弃（深链取代）                                                |
+| **O9**  | **用量三缺口**（时间切换/估算金额/按模型）：目标态克制呈现 vs 移出默认视图                                                                                                                                                                                                                      | 产品能力缺口        | 目标态克制（已门控 `providerUsageList`）                        |
 
 ---
 
@@ -118,4 +123,4 @@
 - home-shell 已实现：`_rescue/home-shell/packages/app/src/{conversation-tree,components/sidebar/host-switcher-*,screens/workspace/canvas-top-bar-*,stores/conversation-history-store}`
 - home-shell 设计：`_rescue/home-shell/docs/helm/requirements/2026-06-25-home-shell/{requirement,ui.html,architecture}.md`
 - settings 设计：`_rescue/settings-ui/docs/helm/requirements/2026-06-26-settings/{requirement,ui.html}.md`
-</content>
+  </content>

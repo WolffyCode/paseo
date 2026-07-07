@@ -28,6 +28,7 @@ CodePilot 由「作者 + Claude Code(实现) + Codex(计划/审查)」三方协�
 **交付说明必写「被否方案及原因」**（`README.md:47-53`）：Claude Code 的交付说明必须含「上下文：用户原始诉求、讨论过程、关键判断、**被否掉的方案和原因**」+ 根因 + 改动 + 验证 + 防回归。理由直接写在文里：「不要只贴最终结论……让下一个读计划的人知道为什么这么做」「否则 ClaudeCode 重启或上下文变短后会重复旧误判」（`README.md:49`、`:57`）。
 
 代表样本：
+
 - `completed/document-system-governance.md` —— 文档体系自治理本身就是一个 exec-plan，Phase 0-5 每段都带「用户能看到什么/不做什么/怎么验收/实现路径」，决策日志记录了 Claude Code review 如何拦住「lint 自爆」和「中间提交必红」两个坑（`:339`）。
 - `completed/engineering-quality-assurance.md` —— 「工程质量保障体系」的总纲，9 个 Phase 标 ✅/📋，决策日志解释为什么某些 Phase 暂不做（`:22-28`）。
 
@@ -46,6 +47,7 @@ CodePilot 由「作者 + Claude Code(实现) + Codex(计划/审查)」三方协�
 7. **设计决策日志** —— 关键变更的日期 + 理由，**「为后人解释『为什么不那样做』」**（解决：后人把已被否的方案又实现一遍）。
 
 样板看 `Runtime.md`（已成稳定契约，七节全满）：
+
 - §2.2 是一张 **「compat tier × runtime 必须命中表」**（`Runtime.md:29-38`），把「哪个 provider 在哪个 runtime 下该不该出现」做成真值表。
 - §2 内嵌 **「已知陷阱（已修，别走回头路）」**：精确到 `runtime-compat.ts:128` 的注释、是「Codex 2026-04-26 review 指出后已删」、并直接写 **「不要再加回去」**（`Runtime.md:40-41`）。
 - §5 常见坑 7 条，每条都是真实回归（如「把 `providerId === ''` 当 falsy」`:89`、「Hook fetchState 初始 'loaded' 导致首帧误判」`:90`）。
@@ -62,6 +64,7 @@ CodePilot 由「作者 + Claude Code(实现) + Codex(计划/审查)」三方协�
 ### A.4 文档怎么约束多 agent 协作
 
 **分工写死在根 CLAUDE.md / AGENTS.md**：
+
 - `CLAUDE.md:7-13`：作者(决策/验收) / **Claude Code(生成代码)** / **Codex(计划与测试)**。
 - `AGENTS.md:15-18` 写死 **Codex 角色边界**：「绝对不能修改产品代码、运行时代码、构建脚本、DB schema、样式实现或业务逻辑……需要代码修复时只输出方案和 diff 建议，交由 Claude Code 实施」。
 - `README.md:55-60`（exec-plans）写死 **Codex review 规则**：给 Claude Code 的执行文案「必须共享判断过程：先写用户问题和争议，再写取舍理由，最后才写执行清单」；P1/P2 finding「不能只用聊天确认关闭，必须有修复、测试证据或 tech-debt tracker 条目」。
@@ -93,18 +96,18 @@ CodePilot 由「作者 + Claude Code(实现) + Codex(计划/审查)」三方协�
 
 ### C.1 逐项对比
 
-| 治理机制 | CodePilot | Helm 现状 | 差距 |
-| --- | --- | --- | --- |
-| 唯一产品真相源 | 无单一 canonical（ARCHITECTURE.md + 散落 handover） | ✅ `product.md` + `ui.html` 强制同步 + 全量自审 | **Helm 更强** |
-| 每需求一套本地文档 | 每功能一个 exec-plan | ✅ `requirements/<日期>-<topic>/`（requirement+ui+architecture 契约三件套） | 持平 |
-| 多 agent 组织/流程 | CLAUDE.md 协作模式 + 角色边界 | ✅ `workflow.md` 三层 org + 3 闸 | 持平（机制不同） |
-| 实现层规范 | 散落 CLAUDE.md | ✅ `standards.md`（模型/UI分离·不打补丁·契约注释·单测·WHAT-not-HOW） | 持平 |
-| **模块级不变量契约(guardrail)** | ✅ `guardrails/` 七节模板 | ❌ **完全没有** | **Helm 缺** |
-| **技术债追踪** | ✅ `tech-debt-tracker.md` | ❌ **没有** | **Helm 缺** |
-| **决策日志 / 被否方案** | ✅ 每个 plan + guardrail 都有 | ⚠️ 只在 `requirement.md` 头部夹「修订一/二」散记，无结构化决策日志、无「被否方案及原因」段 | **Helm 弱** |
-| **验证证据账本** | ✅ 每个 plan 的 Smoke Ledger | ❌ QA 四审有结论但**不落盘**（验完即散） | **Helm 缺** |
-| 需求生命周期归档 | ✅ active/completed/deferred/superseded + Archive note | ⚠️ `requirements/` 只按日期建目录，无状态、无索引、无归档语义 | **Helm 弱** |
-| 反假数据 / source breadcrumb | ✅ 显式整节 | ⚠️ standards §5「不靠截图/grep」+ verify 记忆，但无字段级 source-breadcrumb 规则 | **Helm 弱** |
+| 治理机制                        | CodePilot                                              | Helm 现状                                                                                  | 差距             |
+| ------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------ | ---------------- |
+| 唯一产品真相源                  | 无单一 canonical（ARCHITECTURE.md + 散落 handover）    | ✅ `product.md` + `ui.html` 强制同步 + 全量自审                                            | **Helm 更强**    |
+| 每需求一套本地文档              | 每功能一个 exec-plan                                   | ✅ `requirements/<日期>-<topic>/`（requirement+ui+architecture 契约三件套）                | 持平             |
+| 多 agent 组织/流程              | CLAUDE.md 协作模式 + 角色边界                          | ✅ `workflow.md` 三层 org + 3 闸                                                           | 持平（机制不同） |
+| 实现层规范                      | 散落 CLAUDE.md                                         | ✅ `standards.md`（模型/UI分离·不打补丁·契约注释·单测·WHAT-not-HOW）                       | 持平             |
+| **模块级不变量契约(guardrail)** | ✅ `guardrails/` 七节模板                              | ❌ **完全没有**                                                                            | **Helm 缺**      |
+| **技术债追踪**                  | ✅ `tech-debt-tracker.md`                              | ❌ **没有**                                                                                | **Helm 缺**      |
+| **决策日志 / 被否方案**         | ✅ 每个 plan + guardrail 都有                          | ⚠️ 只在 `requirement.md` 头部夹「修订一/二」散记，无结构化决策日志、无「被否方案及原因」段 | **Helm 弱**      |
+| **验证证据账本**                | ✅ 每个 plan 的 Smoke Ledger                           | ❌ QA 四审有结论但**不落盘**（验完即散）                                                   | **Helm 缺**      |
+| 需求生命周期归档                | ✅ active/completed/deferred/superseded + Archive note | ⚠️ `requirements/` 只按日期建目录，无状态、无索引、无归档语义                              | **Helm 弱**      |
+| 反假数据 / source breadcrumb    | ✅ 显式整节                                            | ⚠️ standards §5「不靠截图/grep」+ verify 记忆，但无字段级 source-breadcrumb 规则           | **Helm 弱**      |
 
 **核心判断**：Helm 强在「这东西应该长什么样」（正向设计），弱在「**跨需求的持久工程记忆**」——哪条不变量永不能破、什么坏了、为什么当时那样决策、什么做完了/搁置了、验证证据在哪。CodePilot 的 guardrail + tech-debt + 决策日志 + 四态归档 + Smoke Ledger 正好补的是这一整块。而 Helm 的痛点记忆（onboarding 欢迎页被跳过验收 FAIL、「verify functional not just rendered」翻车、3-layer providers 实现被否）**全部是这块缺失直接导致的**。
 

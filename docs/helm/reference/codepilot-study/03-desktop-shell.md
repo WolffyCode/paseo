@@ -22,6 +22,7 @@ CodePilot 是「Electron 主进程内**起一个本地 Next standalone HTTP serv
 7. **菜单栏常驻**：窗口 `close` 默认 `event.preventDefault()` + `hide()`，只有 `isQuitting` 才真退（`electron/main.ts:1211-1215`）；窗口 hidden 时把通知轮询交给主进程（`:1221`）。
 
 **配套构建/打包**：
+
 - `next.config.ts`：`output:'standalone'`（`:6`）；`cacheHandler` 指向 `cache-handler.js` + `cacheMaxMemorySize:0`（`:14-15`）——因为打包后 server cwd 在只读安装目录，Next 默认 FileSystemCache 会 `mkdir .next/cache` 报 EPERM，所以换成纯内存增量缓存（`cache-handler.js:1-81`，FIFO 上限 1000）；`serverExternalPackages` 把 better-sqlite3 等 native/动态 require 留在 node_modules 不打包（`:56`）。
 - `scripts/build-electron.mjs`：esbuild 打 main/preload（`:44-54`），并把 standalone 里的符号链接换成实拷贝好让 electron-builder 能打包（`resolveStandaloneSymlinks` `:5-24`）；每次构建前清 `dist-electron/`（`:29`，注释说 v0.34 升级崩溃就是 stale artifact 进了 app.asar）。
 - `electron-builder.yml`：`extraResources` 把 `.next/standalone/` 整个塞进 `resources/standalone/`（`:20-46`）；`asarUnpack: **/*.node`（`:49-51`）；`afterPack`/`afterSign` 两 hook（`:47-48`）。
@@ -31,16 +32,19 @@ CodePilot 是「Electron 主进程内**起一个本地 Next standalone HTTP serv
 CodePilot 的 UI 是「**一条横跨整窗的共享顶栏** + 其下一排浮动卡片」的 macOS Tahoe 风格（注意：是**共享单顶栏**，不是三区各自 chrome——见 C.6）。
 
 **外壳骨架**（`src/components/layout/AppShell.tsx`）：
+
 - 最外层 `flex flex-col h-screen`：`<UnifiedTopBar/>`（**单条共享顶栏**，sibling 在内容行之上，`:705-707`）→ `<UpdateBanner/>` → `flex flex-1` 内容行（`:708`）。Round 20 注释明说：把顶栏提成 sibling 是为了让四张卡（左栏/主区/workspace/file-tree）在同一条顶栏下**对齐同一 y 起点**（`:694-704`）。
 - 内容行里：左栏 `CardFrame kind="sidebar" width={chatListWidth}` + `ResizeGutter`（`:728-757`）→ `<ChatContentRow>`（主区卡 + workspace 卡 + PanelZone，`:758`）。
 
 **浮动卡原语**（`src/components/layout/card-primitives.tsx`，Phase 7c）——**三个单一职责组件，刻意把 shadow / clip / gutter 拆开免得跨面板漂移**（`:3-25`）：
+
 - `CardFrame`（`:78`）：只管 shadow + radius + 布局槽，**不 clip**（overflow 可见好让 box-shadow 画出圆角轮廓）；`kind="main"` 用 `flex-1` 撑满、其余给定 `width`。
 - `CardSurface`（`:126`）：画 bg + `clip-path: inset(0 round 14px)` + backdrop-filter，**不画外阴影**；darwin 下才有圆角，off-mac radius=0、clip 为 no-op，同一份 DOM 在 web/win/linux 退化成普通块（`:115-125`）。
 - `ResizeGutter`（`:182`，`RESIZE_GUTTER_WIDTH_PX=8` `:180`）：8px 宽行级手柄，**只能放在两张 CardFrame 之间、绝不进 CardFrame 内**；2px 可见线居中在 8px 命中区里（几何契约有真实 DOM e2e 守：gutter 宽==8、线 centerX==gutter centerX，`:168-172`）；hover 画**跟随光标的渐变高亮**（`color-mix(oklch)` `:230-255`）；双击 `onReset` 复位默认宽。**宽度状态留在消费方**（panel 自己持有），原语只收 `width` prop + `onResize/onResizeEnd/onReset` 回调（`:22-24`）。
 - 拖拽实现（`ResizeGutter` `:189-228` / 旧 `ResizeHandle.tsx:35-78`）：`onPointerDown` 里 `setPointerCapture` + `document.body.style.cursor='col-resize'` + `userSelect='none'`；`onPointerMove` 算 `delta=clientX-startX` 回调；`onPointerUp` 释放并 `onResizeEnd`。**约束 clamp 在消费方 handler 里**（`AppShell.tsx:325-327` `CHATLIST_MIN=180/MAX=300`）。宽度持久化：localStorage `codepilot_chatlist_width`（`AppShell.tsx:319-333`）。
 
 **顶栏**（`src/components/layout/UnifiedTopBar.tsx`）：
+
 - `WebkitAppRegion:'drag'` 整条可拖窗（`:229`），每个交互控件单独标 `'no-drag'`（`:242`、`:330`）。
 - 交通灯让位用 CSS 变量 token：`--platform-traffic-light-safe-area`（水平躲交通灯）+ `--platform-traffic-light-offset-y`（垂直对齐交通灯中线），off-mac 都为 0（`:153-157`）。
 - 左：侧栏开关 → 对话标题 → 工作区名 → 每会话 `···` 菜单；右：分支标签 / file-tree 开关 / workspace-sidebar 开关（`:221-426`）。注释里 Round 33 还记录了「既然顶上有 tab 条了，返回可以放上面」的迭代（`:174-190`）。
@@ -48,6 +52,7 @@ CodePilot 的 UI 是「**一条横跨整窗的共享顶栏** + 其下一排浮�
 **NavRail**（`src/components/layout/NavRail.tsx`）：56px（`w-14`）竖图标 rail（Chats/Plugins/Gallery + 底部 Settings，`:32-36`、`:51`）——**但已废弃**：`AppShell.tsx:7` 注释「NavRail removed — navigation merged into ChatListPanel」，导航并进了 ChatListPanel。
 
 **右栏 tab 系统**（`src/components/layout/WorkspaceSidebar/` + `src/lib/workspace-sidebar.ts`）——**纯状态模型 reducer，无 React、可单测**（`workspace-sidebar.ts:1-14`）：
+
 - 永远两个 `FIXED_TABS`（`git`/`widget`，不可关，`:96-99`）+ 0..N 个动态 tab（markdown/artifact/file/files-pinned），动态 tab 按 `dynamicTabId(kind,key)='kind:key'` 去重（`:126`）。
 - `openDynamicTab`（`:148`）：同 id 已存在 → **原地替换元数据并激活**（避免重开后丢 trust/标题，`:152-157`）；否则**追加到末尾并激活**。
 - `closeTab`（`:171`）：fixed 不可关（no-op）；关掉后**激活左邻**（`nextTabs[idx-1]` 退而 `git`，`:183`）。
@@ -63,6 +68,7 @@ CodePilot 的 UI 是「**一条横跨整窗的共享顶栏** + 其下一排浮�
 ## B. 值得抄的设计 + 坑
 
 **值得抄（设计/交互层）**
+
 1. **浮动卡原语三拆分（shadow / clip / gutter 各一组件，职责不串）**——`card-primitives.tsx` 的纪律：阴影画在不 clip 的 frame、圆角裁剪在 surface、拖拽线只在两 frame 之间的 gutter，且**宽度状态留消费方、原语只收 width+回调**。这套「布局原语只管几何、状态归宿在面板」的边界非常干净。
 2. **ResizeGutter 的拖拽 UX**：命中区(8px)比可见线(2px)宽一倍、跟随光标的渐变高亮、双击复位、拖拽时 body 锁 `cursor/userSelect`、约束 clamp 在 handler、松手才持久化——并配了**几何 e2e 断言**（宽==8、线居中）。
 3. **tab reducer 的几个具体行为**：去重 by `kind:key`、重开**原地替换**、关 tab **激活左邻**、fixed tab **不持久化而是加载时重物化**、坏数据 fallback 到 initialState。这些是「tab 系统」该有的默认语义清单。
@@ -72,6 +78,7 @@ CodePilot 的 UI 是「**一条横跨整窗的共享顶栏** + 其下一排浮�
 7. **ABI 不匹配给清晰错误**：`process.dlopen` 自检 + 明确弹框，而不是让用户撞 cryptic crash。
 
 **坑（CodePilot 自己标注或暴露的）**
+
 - **固定端口是为了绕开「localStorage 跟 origin 走」**——这是 Electron+本地 HTTP server 形态**自找的问题**（A.2 STABLE_PORTS + TOCTOU 重试 + 随机端口回落一大坨代码）。
 - **只读安装目录 + Next FileSystemCache = EPERM**，被迫上纯内存 cacheHandler。
 - **终端不是真 PTY**（spawn+pipe），resize no-op、全屏程序不工作——CodePilot 的明显短板。
@@ -87,26 +94,26 @@ CodePilot 的 UI 是「**一条横跨整窗的共享顶栏** + 其下一排浮�
 
 ### C.1 能直接借鉴的（布局/组件组合/交互模式层）
 
-| CodePilot 做法 | 映射到 home-shell | Helm 现状 / 怎么借 |
-| --- | --- | --- |
-| ResizeGutter 拖拽 UX（宽命中区/窄可见线/渐变高亮/双击复位/拖拽锁 cursor/clamp 在 handler/松手持久化 + 几何 e2e） | **s12 侧栏拖拽效果态**（反馈 D/E：手柄高亮 accent 绿 + 宽度气泡 + min/max 阻力 + 每工作区记忆） | 借**交互规格与几何契约**，不借代码。Helm 右栏宽已 per-workspace（`workspace-layout-store.splitSizesByWorkspace` + `resizeSplit`），左栏宽 architecture R1 已决迁 per-workspace。RN 适配：拖拽用 gesture-handler 而非 DOM pointer，高频宽度走 `inlineUnistylesStyle`（见 D）。 |
-| 浮动卡三拆分 + 「布局原语只管几何、宽度状态归面板」 | 三区独立 chrome（左栏/canvas/右栏各自边界） | 借**职责切分纪律**。Helm 已有 `split-container` + `workspace-layout-store`（纯数据 SplitNode/Pane，architecture §1 处置=复用）；别重造一套，但可用 CodePilot 的「frame 管阴影/surface 管裁剪/gutter 管拖拽 + 状态留消费方」做组件边界自检。 |
-| tab reducer 行为清单（去重 kind:key / 重开原地替换 / 关 tab 激活左邻 / fixed 不持久化重物化 / 坏数据 fallback） | **s4 右面板 tab**（反馈 C：悬浮✕、新选项卡+、全部可关、关完回启动器） | 借**默认语义**。Helm 已有 `workspace-tabs-store` + `workspace-layout-actions`（纯函数 + 单测，architecture §1#8/#9 处置=复用）；CodePilot 的「启动器默认态」对应 Helm `selectRightPanelMode(layout)`（空 tabIds→launcher），「全部可关」对应 `canCloseRightPanelTab` 恒 true（R6 已决）。 |
-| 折叠/放大控件钉在 tab scroller 之外 | 右栏 tab 头的 ⤢ 放大 / ▯ 收起 | 直接采纳这条防溢出经验：⤢/▯ 不要和会横向溢出的 tab 列共用滚动容器。 |
-| 窗口拖拽纪律（drag 顶栏 / no-drag 控件 / 交通灯 CSS token） | **左栏窗口 chrome 细条**（交通灯 + 侧栏开关 + ‹›，反馈 1/B） | Helm 已有 `components/desktop/titlebar-drag-region.tsx` + `useWindowControlsPadding`（architecture §1#23 复用）。借**纪律**：每个交互控件标 no-drag、控件中线对齐交通灯。 |
-| tab「hover 图标变 X」省宽 + WAI-ARIA tablist 键盘 | 右栏 tab 悬浮✕ | 借交互形态；但**别照抄 CSS group-hover 标记**（RN 不通，见 D）。键盘 tablist 模式可借。 |
-| ABI 不匹配弹清晰错误（`dlopen` 自检） | （低优先）node-pty 加载自检 | Helm 打包带 node-pty 真 PTY（`packages/desktop/scripts/after-pack.js:52` 按平台保留 prebuild），若想要可借「加载失败给清晰错误」的思路。 |
+| CodePilot 做法                                                                                                   | 映射到 home-shell                                                                               | Helm 现状 / 怎么借                                                                                                                                                                                                                                                                        |
+| ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ResizeGutter 拖拽 UX（宽命中区/窄可见线/渐变高亮/双击复位/拖拽锁 cursor/clamp 在 handler/松手持久化 + 几何 e2e） | **s12 侧栏拖拽效果态**（反馈 D/E：手柄高亮 accent 绿 + 宽度气泡 + min/max 阻力 + 每工作区记忆） | 借**交互规格与几何契约**，不借代码。Helm 右栏宽已 per-workspace（`workspace-layout-store.splitSizesByWorkspace` + `resizeSplit`），左栏宽 architecture R1 已决迁 per-workspace。RN 适配：拖拽用 gesture-handler 而非 DOM pointer，高频宽度走 `inlineUnistylesStyle`（见 D）。             |
+| 浮动卡三拆分 + 「布局原语只管几何、宽度状态归面板」                                                              | 三区独立 chrome（左栏/canvas/右栏各自边界）                                                     | 借**职责切分纪律**。Helm 已有 `split-container` + `workspace-layout-store`（纯数据 SplitNode/Pane，architecture §1 处置=复用）；别重造一套，但可用 CodePilot 的「frame 管阴影/surface 管裁剪/gutter 管拖拽 + 状态留消费方」做组件边界自检。                                               |
+| tab reducer 行为清单（去重 kind:key / 重开原地替换 / 关 tab 激活左邻 / fixed 不持久化重物化 / 坏数据 fallback）  | **s4 右面板 tab**（反馈 C：悬浮✕、新选项卡+、全部可关、关完回启动器）                           | 借**默认语义**。Helm 已有 `workspace-tabs-store` + `workspace-layout-actions`（纯函数 + 单测，architecture §1#8/#9 处置=复用）；CodePilot 的「启动器默认态」对应 Helm `selectRightPanelMode(layout)`（空 tabIds→launcher），「全部可关」对应 `canCloseRightPanelTab` 恒 true（R6 已决）。 |
+| 折叠/放大控件钉在 tab scroller 之外                                                                              | 右栏 tab 头的 ⤢ 放大 / ▯ 收起                                                                   | 直接采纳这条防溢出经验：⤢/▯ 不要和会横向溢出的 tab 列共用滚动容器。                                                                                                                                                                                                                       |
+| 窗口拖拽纪律（drag 顶栏 / no-drag 控件 / 交通灯 CSS token）                                                      | **左栏窗口 chrome 细条**（交通灯 + 侧栏开关 + ‹›，反馈 1/B）                                    | Helm 已有 `components/desktop/titlebar-drag-region.tsx` + `useWindowControlsPadding`（architecture §1#23 复用）。借**纪律**：每个交互控件标 no-drag、控件中线对齐交通灯。                                                                                                                 |
+| tab「hover 图标变 X」省宽 + WAI-ARIA tablist 键盘                                                                | 右栏 tab 悬浮✕                                                                                  | 借交互形态；但**别照抄 CSS group-hover 标记**（RN 不通，见 D）。键盘 tablist 模式可借。                                                                                                                                                                                                   |
+| ABI 不匹配弹清晰错误（`dlopen` 自检）                                                                            | （低优先）node-pty 加载自检                                                                     | Helm 打包带 node-pty 真 PTY（`packages/desktop/scripts/after-pack.js:52` 按平台保留 prebuild），若想要可借「加载失败给清晰错误」的思路。                                                                                                                                                  |
 
 ### C.2 Electron-standalone-Next 特有、Helm（Expo/RN）用不上（附 Helm 等价机制）
 
-| CodePilot 机制 | 为何 Helm 用不上 | Helm 的等价机制 |
-| --- | --- | --- |
-| `utilityProcess.fork(server.js)` 起本地 Next HTTP server + `loadURL(http://127.0.0.1)` + `/api/health` splash 轮询（`main.ts:764/811/885`） | Helm 没有本地 HTTP server | **自定义特权协议 `helm://app/` 直供静态 Expo 包**（`packages/desktop/src/main.ts:310-313/532/655`）；后端是**独立 daemon，renderer 经 WebSocket/local-transport 连**（`daemon-manager`/`local-transport`）。"等后端 ready 的过场"= onboarding「连接中过场」+ host-runtime 连接态，不是 HTTP 健康轮询。 |
-| **STABLE_PORTS 固定端口（为 localStorage origin 稳定）**（`main.ts:717-731`）+ TOCTOU 重试 + 随机端口回落 | 这是「端口即 origin」形态自找的问题 | **`helm://app` 是天生稳定 origin**——localStorage 跨重启天然不丢，**完全不需要**端口编排那一坨。**别移植 STABLE_PORTS**。 |
-| better-sqlite3 ABI rebuild（`after-pack.js:38`）+ `checkNativeModuleABI`（`main.ts:521`）+ `serverExternalPackages` | Helm **无 SQLite**——`docs/data-model.md` 明示**文件型 JSON 持久化（Zod 校验）** | Helm 的 native 模块是 **node-pty（真 PTY）+ ripgrep**，after-pack 是**按平台裁剪 prebuild**（`packages/desktop/scripts/after-pack.js:52-93`）而非 rebuild。所以「ABI rebuild」整套不适用。 |
-| 纯内存 `cacheHandler` + `cacheMaxMemorySize:0`（只读安装目录 EPERM，`cache-handler.js`/`next.config.ts:14-15`） | 无 Next server、无 `.next/cache` 写盘 | 不存在该问题。 |
-| `resolveStandaloneSymlinks` / `extraResources standalone/` / `asarUnpack **/*.node`（build-electron.mjs / electron-builder.yml） | 无 standalone 产物 | Helm 打的是 Expo 静态 web bundle + node-pty/ripgrep 二进制，打包逻辑在 `packages/desktop/scripts/after-pack.js`。 |
-| 登录 shell 取 env（`loadUserShellEnv` `main.ts:577`）+ 系统代理探测（`resolveSystemProxy` `:612`，给中国 Clash/Surge 用户）+ 扩展 PATH | 这是「主进程要 spawn server/CLI 带全量 env」的需求 | Helm 已有 `packages/desktop/src/login-shell-env.ts`（同思路）。**系统代理经 Chromium `resolveProxy` 注入子进程**这招若 Helm daemon spawn 没有，可借（属 daemon 启动 env，非主壳布局）。 |
+| CodePilot 机制                                                                                                                              | 为何 Helm 用不上                                                                | Helm 的等价机制                                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `utilityProcess.fork(server.js)` 起本地 Next HTTP server + `loadURL(http://127.0.0.1)` + `/api/health` splash 轮询（`main.ts:764/811/885`） | Helm 没有本地 HTTP server                                                       | **自定义特权协议 `helm://app/` 直供静态 Expo 包**（`packages/desktop/src/main.ts:310-313/532/655`）；后端是**独立 daemon，renderer 经 WebSocket/local-transport 连**（`daemon-manager`/`local-transport`）。"等后端 ready 的过场"= onboarding「连接中过场」+ host-runtime 连接态，不是 HTTP 健康轮询。 |
+| **STABLE_PORTS 固定端口（为 localStorage origin 稳定）**（`main.ts:717-731`）+ TOCTOU 重试 + 随机端口回落                                   | 这是「端口即 origin」形态自找的问题                                             | **`helm://app` 是天生稳定 origin**——localStorage 跨重启天然不丢，**完全不需要**端口编排那一坨。**别移植 STABLE_PORTS**。                                                                                                                                                                               |
+| better-sqlite3 ABI rebuild（`after-pack.js:38`）+ `checkNativeModuleABI`（`main.ts:521`）+ `serverExternalPackages`                         | Helm **无 SQLite**——`docs/data-model.md` 明示**文件型 JSON 持久化（Zod 校验）** | Helm 的 native 模块是 **node-pty（真 PTY）+ ripgrep**，after-pack 是**按平台裁剪 prebuild**（`packages/desktop/scripts/after-pack.js:52-93`）而非 rebuild。所以「ABI rebuild」整套不适用。                                                                                                             |
+| 纯内存 `cacheHandler` + `cacheMaxMemorySize:0`（只读安装目录 EPERM，`cache-handler.js`/`next.config.ts:14-15`）                             | 无 Next server、无 `.next/cache` 写盘                                           | 不存在该问题。                                                                                                                                                                                                                                                                                         |
+| `resolveStandaloneSymlinks` / `extraResources standalone/` / `asarUnpack **/*.node`（build-electron.mjs / electron-builder.yml）            | 无 standalone 产物                                                              | Helm 打的是 Expo 静态 web bundle + node-pty/ripgrep 二进制，打包逻辑在 `packages/desktop/scripts/after-pack.js`。                                                                                                                                                                                      |
+| 登录 shell 取 env（`loadUserShellEnv` `main.ts:577`）+ 系统代理探测（`resolveSystemProxy` `:612`，给中国 Clash/Surge 用户）+ 扩展 PATH      | 这是「主进程要 spawn server/CLI 带全量 env」的需求                              | Helm 已有 `packages/desktop/src/login-shell-env.ts`（同思路）。**系统代理经 Chromium `resolveProxy` 注入子进程**这招若 Helm daemon spawn 没有，可借（属 daemon 启动 env，非主壳布局）。                                                                                                                |
 
 ### C.3 可选/未来（macOS 原生质感）
 

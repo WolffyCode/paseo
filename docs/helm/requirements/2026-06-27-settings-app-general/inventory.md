@@ -17,13 +17,13 @@
 
 > 应用段 = 跟「当前主机」无关的客户端自身设置（本设备 / 本 App）。主机相关设置全在主机段。
 
-| # | Tab | 英文 | 图标(现役) | 子项概要 | 平台 |
-| - | --- | ---- | ---------- | -------- | ---- |
-| 1 | **通用** | General | `Settings` | 客户端通用偏好 **+ 权限（并入为子项）** | 全平台 |
-| 2 | **外观** | Appearance | `Palette` | 主题 / 配色 / 字体 / 密度等 | 全平台 |
-| 3 | **关于** | About | `Info` | 版本 · 发布频道 · 软件更新 · 已连主机版本对比 · 社区链接 | 全平台（更新/频道桌面专属） |
-| 4 | **诊断** | Diagnostics | `Stethoscope` | 日志 / 连接诊断 / 调试信息 | 全平台 |
-| 5 | **快捷键** | Shortcuts | `Keyboard` | ~41 动作分 5 组 + 改键 / 重置 | **桌面 only** |
+| #   | Tab        | 英文        | 图标(现役)    | 子项概要                                                 | 平台                        |
+| --- | ---------- | ----------- | ------------- | -------------------------------------------------------- | --------------------------- |
+| 1   | **通用**   | General     | `Settings`    | 客户端通用偏好 **+ 权限（并入为子项）**                  | 全平台                      |
+| 2   | **外观**   | Appearance  | `Palette`     | 主题 / 配色 / 字体 / 密度等                              | 全平台                      |
+| 3   | **关于**   | About       | `Info`        | 版本 · 发布频道 · 软件更新 · 已连主机版本对比 · 社区链接 | 全平台（更新/频道桌面专属） |
+| 4   | **诊断**   | Diagnostics | `Stethoscope` | 日志 / 连接诊断 / 调试信息                               | 全平台                      |
+| 5   | **快捷键** | Shortcuts   | `Keyboard`    | ~41 动作分 5 组 + 改键 / 重置                            | **桌面 only**               |
 
 **导航顺序建议**：通用 → 外观 → 快捷键 →（分隔）→ 诊断 → 关于。最终顺序以设计稿外壳为准。
 
@@ -33,11 +33,11 @@
 
 旧应用段 8 tab：general / daemon / appearance / shortcuts / integrations / permissions / diagnostics / about。本次修订动了 3 项：
 
-| 旧项 | 去向 | 原因 |
-| ---- | ---- | ---- |
-| **守护进程** Daemon (`daemon`) | **搬主机段** | daemon 生命周期 / 重启 / 运维属于「主机」上下文，不是客户端自身设置。应用段不再持有。 |
-| **集成** Integrations (`integrations`) | **解散** | ① 命令行（CLI）= 装软件时默认随终端装好、无需手动安装，不再是设置项；② 编排 / skills → 归 **skill 目录**（另列）。集成 tab 整个取消。 |
-| **权限** Permissions (`permissions`) | **并入通用** | 权限细项作为「通用」tab 下的一个子项呈现，不再独立成 tab。 |
+| 旧项                                   | 去向         | 原因                                                                                                                                  |
+| -------------------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **守护进程** Daemon (`daemon`)         | **搬主机段** | daemon 生命周期 / 重启 / 运维属于「主机」上下文，不是客户端自身设置。应用段不再持有。                                                 |
+| **集成** Integrations (`integrations`) | **解散**     | ① 命令行（CLI）= 装软件时默认随终端装好、无需手动安装，不再是设置项；② 编排 / skills → 归 **skill 目录**（另列）。集成 tab 整个取消。 |
+| **权限** Permissions (`permissions`)   | **并入通用** | 权限细项作为「通用」tab 下的一个子项呈现，不再独立成 tab。                                                                            |
 
 > 旧源参照：`packages/app/src/screens/settings-screen.tsx` 的 `SIDEBAR_SECTION_ITEMS`（含 daemon/integrations/permissions 三项，本次修订后从应用段移除）。
 
@@ -66,6 +66,7 @@
 > 内容细化与设计稿**必须**贴合下列真实代码能力，不得臆造能力。
 
 ### 关于 About
+
 - `packages/app/src/screens/settings-screen.tsx`
   - `AboutSection`（L496-524）：App 版本（本设备）行 + 桌面更新行 + 已连主机段 + 社区链接。
   - `ConnectedHostsSection` / `HostVersionRow`（L532-606）：**列全部已连主机**（`useHosts()`），每行 = 主机名 + 版本（或 `offline` / `—`）；客户端↔主机版本不一致时 `isMismatch` 高亮 + 「versionDiffers」提示。**列全部、不跟随主机切换器**。
@@ -74,6 +75,7 @@
 - 版本来源：`@/utils/app-version` `resolveAppVersion`；`@/desktop/updates/*` 更新器；`@/desktop/updates/desktop-updates` `formatVersionWithPrefix`。
 
 ### 快捷键 Shortcuts
+
 - `packages/app/src/keyboard/keyboard-shortcuts.ts` —— **键位映射权威源**。`SHORTCUT_BINDINGS`（L171-1111）+ `buildKeyboardShortcutHelpSections`（L1470+）。**41 个 help 动作，正好 5 组**，section 顺序固定：`navigation → tabs-panes → projects → panels → agent-input`。
 - `packages/app/src/screens/settings/keyboard-shortcuts-section.tsx` —— **交互权威源**：每行 = 动作名 + 键帽 `<Shortcut>` + 「改键 Rebind / 取消 / 完成」；行级「重置 Reset」（有 override 时）；段头「全部重置 Reset all」（有任意 override 时）；捕获态（`rowCapturing` 高亮 + 实时显示已捕获 combo / 等待提示）；native 显示「移动端不可用」。
 - `packages/app/src/stores/keyboard-shortcuts-store.ts`：`capturingShortcut` 等捕获态。
