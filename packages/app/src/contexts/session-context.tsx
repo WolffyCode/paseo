@@ -22,7 +22,10 @@ import {
   planTimelineCatchUpFollowUp,
 } from "@/timeline/timeline-sync-plan";
 import type { AgentAttachment, SessionOutboundMessage } from "@getpaseo/protocol/messages";
-import { parseServerInfoStatusPayload } from "@getpaseo/protocol/messages";
+import {
+  parseServerInfoStatusPayload,
+  type ServerInfoStatusPayload,
+} from "@getpaseo/protocol/messages";
 import {
   buildAgentAttentionNotificationPayload,
   type AgentAttentionNotificationPayload,
@@ -931,18 +934,34 @@ function SessionProviderInternal({ children, serverId, client }: SessionProvider
   }, [serverId, client, updateSessionClient]);
 
   useEffect(() => {
-    const serverInfo = client.getLastServerInfoMessage();
-    if (!serverInfo) {
-      return;
+    const applyServerInfo = (serverInfo: ServerInfoStatusPayload) => {
+      updateSessionServerInfo(serverId, {
+        serverId: serverInfo.serverId,
+        hostname: serverInfo.hostname,
+        version: serverInfo.version,
+        ...(serverInfo.capabilities ? { capabilities: serverInfo.capabilities } : {}),
+        ...(serverInfo.features ? { features: serverInfo.features } : {}),
+      });
+    };
+
+    // Apply the cached handshake if it already arrived…
+    const cached = client.getLastServerInfoMessage();
+    if (cached) {
+      applyServerInfo(cached);
     }
 
-    updateSessionServerInfo(serverId, {
-      serverId: serverInfo.serverId,
-      hostname: serverInfo.hostname,
-      version: serverInfo.version,
-      ...(serverInfo.capabilities ? { capabilities: serverInfo.capabilities } : {}),
-      ...(serverInfo.features ? { features: serverInfo.features } : {}),
+    // …and subscribe for it in case it hasn't. Without this, a mount that beats the server_info
+    // frame stored NO features for the whole page lifecycle (updateSessionServerInfo dedups, so a
+    // double-apply with the other status handler is harmless). Symptom fixed: the file tree showed
+    // "搜索不可用 · 请升级主机" until a full reload even though the host advertised fsSearch.
+    const unsubscribe = client.on("status", (message) => {
+      if (message.type !== "status") return;
+      const parsed = parseServerInfoStatusPayload(message.payload);
+      if (parsed) {
+        applyServerInfo(parsed);
+      }
     });
+    return unsubscribe;
   }, [client, serverId, updateSessionServerInfo]);
 
   useEffect(() => {

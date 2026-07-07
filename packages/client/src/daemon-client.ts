@@ -24,6 +24,9 @@ import type {
   FileDownloadTokenResponse,
   FileUploadResponse,
   FileExplorerResponse,
+  FsSearchRequest,
+  FsSearchResponse,
+  FsCreateResponse,
   FetchAgentTimelineResponseMessage,
   GitSetupOptions,
   CheckoutStatusResponse,
@@ -325,6 +328,12 @@ type WorkspaceCreatePayload = Extract<
 >["payload"];
 type FileExplorerPayload = FileExplorerResponse["payload"];
 export type FileExplorerDirectoryPayload = NonNullable<FileExplorerPayload["directory"]>;
+// Search result (matches + truncated) and write result (landed path), derived from the protocol
+// response payloads so the client surface never drifts from the schema.
+export type FsSearchResult = Omit<FsSearchResponse["payload"], "requestId">;
+export type FsWriteResult = Omit<FsCreateResponse["payload"], "requestId">;
+// Search input mirrors the request schema minus the transport-managed type/requestId fields.
+export type FsSearchInput = Omit<FsSearchRequest, "type" | "requestId">;
 type LegacyFileExplorerFilePayload = NonNullable<FileExplorerPayload["file"]>;
 export interface FileReadResult {
   bytes: Uint8Array;
@@ -3573,6 +3582,125 @@ export class DaemonClient {
       this.pendingBinaryFileReads.delete(resolvedRequestId);
       this.activeBinaryFileTransfers.delete(resolvedRequestId);
     }
+  }
+
+  // Search the host filesystem (name or content) under `input.root`. Gate on server_info.features
+  // .fsSearch before calling; failures reject via the daemon's rpc_error channel.
+  // `onProgress` opts the request into progressive delivery: it fires with each streamed batch of
+  // matches BEFORE the promise resolves, so first hits paint while a wide root keeps scanning. The
+  // resolved result still carries the COMPLETE set — consumers replace, not append, on resolution.
+  async fsSearch(
+    input: FsSearchInput,
+    opts?: {
+      requestId?: string;
+      onProgress?: (matches: FsSearchResult["matches"]) => void;
+    },
+  ): Promise<FsSearchResult> {
+    const onProgress = opts?.onProgress;
+    // Progressive correlation needs the id known up-front (the progress frames carry it).
+    const requestId = opts?.requestId ?? (onProgress ? crypto.randomUUID() : undefined);
+    const unsubscribe =
+      onProgress && requestId
+        ? this.on("fs.search.progress", (message) => {
+            if (message.payload.requestId === requestId) {
+              onProgress(message.payload.matches);
+            }
+          })
+        : null;
+    try {
+      const payload = await this.sendNamespacedCorrelatedSessionRequest<"fs.search.response">({
+        requestId,
+        message: {
+          type: "fs.search.request",
+          root: input.root,
+          query: input.query,
+          mode: input.mode,
+          ...(input.basePath !== undefined ? { basePath: input.basePath } : {}),
+          ...(input.limit !== undefined ? { limit: input.limit } : {}),
+          ...(onProgress ? { progressive: true } : {}),
+        },
+        timeout: 30000,
+      });
+      return { matches: payload.matches, truncated: payload.truncated };
+    } finally {
+      unsubscribe?.();
+    }
+  }
+
+  // Create an empty file under `root`; returns the normalized landed path. Gate on features.fsWrite.
+  async fsCreate(root: string, path: string, requestId?: string): Promise<FsWriteResult> {
+    const payload = await this.sendNamespacedCorrelatedSessionRequest<"fs.create.response">({
+      requestId,
+      message: { type: "fs.create.request", root, path },
+      timeout: 10000,
+    });
+    return { path: payload.path };
+  }
+
+  // Create a directory under `root`; returns the normalized landed path. Gate on features.fsWrite.
+  async fsMkdir(root: string, path: string, requestId?: string): Promise<FsWriteResult> {
+    const payload = await this.sendNamespacedCorrelatedSessionRequest<"fs.mkdir.response">({
+      requestId,
+      message: { type: "fs.mkdir.request", root, path },
+      timeout: 10000,
+    });
+    return { path: payload.path };
+  }
+
+  // Rename an entry in place to `newName` (same directory); returns the new path. Gate on fsWrite.
+  async fsRename(
+    root: string,
+    path: string,
+    newName: string,
+    requestId?: string,
+  ): Promise<FsWriteResult> {
+    const payload = await this.sendNamespacedCorrelatedSessionRequest<"fs.rename.response">({
+      requestId,
+      message: { type: "fs.rename.request", root, path, newName },
+      timeout: 10000,
+    });
+    return { path: payload.path };
+  }
+
+  // Move (cut/paste) `from` into directory `toDir`; returns the landed path. Gate on features.fsWrite.
+  async fsMove(
+    root: string,
+    from: string,
+    toDir: string,
+    requestId?: string,
+  ): Promise<FsWriteResult> {
+    const payload = await this.sendNamespacedCorrelatedSessionRequest<"fs.move.response">({
+      requestId,
+      message: { type: "fs.move.request", root, from, toDir },
+      timeout: 10000,
+    });
+    return { path: payload.path };
+  }
+
+  // Copy (copy/paste) `from` into directory `toDir`, recursing for directories; returns landed path.
+  async fsCopy(
+    root: string,
+    from: string,
+    toDir: string,
+    requestId?: string,
+  ): Promise<FsWriteResult> {
+    const payload = await this.sendNamespacedCorrelatedSessionRequest<"fs.copy.response">({
+      requestId,
+      message: { type: "fs.copy.request", root, from, toDir },
+      timeout: 10000,
+    });
+    return { path: payload.path };
+  }
+
+  // Delete `path` under `root` (file unlinked, directory removed recursively); returns the removed
+  // path. A destructive structure write — gate on features.fsWrite (shared with the other fs.* writes).
+  async fsDelete(root: string, path: string, requestId?: string): Promise<FsWriteResult> {
+    const payload = await this.sendNamespacedCorrelatedSessionRequest<"fs.delete.response">({
+      requestId,
+      message: { type: "fs.delete.request", root, path },
+      timeout: 10000,
+    });
+    return { path: payload.path };
   }
 
   async uploadFile(input: FileUploadInput): Promise<FileUploadResult> {

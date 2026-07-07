@@ -14,15 +14,15 @@
 
 CodePilot 没有用「供应商(vendor)」这个词,但**实质就是三层**,只是把第二层拆成「DB 里的 provider 行(带 base_url+key)」+「catalog 里的 preset 模板」两个东西:
 
-| CodePilot 概念 | 是什么 | 证据 |
-| --- | --- | --- |
-| **Protocol**(wire 协议) | `anthropic / openai-compatible / openrouter / bedrock / vertex / google / *-image`,**用协议而非品牌名分发** | `src/lib/provider-catalog.ts:20-28` |
-| **AuthStyle** | `api_key / auth_token / env_only / custom_header` | `src/lib/provider-catalog.ts:33-38` |
-| **VendorPreset**(内置服务模板) | 40+ 个已知服务商模板:`key/name/protocol/authStyle/baseUrl/defaultModels/defaultRoleModels/meta` + `sdkProxyOnly` + `meta.claudeCodeVerified`。这是「供应商目录」 | 定义 `provider-catalog.ts:87-176`,数组 `VENDOR_PRESETS` @ `:455` |
-| **ApiProvider**(DB 行,用户实例) | `id/name/provider_type/protocol/base_url/api_key/is_active/headers_json/env_overrides_json/role_models_json/options_json`。这是用户配置的「供应商实例」 | DB schema(`src/lib/db.ts`),字段引用见 `provider-resolver.ts:43-95` |
-| **CatalogModel**(模型) | `modelId/upstreamModelId/displayName/role/capabilities{reasoning,toolUse,vision,contextWindow,supportsEffort,...}` | `provider-catalog.ts:47-73` |
-| **RoleModels**(语义角色→模型) | `default/reasoning/small/haiku/sonnet/opus` | `provider-catalog.ts:76-83` |
-| **provider_models 表**(DB 物化的模型清单) | 每个 provider 一张,字段含 `enabled / upstream_model_id / display_name / capabilities_json / enable_source`。**DB 行优先于 catalog 兜底** | `provider-resolver.ts:991-994` |
+| CodePilot 概念                            | 是什么                                                                                                                                                           | 证据                                                               |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| **Protocol**(wire 协议)                   | `anthropic / openai-compatible / openrouter / bedrock / vertex / google / *-image`,**用协议而非品牌名分发**                                                      | `src/lib/provider-catalog.ts:20-28`                                |
+| **AuthStyle**                             | `api_key / auth_token / env_only / custom_header`                                                                                                                | `src/lib/provider-catalog.ts:33-38`                                |
+| **VendorPreset**(内置服务模板)            | 40+ 个已知服务商模板:`key/name/protocol/authStyle/baseUrl/defaultModels/defaultRoleModels/meta` + `sdkProxyOnly` + `meta.claudeCodeVerified`。这是「供应商目录」 | 定义 `provider-catalog.ts:87-176`,数组 `VENDOR_PRESETS` @ `:455`   |
+| **ApiProvider**(DB 行,用户实例)           | `id/name/provider_type/protocol/base_url/api_key/is_active/headers_json/env_overrides_json/role_models_json/options_json`。这是用户配置的「供应商实例」          | DB schema(`src/lib/db.ts`),字段引用见 `provider-resolver.ts:43-95` |
+| **CatalogModel**(模型)                    | `modelId/upstreamModelId/displayName/role/capabilities{reasoning,toolUse,vision,contextWindow,supportsEffort,...}`                                               | `provider-catalog.ts:47-73`                                        |
+| **RoleModels**(语义角色→模型)             | `default/reasoning/small/haiku/sonnet/opus`                                                                                                                      | `provider-catalog.ts:76-83`                                        |
+| **provider_models 表**(DB 物化的模型清单) | 每个 provider 一张,字段含 `enabled / upstream_model_id / display_name / capabilities_json / enable_source`。**DB 行优先于 catalog 兜底**                         | `provider-resolver.ts:991-994`                                     |
 
 **虚拟 provider**(无 DB 行,但要在 UI 出现):
 
@@ -31,6 +31,7 @@ CodePilot 没有用「供应商(vendor)」这个词,但**实质就是三层**,�
 - `codex_account` — Codex 自带账号登录,标 `_codexAccount`,**不走 proxy,走 Codex 自己的 app-server**(`provider-resolver.ts:223-225`)。
 
 **Resolver 的职责**(`resolveProvider()` @ `provider-resolver.ts:203-281`):把「请求里的 providerId / session 的 provider_id / 全局 default / env / 虚拟 provider」按优先级(`:129-137`)统一成一个 `ResolvedProvider`,再由两个出口消费:
+
 - `toClaudeCodeEnv()` → 生成 `ANTHROPIC_*` 环境变量,喂给 Claude Code SDK 子进程;
 - `toAiSdkConfig()`(`:509-819`)→ 生成 Vercel AI SDK 配置(`sdkType/apiKey/baseUrl/modelId/headers/useResponsesApi`),喂给 Native runtime + Codex proxy。
 
@@ -58,31 +59,35 @@ Codex app-server
 ```
 
 **1) 注入(让 Codex 把请求发到本地)** — `src/lib/codex/provider-proxy.ts:75-107`(`buildCodexProviderProxyInjection`)。利用 Codex `ThreadStartParams.config` 是自由 override map 的特性,塞进一个虚拟 `model_providers.codepilot_proxy`,`base_url` 指向 `http://127.0.0.1:<port>/api/codex/proxy/v1`,`wire_api: 'responses'`,并用 **HTTP header** `x-codepilot-target-provider: <provider-id>` 告诉代理「用户选的是哪个 CodePilot provider」(`:38-52`、`:81-93`)。用 header 不用 query,因为 Codex 把 `http_headers` 逐字加到对该 provider 的**每个**请求上(`:22-24`)。
+
 - **resume 也要重发同一份 config**(`provider-proxy.ts:108-167`):dev 端口变了 / Codex 重启 / 未来 Codex 裁剪未知 model_providers,这三种情况都会让 resume 丢配置,所以每次都重新附上。
 - `env`/空 providerId 必须在到这里之前就被拒(`:191-196` 抛错,不静默构造 no-op)。
 
 **2) 拦截路由** — `src/app/api/codex/proxy/v1/responses/route.ts`。刻意做成薄壳:读 header → `parseResponsesRequest` → `handleProxyRequest` → 把 `ProxyResult` 序列化成 SSE 或 JSON(`:41-114`)。**stream 中途的错误也返回 HTTP 200**,错误以 SSE 内嵌 `response.failed` 事件承载(`:18-22`)。
 
 **3) 派发 + gate** — `src/lib/codex/proxy/adapter.ts:165-265`(`handleProxyRequest`):
-   1. 无 target header → `provider_not_targeted`(`:169-174`);
-   2. 查 provider:先查 `VIRTUAL_PROVIDERS`(`:88-98`),否则 `getProvider()` 查 DB,查不到 → `provider_not_found`(`:200-207`);
-   3. 算 `compat = getProviderCompatFromApi(provider)` → `family = ADAPTER_FAMILY_BY_COMPAT[compat]` + `status = ADAPTER_STATUS_BY_COMPAT[compat]`(`:209-213`);
-   4. **凭证检查** `resolved.hasCredentials`,空 key → `credentials_missing`(`:229-235`);
-   5. **adapter-status gate**:`pending`(只剩 `unknown` tier)→ `adapter_not_implemented`(`:240-246`);`not_applicable`(codex_account/media)→ 路由 bug 错误(`:247-253`);
-   6. `await adapter(input, resolved)`,**外层兜 try/catch**,适配器再保证自己不抛(`:258-264`)。
+
+1.  无 target header → `provider_not_targeted`(`:169-174`);
+2.  查 provider:先查 `VIRTUAL_PROVIDERS`(`:88-98`),否则 `getProvider()` 查 DB,查不到 → `provider_not_found`(`:200-207`);
+3.  算 `compat = getProviderCompatFromApi(provider)` → `family = ADAPTER_FAMILY_BY_COMPAT[compat]` + `status = ADAPTER_STATUS_BY_COMPAT[compat]`(`:209-213`);
+4.  **凭证检查** `resolved.hasCredentials`,空 key → `credentials_missing`(`:229-235`);
+5.  **adapter-status gate**:`pending`(只剩 `unknown` tier)→ `adapter_not_implemented`(`:240-246`);`not_applicable`(codex_account/media)→ 路由 bug 错误(`:247-253`);
+6.  `await adapter(input, resolved)`,**外层兜 try/catch**,适配器再保证自己不抛(`:258-264`)。
 
 **4) 统一适配器** — `src/lib/codex/proxy/unified-adapter.ts:64-260`。**三个 family 共用一个翻译器**,因为 wire 差异都在 `@ai-sdk/*` 各自的 SDK 内部、`createModel()` 已按 `sdkType` 选对(`:1-12`)。关键:
-   - **必须把 raw `targetProviderId` 透传给 `createModel`(不是 `resolved.provider?.id`)**,否则 `openai-oauth` 这种虚拟 provider(`resolved.provider===undefined`)会静默回落默认 provider —— 这就是 Phase 5b 的 P0 bug(`:68-91`)。
-   - **先挂 bridge → 翻译 tools → 编 system prompt → 再 buildMessages**(`:93-117`):早期顺序反了,compiler prompt 只通过 `providerOptions.openai.instructions` 到达,**对 Anthropic-compat / CodePlan / openai chat-completions 路径不可见**(它们的 system 全在 messages 数组里),导致这些 provider 丢掉 wire 规格、image-gen 规则、memory/tasks 工具描述。
-   - **effort → 双路 providerOptions**(`:497-543`):同时塞 `anthropic.thinking` 和 `openai.reasoningEffort`,哪个底层 SDK 在用就拿哪个,ai-sdk 静默丢弃不认的 key。
-   - Codex `/responses` 端点**强制要求** `instructions` 非空 + `store:false`,适配器无条件兜上(`:502-525`)。
+
+- **必须把 raw `targetProviderId` 透传给 `createModel`(不是 `resolved.provider?.id`)**,否则 `openai-oauth` 这种虚拟 provider(`resolved.provider===undefined`)会静默回落默认 provider —— 这就是 Phase 5b 的 P0 bug(`:68-91`)。
+- **先挂 bridge → 翻译 tools → 编 system prompt → 再 buildMessages**(`:93-117`):早期顺序反了,compiler prompt 只通过 `providerOptions.openai.instructions` 到达,**对 Anthropic-compat / CodePlan / openai chat-completions 路径不可见**(它们的 system 全在 messages 数组里),导致这些 provider 丢掉 wire 规格、image-gen 规则、memory/tasks 工具描述。
+- **effort → 双路 providerOptions**(`:497-543`):同时塞 `anthropic.thinking` 和 `openai.reasoningEffort`,哪个底层 SDK 在用就拿哪个,ai-sdk 静默丢弃不认的 key。
+- Codex `/responses` 端点**强制要求** `instructions` 非空 + `store:false`,适配器无条件兜上(`:502-525`)。
 
 **5) Responses SSE 翻译** — `src/lib/codex/proxy/translate-stream.ts:85-418`。ai-sdk `fullStream` part → Codex Responses 事件的逐型映射(`:13-27`)。踩过的坑都固化成防御代码:
-   - `output_item.done` **必须发**,否则 Codex 的 `handle_output_item_done` 不落 item,GLM/Kimi 出现「completed 但空白」(`:37-44`)。
-   - `text-delta` 前若没有 `text-start`(OpenRouter Anthropic-skin 会这样),要**防御性补 `output_item.added`**,否则 delta 被丢、消息渲染空白(`:135-167`)。
-   - 错误事件发 **`response.failed`** 而**不是** `{type:'error'}`:Codex app-server 解析器不认 `error`,会落到「stream closed before response.completed」静默失败(`:29-35`、对照 `adapter.ts:309-329`)。
-   - bridge 自己执行的工具(`builtinToolNames`)的 `function_call` 事件**要抑制**,不能漏给 Codex,否则 Codex 会去执行一个它不认识的工具(`:206-252`)。
-   - `finally` 块:上游没发终止事件时,**合成一个 zero-usage `response.completed`**,保证 Codex reader 干净退出(`:405-417`)。
+
+- `output_item.done` **必须发**,否则 Codex 的 `handle_output_item_done` 不落 item,GLM/Kimi 出现「completed 但空白」(`:37-44`)。
+- `text-delta` 前若没有 `text-start`(OpenRouter Anthropic-skin 会这样),要**防御性补 `output_item.added`**,否则 delta 被丢、消息渲染空白(`:135-167`)。
+- 错误事件发 **`response.failed`** 而**不是** `{type:'error'}`:Codex app-server 解析器不认 `error`,会落到「stream closed before response.completed」静默失败(`:29-35`、对照 `adapter.ts:309-329`)。
+- bridge 自己执行的工具(`builtinToolNames`)的 `function_call` 事件**要抑制**,不能漏给 Codex,否则 Codex 会去执行一个它不认识的工具(`:206-252`)。
+- `finally` 块:上游没发终止事件时,**合成一个 zero-usage `response.completed`**,保证 Codex reader 干净退出(`:405-417`)。
 
 ### A.3 兼容矩阵:provider × runtime 怎么 gate
 
@@ -92,22 +97,24 @@ provider tier(`src/lib/runtime-compat.ts:1-19`):`claude_code_ready / claude_code
 
 `getModelCompat()`(`runtime-compat.ts:162-261`)按 tier 填 `supportedRuntimes` + 每 runtime 的 `unsupportedReasonByRuntime`:
 
-| tier | claude_code | codepilot_runtime | codex_runtime | 不兼容原因(摘) |
-| --- | :-: | :-: | :-: | --- |
-| `claude_code_ready` | ✓ | ✓ | ✓ | 官方/Bedrock/Vertex |
-| `claude_code_verified` / `_experimental` | ✓ | ✓ | ✓ | 第三方 Anthropic-compat(GLM/Kimi…) |
-| `openrouter_anthropic_skin` | ✓ | ✗ | ✓ | URL 是 `/api` 不是 `/v1` |
-| `codepilot_only` | ✗ | ✓ | ✓ | OpenAI wire,Claude Code 够不着 |
-| `codex_account` | ✗ | ✗ | ✓ | 只走 Codex app-server |
-| `media_only` | ✗ | ✗ | ✗ | 图像/视频,不进 chat picker |
-| `unknown` | ✓ | ✓ | ✗ | proxy 无法判定 wire format |
+| tier                                     | claude_code | codepilot_runtime | codex_runtime | 不兼容原因(摘)                     |
+| ---------------------------------------- | :---------: | :---------------: | :-----------: | ---------------------------------- |
+| `claude_code_ready`                      |      ✓      |         ✓         |       ✓       | 官方/Bedrock/Vertex                |
+| `claude_code_verified` / `_experimental` |      ✓      |         ✓         |       ✓       | 第三方 Anthropic-compat(GLM/Kimi…) |
+| `openrouter_anthropic_skin`              |      ✓      |         ✗         |       ✓       | URL 是 `/api` 不是 `/v1`           |
+| `codepilot_only`                         |      ✗      |         ✓         |       ✓       | OpenAI wire,Claude Code 够不着     |
+| `codex_account`                          |      ✗      |         ✗         |       ✓       | 只走 Codex app-server              |
+| `media_only`                             |      ✗      |         ✗         |       ✗       | 图像/视频,不进 chat picker         |
+| `unknown`                                |      ✓      |         ✓         |       ✗       | proxy 无法判定 wire format         |
 
 **gate 落地的三处**(同一矩阵,三个消费点):
+
 - **服务端过滤**:`/api/providers/models?runtime=<id>` 把不在 `supportedRuntimes` 的 model 直接从响应里删掉。
 - **客户端渲染**:不兼容的行**置灰但仍可见**,tooltip 显示 `unsupportedReasonByRuntime[runtime]` —— 让用户知道「为什么不能选」而不是干脆消失。
 - **resolver 兜底**:默认 model 回落链里跳过不兼容的;但**显式点名仍放行**,错误留到下游暴露(`provider-resolver.ts:1031-1072`)。
 
 **Codex proxy 侧的 parity 表**(`src/lib/codex/proxy/provider-parity.ts`):
+
 - `ADAPTER_STATUS_BY_COMPAT`(`:34-53`):每 tier 一个 `ready/pending/not_applicable`,**单一真相源**,adapter ship 一个就翻一个为 `ready`;现仅 `unknown=pending`。
 - `ADAPTER_FAMILY_BY_COMPAT`(`:60-81`):tier → `openai_compatible / anthropic_compatible / codeplan / native`。verified/experimental → `codeplan`(因为带品牌别名映射 GLM/Kimi/百炼/MiniMax/DeepSeek);`unknown` → 猜 `openai_compatible`(chat/completions 最常见)。
 - `pickerDisabledReason(family, isZh)`(`:144-167`)产出中英双语「具体」禁用文案,而不是「Codex 不支持」(后者暗示永久不支持,被 Codex CLI 用户吐槽过,见 `:6-9`)。
@@ -119,31 +126,31 @@ provider tier(`src/lib/runtime-compat.ts:1-19`):`claude_code_ready / claude_code
 ## B. 值得抄的设计 + 踩过的坑(每条:为什么 / 不这么做会怎样)
 
 1. **协议(protocol)分发,而非品牌名分发。** `provider-catalog.ts:20-28` 用 `protocol` 决定 wire/SDK/auth。
-   - *为什么*:同一品牌可换 base_url、可起多实例;品牌字符串匹配会随用户改名/改端点崩。OpenRouter 同一家因 `/api` vs `/v1` 落到不同 tier 就是例证。
+   - _为什么_:同一品牌可换 base_url、可起多实例;品牌字符串匹配会随用户改名/改端点崩。OpenRouter 同一家因 `/api` vs `/v1` 落到不同 tier 就是例证。
 
 2. **provider 实例(DB,带 base_url+key)与 preset 模板(catalog,带默认 models/meta)分离;DB 行优先,catalog 只兜底。** `provider-resolver.ts:991-994`。
-   - *为什么*:用户能改 base_url、改名、隐藏/启用模型;preset 升级不能覆盖用户编辑。
+   - _为什么_:用户能改 base_url、改名、隐藏/启用模型;preset 升级不能覆盖用户编辑。
 
 3. **「保护配置完整性,而非揣测用户意图」。** 模型刷新(`apply`)**绝不**翻动 `enable_source ∈ {manual_enabled, manual_hidden}` 或 `user_edited=1` 的行(`auto-discover-models.ts:14-15,116`;doc `ProviderManagement.md §8#5` 标 P0)。
-   - *不这么做*:用户隐藏的模型下次刷新被重新启用、改的名被改回——CodePilot 明确记为 P0 教训。
+   - _不这么做_:用户隐藏的模型下次刷新被重新启用、改的名被改回——CodePilot 明确记为 P0 教训。
 
 4. **空集合不伪造、不回落 env。** `classifyProvider()`(`model-discovery.ts:118-207`)对 OAuth/套餐型/OpenRouter 直接判 `unsupported`,**不去探它的 `/v1/models`**;探到的「真的空」与「全是已知行(up-to-date)」严格区分(`auto-discover-models.ts:110-118`)。Class C(不可探)provider **不显示 Refresh 按钮**(doc `ModelDiscovery.md §8#10`)。
-   - *不这么做*:套餐型 provider 的 `/v1/models` 只返回 SKU 白名单,探出来写进 `provider_models` 会把真正能用的模型挤掉,用户聊天 4xx。
+   - _不这么做_:套餐型 provider 的 `/v1/models` 只返回 SKU 白名单,探出来写进 `provider_models` 会把真正能用的模型挤掉,用户聊天 4xx。
 
 5. **AbortController 防竞态是硬纪律。** 每次 fetch:abort 上一次 + 新 controller + `.then` 里查 `signal.aborted`;`provider-changed` 事件刷新时**慢的旧请求不许覆盖新结果**(doc `Runtime.md §2.5/§5#5`)。探模型一律 `AbortSignal.timeout(8000)`(doc `ModelDiscovery.md §8#5`)。
-   - *不这么做*:慢上游(Bedrock/跨区)让 spinner 转到天荒地老;旧响应回来盖掉新 provider 的列表。
+   - _不这么做_:慢上游(Bedrock/跨区)让 spinner 转到天荒地老;旧响应回来盖掉新 provider 的列表。
 
-6. **凭证不泄漏。** base_url 显示前 `sanitizeEndpointForDisplay()` 检测 `sk-/pk_/ghp_/ant-` 等前缀,疑似 secret 就遮罩只留后 4 位(`provider-endpoint-sanitize.ts:52`);探测响应里把 `?key=sk-xxx` 换成 `***`(doc `ModelDiscovery.md §8#6`)。
-   - *为什么*:provider 卡片会进截图/录屏/日志。
+6. **凭证不泄漏。** base*url 显示前 `sanitizeEndpointForDisplay()` 检测 `sk-/pk*/ghp\_/ant-` 等前缀,疑似 secret 就遮罩只留后 4 位(`provider-endpoint-sanitize.ts:52`);探测响应里把 `?key=sk-xxx`换成`\*\*\*`(doc `ModelDiscovery.md §8#6`)。
+   - _为什么_:provider 卡片会进截图/录屏/日志。
 
 7. **错误事件形状要对准消费者解析器,而非 SDK fixture。** 发 `response.failed` 而非 `{type:'error'}`(`translate-stream.ts:29-35`;`adapter.ts:309-329`)。
-   - *不这么做*:Codex app-server 解析器落到未处理分支 → 「stream closed before response.completed」静默失败,用户看到空白。
+   - _不这么做_:Codex app-server 解析器落到未处理分支 → 「stream closed before response.completed」静默失败,用户看到空白。
 
 8. **虚拟 provider 必须在 proxy 端镜像注册。** `VIRTUAL_PROVIDERS`(`adapter.ts:88-98`)与 `/api/providers/models` 暴露面一一对应,有契约测试钉(`:75-78`)。
-   - *不这么做*:UI 显示了 openai-oauth、用户一选、send 在 proxy 端 `provider_not_found`。
+   - _不这么做_:UI 显示了 openai-oauth、用户一选、send 在 proxy 端 `provider_not_found`。
 
 9. **凭证桥不碰 cc-switch.db,改用 per-request shadow HOME。** cc-switch 写的是 Claude Code 的 `~/.claude/settings.json`(不是它的 db);选了 DB provider 时,CodePilot 造一个临时 `~/.claude/`,把 settings.json **剥掉 `ANTHROPIC_*` auth keys 但保留 mcpServers/hooks/plugins/permissions**,子进程 HOME 指过去,stream `finally` 清理(doc `cc-switch-credential-bridge.md §四`)。`settingSources` 对 DB provider 只留 `['user']`(`provider-resolver.ts:1220`)。
-   - *不这么做*:cc-switch 留在 settings.json 的旧 `ANTHROPIC_BASE_URL/AUTH_TOKEN` 会盖掉用户在 UI 选的 provider —— 这是「`claude` CLI 能用但 CodePilot 报 No credentials」的真实 bug 链。
+   - _不这么做_:cc-switch 留在 settings.json 的旧 `ANTHROPIC_BASE_URL/AUTH_TOKEN` 会盖掉用户在 UI 选的 provider —— 这是「`claude` CLI 能用但 CodePilot 报 No credentials」的真实 bug 链。
 
 10. **品牌 preset 必须排在 wildcard 之前。** `anthropic-thirdparty` 兜底 preset 若排在 GLM/Kimi 前会先匹配、吃掉搜索(doc `ProviderManagement.md §8#4`)。
 
@@ -158,6 +165,7 @@ provider tier(`src/lib/runtime-compat.ts:1-19`):`claude_code_ready / claude_code
 Helm 的 `buildCodexCustomProviderConfig`(`packages/server/src/server/agent/providers/codex-app-server-agent.ts:2860-2890`)**已经在用和 CodePilot 一样的 Codex `model_providers` 注入手法**:对 `extends==='codex'` 的自定义 provider,从 `env.OPENAI_BASE_URL` 取 base_url、normalize 成 `/v1`、塞进 `model_providers[id] = {name, base_url, wire_api:'responses', env_key:'OPENAI_API_KEY'}`。
 
 差别只有一个:**Helm 把 `base_url` 指向上游真实端点**(Codex 直连上游),**CodePilot 指向本机 proxy 路由**(`/api/codex/proxy/v1`)再翻译。也就是说:
+
 - Helm 现状 = 「Codex + OpenAI 兼容上游」可直连(不需要 proxy)。
 - 要支持「Codex 用 Anthropic / 套餐型 / 任意 provider」,才需要 CodePilot 那条本地 proxy。
 
@@ -173,13 +181,13 @@ Helm 的 `buildCodexCustomProviderConfig`(`packages/server/src/server/agent/prov
 
 ### C.3 因 Helm 是 RN / WebSocket / JSON 要改的
 
-| CodePilot 做法 | Helm 要改成 |
-| --- | --- |
+| CodePilot 做法                                                    | Helm 要改成                                                                                                                                                                                                                                                                                                                                  |
+| ----------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Next.js HTTP 路由 `POST /api/codex/proxy/v1/responses` 拦截 Codex | Helm daemon(Node)里起一个**本地 HTTP server**(不是 WebSocket RPC):Codex app-server 通过 `model_providers.base_url` 用标准 HTTP 调它。**这条必须是 HTTP**——Codex 只会发 HTTP,WebSocket RPC 用不上。可挂在 daemon 已有的 HTTP 监听上加一个 `/codex-proxy/v1/responses` path,base_url 注入指向 `http://127.0.0.1:<daemonPort>/codex-proxy/v1`。 |
-| SQLite `api_providers` / `provider_models` 表 | 文件式 JSON + Zod(`docs/data-model.md`)。把 `agents.providers` 扩成含 `vendors`(供应商实例数组)+ `vendorModels`。原子写、无迁移(沿用 Helm 持久化约定)。 |
-| `createModel()` 走 `@ai-sdk/*` 直连上游 | Helm 没有 Native AI-SDK runtime,**只有 CLI 子进程**。所以「Codex 用别的 provider」要么 (a) 像现状那样把 base_url+key 注入 Codex TOML 让 Codex 直连(仅 OpenAI 兼容 + Anthropic 兼容 wire 可行),要么 (b) daemon 里引入 `@ai-sdk/*` 真的做翻译代理(重,等同把 CodePilot Native runtime 搬进来)。**建议先做 (a)**,(b) 留作后续。 |
-| 客户端 React 组件置灰 + tooltip | RN:`isHovered‖isNative‖isCompact` 控制可见性(见根 CLAUDE.md hover 规则);禁用行同样「可见 + 原因」。 |
-| `~/.claude/settings.json` shadow HOME | Helm 已是 `~/.helm` 隔离 + per-agent 子进程,**这条思路直接复用**:选了供应商实例时,给该 agent 子进程一份剥掉 auth 的 settings,避免 cc-switch/全局 env 盖掉 UI 选择。 |
+| SQLite `api_providers` / `provider_models` 表                     | 文件式 JSON + Zod(`docs/data-model.md`)。把 `agents.providers` 扩成含 `vendors`(供应商实例数组)+ `vendorModels`。原子写、无迁移(沿用 Helm 持久化约定)。                                                                                                                                                                                      |
+| `createModel()` 走 `@ai-sdk/*` 直连上游                           | Helm 没有 Native AI-SDK runtime,**只有 CLI 子进程**。所以「Codex 用别的 provider」要么 (a) 像现状那样把 base_url+key 注入 Codex TOML 让 Codex 直连(仅 OpenAI 兼容 + Anthropic 兼容 wire 可行),要么 (b) daemon 里引入 `@ai-sdk/*` 真的做翻译代理(重,等同把 CodePilot Native runtime 搬进来)。**建议先做 (a)**,(b) 留作后续。                  |
+| 客户端 React 组件置灰 + tooltip                                   | RN:`isHovered‖isNative‖isCompact` 控制可见性(见根 CLAUDE.md hover 规则);禁用行同样「可见 + 原因」。                                                                                                                                                                                                                                          |
+| `~/.claude/settings.json` shadow HOME                             | Helm 已是 `~/.helm` 隔离 + per-agent 子进程,**这条思路直接复用**:选了供应商实例时,给该 agent 子进程一份剥掉 auth 的 settings,避免 cc-switch/全局 env 盖掉 UI 选择。                                                                                                                                                                          |
 
 ### C.4 救「被否的三层 providers」——错在哪 + 怎么修
 
@@ -216,6 +224,7 @@ Helm v3 需求(`docs/helm/reference/HELM-v3-需求文档.md:21,57-60,108`)定义
 ## 附:本研究引用的关键文件清单(绝对路径)
 
 CodePilot(只读):
+
 - `/Users/wangbingkun/Desktop/coding/person/WolffyCode/CodePilot-main/src/lib/codex/provider-proxy.ts`
 - `/Users/wangbingkun/Desktop/coding/person/WolffyCode/CodePilot-main/src/app/api/codex/proxy/v1/responses/route.ts`
 - `/Users/wangbingkun/Desktop/coding/person/WolffyCode/CodePilot-main/src/lib/codex/proxy/adapter.ts`
@@ -230,6 +239,7 @@ CodePilot(只读):
 - docs:`docs/guardrails/{ProviderManagement,ModelDiscovery,Runtime,ComposerModelSelection}.md` · `docs/handover/provider-{architecture,proxy-bridge,governance,error-doctor}.md` · `docs/exec-plans/completed/{phase-5-codex-runtime,provider-resolver-refactor,provider-governance,cc-switch-credential-bridge}.md`
 
 Helm(只读对照):
+
 - `/Users/wangbingkun/Desktop/coding/person/WolffyCode/paseo-main/packages/server/src/server/agent/providers/codex-app-server-agent.ts`(`buildCodexCustomProviderConfig:2860-2890`)
 - `/Users/wangbingkun/Desktop/coding/person/WolffyCode/paseo-main/packages/protocol/src/provider-config.ts`
 - `/Users/wangbingkun/Desktop/coding/person/WolffyCode/paseo-main/docs/helm/reference/HELM-v3-需求文档.md`

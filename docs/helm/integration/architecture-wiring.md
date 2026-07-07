@@ -21,28 +21,28 @@
 
 骨架记的「settings 仅设计稿、零代码」**与真实代码不符**。develop **已落地一套 host 级 settings**，集成与 settings 实现都必须以「重构既有」为前提，禁止当成空白新建（否则必然制造双真相源）：
 
-| 既有真实落点（develop） | 内容 | 对 settings redesign 的意义 |
-| --- | --- | --- |
-| `app/settings/hosts/[serverId]/[hostSection].tsx` + `screens/settings-screen.tsx`（`SettingsView` 联合类型） | settings 外壳 + master-detail + host 段路由 | **复用外壳**；redesign = 收敛 section，不是重画 |
-| `utils/host-routes.ts`：`buildSettingsHostSectionRoute(serverId, section)`、`HOST_SECTION_SLUGS`、`normalizeHostSectionSlug` | settings 深链路由构造器 + slug 归一 + legacy 映射 | **复用路由契约**；「管理中转站…」深链直接用它 |
-| `screens/settings/host-page.tsx` | host 段页面，已用 `useDaemonConfig` + `useHosts` + `useHostRuntimeSnapshot` + `useProviderUsage` | **复用**；host 选择器已是 `useHosts()` 派生，无独立 store |
-| `screens/settings/providers-section.tsx` | provider L1：启停（`patchConfig({providers:{[id]:{enabled}}})`）、从目录新增 ACP（`patchConfig(buildAcpProviderConfigPatch)`）、CLI 检测 | **复用**；vendor(L3) 是其下新增层 |
-| `provider-usage/*`（`use-provider-usage.ts`、`card/list/balance-bar/settings-section`） | 用量 tab + 能力门 `serverInfo.features.providerUsageList` | **复用整块**；用量能力门**已存在、非缺口** |
-| `hooks/use-daemon-config.ts` | `useDaemonConfig(serverId) → {config, isLoading, patchConfig}`，React-Query keyed by serverId + `daemon_config_changed` 推送 | **vendor 真相源的承载通道**，见 §1 |
+| 既有真实落点（develop）                                                                                                      | 内容                                                                                                                                     | 对 settings redesign 的意义                               |
+| ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `app/settings/hosts/[serverId]/[hostSection].tsx` + `screens/settings-screen.tsx`（`SettingsView` 联合类型）                 | settings 外壳 + master-detail + host 段路由                                                                                              | **复用外壳**；redesign = 收敛 section，不是重画           |
+| `utils/host-routes.ts`：`buildSettingsHostSectionRoute(serverId, section)`、`HOST_SECTION_SLUGS`、`normalizeHostSectionSlug` | settings 深链路由构造器 + slug 归一 + legacy 映射                                                                                        | **复用路由契约**；「管理中转站…」深链直接用它             |
+| `screens/settings/host-page.tsx`                                                                                             | host 段页面，已用 `useDaemonConfig` + `useHosts` + `useHostRuntimeSnapshot` + `useProviderUsage`                                         | **复用**；host 选择器已是 `useHosts()` 派生，无独立 store |
+| `screens/settings/providers-section.tsx`                                                                                     | provider L1：启停（`patchConfig({providers:{[id]:{enabled}}})`）、从目录新增 ACP（`patchConfig(buildAcpProviderConfigPatch)`）、CLI 检测 | **复用**；vendor(L3) 是其下新增层                         |
+| `provider-usage/*`（`use-provider-usage.ts`、`card/list/balance-bar/settings-section`）                                      | 用量 tab + 能力门 `serverInfo.features.providerUsageList`                                                                                | **复用整块**；用量能力门**已存在、非缺口**                |
+| `hooks/use-daemon-config.ts`                                                                                                 | `useDaemonConfig(serverId) → {config, isLoading, patchConfig}`，React-Query keyed by serverId + `daemon_config_changed` 推送             | **vendor 真相源的承载通道**，见 §1                        |
 
 > 既有 host 段有 7 个 slug（`connections/agents/workspaces/providers/usage/terminals/host`）。settings redesign 的「主机/模型与提供方/用量」3 tab 直接映射到 `host`(或 `connections`)/`providers`/`usage`；`agents/workspaces/terminals` 按 requirement「删除 tab」**真删**（refactor-don't-patch，不留死路由），其能力主壳/​config.json 已覆盖。
 
 ### 0.3 真相源总账（四接缝 × 归属 × 通道）
 
-| 真相源 | 住哪（权威） | 客户端通道（缓存/订阅） | 写入口 | 读出口 |
-| --- | --- | --- | --- | --- |
-| **host 注册表 / 连接态** | `HostRuntimeStore`（`runtime/host-runtime.ts`，单例 + serverId 分片） | `useHosts` / `useHostRuntimeSnapshot` / `useHostRuntimeConnectionStatus` | `useHostMutations` | 同左 hooks |
-| **active host** | **路由 pathname**（无独立 store） | `utils/active-host.ts::resolveActiveHost` + `parseServerIdFromPathname` | `router.navigate(buildHostRootRoute(serverId))` | `resolveActiveHost` |
-| **provider 启停/列表** | daemon config `agents.providers[id].enabled` | 写：`useDaemonConfig.patchConfig`；读：`use-providers-snapshot`（daemon 重算的快照） | `providers-section.tsx` → `patchConfig` | composer = `provider-selection.ts::buildSelectableProviderSelectorProviders(snapshot)` |
-| **★中转站(vendor) base_url+key+放出模型+当前** | daemon config `agents.providers[id].vendors`（**新增 schema**） | `useDaemonConfig(serverId)`（已存在，keyed by serverId） | settings L3 + composer 切换 → `patchConfig` | `vendor-selection` 纯选择器（**新建**，见 §1.3） |
-| **onboarding 连接触发 + 路由 gate** | `host-runtime-bootstrap.ts` 纯函数 + `onboarding-store.hasSeenWelcome` + `host-runtime.connectLocalCandidate`（延后探测） | `resolveStartupRoute` / `connectLocalOnBoot` | `_layout.tsx` `connectLocalOnBoot` | `index.tsx` / `welcome.tsx` 经 `resolveStartupRoute` |
-| **左栏宽度** | home-shell R1 已决 per-workspace（从 `panel-store.sidebarWidth` 迁移） | per-workspace store（home-shell P3 建） | 拖拽手柄 | per-workspace selector |
-| **模型默认 / 收藏（UI 记忆）** | `create-agent-preferences`（客户端持久化，**降级为 UI 记忆**） | `use-form-preferences` | composer | composer（仅作 last-used / favorites 覆盖，**非权威默认**） |
+| 真相源                                         | 住哪（权威）                                                                                                              | 客户端通道（缓存/订阅）                                                              | 写入口                                          | 读出口                                                                                 |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | ----------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **host 注册表 / 连接态**                       | `HostRuntimeStore`（`runtime/host-runtime.ts`，单例 + serverId 分片）                                                     | `useHosts` / `useHostRuntimeSnapshot` / `useHostRuntimeConnectionStatus`             | `useHostMutations`                              | 同左 hooks                                                                             |
+| **active host**                                | **路由 pathname**（无独立 store）                                                                                         | `utils/active-host.ts::resolveActiveHost` + `parseServerIdFromPathname`              | `router.navigate(buildHostRootRoute(serverId))` | `resolveActiveHost`                                                                    |
+| **provider 启停/列表**                         | daemon config `agents.providers[id].enabled`                                                                              | 写：`useDaemonConfig.patchConfig`；读：`use-providers-snapshot`（daemon 重算的快照） | `providers-section.tsx` → `patchConfig`         | composer = `provider-selection.ts::buildSelectableProviderSelectorProviders(snapshot)` |
+| **★中转站(vendor) base_url+key+放出模型+当前** | daemon config `agents.providers[id].vendors`（**新增 schema**）                                                           | `useDaemonConfig(serverId)`（已存在，keyed by serverId）                             | settings L3 + composer 切换 → `patchConfig`     | `vendor-selection` 纯选择器（**新建**，见 §1.3）                                       |
+| **onboarding 连接触发 + 路由 gate**            | `host-runtime-bootstrap.ts` 纯函数 + `onboarding-store.hasSeenWelcome` + `host-runtime.connectLocalCandidate`（延后探测） | `resolveStartupRoute` / `connectLocalOnBoot`                                         | `_layout.tsx` `connectLocalOnBoot`              | `index.tsx` / `welcome.tsx` 经 `resolveStartupRoute`                                   |
+| **左栏宽度**                                   | home-shell R1 已决 per-workspace（从 `panel-store.sidebarWidth` 迁移）                                                    | per-workspace store（home-shell P3 建）                                              | 拖拽手柄                                        | per-workspace selector                                                                 |
+| **模型默认 / 收藏（UI 记忆）**                 | `create-agent-preferences`（客户端持久化，**降级为 UI 记忆**）                                                            | `use-form-preferences`                                                               | composer                                        | composer（仅作 last-used / favorites 覆盖，**非权威默认**）                            |
 
 ---
 
@@ -67,19 +67,19 @@
 ```ts
 // 中转站（API 供应商）—— provider 之下的第二层
 interface ProviderVendor {
-  id: string;                  // 稳定主键（增删改用）
-  label: string;               // 显示名（官方直连 / 第三方转发…）
-  baseUrl: string;             // API base_url
-  apiKey: string;              // key（密码态；落盘/脱敏策略见 §7 能力门 & 风险）
-  releasedModelIds: string[];  // 放出的模型（L3 多选）
-  defaultModelId?: string;     // 该中转站默认模型（L3 设默认）
+  id: string; // 稳定主键（增删改用）
+  label: string; // 显示名（官方直连 / 第三方转发…）
+  baseUrl: string; // API base_url
+  apiKey: string; // key（密码态；落盘/脱敏策略见 §7 能力门 & 风险）
+  releasedModelIds: string[]; // 放出的模型（L3 多选）
+  defaultModelId?: string; // 该中转站默认模型（L3 设默认）
   // 高级（折叠/入 config.json）：spendLimit / multiplier / failover —— 本层不结构化
 }
 
 // provider 级中转站配置
 interface ProviderVendorConfig {
   vendors: ProviderVendor[];
-  currentVendorId?: string;    // 「当前」中转站 = composer 默认 vendor
+  currentVendorId?: string; // 「当前」中转站 = composer 默认 vendor
 }
 ```
 
@@ -94,14 +94,15 @@ interface ProviderVendorConfig {
 function selectVendorOptions(input: {
   providerConfig: ProviderVendorConfig | undefined;
   providerLabel: string;
-}): VendorSelectorEntry[];               // 中转站下拉行
+}): VendorSelectorEntry[]; // 中转站下拉行
 
 function resolveCurrentVendor(config: ProviderVendorConfig | undefined): ProviderVendor | null;
 
-function resolveEffectiveVendorModelId(input: {  // composer 有效默认模型（vendor 维）
+function resolveEffectiveVendorModelId(input: {
+  // composer 有效默认模型（vendor 维）
   vendor: ProviderVendor | null;
-  sessionPick?: string;                 // 本次会话显式选择
-  uiMemoryModelId?: string;             // create-agent-preferences 的 last-used（UI 记忆，弱优先）
+  sessionPick?: string; // 本次会话显式选择
+  uiMemoryModelId?: string; // create-agent-preferences 的 last-used（UI 记忆，弱优先）
 }): string;
 ```
 
@@ -141,15 +142,15 @@ router.navigate(buildSettingsHostSectionRoute(serverId, "providers")
 
 ### 1.6 能力门（诚实标注：缺口 vs 已有）
 
-| 能力 | 状态 | 门控位置 |
-| --- | --- | --- |
-| **vendor 结构化读写（vendors/currentVendorId）** | **缺口（新增 daemon 能力）** | 扩 `ProviderOverrideSchema` + `MutableDaemonProviderConfigSchema`；服务端解析 currentVendor→env；新增 `server_info.features.providerVendors` + `// COMPAT(providerVendors): added in v0.1.X, drop gate when floor >= v0.1.X` |
-| **从目录新增 ACP 提供方** | **已有**（`providers-section.tsx` `patchConfig(buildAcpProviderConfigPatch)`） | 无需新能力 |
-| **provider 启停 / additionalModels** | **已有**（`MutableDaemonProviderConfigSchema.enabled`） | 无需新能力 |
-| **删除内置 provider（可恢复）** | **缺口** | 新增 daemon 能力 + `features.builtinProviderRemoval`；UI 给入口但门控「更新主机后可删」，**不假装能删**；目录新增删除=真实（`patchConfig` 移除）无需新能力 |
-| **一键装/更新 agent CLI** | **缺口** | 新增 daemon 能力 + `features.agentCliInstall`；缺则按钮回落「安装指引」外链（真实兜底）。Helm CLI 安装+指引今天真实可用 |
-| **providerUsageList（用量）** | **已有**（`serverInfo.features.providerUsageList`，`use-provider-usage.ts` 已门控） | 无需新能力 |
-| **config.json 全量 raw 读写（JSON 编辑器）** | **缺口/待定** | 既有 `getDaemonConfig`/`patchDaemonConfig` = `MutableDaemonConfig`（curated 投影 + passthrough），**非 1:1 文件镜像**；要么 JSON 编辑器作用域=MutableDaemonConfig，要么新增 `features.rawConfigFile` + raw 读写。见 §7 + §10 待定 |
+| 能力                                             | 状态                                                                                | 门控位置                                                                                                                                                                                                                          |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **vendor 结构化读写（vendors/currentVendorId）** | **缺口（新增 daemon 能力）**                                                        | 扩 `ProviderOverrideSchema` + `MutableDaemonProviderConfigSchema`；服务端解析 currentVendor→env；新增 `server_info.features.providerVendors` + `// COMPAT(providerVendors): added in v0.1.X, drop gate when floor >= v0.1.X`      |
+| **从目录新增 ACP 提供方**                        | **已有**（`providers-section.tsx` `patchConfig(buildAcpProviderConfigPatch)`）      | 无需新能力                                                                                                                                                                                                                        |
+| **provider 启停 / additionalModels**             | **已有**（`MutableDaemonProviderConfigSchema.enabled`）                             | 无需新能力                                                                                                                                                                                                                        |
+| **删除内置 provider（可恢复）**                  | **缺口**                                                                            | 新增 daemon 能力 + `features.builtinProviderRemoval`；UI 给入口但门控「更新主机后可删」，**不假装能删**；目录新增删除=真实（`patchConfig` 移除）无需新能力                                                                        |
+| **一键装/更新 agent CLI**                        | **缺口**                                                                            | 新增 daemon 能力 + `features.agentCliInstall`；缺则按钮回落「安装指引」外链（真实兜底）。Helm CLI 安装+指引今天真实可用                                                                                                           |
+| **providerUsageList（用量）**                    | **已有**（`serverInfo.features.providerUsageList`，`use-provider-usage.ts` 已门控） | 无需新能力                                                                                                                                                                                                                        |
+| **config.json 全量 raw 读写（JSON 编辑器）**     | **缺口/待定**                                                                       | 既有 `getDaemonConfig`/`patchDaemonConfig` = `MutableDaemonConfig`（curated 投影 + passthrough），**非 1:1 文件镜像**；要么 JSON 编辑器作用域=MutableDaemonConfig，要么新增 `features.rawConfigFile` + raw 读写。见 §7 + §10 待定 |
 
 ---
 
@@ -187,13 +188,13 @@ router.navigate(buildSettingsHostSectionRoute(serverId, "providers")
 
 这不是导航问题，是**两分支在同组文件上反向分叉**。逐文件勘察：
 
-| 文件 | develop（integration worktree）= 修复版 | home-shell = 回退版 |
-| --- | --- | --- |
-| `runtime/host-runtime.ts` | `runBoot()` 只 `loadFromStorage()`；**`connectLocalCandidate()` 延后探测**（welcome gate 先跑） | 把探测并回 `runBoot()` = **急切 auto-connect**，删 `connectLocalCandidate` |
-| `app/host-runtime-bootstrap.ts`（436 行纯函数策略） | `resolveStartupRoute`(index/host/welcome) + `connectLocalOnBoot({hasSeenWelcome})` + `resolveOnboardingPhase` 等 | **-214 行**，挖掉 `connectLocalOnBoot`/`resolveOnboardingPhase`/hasSeenWelcome 接线 |
-| `app/_layout.tsx` | `connectLocalOnBoot({hasSeenWelcome, connectLocal})` 延后连接 | 删 `connectLocalOnBoot`、`connectLocal`→`retry`、boot 即急切连 |
-| `app/index.tsx` | 传 `hasSeenWelcome` 给 `resolveStartupRoute` | 删 `hasSeenWelcome` 接线 |
-| onboarding UI | `screens/onboarding/*` 多阶段（welcome/picker/connecting/error）+ `onboarding-store` | **删整个 `screens/onboarding/*` + `onboarding-store`**，新增单屏 `components/welcome-screen.tsx`（自带 `useEffect` 见 host online 即 `router.replace`） |
+| 文件                                                | develop（integration worktree）= 修复版                                                                          | home-shell = 回退版                                                                                                                                     |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `runtime/host-runtime.ts`                           | `runBoot()` 只 `loadFromStorage()`；**`connectLocalCandidate()` 延后探测**（welcome gate 先跑）                  | 把探测并回 `runBoot()` = **急切 auto-connect**，删 `connectLocalCandidate`                                                                              |
+| `app/host-runtime-bootstrap.ts`（436 行纯函数策略） | `resolveStartupRoute`(index/host/welcome) + `connectLocalOnBoot({hasSeenWelcome})` + `resolveOnboardingPhase` 等 | **-214 行**，挖掉 `connectLocalOnBoot`/`resolveOnboardingPhase`/hasSeenWelcome 接线                                                                     |
+| `app/_layout.tsx`                                   | `connectLocalOnBoot({hasSeenWelcome, connectLocal})` 延后连接                                                    | 删 `connectLocalOnBoot`、`connectLocal`→`retry`、boot 即急切连                                                                                          |
+| `app/index.tsx`                                     | 传 `hasSeenWelcome` 给 `resolveStartupRoute`                                                                     | 删 `hasSeenWelcome` 接线                                                                                                                                |
+| onboarding UI                                       | `screens/onboarding/*` 多阶段（welcome/picker/connecting/error）+ `onboarding-store`                             | **删整个 `screens/onboarding/*` + `onboarding-store`**，新增单屏 `components/welcome-screen.tsx`（自带 `useEffect` 见 host online 即 `router.replace`） |
 
 home-shell 的「急切 auto-connect + welcome-screen 见 online 即跳」**正是历史教训 [Helm onboarding 验收=FAIL 欢迎页被跳过] 的同款根因**。develop 之后采纳了「延后连接（Q 方案）+ `resolveStartupRoute` gate」修复。
 
@@ -284,26 +285,26 @@ onboarding-store / welcome-screen / host-runtime **不各连各的**：连接只
 
 ### 5.2 与 home-shell P2+ / settings 实现的衔接点
 
-| 阶段 | 谁建 | 依赖 | 衔接说明 |
-| --- | --- | --- | --- |
-| **I0 vendor schema** | settings 团队（属其 L3 核心） | 无 | 协议改动须最先，home-shell P9 与 settings L3 都等它 |
-| **I1 vendor-selection 纯层** | settings 团队 | I0 | 与 `provider-selection.ts` 同构；home-shell composer 复用 |
-| **home-shell P9 单胶囊三层级联** | home-shell | I0+I1 | home-shell §6② 的 `vendor:null` 占位 → I1 落地后**填真源**；P9 在 I1 后才接真数据（之前保持 null 占位，不写半成品） |
-| **home-shell P7 composer 彩色 token** | home-shell | 无（独立） | 与 vendor 无关，可任意时序 |
-| **settings L1/L2/用量** | settings 团队 | 无（复用既有 providers-section/provider-usage） | 可在 I0 前先重构（收敛 tab、复用既有） |
-| **settings L3 中转站** | settings 团队 | I0+I1 | vendor 真正落地处 |
-| **JSON 编辑器** | settings 团队 | 看 §10 raw-config 决议 | 作用域待定后再实现 |
+| 阶段                                  | 谁建                          | 依赖                                            | 衔接说明                                                                                                            |
+| ------------------------------------- | ----------------------------- | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| **I0 vendor schema**                  | settings 团队（属其 L3 核心） | 无                                              | 协议改动须最先，home-shell P9 与 settings L3 都等它                                                                 |
+| **I1 vendor-selection 纯层**          | settings 团队                 | I0                                              | 与 `provider-selection.ts` 同构；home-shell composer 复用                                                           |
+| **home-shell P9 单胶囊三层级联**      | home-shell                    | I0+I1                                           | home-shell §6② 的 `vendor:null` 占位 → I1 落地后**填真源**；P9 在 I1 后才接真数据（之前保持 null 占位，不写半成品） |
+| **home-shell P7 composer 彩色 token** | home-shell                    | 无（独立）                                      | 与 vendor 无关，可任意时序                                                                                          |
+| **settings L1/L2/用量**               | settings 团队                 | 无（复用既有 providers-section/provider-usage） | 可在 I0 前先重构（收敛 tab、复用既有）                                                                              |
+| **settings L3 中转站**                | settings 团队                 | I0+I1                                           | vendor 真正落地处                                                                                                   |
+| **JSON 编辑器**                       | settings 团队                 | 看 §10 raw-config 决议                          | 作用域待定后再实现                                                                                                  |
 
 ### 5.3 每步验证点
 
-| 步 | typecheck/lint | 单测 | 端到端 |
-| --- | --- | --- | --- |
-| I0 schema | 协议包 `npm run build:client` 后跨包 typecheck | schema 解析 + 后向兼容（旧 client 解析新 daemon 配置 / 反向） | daemon 落盘 vendors 不丢、currentVendor→env 生效 |
-| I1 vendor-selection | ✓ | **必须**：`selectVendorOptions`/`resolveCurrentVendor`/`resolveEffectiveVendorModelId` 纯函数单测（不渲染即测） | — |
-| I2 settings L3 | ✓ | L3 写→patchConfig 形状测 | settings L3 改 base_url/key/放模型/设当前 → 落盘 → `daemon_config_changed` 回填 |
-| I3 composer | ✓ | CascadeSelection 派生测 | settings L3 改 → composer 胶囊「当前中转站/默认模型」即时跟随；composer 切当前 → settings 反映；「管理中转站…」深链回 L2/L3 |
-| seam#2 host | ✓ | `selectHostConnectionTone` 已测；切 host 派生测 | 切 host → 主壳+settings 三 tab+用量+composer 全按 serverId 重载 |
-| seam#3 onboarding | ✓ | `resolveStartupRoute`/`connectLocalOnBoot` 已有单测（`host-runtime-bootstrap.test.ts`）须保持绿 | 首启 welcome 不被跳过 + 回访自愈 + 设置入口链路 |
+| 步                  | typecheck/lint                                 | 单测                                                                                                            | 端到端                                                                                                                      |
+| ------------------- | ---------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| I0 schema           | 协议包 `npm run build:client` 后跨包 typecheck | schema 解析 + 后向兼容（旧 client 解析新 daemon 配置 / 反向）                                                   | daemon 落盘 vendors 不丢、currentVendor→env 生效                                                                            |
+| I1 vendor-selection | ✓                                              | **必须**：`selectVendorOptions`/`resolveCurrentVendor`/`resolveEffectiveVendorModelId` 纯函数单测（不渲染即测） | —                                                                                                                           |
+| I2 settings L3      | ✓                                              | L3 写→patchConfig 形状测                                                                                        | settings L3 改 base_url/key/放模型/设当前 → 落盘 → `daemon_config_changed` 回填                                             |
+| I3 composer         | ✓                                              | CascadeSelection 派生测                                                                                         | settings L3 改 → composer 胶囊「当前中转站/默认模型」即时跟随；composer 切当前 → settings 反映；「管理中转站…」深链回 L2/L3 |
+| seam#2 host         | ✓                                              | `selectHostConnectionTone` 已测；切 host 派生测                                                                 | 切 host → 主壳+settings 三 tab+用量+composer 全按 serverId 重载                                                             |
+| seam#3 onboarding   | ✓                                              | `resolveStartupRoute`/`connectLocalOnBoot` 已有单测（`host-runtime-bootstrap.test.ts`）须保持绿                 | 首启 welcome 不被跳过 + 回访自愈 + 设置入口链路                                                                             |
 
 > 测试纪律：只跑改动文件 `npx vitest run <file> --bail=1`，禁跑全量；别人报绿的不重跑。
 
@@ -331,19 +332,19 @@ onboarding-store / welcome-screen / host-runtime **不各连各的**：连接只
 
 **复用（禁止重造）：**
 
-| 既有资产 | 路径 | 集成用途 |
-| --- | --- | --- |
-| host 真相源 + hooks | `runtime/host-runtime.ts` | 全产品 host 唯一源；settings/composer/用量/主壳同读 |
-| active host 派生 | `utils/active-host.ts::resolveActiveHost` | 切 host 唯一轴；**禁建 active-host store** |
-| host 在线态 5→3 映射 | `components/sidebar/host-switcher-model.ts::selectHostConnectionTone`(home-shell) | settings host 选择器复用 |
-| daemon config 通道 | `hooks/use-daemon-config.ts` | vendor + provider 启停的读写通道；**禁建 vendor zustand store** |
-| provider 快照 | `hooks/use-providers-snapshot.ts` + `provider-selection/provider-selection.ts` | provider 列表唯一读端 |
-| settings 外壳/路由 | `screens/settings-screen.tsx`、`utils/host-routes.ts`(`buildSettingsHostSectionRoute` 等) | settings redesign 复用，深链复用 |
-| provider L1/启停/ACP 新增 | `screens/settings/providers-section.tsx` | L1 复用 |
-| 用量 + 能力门 | `provider-usage/*`（含 `features.providerUsageList`） | 用量 tab 整块复用 |
-| onboarding gate 纯函数 | `app/host-runtime-bootstrap.ts`、`stores/onboarding-store.ts` | 连接/路由真相源，**禁止 home-shell 回退覆盖** |
-| 左栏宽约束 | `panel-store::clampSidebarWidth/MIN/MAX_SIDEBAR_WIDTH` | per-workspace 迁移复用约束 |
-| composer 全家 | `composer/*`、`combined-model-selector.tsx`（drill-down 两级菜单） | vendor 段只接数据，**禁重画胶囊** |
+| 既有资产                  | 路径                                                                                      | 集成用途                                                        |
+| ------------------------- | ----------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| host 真相源 + hooks       | `runtime/host-runtime.ts`                                                                 | 全产品 host 唯一源；settings/composer/用量/主壳同读             |
+| active host 派生          | `utils/active-host.ts::resolveActiveHost`                                                 | 切 host 唯一轴；**禁建 active-host store**                      |
+| host 在线态 5→3 映射      | `components/sidebar/host-switcher-model.ts::selectHostConnectionTone`(home-shell)         | settings host 选择器复用                                        |
+| daemon config 通道        | `hooks/use-daemon-config.ts`                                                              | vendor + provider 启停的读写通道；**禁建 vendor zustand store** |
+| provider 快照             | `hooks/use-providers-snapshot.ts` + `provider-selection/provider-selection.ts`            | provider 列表唯一读端                                           |
+| settings 外壳/路由        | `screens/settings-screen.tsx`、`utils/host-routes.ts`(`buildSettingsHostSectionRoute` 等) | settings redesign 复用，深链复用                                |
+| provider L1/启停/ACP 新增 | `screens/settings/providers-section.tsx`                                                  | L1 复用                                                         |
+| 用量 + 能力门             | `provider-usage/*`（含 `features.providerUsageList`）                                     | 用量 tab 整块复用                                               |
+| onboarding gate 纯函数    | `app/host-runtime-bootstrap.ts`、`stores/onboarding-store.ts`                             | 连接/路由真相源，**禁止 home-shell 回退覆盖**                   |
+| 左栏宽约束                | `panel-store::clampSidebarWidth/MIN/MAX_SIDEBAR_WIDTH`                                    | per-workspace 迁移复用约束                                      |
+| composer 全家             | `composer/*`、`combined-model-selector.tsx`（drill-down 两级菜单）                        | vendor 段只接数据，**禁重画胶囊**                               |
 
 **禁止重造清单（硬）：** active-host store ✗ ｜ vendor zustand store ✗ ｜ 第二份 provider 列表 ✗ ｜ settings 自己的 host 在线态映射 ✗ ｜ 第二套左栏宽度态 ✗ ｜ welcome-screen 自带连接/落点逻辑 ✗ ｜ 新 settings 深链路由层（已有 `buildSettingsHostSectionRoute`）✗。
 
@@ -360,18 +361,18 @@ onboarding-store / welcome-screen / host-runtime **不各连各的**：连接只
 
 ### 7.2 能力缺口清单（诚实标注：缺口 / 已有）
 
-| # | 能力 | 缺口? | 兜底 |
-| --- | --- | --- | --- |
-| G1 | vendor 结构化 base_url+key+放模型+当前 | **缺口** | I0 新增；门控 `providerVendors` |
-| G2 | 删除内置 provider（可恢复） | **缺口** | 门控；目录新增删除=真实 |
-| G3 | 一键装/更新 agent CLI | **缺口** | 门控；回落安装指引外链（真实） |
-| G4 | config.json 全量 raw 读写 | **缺口/待定** | 作用域=MutableDaemonConfig 或 G4 新能力（§10） |
-| — | 从目录新增 ACP | 已有 | `buildAcpProviderConfigPatch` |
-| — | provider 启停 / additionalModels | 已有 | `MutableDaemonProviderConfigSchema` |
-| — | providerUsageList 用量 | 已有 | `features.providerUsageList` 已门控 |
-| — | host 切换 / 注册表 / 连接态 | 已有 | host-runtime |
-| — | onboarding gate / 延后连接 | 已有 | host-runtime-bootstrap |
-| — | settings 深链路由 | 已有 | `buildSettingsHostSectionRoute` |
+| #   | 能力                                   | 缺口?         | 兜底                                           |
+| --- | -------------------------------------- | ------------- | ---------------------------------------------- |
+| G1  | vendor 结构化 base_url+key+放模型+当前 | **缺口**      | I0 新增；门控 `providerVendors`                |
+| G2  | 删除内置 provider（可恢复）            | **缺口**      | 门控；目录新增删除=真实                        |
+| G3  | 一键装/更新 agent CLI                  | **缺口**      | 门控；回落安装指引外链（真实）                 |
+| G4  | config.json 全量 raw 读写              | **缺口/待定** | 作用域=MutableDaemonConfig 或 G4 新能力（§10） |
+| —   | 从目录新增 ACP                         | 已有          | `buildAcpProviderConfigPatch`                  |
+| —   | provider 启停 / additionalModels       | 已有          | `MutableDaemonProviderConfigSchema`            |
+| —   | providerUsageList 用量                 | 已有          | `features.providerUsageList` 已门控            |
+| —   | host 切换 / 注册表 / 连接态            | 已有          | host-runtime                                   |
+| —   | onboarding gate / 延后连接             | 已有          | host-runtime-bootstrap                         |
+| —   | settings 深链路由                      | 已有          | `buildSettingsHostSectionRoute`                |
 
 ### 7.3 平台门
 
@@ -401,15 +402,15 @@ onboarding-store / welcome-screen / host-runtime **不各连各的**：连接只
 
 ## 9. 风险与取舍
 
-| 风险 | 取舍 / 缓解 |
-| --- | --- |
-| **R1 onboarding 反向分叉合并** | home-shell rebase 时丢弃其回退、保 develop gate（§3.2）。取舍：home-shell 该模块改动**作废重来**，因 develop 是已验证修复版、不可被回退覆盖。这是合并最高风险点，置于合并第 1 步一次解清。 |
-| **R2 vendor schema 是协议改动** | 新字段 optional + 能力门 + COMPAT；I0 最先落、独立验后向兼容。取舍：宁可多花一轮协议测，不让 settings/composer 各自塞 env 造私有结构。 |
-| **R3 settings 被误当「零代码新建」** | §0.2 已纠：是重构既有 7-section host settings。取舍：redesign 必须删旧 tab（refactor-don't-patch），不在旧结构上叠加。 |
-| **R4 JSON 编辑器作用域** | `MutableDaemonConfig`(curated) ≠ 真实 config.json 全量；要么缩作用域、要么新增 raw 能力。送 §10 定夺，**不擅自当 1:1 文件镜像实现**（会误导用户改了「全部」）。 |
-| **R5 base_url/key 机密落盘/脱敏** | key 落 daemon config（主机本地），客户端 `useDaemonConfig` 缓存含明文 → 显示密码态、日志脱敏；是否在协议层 redact 读回（写后不回传明文）送 §10。 |
-| **R6 模型默认双源残留** | §4.1 明确降级 create-agent-preferences.model，须同批清写入点，不留半迁移 dead 默认。 |
-| **R7 composer vendor 段半成品** | I0/I1 未落前 home-shell 保持 `vendor:null` 占位（只 shape 不逻辑），落地后一次性接真源 + 删占位，禁 `vendor && ...` 永假分支。 |
+| 风险                                 | 取舍 / 缓解                                                                                                                                                                                |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **R1 onboarding 反向分叉合并**       | home-shell rebase 时丢弃其回退、保 develop gate（§3.2）。取舍：home-shell 该模块改动**作废重来**，因 develop 是已验证修复版、不可被回退覆盖。这是合并最高风险点，置于合并第 1 步一次解清。 |
+| **R2 vendor schema 是协议改动**      | 新字段 optional + 能力门 + COMPAT；I0 最先落、独立验后向兼容。取舍：宁可多花一轮协议测，不让 settings/composer 各自塞 env 造私有结构。                                                     |
+| **R3 settings 被误当「零代码新建」** | §0.2 已纠：是重构既有 7-section host settings。取舍：redesign 必须删旧 tab（refactor-don't-patch），不在旧结构上叠加。                                                                     |
+| **R4 JSON 编辑器作用域**             | `MutableDaemonConfig`(curated) ≠ 真实 config.json 全量；要么缩作用域、要么新增 raw 能力。送 §10 定夺，**不擅自当 1:1 文件镜像实现**（会误导用户改了「全部」）。                            |
+| **R5 base_url/key 机密落盘/脱敏**    | key 落 daemon config（主机本地），客户端 `useDaemonConfig` 缓存含明文 → 显示密码态、日志脱敏；是否在协议层 redact 读回（写后不回传明文）送 §10。                                           |
+| **R6 模型默认双源残留**              | §4.1 明确降级 create-agent-preferences.model，须同批清写入点，不留半迁移 dead 默认。                                                                                                       |
+| **R7 composer vendor 段半成品**      | I0/I1 未落前 home-shell 保持 `vendor:null` 占位（只 shape 不逻辑），落地后一次性接真源 + 删占位，禁 `vendor && ...` 永假分支。                                                             |
 
 ---
 
@@ -427,11 +428,11 @@ onboarding-store / welcome-screen / host-runtime **不各连各的**：连接只
 ## 附：勘察证据索引（真实文件 · 已逐个 Read）
 
 - host 真相源：`runtime/host-runtime.ts`（L1303 Store / L1360 connectLocalCandidate / L2099+ hooks）、`utils/active-host.ts`
-- onboarding gate：`app/host-runtime-bootstrap.ts`（436 行纯函数）、`app/index.tsx`、`app/welcome.tsx`、`app/_layout.tsx`（L354 connectLocal / L374 connectLocalOnBoot）、`stores/onboarding-store.ts`；home-shell 反向 diff（host-runtime.ts/_layout.tsx/host-runtime-bootstrap.ts/index.tsx + `components/welcome-screen.tsx`）
+- onboarding gate：`app/host-runtime-bootstrap.ts`（436 行纯函数）、`app/index.tsx`、`app/welcome.tsx`、`app/_layout.tsx`（L354 connectLocal / L374 connectLocalOnBoot）、`stores/onboarding-store.ts`；home-shell 反向 diff（host-runtime.ts/\_layout.tsx/host-runtime-bootstrap.ts/index.tsx + `components/welcome-screen.tsx`）
 - vendor 后端：`protocol/src/provider-config.ts::ProviderOverrideSchema`（无 vendor）、`protocol/src/messages.ts`（`MutableDaemonProviderConfigSchema` L99 / `MutableDaemonConfigSchema` L132 / `server_info.features` L2296 / get·set·changed daemon config RPC）、`server/agent/provider-launch-config.ts`、`server/daemon-config-store.ts::applyMutableProviderConfigToOverrides`
 - vendor 通道/读端：`hooks/use-daemon-config.ts`、`hooks/use-providers-snapshot.ts`、`provider-selection/provider-selection.ts`、`create-agent-preferences/preferences.ts`、`stores/provider-settings-store.ts`
 - 既有 settings：`app/settings/hosts/[serverId]/[hostSection].tsx`、`screens/settings-screen.tsx`（`SettingsView`）、`screens/settings/host-page.tsx`、`screens/settings/providers-section.tsx`、`provider-usage/use-provider-usage.ts`、`utils/host-routes.ts`（`buildSettingsHostSectionRoute`/`HOST_SECTION_SLUGS`）
 - home-shell 已实现：`components/sidebar/host-switcher-pill.tsx`、`host-switcher-model.ts`、设计 `docs/helm/requirements/2026-06-25-home-shell/architecture.md`（§6② CascadeSelection / §14 / R1）
 - settings 设计：`docs/helm/requirements/2026-06-26-settings/requirement.md`（§B2 三级 / §跨模块依赖 / §7 / §8 能力门）
-</content>
-</invoke>
+  </content>
+  </invoke>

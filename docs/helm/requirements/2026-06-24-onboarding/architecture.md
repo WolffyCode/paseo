@@ -26,13 +26,14 @@
 
 ### 新增
 
-| 模块 | path | 单一职责 |
-| --- | --- | --- |
-| onboarding flag store | `packages/app/src/stores/onboarding-store.ts` | 持久化「已看过欢迎」这一个一次性布尔。zustand+persist（照 `sidebar-view-store.ts` 模式）。只存 + 读 + 置位，无路由、无连接逻辑。 |
-| onboarding 阶段纯函数 | 扩展进 `packages/app/src/app/host-runtime-bootstrap.ts`（**不新建文件**） | 把「首跑该显示欢迎 / 自动连本地 / 进选择器」的判定，加成 `resolveStartupRoute` 同层的纯函数 `resolveOnboardingPhase(...)`。输入快照 → 输出一个 `OnboardingPhase` 判别联合。 |
-| onboarding 屏（状态机视图） | `packages/app/src/screens/onboarding/`（目录即模块） | 渲染 S1/S2/S3/S4 的视图。读 store + 纯函数派生的 phase，dispatch action。**不算转移、不 `router.replace`**。 |
+| 模块                        | path                                                                      | 单一职责                                                                                                                                                                    |
+| --------------------------- | ------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| onboarding flag store       | `packages/app/src/stores/onboarding-store.ts`                             | 持久化「已看过欢迎」这一个一次性布尔。zustand+persist（照 `sidebar-view-store.ts` 模式）。只存 + 读 + 置位，无路由、无连接逻辑。                                            |
+| onboarding 阶段纯函数       | 扩展进 `packages/app/src/app/host-runtime-bootstrap.ts`（**不新建文件**） | 把「首跑该显示欢迎 / 自动连本地 / 进选择器」的判定，加成 `resolveStartupRoute` 同层的纯函数 `resolveOnboardingPhase(...)`。输入快照 → 输出一个 `OnboardingPhase` 判别联合。 |
+| onboarding 屏（状态机视图） | `packages/app/src/screens/onboarding/`（目录即模块）                      | 渲染 S1/S2/S3/S4 的视图。读 store + 纯函数派生的 phase，dispatch action。**不算转移、不 `router.replace`**。                                                                |
 
 `screens/onboarding/` 目录内的拆分（一个 public surface，内部文件内部）：
+
 - `onboarding-screen.tsx` —— 唯一对外入口；按 phase 选子视图；持有「打开 AddHost/PairLink/scan」的本地 UI 开关（这是纯 UI 态，可留组件内，见 §2）。
 - `welcome-stage.tsx`（S1）、`connecting-stage.tsx`（S2）、`method-picker-stage.tsx`（S3）、`error-stage.tsx`（S4）—— 四个**纯展示**子视图，props 进、事件回调出，零业务逻辑。
 - 平台差异（S5）用**子视图内联 `isWeb`/`isNative` 选 CTA 顺序 + 是否含扫码项**，不拆 `.web`/`.native` 文件（差异只是「数组顺序 + 去掉一项 + 主路径有无」，属小内联分支，拆文件是过度切分——见 §5）。
@@ -41,12 +42,12 @@
 
 ### 改动
 
-| 模块 | 改法（边界） |
-| --- | --- |
+| 模块                            | 改法（边界）                                                                                                                                                                                                                                                                                               |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `app/host-runtime-bootstrap.ts` | 新增 `OnboardingPhase` 类型 + `resolveOnboardingPhase()`；把「给路由决定去 welcome」的出口从「裸 `WELCOME_ROUTE`」改为「去 onboarding 路由」。`resolveReadyIndexStartupRoute` / `resolveReadyHostStartupRoute` 里 `WELCOME_ROUTE` 的两处出口指向 onboarding 屏（路由名沿用 `/welcome` 即可，见 §3 取舍）。 |
-| `app/welcome.tsx` | 路由壳：渲染 `OnboardingScreen` 取代 `WelcomeScreen`。 |
-| `app/_layout.tsx` | `hasGivenUpWaitingForHost` 这套「give up 计时器」语义保留（它是「等本地 daemon 多久算放弃」），但把它喂给 `resolveOnboardingPhase` 作为「桌面本地探测是否已结束」的输入之一；不再让它直接等价于「显示 welcome」。 |
-| `app/index.tsx` | 继续只做 `resolveStartupRoute` 的渲染/重定向分流，无新增逻辑（onboarding 的内部分态在 onboarding 屏里，不在 index）。 |
+| `app/welcome.tsx`               | 路由壳：渲染 `OnboardingScreen` 取代 `WelcomeScreen`。                                                                                                                                                                                                                                                     |
+| `app/_layout.tsx`               | `hasGivenUpWaitingForHost` 这套「give up 计时器」语义保留（它是「等本地 daemon 多久算放弃」），但把它喂给 `resolveOnboardingPhase` 作为「桌面本地探测是否已结束」的输入之一；不再让它直接等价于「显示 welcome」。                                                                                          |
+| `app/index.tsx`                 | 继续只做 `resolveStartupRoute` 的渲染/重定向分流，无新增逻辑（onboarding 的内部分态在 onboarding 屏里，不在 index）。                                                                                                                                                                                      |
 
 ### 删除（重构而非打补丁，同一改动里删干净）
 
@@ -61,12 +62,12 @@
 
 ### 状态归属
 
-| 状态 | 归属 | 说明 |
-| --- | --- | --- |
-| 「已看过欢迎」`hasSeenWelcome` | **`onboarding-store.ts`（persist）** | 唯一真相源。读：selector hook。写：一个 `markWelcomeSeen()` action（幂等）。绝不在组件里 `useState` 镜像它。 |
-| 当前 onboarding 阶段（welcome/connecting/picker/error） | **`resolveOnboardingPhase()` 纯函数派生**（不是 store 字段） | 阶段是「flag + 平台 + 本地探测结果 + give-up」的纯函数，不是独立可变态。两个真相源就是 bug → 用派生，别存。 |
-| 本地连接「连接中 / 失败 / 失败原因」 | **复用既有 host-runtime 快照**（`connectionStatus`/`lastError`）+ `daemonStartService`（`isRunning`/`getLastError`） | 不为 onboarding 复制一份连接态。S2/S4 读的是同一套 runtime 真相。 |
-| AddHost / PairLink / scan 弹窗的开/关 | **可留 onboarding-screen 组件内 `useState`** | 这是纯 UI 局部态（模态可见性），不进 store。判据：它不影响路由、不影响连接、不需被别处读。符合「optionality 在真实边界」。 |
+| 状态                                                    | 归属                                                                                                                 | 说明                                                                                                                       |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| 「已看过欢迎」`hasSeenWelcome`                          | **`onboarding-store.ts`（persist）**                                                                                 | 唯一真相源。读：selector hook。写：一个 `markWelcomeSeen()` action（幂等）。绝不在组件里 `useState` 镜像它。               |
+| 当前 onboarding 阶段（welcome/connecting/picker/error） | **`resolveOnboardingPhase()` 纯函数派生**（不是 store 字段）                                                         | 阶段是「flag + 平台 + 本地探测结果 + give-up」的纯函数，不是独立可变态。两个真相源就是 bug → 用派生，别存。                |
+| 本地连接「连接中 / 失败 / 失败原因」                    | **复用既有 host-runtime 快照**（`connectionStatus`/`lastError`）+ `daemonStartService`（`isRunning`/`getLastError`） | 不为 onboarding 复制一份连接态。S2/S4 读的是同一套 runtime 真相。                                                          |
+| AddHost / PairLink / scan 弹窗的开/关                   | **可留 onboarding-screen 组件内 `useState`**                                                                         | 这是纯 UI 局部态（模态可见性），不进 store。判据：它不影响路由、不影响连接、不需被别处读。符合「optionality 在真实边界」。 |
 
 ### UI 只做什么
 
@@ -119,10 +120,12 @@
   - `{ kind: "welcome" }` | `{ kind: "connecting" }` | `{ kind: "picker" }` | `{ kind: "error"; reason: string }`
 
 判定语义（纯、可穷举单测）：
+
 - `remote-only` 平台 → 永远 `picker`（S5：Web/手机无本地）。但**首访仍先过一次性欢迎**：`remote-only && !hasSeenWelcome` → `welcome`（点「开始使用」置 flag 后转 `picker`）。
 - `desktop-local`：`!hasSeenWelcome && !userRequestedRemote` → `welcome`；`userRequestedRemote` → `picker`；`localConnect.kind==="connecting"` → `connecting`；`"failed"` → `error`；`"idle"`（已看过、未连中、未失败、未要远程）→ 触发连接的瞬态，渲染 `connecting`（避免空屏）。
 
 `onboarding-store.ts` 对外契约：
+
 - selector hook：读 `hasSeenWelcome`。
 - action：`markWelcomeSeen()`（幂等置 true）。
 - persist：`name: "onboarding"`, `partialize` 只挑 `hasSeenWelcome`（照 sidebar store）。
@@ -137,18 +140,18 @@ S4 的「daemon 未运行 / 端口被占 / 超时」是**合并文案**（requir
 
 ### 必须复用（列出，直接用，别包一层）
 
-| 复用 | 用在 | 契约 |
-| --- | --- | --- |
-| `AddHostModal` | S3 直连主机 | `visible/onClose/onSaved`；`onSaved` 后**不自己跳主页**，靠启动路由 |
-| `PairLinkModal` | S3 粘贴配对链接 | 同上同形 `onSaved` |
-| `pair-scan` 路由 | S3 扫码（手机=相机，桌面=展码） | `router.push("/pair-scan?source=onboarding")`（已支持该 source） |
-| host-runtime 快照 / `daemonStartService` | S2 连接中、S4 失败原因 | 读既有 `connectionStatus`/`lastError`/`isRunning`/`getLastError`，不新建连接态 |
-| `_layout.tsx` 的 `retry` + `startDaemonIfGateAllows` | S2 取消后重连、S4 重试、S3 重试本地 | 既有桌面 daemon 重启入口 |
-| `resolveStartupRoute` / `index.tsx` 重定向 | 「连上→进主页」 | onboarding 不重做落点逻辑 |
-| `host-runtime-bootstrap.ts` 的纯函数风格 + 其 `.test.ts` | `resolveOnboardingPhase` | 同文件、同测试套路 |
-| `onboarding.*` / `pairing.connectionMethods.*` i18n | 各屏文案 | 复用既有 key，新增的补全六 locale |
-| zustand persist（`sidebar-view-store.ts` 为范本） | `onboarding-store.ts` | 同 AsyncStorage + partialize 写法 |
-| `PaseoLogo`、`Button`、`startup-splash-screen` 的 spinner/alert 视觉语汇 | S1/S2/S4 | 视觉与既有 splash/错误页一致 |
+| 复用                                                                     | 用在                                | 契约                                                                           |
+| ------------------------------------------------------------------------ | ----------------------------------- | ------------------------------------------------------------------------------ |
+| `AddHostModal`                                                           | S3 直连主机                         | `visible/onClose/onSaved`；`onSaved` 后**不自己跳主页**，靠启动路由            |
+| `PairLinkModal`                                                          | S3 粘贴配对链接                     | 同上同形 `onSaved`                                                             |
+| `pair-scan` 路由                                                         | S3 扫码（手机=相机，桌面=展码）     | `router.push("/pair-scan?source=onboarding")`（已支持该 source）               |
+| host-runtime 快照 / `daemonStartService`                                 | S2 连接中、S4 失败原因              | 读既有 `connectionStatus`/`lastError`/`isRunning`/`getLastError`，不新建连接态 |
+| `_layout.tsx` 的 `retry` + `startDaemonIfGateAllows`                     | S2 取消后重连、S4 重试、S3 重试本地 | 既有桌面 daemon 重启入口                                                       |
+| `resolveStartupRoute` / `index.tsx` 重定向                               | 「连上→进主页」                     | onboarding 不重做落点逻辑                                                      |
+| `host-runtime-bootstrap.ts` 的纯函数风格 + 其 `.test.ts`                 | `resolveOnboardingPhase`            | 同文件、同测试套路                                                             |
+| `onboarding.*` / `pairing.connectionMethods.*` i18n                      | 各屏文案                            | 复用既有 key，新增的补全六 locale                                              |
+| zustand persist（`sidebar-view-store.ts` 为范本）                        | `onboarding-store.ts`               | 同 AsyncStorage + partialize 写法                                              |
+| `PaseoLogo`、`Button`、`startup-splash-screen` 的 spinner/alert 视觉语汇 | S1/S2/S4                            | 视觉与既有 splash/错误页一致                                                   |
 
 ### 禁止重造清单（已有，别再写一遍）
 
@@ -185,6 +188,7 @@ S4 的「daemon 未运行 / 端口被占 / 超时」是**合并文案**（requir
 写进 `host-runtime-bootstrap.test.ts`（已存在，加 describe 块）：
 
 **`resolveOnboardingPhase` —— 穷举 requirement 验收的分支：**
+
 - 桌面 + 未看过欢迎 + 未要远程 → `welcome`（验收 1）。
 - 桌面 + 已看过 + idle → `connecting`（验收 2、4：不再显欢迎、静默连）。
 - 桌面 + connecting → `connecting`（验收 2）。
@@ -194,10 +198,12 @@ S4 的「daemon 未运行 / 端口被占 / 超时」是**合并文案**（requir
 - remote-only(手机) → `welcome`/`picker`，扫码为主由视图保证（验收 8）。
 
 **启动路由出口（扩展现有 `resolveStartupRoute` 测试）：**
+
 - 无 host 且判定 onboarding → redirect 到 onboarding 路由（替换今天「→ /welcome」断言的语义，确认仍指向 onboarding 屏）。
 - 有 host / 在线 → 仍 redirect 主页（回归：onboarding 不该截胡）。
 
 **`onboarding-store.ts`：**
+
 - 初始 `hasSeenWelcome === false`。
 - `markWelcomeSeen()` 后 `true`；幂等（再调不抖动）。
 - persist：partialize 只含 `hasSeenWelcome`（按既有 store 测法）。
@@ -207,6 +213,7 @@ S4 的「daemon 未运行 / 端口被占 / 超时」是**合并文案**（requir
 ### 端到端验证点（对应 requirement 10 条验收）
 
 走真实 app（Playwright，`packages/app/e2e/*.spec.ts`，遵 testing.md「E2E 即 E2E」），抽查覆盖：
+
 - 验收 1/9：全新（清 AsyncStorage）首启桌面 → 见 S1（logo+slogan+开始使用+连接远程+版本，**断言无 settings testID**）。
 - 验收 2/3：点开始使用 → 见 S2 → 本地连上 → 落主页（不停留 S1/S2）。
 - 验收 4：二次启动（flag 已置）→ 不见 S1，直接连/落主页。

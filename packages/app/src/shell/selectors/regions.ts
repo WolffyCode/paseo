@@ -62,6 +62,11 @@ export interface ShellSnapshot {
 export interface ShellContext {
   showsShell: boolean;
   workspaceKey: string | null;
+  // The connected host's serverId for the active route. Optional because the layout selectors + model
+  // never read it (setContext reads only showsShell + workspaceKey); it is carried solely so the
+  // file-tree mount can build its data layer + context against the live session. Routes that render the
+  // shell over a connected host (home) always set it; layout-only call sites omit it.
+  serverId?: string | null;
 }
 
 // Output of selectVisibleRegions: a present side key means "render it", and its value

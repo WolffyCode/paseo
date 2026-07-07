@@ -27,6 +27,9 @@ export interface FileExplorerEntry {
 
 export interface FileExplorerDirectory {
   path: string;
+  // The host-resolved absolute directory path (expandUserPath + realpath, no literal "~"), so the
+  // client can build "~"-free absolute paths (reveal / copy-absolute) without guessing os.homedir.
+  absolutePath: string;
   entries: FileExplorerEntry[];
 }
 
@@ -58,7 +61,7 @@ const DEFAULT_TEXT_MIME_TYPE = "text/plain";
 const FILE_TYPE_SAMPLE_BYTES = 8192;
 const READ_FILE_OPEN_FLAGS =
   process.platform === "win32" ? constants.O_RDONLY : constants.O_RDONLY | constants.O_NOFOLLOW;
-const ACCESS_OUTSIDE_WORKSPACE_MESSAGE = "Access outside of workspace is not allowed";
+export const ACCESS_OUTSIDE_WORKSPACE_MESSAGE = "Access outside of workspace is not allowed";
 
 const IMAGE_MIME_TYPES: Record<string, string> = {
   ".png": "image/png",
@@ -74,7 +77,7 @@ interface ScopedPathParams {
   relativePath?: string;
 }
 
-interface ScopedPath {
+export interface ScopedPath {
   requestedPath: string;
   resolvedPath: string;
 }
@@ -132,6 +135,7 @@ export async function listDirectoryEntries({
 
   return {
     path: normalizeRelativePath({ root, targetPath: directoryPath.requestedPath }),
+    absolutePath: directoryPath.resolvedPath,
     entries,
   };
 }
@@ -272,7 +276,9 @@ export async function getDownloadableFileInfo({ root, relativePath }: ReadFilePa
   }
 }
 
-async function resolveScopedPath({
+// Resolve a request path against `root`, rejecting anything that escapes it (symlink-aware via
+// realpath). Shared by read (listing/preview) and write services so the anti-escape rule lives once.
+export async function resolveScopedPath({
   root,
   relativePath = ".",
 }: ScopedPathParams): Promise<ScopedPath> {
@@ -334,7 +340,13 @@ function isOutsideWorkspaceError(error: unknown): boolean {
   return error instanceof Error && error.message === ACCESS_OUTSIDE_WORKSPACE_MESSAGE;
 }
 
-function normalizeRelativePath({ root, targetPath }: { root: string; targetPath: string }): string {
+export function normalizeRelativePath({
+  root,
+  targetPath,
+}: {
+  root: string;
+  targetPath: string;
+}): string {
   const normalizedRoot = expandUserPath(root);
   const normalizedTarget = expandUserPath(targetPath);
   const relative = path.relative(normalizedRoot, normalizedTarget);

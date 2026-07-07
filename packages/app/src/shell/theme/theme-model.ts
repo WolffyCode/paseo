@@ -43,6 +43,10 @@ export interface ShellTokens {
   border: string;
   // Toggle "expanded/active" fill — a very light gray, never black or primary.
   toggleActive: string;
+  // Accent (github blue family): the UNAMBIGUOUS "this is ON" cue for icon-only toggles — the
+  // gray toggleActive fill alone was invisible to users (chairman gate-3 feedback 2026-07-07).
+  accent: string;
+  accentSoft: string;
   // Hover overlays: top-bar toggle wash / sidebar row / ghost (back button).
   toggleHover: string;
   rowHover: string;
@@ -72,6 +76,8 @@ export const SHELL_TOKENS: Record<ThemeScheme, ShellTokens> = {
     foregroundMuted: "#59636e",
     border: "#d1d9e0",
     toggleActive: "#eaeef2",
+    accent: "#0969da",
+    accentSoft: "rgba(9, 105, 218, 0.14)",
     toggleHover: "rgba(31, 35, 40, 0.07)",
     rowHover: "#eaeef2",
     ghostHover: "#f6f8fa",
@@ -93,6 +99,8 @@ export const SHELL_TOKENS: Record<ThemeScheme, ShellTokens> = {
     foregroundMuted: "#8b949e",
     border: "#30363d",
     toggleActive: "#21262d",
+    accent: "#4493f8",
+    accentSoft: "rgba(68, 147, 248, 0.18)",
     toggleHover: "rgba(230, 237, 243, 0.09)",
     rowHover: "#21262d",
     ghostHover: "#161b22",

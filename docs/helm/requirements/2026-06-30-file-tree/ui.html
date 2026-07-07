@@ -1,0 +1,3417 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · UI 设计稿 · 目录树（文件树）· 对话页最右侧目录树面板内容 · 全交互态</title>
+    <style>
+      /* =========================================================================
+         主题令牌 = 壳子同源（CodePilot「github」浅色主题）。色值逐项复用 canonical /
+         壳子设计稿，不自创。目录树面板 = 白底卡(--bg)，hover 行 = --accent(#f6f8fa)，
+         选中行 = --sidebar-accent(#eaeef2 · 很淡的灰，非黑非蓝)，蓝仅用于 focus 环 /
+         搜索命中高亮 / 计数强调。
+         ========================================================================= */
+      :root {
+        --bg: oklch(1 0 0); /* #ffffff 目录树面板底 */
+        --fg: oklch(0.254 0.011 254); /* #1f2328 主文字 */
+        --card: oklch(1 0 0);
+        --primary: oklch(0.54 0.191 257.5); /* #0969da GitHub 蓝 · focus/命中/计数 */
+        --primary-fg: oklch(1 0 0);
+        --secondary: oklch(0.947 0.007 247.9); /* #eaeef2 */
+        --secondary-fg: oklch(0.338 0.015 252.3); /* #3d444d */
+        --muted: oklch(0.947 0.007 247.9);
+        --muted-fg: oklch(0.531 0.017 251.3); /* #59636e 次要文字 */
+        --accent: oklch(0.978 0.003 247.9); /* #f6f8fa hover 底 */
+        --accent-fg: oklch(0.338 0.015 252.3);
+        --border: oklch(0.876 0.012 248); /* #d1d9e0 边框 */
+        --input: oklch(0.876 0.012 248);
+        --ring: oklch(0.54 0.191 257.5);
+        --sidebar: oklch(0.978 0.003 247.9); /* #f6f8fa */
+        --sidebar-accent: oklch(0.947 0.007 247.9); /* #eaeef2 选中态底 */
+        --sidebar-accent-fg: oklch(0.338 0.015 252.3); /* #3d444d 选中态文字 */
+        --destructive: oklch(0.552 0.205 24.5); /* #cf222e */
+        --success: oklch(0.503 0.137 152);
+        --warning: oklch(0.555 0.118 75);
+        --info: oklch(0.54 0.191 257.5);
+        --radius: 12px;
+        --r-card: 12px;
+        --r-ctrl: 6px;
+        --r-sm: 6px;
+        --card-drop: 0 1px 0 rgba(31, 35, 40, 0.04), 0 1px 3px rgba(31, 35, 40, 0.08);
+        --win-backdrop:
+          radial-gradient(
+            135% 90% at 12% -10%,
+            rgba(255, 255, 255, 0.42),
+            rgba(255, 255, 255, 0) 55%
+          ),
+          radial-gradient(
+            120% 120% at 108% 115%,
+            rgba(160, 184, 222, 0.52),
+            rgba(160, 184, 222, 0) 52%
+          ),
+          linear-gradient(152deg, #d8e2f1 0%, #cbd8eb 50%, #d5e0f0 100%);
+        --win-shadow:
+          0 12px 30px -16px rgba(31, 35, 40, 0.16), 0 2px 6px -3px rgba(31, 35, 40, 0.1);
+        --ui:
+          system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial,
+          sans-serif;
+        --mono:
+          "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        background: #eaeef2;
+        color: var(--fg);
+        font-family: var(--ui);
+        -webkit-font-smoothing: antialiased;
+        font-size: 16px;
+        line-height: 1.45;
+      }
+      body {
+        padding: 40px 32px 120px;
+      }
+      button {
+        font: inherit;
+        color: inherit;
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+      }
+      svg.i {
+        width: 16px;
+        height: 16px;
+        stroke: currentColor;
+        stroke-width: 2;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        flex: none;
+        display: block;
+      }
+      .i.xs {
+        width: 12px;
+        height: 12px;
+      }
+      .i.sm {
+        width: 14px;
+        height: 14px;
+      }
+      .i.md {
+        width: 16px;
+        height: 16px;
+      }
+      .i.lg {
+        width: 22px;
+        height: 22px;
+      }
+
+      /* ===== board header ===== */
+      .board-h {
+        max-width: 1480px;
+        margin: 0 auto 24px;
+      }
+      .board-h h1 {
+        font-size: 30px;
+        font-weight: 600;
+        letter-spacing: -0.5px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        color: #1f2328;
+      }
+      .board-h h1 .logo {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+        background: #0969da;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+      }
+      .board-h .sub {
+        color: #59636e;
+        font-size: 14px;
+        margin-top: 8px;
+        max-width: 1080px;
+      }
+      .board-h .sub b {
+        color: #1f2328;
+        font-weight: 600;
+      }
+      .req-log {
+        max-width: 1480px;
+        margin: 0 auto 18px;
+        border: 1px solid #d1d9e0;
+        border-radius: 12px;
+        background: #f6f8fa;
+        overflow: hidden;
+      }
+      .req-log .rl-h {
+        padding: 10px 16px;
+        background: #eaeef2;
+        font-size: 12px;
+        font-weight: 600;
+        color: #59636e;
+        letter-spacing: 0.4px;
+        text-transform: uppercase;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border-bottom: 1px solid #d1d9e0;
+      }
+      .req-log table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+      .req-log td,
+      .req-log th {
+        padding: 8px 16px;
+        text-align: left;
+        border-top: 1px solid #d1d9e0;
+        vertical-align: top;
+      }
+      .req-log th {
+        color: #59636e;
+        font-weight: 500;
+        font-size: 12px;
+      }
+      .req-log td:first-child {
+        color: #59636e;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 1px 8px;
+        border-radius: 9999px;
+        font-size: 11px;
+        font-weight: 500;
+      }
+      .pill.new {
+        color: #0969da;
+        background: rgba(9, 105, 218, 0.12);
+      }
+      .nav-idx {
+        max-width: 1480px;
+        margin: 0 auto 30px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .nav-idx a {
+        font-size: 12px;
+        color: #59636e;
+        text-decoration: none;
+        padding: 5px 11px;
+        border: 1px solid #d1d9e0;
+        border-radius: 9999px;
+        background: #f6f8fa;
+      }
+      .nav-idx a:hover {
+        color: #1f2328;
+        background: #eaeef2;
+      }
+      .nav-idx a.new {
+        color: #0969da;
+        border-color: rgba(9, 105, 218, 0.3);
+      }
+      .note {
+        max-width: 1480px;
+        margin: 0 auto 30px;
+        font-size: 13px;
+        color: #59636e;
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 12px 14px;
+        border: 1px dashed #d1d9e0;
+        border-radius: 10px;
+        background: #f6f8fa;
+      }
+      .note b {
+        color: #1f2328;
+      }
+
+      /* ===== screen scaffold ===== */
+      .screen {
+        max-width: 1480px;
+        margin: 0 auto 60px;
+        scroll-margin-top: 20px;
+      }
+      .screen-head {
+        margin-bottom: 14px;
+      }
+      .screen-head .tag {
+        display: inline-block;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        color: #0969da;
+        background: rgba(9, 105, 218, 0.12);
+        padding: 2px 9px;
+        border-radius: 9999px;
+        margin-bottom: 8px;
+      }
+      .screen-head h2 {
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.2px;
+        color: #1f2328;
+      }
+      .screen-head p {
+        color: #59636e;
+        font-size: 14px;
+        margin-top: 5px;
+        max-width: 1080px;
+      }
+      .screen-head p b {
+        color: #1f2328;
+        font-weight: 600;
+      }
+
+      /* ===== stage：把目录树面板卡浮在窗口背景上（不画整壳，只画这一栏） ===== */
+      .stage {
+        border-radius: 16px;
+        background: var(--win-backdrop);
+        box-shadow: var(--win-shadow);
+        padding: 18px;
+        display: flex;
+        gap: 18px;
+        flex-wrap: wrap;
+        align-items: flex-start;
+      }
+      .stage.one {
+        justify-content: center;
+      }
+
+      /* ===== 目录树面板卡（= 壳子 .card.filetree 几何：默认 280 / min220 / max500） ===== */
+      .ftcard {
+        width: 280px;
+        height: 540px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: var(--r-card);
+        box-shadow: var(--card-drop);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        flex: none;
+      }
+      .ftcard.short {
+        height: 300px;
+      }
+      .ftcard.tiny {
+        height: 230px;
+        width: 256px;
+      }
+
+      /* 工具条 */
+      .ft-bar {
+        flex: none;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        gap: 2px;
+        padding: 0 6px;
+        border-bottom: 1px solid var(--border);
+      }
+      .ft-root {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 0 4px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--fg);
+      }
+      .ft-root .rdir {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .ft-root .rchev {
+        color: var(--muted-fg);
+        flex: none;
+      }
+      .ftbtn {
+        width: 26px;
+        height: 26px;
+        border-radius: 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--muted-fg);
+        flex: none;
+        position: relative;
+      }
+      .ftbtn:hover,
+      .ftbtn.is-hover {
+        background: var(--accent);
+        color: var(--fg);
+      }
+      .ftbtn.on {
+        background: var(--secondary);
+        color: var(--fg);
+      }
+
+      /* 树主体 */
+      .ft-body {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        padding: 4px 4px 8px;
+      }
+      .trow {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 28px;
+        padding: 0 6px;
+        border-radius: 6px;
+        font-size: 13px;
+        color: var(--fg);
+        cursor: default;
+        position: relative;
+        white-space: nowrap;
+      }
+      .trow .tw {
+        flex: none;
+        display: inline-block;
+      }
+      .trow:hover,
+      .trow.is-hover {
+        background: var(--accent);
+      }
+      .trow.sel {
+        background: var(--sidebar-accent);
+        color: var(--sidebar-accent-fg);
+        font-weight: 600;
+      }
+      .trow.sel.focusring {
+        box-shadow: inset 0 0 0 1.5px var(--ring);
+      }
+      .trow.cut {
+        /* 右键打开时该行保持高亮 */
+        background: var(--sidebar-accent);
+      }
+      .chev {
+        width: 14px;
+        height: 14px;
+        flex: none;
+        color: var(--muted-fg);
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .chev.blank {
+        visibility: hidden;
+      }
+      .ficon {
+        width: 16px;
+        height: 16px;
+        flex: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .tlabel {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .hit {
+        background: rgba(9, 105, 218, 0.18);
+        border-radius: 3px;
+        color: #0969da;
+        font-weight: 700;
+        padding: 0 1px;
+      }
+
+      /* 文件类型图标配色（material-ish · 仅示意区分，每类型有色） */
+      .fi-folder {
+        color: #54aeff;
+      }
+      .fi-folder-open {
+        color: #54aeff;
+      }
+      .fi-ts {
+        color: #0969da;
+      }
+      .fi-tsx {
+        color: #0a7ea4;
+      }
+      .fi-js {
+        color: #9a6700;
+      }
+      .fi-json {
+        color: #bf8700;
+      }
+      .fi-md {
+        color: #59636e;
+      }
+      .fi-css {
+        color: #8250df;
+      }
+      .fi-html {
+        color: #cf5500;
+      }
+      .fi-png {
+        color: #1a7f37;
+      }
+      .fi-svg {
+        color: #cf5500;
+      }
+      .fi-lock {
+        color: #9a6700;
+      }
+      .fi-git {
+        color: #cf222e;
+      }
+      .fi-yml {
+        color: #cf5500;
+      }
+      .fi-default {
+        color: #59636e;
+      }
+      .typetag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: #59636e;
+        padding: 3px 0;
+      }
+      .typetag .ficon {
+        width: 15px;
+        height: 15px;
+      }
+
+      /* ===== 文件类型图标 = 既有 Material 文件图标主题 =====
+         实现说明（见注解）：真机用既有 Material 文件图标主题（按类型区分的彩色图标）。
+         设计稿此处用「线框 svg + 每类型专属配色」示意：文件夹 folder/folder-open、
+         图片 img、svg svgfile、锁 lock，其余统一 file 形状靠 .fi-* 颜色区分类型。 */
+
+      /* 右键上下文菜单浮层（sFT8） */
+      .ctxwrap {
+        position: relative;
+      }
+      .ctx {
+        width: 232px;
+        background: #fff;
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        box-shadow:
+          0 8px 24px -6px rgba(31, 35, 40, 0.22),
+          0 2px 6px -2px rgba(31, 35, 40, 0.12);
+        padding: 5px;
+        font-size: 13px;
+      }
+      .ctx.float {
+        position: absolute;
+        z-index: 5;
+      }
+      .ctxi {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        height: 30px;
+        padding: 0 11px;
+        border-radius: 6px;
+        color: var(--fg);
+        cursor: default;
+        white-space: nowrap;
+      }
+      .ctxi .ki {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--muted-fg);
+        font-family: var(--mono);
+      }
+      .ctxi:hover,
+      .ctxi.is-hover {
+        background: var(--accent);
+      }
+      .ctxi.dis {
+        color: var(--muted-fg);
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .ctxsep {
+        height: 1px;
+        background: var(--border);
+        margin: 5px 7px;
+      }
+      .ctxcap {
+        font-size: 10px;
+        font-weight: 700;
+        color: #768390;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 4px 9px 2px;
+      }
+      .ftstage {
+        position: relative;
+      }
+      /* 锚点小标记：右键命中点 */
+      .clickpt {
+        position: absolute;
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #cf222e;
+        box-shadow: 0 0 0 3px rgba(207, 34, 46, 0.2);
+        z-index: 6;
+      }
+      .clickpt::after {
+        content: "右键";
+        position: absolute;
+        left: 13px;
+        top: -3px;
+        font-size: 10px;
+        font-weight: 700;
+        color: #cf222e;
+        white-space: nowrap;
+      }
+      /* 向左展开时把「右键」标签放点位右上，避开左铺的菜单 */
+      .clickpt.rl::after {
+        left: auto;
+        right: 13px;
+        top: -16px;
+      }
+      /* 内联输入行（新建 / 重命名） */
+      .inlinput {
+        display: flex;
+        align-items: center;
+        height: 24px;
+        flex: 1;
+        min-width: 0;
+        border: 1.5px solid var(--ring);
+        border-radius: 4px;
+        background: #fff;
+        padding: 0 5px;
+        box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.18);
+        font-size: 13px;
+      }
+      .inlinput.err {
+        border-color: var(--destructive);
+        box-shadow: 0 0 0 3px rgba(207, 34, 46, 0.16);
+      }
+      .inlinput .sel {
+        background: rgba(9, 105, 218, 0.22);
+        border-radius: 2px;
+      }
+      .inlinput .caret {
+        width: 1px;
+        height: 14px;
+        background: #0969da;
+        display: inline-block;
+      }
+      .inlerr {
+        font-size: 11px;
+        color: #cf222e;
+        padding: 2px 6px 4px 46px;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+
+      /* 搜索条 */
+      .ft-search {
+        flex: none;
+        padding: 6px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .se-input {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 30px;
+        padding: 0 8px;
+        border: 1px solid var(--input);
+        border-radius: 6px;
+        background: var(--bg);
+        color: var(--fg);
+        font-size: 13px;
+      }
+      .se-input.focus {
+        border-color: var(--ring);
+        box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.18);
+      }
+      .se-input .ph {
+        color: var(--muted-fg);
+      }
+      .se-input .typed {
+        color: var(--fg);
+      }
+      .se-input .caret {
+        width: 1px;
+        height: 15px;
+        background: #0969da;
+        display: inline-block;
+      }
+      .se-input .clr {
+        margin-left: auto;
+        color: var(--muted-fg);
+        display: inline-flex;
+      }
+      .se-modes {
+        display: flex;
+        gap: 4px;
+        align-items: center;
+      }
+      .seg {
+        display: inline-flex;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        overflow: hidden;
+      }
+      .seg button {
+        font-size: 11px;
+        padding: 3px 9px;
+        color: var(--muted-fg);
+      }
+      .seg button.on {
+        background: var(--secondary);
+        color: var(--fg);
+        font-weight: 600;
+      }
+      .se-count {
+        margin-left: auto;
+        font-size: 11px;
+        color: var(--muted-fg);
+      }
+      .se-count b {
+        color: #0969da;
+        font-weight: 700;
+      }
+
+      /* 内容搜索结果行（文件名 + 命中片段） */
+      .cres {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        padding: 5px 6px;
+        border-radius: 6px;
+      }
+      .cres:hover,
+      .cres.is-hover {
+        background: var(--accent);
+      }
+      .cres .cf {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12.5px;
+        color: var(--fg);
+      }
+      .cres .cf .pth {
+        color: var(--muted-fg);
+        font-size: 11px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .cres .cl {
+        font-family: var(--mono);
+        font-size: 11px;
+        color: #59636e;
+        padding-left: 21px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .cres .cl .ln {
+        color: #9a6700;
+      }
+
+      /* 空 / 加载 / 错误 / 离线 内部态 */
+      .ft-state {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        padding: 22px 18px;
+        text-align: center;
+      }
+      .ft-state .si {
+        width: 40px;
+        height: 40px;
+        border-radius: 11px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--secondary);
+        color: var(--muted-fg);
+      }
+      .ft-state .si.err {
+        background: rgba(207, 34, 46, 0.1);
+        color: #cf222e;
+      }
+      .ft-state .si.off {
+        background: rgba(154, 103, 0, 0.12);
+        color: #9a6700;
+      }
+      .ft-state .st {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--fg);
+      }
+      .ft-state .ss {
+        font-size: 11.5px;
+        line-height: 1.5;
+        color: var(--muted-fg);
+        max-width: 200px;
+      }
+      .ft-state .sbtn {
+        margin-top: 2px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #0969da;
+        border: 1px solid rgba(9, 105, 218, 0.35);
+        border-radius: 6px;
+        padding: 5px 12px;
+        background: rgba(9, 105, 218, 0.05);
+      }
+      /* 加载骨架 */
+      .skrow {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        height: 28px;
+        padding: 0 8px;
+      }
+      .skbox {
+        background: linear-gradient(90deg, #eaeef2 0%, #f0f3f6 50%, #eaeef2 100%);
+        border-radius: 4px;
+      }
+      .skchev {
+        width: 12px;
+        height: 12px;
+      }
+      .skicon {
+        width: 14px;
+        height: 14px;
+      }
+      .sktext {
+        height: 9px;
+      }
+      /* 子目录就地加载（展开某节点时子树位置的 spinner 行） */
+      .loadrow {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        height: 26px;
+        font-size: 12px;
+        color: var(--muted-fg);
+      }
+      .loadrow .sp {
+        color: #0969da;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .loadrow .sp svg {
+        animation: spin 0.9s linear infinite;
+      }
+
+      .fcap {
+        font-size: 11px;
+        font-weight: 600;
+        color: #3d444d;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        margin-bottom: 8px;
+      }
+      .fcol {
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* ===== annotation block（house style 四维度） ===== */
+      .anno {
+        border: 1px solid #d1d9e0;
+        border-radius: 12px;
+        background: #f6f8fa;
+        overflow: hidden;
+        margin-top: 18px;
+      }
+      .anno > .anno-h {
+        font-size: 12px;
+        font-weight: 600;
+        color: #59636e;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 11px 14px 4px;
+      }
+      .anno-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+        gap: 12px;
+        padding: 12px 14px 14px;
+        align-items: start;
+      }
+      .anno-card {
+        border: 1px solid #d1d9e0;
+        border-radius: 8px;
+        background: #fff;
+        overflow: hidden;
+      }
+      .anno-card > .ac-h {
+        font-size: 12px;
+        font-weight: 600;
+        color: #59636e;
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 10px 13px 7px;
+      }
+      .anno-card.span2 {
+        grid-column: 1 / -1;
+      }
+      .anno ol {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+      }
+      .anno-card ol li {
+        display: flex;
+        gap: 10px;
+        padding: 9px 13px;
+        border-top: 1px solid #d1d9e0;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #59636e;
+      }
+      .anno-card ol li b {
+        color: #1f2328;
+        font-weight: 600;
+      }
+      .pin {
+        flex: none;
+        width: 18px;
+        height: 18px;
+        border-radius: 9999px;
+        background: #0969da;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        margin-top: 1px;
+      }
+      .menulist {
+        background: #fff;
+        padding: 4px 13px 12px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #59636e;
+      }
+      .menulist .ml-i {
+        display: flex;
+        gap: 8px;
+        padding: 4px 0;
+        border-top: 1px solid #eaeef2;
+      }
+      .menulist .ml-i:first-child {
+        border-top: none;
+      }
+      .menulist .ml-i b {
+        color: #1f2328;
+        font-weight: 600;
+      }
+      .menulist .ml-open {
+        margin-top: 8px;
+        padding: 7px 9px;
+        border: 1px dashed rgba(9, 105, 218, 0.4);
+        border-radius: 6px;
+        background: rgba(9, 105, 218, 0.05);
+        color: #59636e;
+      }
+      .menulist .ml-open b {
+        color: #0969da;
+      }
+      .states {
+        padding: 4px 13px 12px;
+      }
+      .states dl {
+        display: grid;
+        grid-template-columns: 88px 1fr;
+        gap: 8px 14px;
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      .states dt {
+        color: #3d444d;
+        font-weight: 600;
+      }
+      .states dd {
+        margin: 0;
+        color: #59636e;
+      }
+      .states dd b {
+        color: #1f2328;
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- ============ SVG SPRITE ============ -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="search" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.3-4.3" />
+      </symbol>
+      <symbol id="folder-switch" viewBox="0 0 24 24">
+        <path d="M3 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v3" />
+        <path d="M14 17h7m0 0-3-3m3 3-3 3" />
+      </symbol>
+      <symbol id="collapse-all" viewBox="0 0 24 24">
+        <path d="M9 9 5 5m0 0v3m0-3h3" />
+        <path d="m15 9 4-4m0 0v3m0-3h-3" />
+        <path d="M9 15l-4 4m0 0v-3m0 3h3" />
+        <path d="m15 15 4 4m0 0v-3m0 3h-3" />
+      </symbol>
+      <symbol id="refresh" viewBox="0 0 24 24">
+        <path d="M3 12a9 9 0 0 1 15-6.7L21 8" />
+        <path d="M21 3v5h-5" />
+        <path d="M21 12a9 9 0 0 1-15 6.7L3 16" />
+        <path d="M3 21v-5h5" />
+      </symbol>
+      <symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
+      <symbol id="folder" viewBox="0 0 24 24">
+        <path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2z" />
+      </symbol>
+      <symbol id="folder-open" viewBox="0 0 24 24">
+        <path
+          d="M6 14 3.4 19.2A1 1 0 0 0 4.3 20.6h13.4a1 1 0 0 0 .9-.6L22 11H7a2 2 0 0 0-1.8 1.1z"
+        />
+        <path d="M2 14V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2" />
+      </symbol>
+      <symbol id="file" viewBox="0 0 24 24">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <path d="M14 2v6h6" />
+      </symbol>
+      <symbol id="img" viewBox="0 0 24 24">
+        <rect x="3" y="3" width="18" height="18" rx="2" />
+        <circle cx="9" cy="9" r="1.6" />
+        <path d="m21 15-4-4-7 7" />
+      </symbol>
+      <symbol id="svgfile" viewBox="0 0 24 24">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+        <path d="M14 2v6h6" />
+        <path d="M8 13v4M16 13v4M11 13l2 4" />
+      </symbol>
+      <symbol id="spinner" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9" /></symbol>
+      <symbol id="lock" viewBox="0 0 24 24">
+        <rect x="3" y="11" width="18" height="10" rx="2" />
+        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+      </symbol>
+      <symbol id="alert" viewBox="0 0 24 24">
+        <path d="M10.3 3.8 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0z" />
+        <path d="M12 9v4M12 17h.01" />
+      </symbol>
+      <symbol id="off" viewBox="0 0 24 24">
+        <path d="M2 2l20 20" />
+        <path d="M8.5 16.5a5 5 0 0 1 7 0" />
+        <path d="M5 12.9a10 10 0 0 1 5.2-2.7" />
+        <path d="M2 8.8a16 16 0 0 1 4.3-2.6" />
+        <path d="M22 8.8a16 16 0 0 0-5.2-3" />
+        <path d="M12 20h.01" />
+      </symbol>
+      <symbol id="empty" viewBox="0 0 24 24">
+        <path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2z" />
+        <path d="M9 14h6" />
+      </symbol>
+    </svg>
+
+    <!-- ============ board header ============ -->
+    <div class="board-h">
+      <h1>
+        <span class="logo"
+          ><svg class="i lg" style="color: #fff"><use href="#filetree" /></svg></span
+        >目录树（文件树）· UI 设计稿
+      </h1>
+      <div class="sub">
+        对话页<b>最右侧「目录树」面板</b>的<b>内部内容</b>设计。壳行为（默认宽 280 / min220 / max500
+        / 可拖拽 / 顶栏 toggle 收起）<b>已有，本稿不重画</b>——只画容器里的工具条 + 树主体 + 搜索 +
+        全状态。 视觉令牌 100% 复用壳子 CodePilot github 浅色主题：白底卡、hover
+        <b>#f6f8fa</b>、选中 <b>#eaeef2（淡灰非黑）</b>、蓝 <b>#0969da</b> 仅 focus / 命中高亮 /
+        计数。
+      </div>
+    </div>
+    <svg width="0" height="0" style="position: absolute">
+      <symbol id="filetree" viewBox="0 0 24 24">
+        <rect x="14" y="3" width="7" height="5" rx="1" />
+        <rect x="14" y="10" width="7" height="5" rx="1" />
+        <rect x="14" y="17" width="7" height="4" rx="1" />
+        <path d="M9 5.5h5M9 12.5h5M9 19.5h5M9 5.5V19.5" />
+      </symbol>
+    </svg>
+
+    <div class="req-log">
+      <div class="rl-h">需求 · 2026-06-30-file-tree</div>
+      <table>
+        <tr>
+          <th>屏</th>
+          <th>内容</th>
+          <th>状态</th>
+        </tr>
+        <tr>
+          <td>sFT1</td>
+          <td>默认树态（默认根来源 + 工具条 + 首层条目，每条类型图标）</td>
+          <td><span class="pill new">NEW</span></td>
+        </tr>
+        <tr>
+          <td>sFT2</td>
+          <td>多层展开态（缩进 + 展开图标 + 某节点子目录加载态）</td>
+          <td><span class="pill new">NEW</span></td>
+        </tr>
+        <tr>
+          <td>sFT3</td>
+          <td>文件选中态（同刻仅一个，供后续右栏文件页签复用）</td>
+          <td><span class="pill new">NEW</span></td>
+        </tr>
+        <tr>
+          <td>sFT4</td>
+          <td>按文件名搜索态（结果列表 + 关键字高亮 + 搜索中）</td>
+          <td><span class="pill new">NEW</span></td>
+        </tr>
+        <tr>
+          <td>sFT5</td>
+          <td>按文件内容搜索态（名/内容切换 + 命中文件 + 高亮）</td>
+          <td><span class="pill new">NEW</span></td>
+        </tr>
+        <tr>
+          <td>sFT6</td>
+          <td>空 / 加载 / 错误 / 离线 四态聚合（空目录 vs 搜索无命中区分）</td>
+          <td><span class="pill new">NEW</span></td>
+        </tr>
+        <tr>
+          <td>sFT7</td>
+          <td>切换目录（系统选择器入口 · 触发/取消/选定/无权限）</td>
+          <td><span class="pill new">NEW</span></td>
+        </tr>
+        <tr>
+          <td>sFT8</td>
+          <td>右键上下文菜单（空白/目录/文件三套 + 定位翻转 + 内联新建/重命名）</td>
+          <td><span class="pill new">NEW</span></td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="nav-idx">
+      <a class="new" href="#sFT1">sFT1 默认树态</a>
+      <a class="new" href="#sFT2">sFT2 多层展开</a>
+      <a class="new" href="#sFT3">sFT3 文件选中</a>
+      <a class="new" href="#sFT4">sFT4 搜文件名</a>
+      <a class="new" href="#sFT5">sFT5 搜内容</a>
+      <a class="new" href="#sFT6">sFT6 空/载/错/离线</a>
+      <a class="new" href="#sFT7">sFT7 切换目录</a>
+      <a class="new" href="#sFT8">sFT8 右键菜单</a>
+    </div>
+
+    <div class="note">
+      <svg class="i sm" style="margin-top: 2px; color: #0969da"><use href="#info" /></svg>
+      <div>
+        每屏只画<b>目录树这一栏</b>（壳子最右卡，几何与 .card.filetree 一致），不重绘整壳。流程 /
+        平台 / 跳转逻辑（如系统选择器、离线来源）一律写进注解块，不画进框。
+      </div>
+    </div>
+    <svg width="0" height="0" style="position: absolute">
+      <symbol id="info" viewBox="0 0 24 24">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M12 16v-4M12 8h.01" />
+      </symbol>
+    </svg>
+
+    <!-- ===================================================================== sFT1 -->
+    <section class="screen" id="sFT1">
+      <div class="screen-head">
+        <span class="tag">sFT1</span>
+        <h2>默认树态</h2>
+        <p>
+          顶部工具条（<b>搜索入口</b> + <b>切换目录按钮</b> + 折叠全部 + 刷新）+ 根目录名 +
+          树根<b>首层条目</b>（每条带类型图标，文件夹为收起态图标）。<b>默认根来源</b>：对话<b
+            >已选目录 → 该目录为根</b
+          >；<b>未选 → 桌面 Desktop 为根</b>。
+        </p>
+      </div>
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">已选目录 → 该目录为根（my-app）</div>
+          <div class="ftcard">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-r" /></svg></span
+                ><span class="ficon fi-folder"
+                  ><svg class="i sm"><use href="#folder" /></svg></span
+                ><span class="tlabel">node_modules</span>
+              </div>
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-r" /></svg></span
+                ><span class="ficon fi-folder"
+                  ><svg class="i sm"><use href="#folder" /></svg></span
+                ><span class="tlabel">public</span>
+              </div>
+              <div class="trow is-hover">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-r" /></svg></span
+                ><span class="ficon fi-folder"
+                  ><svg class="i sm"><use href="#folder" /></svg></span
+                ><span class="tlabel">src</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-git"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">.gitignore</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-json"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">package.json</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-lock"
+                  ><svg class="i sm"><use href="#lock" /></svg></span
+                ><span class="tlabel">package-lock.json</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-md"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">README.md</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-ts"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">tsconfig.json</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">未选目录 → 桌面 Desktop 为根</div>
+          <div class="ftcard short">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">Desktop</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-r" /></svg></span
+                ><span class="ficon fi-folder"
+                  ><svg class="i sm"><use href="#folder" /></svg></span
+                ><span class="tlabel">screenshots</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-png"
+                  ><svg class="i sm"><use href="#img" /></svg></span
+                ><span class="tlabel">notes.png</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-md"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">todo.md</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">文件类型 → 图标对照（每类型专属彩色图标）</div>
+          <div class="ftcard" style="width: 236px; height: 440px">
+            <div class="ft-body" style="padding: 8px 12px">
+              <div class="typetag">
+                <span class="ficon fi-folder"
+                  ><svg class="i sm"><use href="#folder" /></svg></span
+                >folder（收起 · 形状）
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-folder-open"
+                  ><svg class="i sm"><use href="#folder-open" /></svg></span
+                >folder（展开 · 形状）
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-ts"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                >.ts
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                >.tsx
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-js"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                >.js
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-json"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                >.json
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-md"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                >.md
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-png"
+                  ><svg class="i sm"><use href="#img" /></svg></span
+                >.png（图片框形状）
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-svg"
+                  ><svg class="i sm"><use href="#svgfile" /></svg></span
+                >.svg（轮廓形状）
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-css"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                >.css
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-html"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                >.html
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-yml"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                >.yml
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-lock"
+                  ><svg class="i sm"><use href="#lock" /></svg></span
+                >.lock（锁形）
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-git"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                >.gitignore
+              </div>
+              <div class="typetag">
+                <span class="ficon fi-default"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                >未知（默认）
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果</div>
+            <ol>
+              <li>
+                <span class="pin">1</span>
+                <div>
+                  <b>搜索入口</b>：点击 → 工具条下滑出搜索条、输入框聚焦（→ sFT4）；再点 / Esc
+                  收起。
+                </div>
+              </li>
+              <li>
+                <span class="pin">2</span>
+                <div>
+                  <b>切换目录按钮</b>：点击 → 打开<b>操作系统原生目录选择器</b>（→
+                  sFT7）。选定后切根；取消保持当前根。
+                </div>
+              </li>
+              <li>
+                <span class="pin">3</span>
+                <div><b>折叠全部</b>：收起所有展开文件夹，只留根首层。</div>
+              </li>
+              <li>
+                <span class="pin">4</span>
+                <div><b>刷新</b>：重拉当前根目录树（保留已展开路径）。</div>
+              </li>
+              <li>
+                <span class="pin">5</span>
+                <div><b>文件夹行点击</b>：展开/收起（▸↔▾、folder↔folder-open）（→ sFT2）。</div>
+              </li>
+              <li>
+                <span class="pin">6</span>
+                <div><b>文件行点击</b>：选中（→ sFT3）。</div>
+              </li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>
+                  <b>桌面 only</b>：目录树 = 壳最右卡，默认宽
+                  <b>280</b>（min220/max500，壳层拖拽）。卡内工具条 h38（根名 flex-1 + 4 钮）+
+                  树主体（可滚）。行高 28、每层缩进 +14px、圆角 6。<b>紧凑 / 手机态：deferred</b>。
+                </dd>
+                <dt>默认</dt>
+                <dd>
+                  根展开首层；文件夹排前、文件排后，各按名升序。根来源 =
+                  <b>对话已选目录；未选则 Desktop</b>。
+                </dd>
+                <dt>hover</dt>
+                <dd>行 / 钮底 <b>#f6f8fa</b>（--accent），移出复原。</dd>
+                <dt>选中活跃</dt>
+                <dd>见 sFT3。</dd>
+                <dt>加载/空/错误/离线</dt>
+                <dd>见 sFT6。</dd>
+                <dt>禁用</dt>
+                <dd>主机离线时 4 钮置灰（见 sFT6 离线态）。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">
+                <b>见 sFT8。</b>空白区右键 = A 套菜单（新建文件/夹 · 粘贴 · 在 Finder 显示 ·
+                在文件中查找 · 复制路径/相对路径）；目录行 = B 套；文件行 = C
+                套。三套完整浮层、定位翻转与内联新建/重命名见 sFT8。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sFT2 -->
+    <section class="screen" id="sFT2">
+      <div class="screen-head">
+        <span class="tag">sFT2</span>
+        <h2>多层展开态</h2>
+        <p>
+          逐层缩进、文件夹<b>展开态图标</b>（folder-open +
+          ▾），并展示<b>某节点子目录正在加载</b>（点开大文件夹时子树位置就地显
+          spinner）。覆盖多种文件类型图标。
+        </p>
+      </div>
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">展开 3 层 + 多类型图标</div>
+          <div class="ftcard" style="height: 540px">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-d" /></svg></span
+                ><span class="ficon fi-folder-open"
+                  ><svg class="i sm"><use href="#folder-open" /></svg></span
+                ><span class="tlabel">src</span>
+              </div>
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-d" /></svg></span
+                ><span class="ficon fi-folder-open"
+                  ><svg class="i sm"><use href="#folder-open" /></svg></span
+                ><span class="tlabel">components</span>
+              </div>
+              <div class="trow" style="padding-left: 40px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">Button.tsx</span>
+              </div>
+              <div class="trow" style="padding-left: 40px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-css"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">button.css</span>
+              </div>
+              <div class="trow" style="padding-left: 40px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-svg"
+                  ><svg class="i sm"><use href="#svgfile" /></svg></span
+                ><span class="tlabel">icon.svg</span>
+              </div>
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-r" /></svg></span
+                ><span class="ficon fi-folder"
+                  ><svg class="i sm"><use href="#folder" /></svg></span
+                ><span class="tlabel">hooks</span>
+              </div>
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-ts"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">index.ts</span>
+              </div>
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-html"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">index.html</span>
+              </div>
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-png"
+                  ><svg class="i sm"><use href="#img" /></svg></span
+                ><span class="tlabel">logo.png</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-git"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">.gitignore</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-yml"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">ci.yml</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-js"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">vite.config.js</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-json"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">package.json</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-lock"
+                  ><svg class="i sm"><use href="#lock" /></svg></span
+                ><span class="tlabel">package-lock.json</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-default"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">Makefile</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">点开大文件夹 · 子目录就地加载</div>
+          <div class="ftcard short">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-d" /></svg></span
+                ><span class="ficon fi-folder-open"
+                  ><svg class="i sm"><use href="#folder-open" /></svg></span
+                ><span class="tlabel">node_modules</span>
+              </div>
+              <div class="loadrow" style="padding-left: 26px">
+                <span class="sp"
+                  ><svg class="i sm"><use href="#spinner" /></svg></span
+                >载入中…
+              </div>
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-r" /></svg></span
+                ><span class="ficon fi-folder"
+                  ><svg class="i sm"><use href="#folder" /></svg></span
+                ><span class="tlabel">src</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-json"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">package.json</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果</div>
+            <ol>
+              <li>
+                <span class="pin">1</span>
+                <div>
+                  <b>收起态文件夹点击</b
+                  >：▸→▾、folder→folder-open，子项就地插入；子项首次加载时该位置先显
+                  <b>spinner 行「载入中…」</b>，到位后替换为真实子树。
+                </div>
+              </li>
+              <li>
+                <span class="pin">2</span>
+                <div>
+                  <b>展开态文件夹点击</b>：收起（▾→▸），子树移除；再展开走缓存，通常无加载。
+                </div>
+              </li>
+              <li>
+                <span class="pin">3</span>
+                <div><b>键盘</b>：→展开 / ←收起 / ↑↓移动。</div>
+              </li>
+              <li>
+                <span class="pin">4</span>
+                <div>
+                  <b>图标按后缀映射</b>：每种已知后缀有专属图标 +
+                  配色；未知后缀回退默认文件图标；文件夹用开合两图标区分。
+                </div>
+              </li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>
+                  深层节点缩进累加（每层 +14px / 此稿用 20·40
+                  近似）；超宽文件名<b>截断省略号</b>，不撑宽卡。<b>紧凑态 deferred</b>。
+                </dd>
+                <dt>默认</dt>
+                <dd>展开路径由用户操作积累，刷新 / 重开对话保留。</dd>
+                <dt>子目录加载</dt>
+                <dd>
+                  展开节点子树位置显 <b>spinner 行</b>（蓝色旋转 + 「载入中…」）；失败 →
+                  该节点下显内联「读取失败 · 重试」(接 sFT6 错误语义)。
+                </dd>
+                <dt>hover</dt>
+                <dd>行 #f6f8fa。</dd>
+                <dt>选中</dt>
+                <dd>见 sFT3。</dd>
+                <dt>空/错误/离线</dt>
+                <dd>见 sFT6。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">
+                <b>见 sFT8。</b>目录行右键 = B 套，文件行 = C
+                套，子项就地展开后右键同。新建/重命名落为内联（见 sFT8）。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sFT3 -->
+    <section class="screen" id="sFT3">
+      <div class="screen-head">
+        <span class="tag">sFT3</span>
+        <h2>文件选中态</h2>
+        <p>
+          点击文件 →
+          该行进入<b>选中高亮</b>态，<b>同刻仅一个</b>选中。此选中态<b>供后续右侧边栏「文件页签」复用</b>（点选即标记「待打开的文件」）——<b>本需求不渲染文件预览</b>，只到选中。
+        </p>
+      </div>
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">Button.tsx 选中（鼠标点选）</div>
+          <div class="ftcard short">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-d" /></svg></span
+                ><span class="ficon fi-folder-open"
+                  ><svg class="i sm"><use href="#folder-open" /></svg></span
+                ><span class="tlabel">components</span>
+              </div>
+              <div class="trow sel" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">Button.tsx</span>
+              </div>
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">Modal.tsx</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-json"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">package.json</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">键盘聚焦选中（叠蓝 inset 环）</div>
+          <div class="ftcard short">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-d" /></svg></span
+                ><span class="ficon fi-folder-open"
+                  ><svg class="i sm"><use href="#folder-open" /></svg></span
+                ><span class="tlabel">components</span>
+              </div>
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">Button.tsx</span>
+              </div>
+              <div class="trow sel focusring" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">Modal.tsx</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-json"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">package.json</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果</div>
+            <ol>
+              <li>
+                <span class="pin">1</span>
+                <div>
+                  <b>文件行点击</b>：该行进入选中态（#eaeef2 +
+                  加粗）；<b>把该文件标记为「当前选中文件」</b>，供右栏文件页签后续打开。
+                </div>
+              </li>
+              <li>
+                <span class="pin">2</span>
+                <div>
+                  <b>点另一文件</b
+                  >：选中态<b>转移</b>，旧行复原——<b>同刻仅一个</b>选中，单选不可多选。
+                </div>
+              </li>
+              <li>
+                <span class="pin">3</span>
+                <div>
+                  <b>点文件夹行</b>：是展开/收起（sFT2），<b>不</b>构成文件选中；选中态只属文件。
+                </div>
+              </li>
+              <li>
+                <span class="pin">4</span>
+                <div>
+                  <b>键盘 Enter</b>：选中聚焦行的文件（聚焦行叠 1.5px 蓝 inset 环，右屏示意）。
+                </div>
+              </li>
+              <li>
+                <span class="pin">5</span>
+                <div>
+                  <b>本需求边界</b
+                  >：选中<b>不渲染预览</b>、不打开任何面板；预览/打开归后续右栏文件页签需求。
+                </div>
+              </li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>选中不改面板几何，仅行底色 + 字重变化。<b>紧凑态 deferred</b>。</dd>
+                <dt>默认</dt>
+                <dd>无选中时所有行常态；选中态在切换目录 / 刷新失配（文件已删）时清空。</dd>
+                <dt>hover</dt>
+                <dd>未选行 hover #f6f8fa；已选行 hover 保持 #eaeef2（选中优先）。</dd>
+                <dt>选中活跃</dt>
+                <dd>底 <b>#eaeef2</b>（淡灰非黑）+ 加粗深灰；键盘聚焦再叠蓝 inset 环。</dd>
+                <dt>加载/空/错误/离线</dt>
+                <dd>见 sFT6；离线时保留最后选中（灰显），重连恢复可点。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">
+                <b>见 sFT8。</b>选中文件行右键 = C 套（含「将文件添加到聊天」联动
+                composer）；右键不改变选中。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sFT4 -->
+    <section class="screen" id="sFT4">
+      <div class="screen-head">
+        <span class="tag">sFT4</span>
+        <h2>按文件名搜索态</h2>
+        <p>
+          点搜索 → 滑出搜索条（输入框 + 名/内容范围切换 +
+          计数）。<b>按名结果列表</b>对文件名命中子串<b>高亮</b>，显示结果计数；含搜索中态。无命中归
+          sFT6。
+        </p>
+      </div>
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">搜索中 · 有结果（命中高亮 + 计数）</div>
+          <div class="ftcard short">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn on">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-search">
+              <div class="se-input focus">
+                <svg class="i sm" style="color: #59636e"><use href="#search" /></svg
+                ><span class="typed">butt</span><span class="caret"></span
+                ><button class="clr">
+                  <svg class="i sm"><use href="#x" /></svg>
+                </button>
+              </div>
+              <div class="se-modes">
+                <div class="seg"><button class="on">文件名</button><button>内容</button></div>
+                <div class="se-count"><b>3</b> 个结果</div>
+              </div>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel"><span class="hit">Butt</span>on.tsx</span>
+              </div>
+              <div class="trow is-hover">
+                <span class="chev blank"></span
+                ><span class="ficon fi-css"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel"><span class="hit">butt</span>on.css</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-ts"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel"><span class="hit">butt</span>on.test.ts</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">搜索中 · 索引中（大目录首次）</div>
+          <div class="ftcard short">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn on">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-search">
+              <div class="se-input focus">
+                <svg class="i sm" style="color: #59636e"><use href="#search" /></svg
+                ><span class="typed">butt</span><span class="caret"></span>
+              </div>
+              <div class="se-modes">
+                <div class="seg"><button class="on">文件名</button><button>内容</button></div>
+                <div class="se-count">搜索中…</div>
+              </div>
+            </div>
+            <div class="ft-body">
+              <div class="skrow">
+                <span class="skbox skicon"></span
+                ><span class="skbox sktext" style="width: 120px"></span>
+              </div>
+              <div class="skrow">
+                <span class="skbox skicon"></span
+                ><span class="skbox sktext" style="width: 90px"></span>
+              </div>
+              <div class="skrow">
+                <span class="skbox skicon"></span
+                ><span class="skbox sktext" style="width: 140px"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果</div>
+            <ol>
+              <li>
+                <span class="pin">1</span>
+                <div><b>搜索钮（on 态）</b>：再点 = 收起搜索条、清空关键字、回普通树。</div>
+              </li>
+              <li>
+                <span class="pin">2</span>
+                <div>
+                  <b>输入框</b>：输入即时过滤（防抖），结果 + 计数实时刷新；输入框 focus 蓝环。
+                </div>
+              </li>
+              <li>
+                <span class="pin">3</span>
+                <div>
+                  <b>清空（×）</b>：清空关键字，结果回全树，输入框保持聚焦；空关键字时 × 隐藏。
+                </div>
+              </li>
+              <li>
+                <span class="pin">4</span>
+                <div><b>范围段控「文件名/内容」</b>：切到内容 → sFT5。本屏 = 文件名。</div>
+              </li>
+              <li>
+                <span class="pin">5</span>
+                <div>
+                  <b>结果项点击</b>：选中该文件（sFT3
+                  选中态），树自动展开并滚动定位到原树位置；退出搜索后保持选中。
+                </div>
+              </li>
+              <li>
+                <span class="pin">6</span>
+                <div><b>Esc</b>：收起搜索条。</div>
+              </li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>
+                  搜索条插在工具条与树主体之间（输入框 + 段控/计数 2
+                  行）。结果<b>扁平列表</b>（无缩进、无展开箭头）。<b>紧凑态 deferred</b>。
+                </dd>
+                <dt>搜索中</dt>
+                <dd>
+                  搜索钮 on（#eaeef2）；输入框 focus 蓝环；命中子串
+                  <b>蓝底高亮</b>。大目录首索引时主体显<b>骨架</b> + 计数处「搜索中…」。
+                </dd>
+                <dt>搜索无命中</dt>
+                <dd>计数 <b>0</b> → 主体「无匹配文件名」空态（见 sFT6，与空目录区分）。</dd>
+                <dt>hover/选中</dt>
+                <dd>结果行 hover #f6f8fa、选中 #eaeef2，同树行。</dd>
+                <dt>错误/离线</dt>
+                <dd>离线时搜索钮禁用；见 sFT6。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">
+                <b>见 sFT8。</b>文件名结果行右键 = C
+                套（文件菜单）；菜单作用于该结果对应的真实文件。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sFT5 -->
+    <section class="screen" id="sFT5">
+      <div class="screen-head">
+        <span class="tag">sFT5</span>
+        <h2>按文件内容搜索态</h2>
+        <p>
+          同一搜索入口的<b>名/内容范围切换</b>切到「内容」。结果含<b>命中文件 + 命中行内容片段</b
+          >，关键字在片段中高亮、标命中行号；含搜索中态。无命中归 sFT6。
+        </p>
+      </div>
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">内容模式 · 有结果</div>
+          <div class="ftcard short">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn on">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-search">
+              <div class="se-input focus">
+                <svg class="i sm" style="color: #59636e"><use href="#search" /></svg
+                ><span class="typed">onClick</span><span class="caret"></span
+                ><button class="clr">
+                  <svg class="i sm"><use href="#x" /></svg>
+                </button>
+              </div>
+              <div class="se-modes">
+                <div class="seg"><button>文件名</button><button class="on">内容</button></div>
+                <div class="se-count"><b>4</b> 处 · 3 文件</div>
+              </div>
+            </div>
+            <div class="ft-body">
+              <div class="cres">
+                <div class="cf">
+                  <span class="ficon fi-tsx"
+                    ><svg class="i sm"><use href="#file" /></svg></span
+                  >Button.tsx<span class="pth">src/components/</span>
+                </div>
+                <div class="cl">
+                  <span class="ln">L18</span> &nbsp;&lt;button
+                  <span class="hit">onClick</span>={handlePress}&gt;
+                </div>
+              </div>
+              <div class="cres is-hover">
+                <div class="cf">
+                  <span class="ficon fi-tsx"
+                    ><svg class="i sm"><use href="#file" /></svg></span
+                  >Modal.tsx<span class="pth">src/components/</span>
+                </div>
+                <div class="cl">
+                  <span class="ln">L42</span> &nbsp;const <span class="hit">onClick</span> =
+                  useCallback(() =&gt; {
+                </div>
+              </div>
+              <div class="cres">
+                <div class="cf">
+                  <span class="ficon fi-ts"
+                    ><svg class="i sm"><use href="#file" /></svg></span
+                  >app.ts<span class="pth">src/</span>
+                </div>
+                <div class="cl">
+                  <span class="ln">L7</span> &nbsp;el.addEventListener("<span class="hit"
+                    >onClick</span
+                  >"…
+                </div>
+              </div>
+              <div class="cres">
+                <div class="cf">
+                  <span class="ficon fi-ts"
+                    ><svg class="i sm"><use href="#file" /></svg></span
+                  >app.ts<span class="pth">src/</span>
+                </div>
+                <div class="cl">
+                  <span class="ln">L23</span> &nbsp;return { <span class="hit">onClick</span>,
+                  onBlur }
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">内容模式 · 搜索中（遍历文件）</div>
+          <div class="ftcard short">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn on">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-search">
+              <div class="se-input focus">
+                <svg class="i sm" style="color: #59636e"><use href="#search" /></svg
+                ><span class="typed">onClick</span><span class="caret"></span>
+              </div>
+              <div class="se-modes">
+                <div class="seg"><button>文件名</button><button class="on">内容</button></div>
+                <div class="se-count">搜索中…</div>
+              </div>
+            </div>
+            <div class="ft-body">
+              <div class="skrow">
+                <span class="skbox skicon"></span
+                ><span class="skbox sktext" style="width: 130px"></span>
+              </div>
+              <div class="skrow">
+                <span class="skbox skicon"></span
+                ><span class="skbox sktext" style="width: 90px"></span>
+              </div>
+              <div class="skrow">
+                <span class="skbox skicon"></span
+                ><span class="skbox sktext" style="width: 150px"></span>
+              </div>
+              <div class="skrow">
+                <span class="skbox skicon"></span
+                ><span class="skbox sktext" style="width: 70px"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果</div>
+            <ol>
+              <li>
+                <span class="pin">1</span>
+                <div>
+                  <b>段控「内容」</b>：从文件名切来，同关键字立即按内容重搜；计数改「N 处 · M
+                  文件」。
+                </div>
+              </li>
+              <li>
+                <span class="pin">2</span>
+                <div>
+                  <b>结果行点击</b>：选中该文件（sFT3）+
+                  树中定位；命中行号供后续预览跳转，本需求只到选中。
+                </div>
+              </li>
+              <li>
+                <span class="pin">3</span>
+                <div><b>同文件多处命中</b>：每处一行（如 app.ts L7 / L23 各一行）逐处定位。</div>
+              </li>
+              <li>
+                <span class="pin">4</span>
+                <div><b>清空 / Esc</b>：同 sFT4，回普通树。</div>
+              </li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>
+                  结果两行：上 = 图标 + 命中文件名 + 灰相对目录；下 = 等宽命中行片段（行号橙 +
+                  关键字蓝高亮），过长截断。<b>紧凑态 deferred</b>。
+                </dd>
+                <dt>搜索中</dt>
+                <dd>段控「内容」on；首次遍历文件 → 主体<b>骨架</b> + 计数处「搜索中…」。</dd>
+                <dt>搜索无命中</dt>
+                <dd>计数 0 → 「无匹配内容」空态（见 sFT6，与空目录区分）。</dd>
+                <dt>hover/选中</dt>
+                <dd>结果行 hover #f6f8fa、选中 #eaeef2。</dd>
+                <dt>错误/离线</dt>
+                <dd>读取失败（权限）显错误态；离线禁用搜索。见 sFT6。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">
+                <b>见 sFT8。</b>内容结果行右键 = C
+                套（作用于命中文件）。「将文件添加到聊天」加入的是文件引用，非单行片段。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sFT6 -->
+    <section class="screen" id="sFT6">
+      <div class="screen-head">
+        <span class="tag">sFT6</span>
+        <h2>空 / 加载 / 错误 / 离线 · 四态聚合</h2>
+        <p>
+          一屏并列五框：<b>空目录</b> vs <b>搜索无命中</b>（明确区分）· 加载骨架 ·
+          错误（无权限/不存在 + 重试/重选）· 离线（需主机在线 + 可重试）。每态都有出口。
+        </p>
+      </div>
+      <div class="stage">
+        <!-- 空目录 -->
+        <div class="fcol">
+          <div class="fcap">空目录（目录里真没东西）</div>
+          <div class="ftcard tiny">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">empty-dir</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-state">
+              <div class="si">
+                <svg class="i lg"><use href="#empty" /></svg>
+              </div>
+              <div class="st">此目录为空</div>
+              <div class="ss">没有任何文件或子文件夹。</div>
+              <button class="sbtn">切换目录</button>
+            </div>
+          </div>
+        </div>
+        <!-- 搜索无命中 -->
+        <div class="fcol">
+          <div class="fcap">搜索无命中（区别于空目录）</div>
+          <div class="ftcard tiny">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn on">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-search" style="border-bottom: none; padding-bottom: 0">
+              <div class="se-input focus">
+                <svg class="i sm" style="color: #59636e"><use href="#search" /></svg
+                ><span class="typed">zxcvb</span
+                ><button class="clr">
+                  <svg class="i sm"><use href="#x" /></svg>
+                </button>
+              </div>
+            </div>
+            <div class="ft-state" style="padding-top: 8px">
+              <div class="si">
+                <svg class="i lg"><use href="#search" /></svg>
+              </div>
+              <div class="st">无匹配结果</div>
+              <div class="ss">换关键字，或切换名/内容范围。</div>
+            </div>
+          </div>
+        </div>
+        <!-- 加载 -->
+        <div class="fcol">
+          <div class="fcap">加载（骨架）</div>
+          <div class="ftcard tiny">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="skrow">
+                <span class="skbox skchev"></span><span class="skbox skicon"></span
+                ><span class="skbox sktext" style="width: 90px"></span>
+              </div>
+              <div class="skrow">
+                <span class="skbox skchev"></span><span class="skbox skicon"></span
+                ><span class="skbox sktext" style="width: 130px"></span>
+              </div>
+              <div class="skrow">
+                <span class="skbox skchev" style="visibility: hidden"></span
+                ><span class="skbox skicon"></span
+                ><span class="skbox sktext" style="width: 70px"></span>
+              </div>
+              <div class="skrow">
+                <span class="skbox skchev" style="visibility: hidden"></span
+                ><span class="skbox skicon"></span
+                ><span class="skbox sktext" style="width: 110px"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 错误 -->
+        <div class="fcol">
+          <div class="fcap">错误（无权限 / 不存在）</div>
+          <div class="ftcard tiny">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">private</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-state">
+              <div class="si err">
+                <svg class="i lg"><use href="#alert" /></svg>
+              </div>
+              <div class="st">无法读取目录</div>
+              <div class="ss">无权限访问，或路径已不存在。</div>
+              <div style="display: flex; gap: 8px">
+                <button class="sbtn">重试</button><button class="sbtn">重选目录</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- 离线 -->
+        <div class="fcol">
+          <div class="fcap">主机离线</div>
+          <div class="ftcard tiny">
+            <div class="ft-bar" style="opacity: 0.55">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-state">
+              <div class="si off">
+                <svg class="i lg"><use href="#off" /></svg>
+              </div>
+              <div class="st">主机已离线</div>
+              <div class="ss">目录树需主机在线。重连后自动恢复。</div>
+              <button class="sbtn">重试连接</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（每态出口）</div>
+            <ol>
+              <li>
+                <span class="pin">1</span>
+                <div>
+                  <b>空目录「切换目录」</b>：打开系统选择器换根（sFT7）。出口 = 选定非空目录 →
+                  树态。
+                </div>
+              </li>
+              <li>
+                <span class="pin">2</span>
+                <div>
+                  <b>搜索无命中</b>：无动作钮；改关键字 / 切名内容范围即重搜（出口回结果或树）。清空
+                  × 回普通树。<b>与空目录的区别</b>：此态仍在搜索条下、根目录其实有内容。
+                </div>
+              </li>
+              <li>
+                <span class="pin">3</span>
+                <div>
+                  <b>加载态</b>：纯骨架无可点；出口 = 树就绪→树态 / 空目录→空态 / 失败→错误态。
+                </div>
+              </li>
+              <li>
+                <span class="pin">4</span>
+                <div>
+                  <b>错误「重试」</b>：重拉该目录（成功→树，失败→留错误）；<b>「重选目录」</b> =
+                  开系统选择器换根（sFT7）。
+                </div>
+              </li>
+              <li>
+                <span class="pin">5</span>
+                <div>
+                  <b>离线「重试连接」</b>：触发壳层重连；连上后<b>自动</b>恢复上次树与选中。工具条 4
+                  钮在离线时置灰禁用。
+                </div>
+              </li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态（态机入口/出口）</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>
+                  各态共用面板几何，仅替换主体。空/无命中/错误/离线 = 居中图标 + 标题 + 说明（+
+                  动作钮）；加载 = 骨架行。<b>紧凑态 deferred</b>。
+                </dd>
+                <dt>加载</dt>
+                <dd>
+                  <b>入口</b>：首开 / 切换目录 / 刷新 / 大目录索引。<b>出口</b>：树 / 空 / 错误。
+                </dd>
+                <dt>空目录</dt>
+                <dd><b>入口</b>：目标目录无任何条目。<b>出口</b>：切换目录 / 新增文件后刷新。</dd>
+                <dt>搜索无命中</dt>
+                <dd>
+                  <b>入口</b>：搜索结果 0（名或内容）。<b>出口</b>：改词 / 切范围 / 清空退出搜索。<b
+                    >≠ 空目录</b
+                  >。
+                </dd>
+                <dt>错误</dt>
+                <dd>
+                  <b>入口</b>：无权限 / 不存在 / 读取失败。<b>出口</b>：重试成功→树 /
+                  重选目录→新根。
+                </dd>
+                <dt>离线</dt>
+                <dd>
+                  <b>入口</b>：主机断连。<b>出口</b>：重试连接 / 自动重连→恢复上次树。工具条禁用。
+                </dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">
+                <b>见 sFT8。</b>空目录/无命中态主体无行 → 仍可在空白区右键 = A
+                套（可新建文件/夹/粘贴，新建后退出空态）；加载/错误/离线态主体不可右键（无内容 /
+                失能）。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sFT7 -->
+    <section class="screen" id="sFT7">
+      <div class="screen-head">
+        <span class="tag">sFT7</span>
+        <h2>切换目录（系统选择器入口）</h2>
+        <p>
+          框内只画 <b>Helm 侧触发按钮</b>。点击 → 打开<b>操作系统原生目录选择器</b>（OS
+          弹窗本身不画）。覆盖：触发中 / 取消回原态 / 选定切根 / 选了无权限 → 接 sFT6 错误。
+        </p>
+      </div>
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">触发前 · 切换目录钮 hover（当前根 my-app）</div>
+          <div class="ftcard tiny">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn is-hover">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-r" /></svg></span
+                ><span class="ficon fi-folder"
+                  ><svg class="i sm"><use href="#folder" /></svg></span
+                ><span class="tlabel">src</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-json"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">package.json</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">触发中 · 等系统弹窗（钮 on + 主体占位）</div>
+          <div class="ftcard tiny">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn on">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-state">
+              <div class="si">
+                <svg class="i lg"><use href="#folder-switch" /></svg>
+              </div>
+              <div class="st">已打开系统目录选择器</div>
+              <div class="ss">在弹窗中选择文件夹，或取消。</div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">选定 · 树根切到 api-server</div>
+          <div class="ftcard tiny">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">api-server</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-r" /></svg></span
+                ><span class="ficon fi-folder"
+                  ><svg class="i sm"><use href="#folder" /></svg></span
+                ><span class="tlabel">routes</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-ts"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">server.ts</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-yml"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">docker-compose.yml</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果 + 平台/跳转逻辑（放注解，不画 OS 弹窗）</div>
+            <ol>
+              <li>
+                <span class="pin">1</span>
+                <div>
+                  <b>切换目录按钮点击</b>：调客户端<b>原生目录选择器</b>——<b>Electron 桌面</b> =
+                  原生 openDirectory 对话框；<b>Web/移动</b>无此能力时该钮<b>置灰</b> +
+                  提示「在桌面端使用」（能力门）。OS 弹窗系统绘制，<b>本稿不画</b>。
+                </div>
+              </li>
+              <li>
+                <span class="pin">2</span>
+                <div>
+                  <b>触发中</b>：钮进 on
+                  态、主体显「已打开系统目录选择器」占位（中屏），等待弹窗回调。
+                </div>
+              </li>
+              <li>
+                <span class="pin">3</span>
+                <div><b>取消弹窗</b>：<b>回原态</b>——当前根 / 展开 / 选中全保持，无副作用。</div>
+              </li>
+              <li>
+                <span class="pin">4</span>
+                <div>
+                  <b>选定目录</b
+                  >：树根切到新目录、根名更新、展开首层、清空旧选中与搜索；短暂加载（sFT6）后呈现新树（右屏）。
+                </div>
+              </li>
+              <li>
+                <span class="pin">5</span>
+                <div>
+                  <b>选了无权限 / 不存在目录</b>：切换失败 → <b>接 sFT6 错误态</b>（无权限/不存在 +
+                  重试/重选），并保留切换前的根作为可回退基线。
+                </div>
+              </li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>切换不改面板几何，仅换根名 + 重载主体。<b>紧凑态 deferred</b>。</dd>
+                <dt>hover</dt>
+                <dd>切换目录钮 hover #f6f8fa（左屏）。</dd>
+                <dt>触发中</dt>
+                <dd>钮 on（#eaeef2）+ 主体占位文案（中屏）。</dd>
+                <dt>加载</dt>
+                <dd>选定后新目录读取期间主体显骨架（sFT6）。</dd>
+                <dt>禁用</dt>
+                <dd>无原生选择器能力 / 主机离线时该钮置灰。</dd>
+                <dt>错误/取消</dt>
+                <dd>无权限→sFT6 错误；取消→回原态。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-i">
+                <b>见 sFT8。</b>工具条钮自身无右键菜单；切根后新树的行/空白右键 = sFT8 三套。
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sFT8 -->
+    <section class="screen" id="sFT8">
+      <div class="screen-head">
+        <span class="tag">sFT8</span>
+        <h2>右键上下文菜单</h2>
+        <p>
+          右键弹出<b>白底圆角阴影下拉浮层</b>，菜单项 hover 高亮、分隔线分组。三套：<b>A 空白区</b>
+          / <b>B 目录行</b> / <b>C 文件行</b>。定位：<b>目录树在窗口右侧 → 菜单一律向左展开</b
+          >；纵向默认<b>向下（左下）</b>，左下放不下时<b>翻转向上（左上）</b>。「新建」「重命名」落为<b>树内内联输入</b>。<b
+            >桌面 only</b
+          >。
+        </p>
+      </div>
+
+      <!-- 第一排：三套菜单浮层（A/B/C），各自钉在一个右键点上 -->
+      <div class="stage">
+        <!-- A 空白区 -->
+        <div class="fcol">
+          <div class="fcap">A · 空白区右键（无条目区域）</div>
+          <div class="ftcard short ftstage">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-r" /></svg></span
+                ><span class="ficon fi-folder"
+                  ><svg class="i sm"><use href="#folder" /></svg></span
+                ><span class="tlabel">src</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-json"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">package.json</span>
+              </div>
+            </div>
+            <!-- 右键点 + 浮层（向左下展开：菜单右上角对齐点位，向下+向左铺开） -->
+            <div class="clickpt rl" style="left: 250px; top: 118px"></div>
+            <div class="ctx float" style="right: 30px; top: 128px">
+              <div class="ctxi">新建文件</div>
+              <div class="ctxi">新建文件夹</div>
+              <div class="ctxi dis">粘贴<span class="ki">剪贴板空</span></div>
+              <div class="ctxsep"></div>
+              <div class="ctxi">在 Finder 中显示</div>
+              <div class="ctxi">在文件中查找</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi">复制路径</div>
+              <div class="ctxi">复制相对路径</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi">删除</div>
+            </div>
+          </div>
+        </div>
+        <!-- B 目录行 -->
+        <div class="fcol">
+          <div class="fcap">B · 目录行右键（src 行高亮）</div>
+          <div class="ftcard short ftstage">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow cut">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-r" /></svg></span
+                ><span class="ficon fi-folder"
+                  ><svg class="i sm"><use href="#folder" /></svg></span
+                ><span class="tlabel">src</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-json"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">package.json</span>
+              </div>
+            </div>
+            <div class="clickpt rl" style="left: 240px; top: 48px"></div>
+            <div class="ctx float" style="right: 40px; top: 58px">
+              <div class="ctxi">新建文件</div>
+              <div class="ctxi">新建文件夹</div>
+              <div class="ctxi">粘贴<span class="ki">到 src</span></div>
+              <div class="ctxsep"></div>
+              <div class="ctxi">剪切</div>
+              <div class="ctxi is-hover">复制</div>
+              <div class="ctxi">重命名</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi">在 Finder 中显示</div>
+              <div class="ctxi">复制路径</div>
+              <div class="ctxi">复制相对路径</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi">将文件添加到聊天</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi">删除</div>
+            </div>
+          </div>
+        </div>
+        <!-- C 文件行 -->
+        <div class="fcol">
+          <div class="fcap">C · 文件行右键（Button.tsx 行高亮）</div>
+          <div class="ftcard short ftstage">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-d" /></svg></span
+                ><span class="ficon fi-folder-open"
+                  ><svg class="i sm"><use href="#folder-open" /></svg></span
+                ><span class="tlabel">components</span>
+              </div>
+              <div class="trow cut" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">Button.tsx</span>
+              </div>
+            </div>
+            <div class="clickpt rl" style="left: 250px; top: 76px"></div>
+            <div class="ctx float" style="right: 30px; top: 86px">
+              <div class="ctxi">新建文件</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi">剪切</div>
+              <div class="ctxi">复制</div>
+              <div class="ctxi">重命名</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi">在 Finder 中显示</div>
+              <div class="ctxi">在文件中查找</div>
+              <div class="ctxi">复制路径</div>
+              <div class="ctxi">复制相对路径</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi">将文件添加到聊天</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi">删除</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第二排：定位翻转（左下 vs 边界翻转左上）+ 禁用态 + 内联态 -->
+      <div class="stage" style="margin-top: 18px">
+        <!-- 正常左下 -->
+        <div class="fcol">
+          <div class="fcap">定位 · 正常向左下展开</div>
+          <div class="ftcard tiny ftstage">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow cut">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-r" /></svg></span
+                ><span class="ficon fi-folder"
+                  ><svg class="i sm"><use href="#folder" /></svg></span
+                ><span class="tlabel">src</span>
+              </div>
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-md"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">README.md</span>
+              </div>
+            </div>
+            <div class="clickpt rl" style="left: 206px; top: 46px"></div>
+            <div class="ctx float" style="right: 50px; top: 56px; width: 150px">
+              <div class="ctxi">新建文件</div>
+              <div class="ctxi">重命名</div>
+              <div class="ctxi">添加到聊天</div>
+            </div>
+          </div>
+          <div
+            class="ss"
+            style="font-size: 11px; color: #59636e; margin-top: 6px; max-width: 236px"
+          >
+            目录树在窗口右侧 → 菜单<b>右上角对齐点位</b>，向<b>下、左</b>铺开（默认）。
+          </div>
+        </div>
+        <!-- 边界翻转左上 -->
+        <div class="fcol">
+          <div class="fcap">定位 · 左下放不下 → 翻转左上</div>
+          <div class="ftcard tiny ftstage">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev blank"></span
+                ><span class="ficon fi-md"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">README.md</span>
+              </div>
+              <div class="trow cut">
+                <span class="chev blank"></span
+                ><span class="ficon fi-ts"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">index.ts</span>
+              </div>
+            </div>
+            <!-- 点位靠下；左下放不下 → 菜单翻到点位左上方（右下角对齐点位） -->
+            <div class="clickpt rl" style="right: 18px; bottom: 18px; left: auto; top: auto"></div>
+            <div
+              class="ctx float"
+              style="right: 18px; bottom: 24px; left: auto; top: auto; width: 150px"
+            >
+              <div class="ctxi">新建文件</div>
+              <div class="ctxi">重命名</div>
+              <div class="ctxi">添加到聊天</div>
+            </div>
+          </div>
+          <div
+            class="ss"
+            style="font-size: 11px; color: #59636e; margin-top: 6px; max-width: 236px"
+          >
+            下方空间不足时菜单<b>右下角</b>对齐点位，向<b>上、左</b>铺开（仍向左）。
+          </div>
+        </div>
+        <!-- 禁用态对照 -->
+        <div class="fcol">
+          <div class="fcap">禁用态（粘贴空 / Finder 非桌面 / 无对话）</div>
+          <div class="ctx" style="width: 236px; margin-top: 0">
+            <div class="ctxcap">A 空白 · 剪贴板空 + Web 端</div>
+            <div class="ctxi">新建文件</div>
+            <div class="ctxi dis">粘贴<span class="ki">剪贴板空</span></div>
+            <div class="ctxi dis">在 Finder 中显示<span class="ki">仅桌面</span></div>
+            <div class="ctxsep"></div>
+            <div class="ctxcap">C 文件 · 无活跃对话</div>
+            <div class="ctxi">复制路径</div>
+            <div class="ctxi dis">将文件添加到聊天<span class="ki">无对话</span></div>
+            <div class="ctxi">删除</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 第三排：内联新建 / 内联重命名 -->
+      <div class="stage" style="margin-top: 18px">
+        <div class="fcol">
+          <div class="fcap">内联新建（就地可编辑新行 + 光标）</div>
+          <div class="ftcard tiny">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow">
+                <span class="chev"
+                  ><svg class="i xs"><use href="#chev-d" /></svg></span
+                ><span class="ficon fi-folder-open"
+                  ><svg class="i sm"><use href="#folder-open" /></svg></span
+                ><span class="tlabel">src</span>
+              </div>
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-default"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="inlinput"><span class="caret"></span></span>
+              </div>
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">Button.tsx</span>
+              </div>
+            </div>
+          </div>
+          <div
+            class="ss"
+            style="font-size: 11px; color: #59636e; margin-top: 6px; max-width: 236px"
+          >
+            空输入行插在目标目录内，光标聚焦；图标随输入后缀实时切换。
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">内联重命名（原行变输入框 · 名选中）</div>
+          <div class="ftcard tiny">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="inlinput"
+                  ><span class="sel">Button</span>.tsx<span class="caret"></span
+                ></span>
+              </div>
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">Modal.tsx</span>
+              </div>
+            </div>
+          </div>
+          <div
+            class="ss"
+            style="font-size: 11px; color: #59636e; margin-top: 6px; max-width: 236px"
+          >
+            原行变输入框，<b>主名段（不含扩展名）选中</b>，扩展名保留。
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">内联校验错误（重名）</div>
+          <div class="ftcard tiny">
+            <div class="ft-bar">
+              <div class="ft-root">
+                <svg class="i sm fi-folder-open"><use href="#folder-open" /></svg
+                ><span class="rdir">my-app</span
+                ><svg class="i xs rchev"><use href="#chev-d" /></svg>
+              </div>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#search" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#folder-switch" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#collapse-all" /></svg>
+              </button>
+              <button class="ftbtn">
+                <svg class="i sm"><use href="#refresh" /></svg>
+              </button>
+            </div>
+            <div class="ft-body">
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="inlinput err">Modal.tsx<span class="caret"></span></span>
+              </div>
+              <div class="inlerr">
+                <svg class="i xs" style="color: #cf222e"><use href="#alert" /></svg>已存在同名文件
+              </div>
+              <div class="trow" style="padding-left: 20px">
+                <span class="chev blank"></span
+                ><span class="ficon fi-tsx"
+                  ><svg class="i sm"><use href="#file" /></svg></span
+                ><span class="tlabel">Modal.tsx</span>
+              </div>
+            </div>
+          </div>
+          <div
+            class="ss"
+            style="font-size: 11px; color: #59636e; margin-top: 6px; max-width: 236px"
+          >
+            重名/非法字符 → 输入框红边 + 行下红字；Enter 被拦，Esc 取消。
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <!-- ① 布局 -->
+          <div class="anno-card span2">
+            <div class="ac-h">① 布局（浮层尺寸 / 分组 / 定位与翻转）</div>
+            <div class="states">
+              <dl>
+                <dt>平台</dt>
+                <dd>
+                  <b>桌面 only</b>（右键 = 鼠标 contextmenu）。<b>紧凑 / 手机态 deferred</b
+                  >（无右键，后续以长按菜单替代）。
+                </dd>
+                <dt>浮层</dt>
+                <dd>
+                  白底卡，圆角 10、阴影 <b>0 8px 24px</b>；宽约 <b>232</b>；项行高 30、圆角
+                  6、<b>菜单项纯文字无前置图标</b>，右侧灰提示（如「剪贴板空」「仅桌面」「无对话」）。<b>分隔线</b>把：新建组
+                  / 剪贴板组（剪切·复制·重命名·粘贴·删除）/ 路径与显示组 / 加入聊天，四组分开。
+                </dd>
+                <dt>定位</dt>
+                <dd>
+                  <b>目录树在窗口右侧 → 菜单一律向左展开</b
+                  >。纵向默认<b>向下</b>：菜单<b>右上角对齐右键点位</b>，向<b>下 + 左</b>铺开（=
+                  左下）。
+                </dd>
+                <dt>边界翻转</dt>
+                <dd>
+                  <b>仅纵向翻转</b>：当左下方在窗口内放不下（点位贴近<b>下边界</b>）→
+                  翻到点位上方，菜单<b>右下角对齐点位</b>，向<b>上 + 左</b>铺开（=
+                  左上）。横向始终向左，不向右翻。始终保证菜单完整可见、不溢出窗口。
+                </dd>
+                <dt>右键行</dt>
+                <dd>
+                  被右键的行<b>保持高亮</b>（#eaeef2）直到菜单关闭；右键<b>不改变</b>已有的文件选中态。空白区右键无行高亮。
+                </dd>
+              </dl>
+            </div>
+          </div>
+
+          <!-- ② 状态 -->
+          <div class="anno-card span2">
+            <div class="ac-h">② 状态（菜单项 默认/hover/禁用 · 内联 聚焦/校验错误）</div>
+            <div class="states">
+              <dl>
+                <dt>默认</dt>
+                <dd>项文字深灰、左图标灰。</dd>
+                <dt>hover</dt>
+                <dd>项底 <b>#f6f8fa</b>，图标转深灰；键盘 ↑↓ 高亮同效，Enter 触发。</dd>
+                <dt>禁用</dt>
+                <dd>
+                  置灰 .5 不可点：<b>粘贴</b>（剪贴板空）；<b>在 Finder 中显示</b>（非桌面端 /
+                  无原生能力）；<b>将文件添加到聊天</b>（无活跃对话）；<b>删除</b>（破坏性，需先确认）。
+                </dd>
+                <dt>内联聚焦</dt>
+                <dd>输入框蓝边 + 3px 蓝环；新建 = 空+光标，重命名 = 主名段选中（扩展名留）。</dd>
+                <dt>校验错误</dt>
+                <dd>
+                  重名 / 非法字符 / 空名 → 输入框<b>红边</b> +
+                  行下红字（如「已存在同名文件」）；Enter 拦截不提交，Esc 取消回原态。
+                </dd>
+                <dt>提交</dt>
+                <dd>
+                  Enter 合法 → 写入并按序归位、选中新项；失焦默认提交（合法）/ 取消（空新建）。
+                </dd>
+              </dl>
+            </div>
+          </div>
+
+          <!-- ③ 右键菜单（本屏主体 · 三套逐项 + 点击效果） -->
+          <div class="anno-card span2">
+            <div class="ac-h">③ 右键菜单（本屏主体 · 三套逐项 + 点击效果）</div>
+            <div class="menulist">
+              <div class="ml-i">
+                <b>差异速记：</b>「在文件中查找」= 空白 + 文件有、<b>目录没有</b>；「粘贴」= 空白 +
+                目录有、<b>文件没有</b>；剪切 / 复制 / 重命名 / 将文件添加到聊天 / 删除 =
+                <b>目录 + 文件</b>有、空白没有。
+              </div>
+              <div class="ml-open">
+                <b>A · 空白区</b><br />
+                新建文件 → 在<b>当前根</b>内联新建一行；新建文件夹 → 内联新建文件夹；粘贴 →
+                把剪贴板项<b>移动（剪切来）/ 拷贝（复制来）</b>到根，剪贴板空时<b>置灰</b> ‖ 在
+                Finder 中显示 → 系统定位根目录；在文件中查找 → 打开内容搜索（→
+                <b>sFT5</b>）；复制路径 → 绝对路径入系统剪贴板；复制相对路径 → 相对根路径入剪贴板。
+              </div>
+              <div class="ml-open">
+                <b>B · 目录行</b><br />
+                新建文件 / 新建文件夹 → 在<b>该目录内</b>内联新建（自动展开该目录）；粘贴 →
+                移动/拷贝到该目录（条件同上） ‖ 剪切 / 复制 →
+                把该目录引用<b>入剪贴板</b>（剪切的目录半透明标记）；重命名 → 该行<b>内联重命名</b>
+                ‖ 在 Finder 中显示 → 系统定位该目录；复制路径 / 复制相对路径 → 写剪贴板 ‖
+                将文件添加到聊天 → 把<b>该目录引用</b>加入当前对话
+                composer（<b>与对话模块联动</b>），无活跃对话时<b>置灰</b>。
+              </div>
+              <div class="ml-open">
+                <b>C · 文件行</b><br />
+                新建文件 → 在<b>该文件所在目录</b>内联新建 ‖ 剪切 / 复制 → 文件引用入剪贴板；重命名
+                → 内联重命名（主名段选中） ‖ 在 Finder 中显示 → 系统定位该文件；在文件中查找 →
+                打开内容搜索（→ <b>sFT5</b>）；复制路径 / 复制相对路径 → 写剪贴板 ‖ 将文件添加到聊天
+                → 把<b>该文件引用</b>加入当前对话
+                composer（<b>与对话模块联动</b>），无活跃对话时<b>置灰</b>。
+              </div>
+            </div>
+          </div>
+
+          <!-- ④ 点击效果汇总 -->
+          <div class="anno-card span2">
+            <div class="ac-h">④ 点击效果（汇总 · 出口）</div>
+            <ol>
+              <li>
+                <span class="pin">1</span>
+                <div>
+                  <b>新建文件 / 新建文件夹</b> → 目标位置插入<b>内联输入行</b>（聚焦 + 光标）；Enter
+                  合法写入→选中新项，重名→校验错误，Esc→取消。
+                </div>
+              </li>
+              <li>
+                <span class="pin">2</span>
+                <div><b>重命名</b> → 原行变<b>内联输入框</b>（主名选中）；同上提交/校验/取消。</div>
+              </li>
+              <li>
+                <span class="pin">3</span>
+                <div>
+                  <b>剪切 / 复制</b> →
+                  文件/目录引用<b>入剪贴板</b>（剪切项后续粘贴为移动并清剪贴板，复制为拷贝可重复粘贴）；剪切项树中半透明标记。
+                </div>
+              </li>
+              <li>
+                <span class="pin">4</span>
+                <div>
+                  <b>粘贴</b> → 把剪贴板项<b>移动 / 拷贝到目标</b
+                  >（空白=根、目录行=该目录）；剪贴板空时该项置灰不可点。
+                </div>
+              </li>
+              <li>
+                <span class="pin">5</span>
+                <div>
+                  <b>在 Finder 中显示</b> → 调系统在文件管理器定位该项；<b>非桌面端置灰</b>。
+                </div>
+              </li>
+              <li>
+                <span class="pin">6</span>
+                <div>
+                  <b>在文件中查找</b> →
+                  打开/切到<b>内容搜索（sFT5）</b>，以该目录为范围（文件项=其所在目录/根）。
+                </div>
+              </li>
+              <li>
+                <span class="pin">7</span>
+                <div>
+                  <b>复制路径 / 复制相对路径</b> → 绝对 / 相对根路径写入<b>系统剪贴板</b>（短暂
+                  toast 由壳层提供）。
+                </div>
+              </li>
+              <li>
+                <span class="pin">8</span>
+                <div>
+                  <b>将文件添加到聊天</b> → 把文件 / 目录<b>引用加入当前对话 composer</b
+                  >（<b>与对话模块联动</b>）；<b>无活跃对话时置灰</b>。
+                </div>
+              </li>
+              <li>
+                <span class="pin">9</span>
+                <div>
+                  <b>删除</b> → 先弹确认；确认后删除文件 / 目录并刷新该层。<b>取消</b>则不执行。
+                </div>
+              </li>
+              <li>
+                <span class="pin">10</span>
+                <div><b>关闭</b>：点菜单外 / Esc / 选完一项 → 浮层关闭，右键行高亮复原。</div>
+              </li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>

@@ -10,6 +10,7 @@ import { i18nModel } from "../i18n/i18n-model";
 import { type ShellContext, shellModel } from "../model/shell-model";
 import { WINDOW_PADDING } from "../theme/shell-tokens";
 import { resolveThemeScheme, themeModel } from "../theme/theme-model";
+import { FileTreeRegion } from "./file-tree-region";
 import { RegionFrame } from "./region-frame";
 import { RegionGutter } from "./region-gutter";
 import { RegionPlaceholder } from "./region-placeholder";
@@ -98,7 +99,11 @@ export const ShellRoot = observer(function ShellRoot({ ctx }: { ctx: ShellContex
               currentWidth={visible.fileTree}
             />
             <RegionFrame kind="content" width={visible.fileTree}>
-              <RegionPlaceholder variant="fileTree" />
+              {ctx.serverId != null ? (
+                <FileTreeRegion serverId={ctx.serverId} workspaceKey={workspaceKey} />
+              ) : (
+                <RegionPlaceholder variant="fileTree" />
+              )}
             </RegionFrame>
           </Fragment>
         ) : null}
@@ -110,11 +115,15 @@ export const ShellRoot = observer(function ShellRoot({ ctx }: { ctx: ShellContex
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    width: "100%",
+    height: "100%",
+    minWidth: 0,
+    minHeight: 0,
     flexDirection: "column",
     gap: 4,
     paddingTop: WINDOW_PADDING.top,
     paddingHorizontal: WINDOW_PADDING.horizontal,
     paddingBottom: WINDOW_PADDING.bottom,
   },
-  row: { flex: 1, minHeight: 0, flexDirection: "row" },
+  row: { flex: 1, width: "100%", minWidth: 0, minHeight: 0, flexDirection: "row" },
 });

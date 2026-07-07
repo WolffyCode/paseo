@@ -1,5 +1,14 @@
 import { execSync } from "child_process";
-import { mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "fs";
 import { homedir, tmpdir } from "os";
 import { join, resolve as resolvePath } from "path";
 import pino from "pino";
@@ -391,6 +400,251 @@ describe("file explorer binary responses", () => {
       requestId: "req-new-client",
       payload: new Uint8Array(),
     });
+  });
+});
+
+describe("file tree fs RPCs", () => {
+  const tempDirs: string[] = [];
+
+  afterEach(() => {
+    for (const dir of tempDirs.splice(0)) {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  function makeRoot(): string {
+    const root = realpathSync(mkdtempSync(join(tmpdir(), "fs-tree-session-test-")));
+    tempDirs.push(root);
+    return root;
+  }
+
+  test("fs.create writes an empty file and emits the landed path", async () => {
+    const cwd = makeRoot();
+    const messages: unknown[] = [];
+    const session = createSessionForTest({ messages });
+
+    await session.handleMessage({
+      type: "fs.create.request",
+      root: cwd,
+      path: "notes.txt",
+      requestId: "req-create",
+    });
+
+    expect(messages).toEqual([
+      {
+        type: "fs.create.response",
+        payload: { requestId: "req-create", path: "notes.txt" },
+      },
+    ]);
+    expect(readFileSync(join(cwd, "notes.txt"), "utf-8")).toBe("");
+  });
+
+  test("fs.create on an existing name routes to rpc_error and leaves content intact", async () => {
+    const cwd = makeRoot();
+    writeFileSync(join(cwd, "dup.txt"), "existing");
+    const messages: Array<{ type: string; payload: { requestType?: string; requestId: string } }> =
+      [];
+    const session = createSessionForTest({ messages });
+
+    await session.handleMessage({
+      type: "fs.create.request",
+      root: cwd,
+      path: "dup.txt",
+      requestId: "req-dup",
+    });
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].type).toBe("rpc_error");
+    expect(messages[0].payload.requestType).toBe("fs.create.request");
+    expect(messages[0].payload.requestId).toBe("req-dup");
+    expect(readFileSync(join(cwd, "dup.txt"), "utf-8")).toBe("existing");
+  });
+
+  test("fs.create rejects a path that escapes the root via rpc_error", async () => {
+    const cwd = makeRoot();
+    const messages: Array<{ type: string; payload: { error: string } }> = [];
+    const session = createSessionForTest({ messages });
+
+    await session.handleMessage({
+      type: "fs.create.request",
+      root: cwd,
+      path: "../escape.txt",
+      requestId: "req-escape",
+    });
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].type).toBe("rpc_error");
+    expect(messages[0].payload.error).toContain("Access outside of workspace is not allowed");
+  });
+
+  test("fs.mkdir, fs.rename, fs.copy and fs.move land entries and echo their paths", async () => {
+    const cwd = makeRoot();
+    const messages: Array<{ type: string; payload: { path?: string } }> = [];
+    const session = createSessionForTest({ messages });
+
+    // mkdir lib → create a.ts → rename to b.ts → copy b.ts into lib → move (the original) b.ts into out.
+    await session.handleMessage({
+      type: "fs.mkdir.request",
+      root: cwd,
+      path: "lib",
+      requestId: "req-mkdir",
+    });
+    await session.handleMessage({
+      type: "fs.mkdir.request",
+      root: cwd,
+      path: "out",
+      requestId: "req-mkdir-out",
+    });
+    await session.handleMessage({
+      type: "fs.create.request",
+      root: cwd,
+      path: "a.ts",
+      requestId: "req-mk-file",
+    });
+    await session.handleMessage({
+      type: "fs.rename.request",
+      root: cwd,
+      path: "a.ts",
+      newName: "b.ts",
+      requestId: "req-rename",
+    });
+    await session.handleMessage({
+      type: "fs.copy.request",
+      root: cwd,
+      from: "b.ts",
+      toDir: "lib",
+      requestId: "req-copy",
+    });
+    await session.handleMessage({
+      type: "fs.move.request",
+      root: cwd,
+      from: "b.ts",
+      toDir: "out",
+      requestId: "req-move",
+    });
+
+    const byRequest = new Map(
+      messages.map((m) => [(m.payload as { requestId: string }).requestId, m]),
+    );
+    expect(byRequest.get("req-mkdir")).toEqual({
+      type: "fs.mkdir.response",
+      payload: { requestId: "req-mkdir", path: "lib" },
+    });
+    expect(byRequest.get("req-rename")).toEqual({
+      type: "fs.rename.response",
+      payload: { requestId: "req-rename", path: "b.ts" },
+    });
+    expect(byRequest.get("req-copy")).toEqual({
+      type: "fs.copy.response",
+      payload: { requestId: "req-copy", path: "lib/b.ts" },
+    });
+    expect(byRequest.get("req-move")).toEqual({
+      type: "fs.move.response",
+      payload: { requestId: "req-move", path: "out/b.ts" },
+    });
+    // No write produced an error; the copy kept lib/b.ts and the move relocated the original to out/b.ts.
+    expect(messages.some((m) => m.type === "rpc_error")).toBe(false);
+    expect(readFileSync(join(cwd, "lib/b.ts"), "utf-8")).toBe("");
+    expect(readFileSync(join(cwd, "out/b.ts"), "utf-8")).toBe("");
+  });
+
+  test("fs.delete removes a file (and a directory recursively) and echoes the removed path", async () => {
+    const cwd = makeRoot();
+    writeFileSync(join(cwd, "gone.txt"), "bye");
+    mkdirSync(join(cwd, "tree/nested"), { recursive: true });
+    writeFileSync(join(cwd, "tree/nested/deep.ts"), "deep");
+    const messages: Array<{ type: string; payload: { path?: string; requestId: string } }> = [];
+    const session = createSessionForTest({ messages });
+
+    await session.handleMessage({
+      type: "fs.delete.request",
+      root: cwd,
+      path: "gone.txt",
+      requestId: "req-del-file",
+    });
+    await session.handleMessage({
+      type: "fs.delete.request",
+      root: cwd,
+      path: "tree",
+      requestId: "req-del-dir",
+    });
+
+    const byRequest = new Map(messages.map((m) => [m.payload.requestId, m]));
+    expect(byRequest.get("req-del-file")).toEqual({
+      type: "fs.delete.response",
+      payload: { requestId: "req-del-file", path: "gone.txt" },
+    });
+    expect(byRequest.get("req-del-dir")).toEqual({
+      type: "fs.delete.response",
+      payload: { requestId: "req-del-dir", path: "tree" },
+    });
+    expect(messages.some((m) => m.type === "rpc_error")).toBe(false);
+    expect(existsSync(join(cwd, "gone.txt"))).toBe(false);
+    expect(existsSync(join(cwd, "tree"))).toBe(false);
+  });
+
+  test("fs.delete on a missing entry routes to rpc_error", async () => {
+    const cwd = makeRoot();
+    const messages: Array<{ type: string; payload: { requestType?: string; requestId: string } }> =
+      [];
+    const session = createSessionForTest({ messages });
+
+    await session.handleMessage({
+      type: "fs.delete.request",
+      root: cwd,
+      path: "ghost.ts",
+      requestId: "req-del-missing",
+    });
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].type).toBe("rpc_error");
+    expect(messages[0].payload.requestType).toBe("fs.delete.request");
+    expect(messages[0].payload.requestId).toBe("req-del-missing");
+  });
+
+  test("fs.search content mode emits matches scoped to the root", async () => {
+    const cwd = makeRoot();
+    mkdirSync(join(cwd, "src"));
+    writeFileSync(join(cwd, "src/alpha.ts"), "const needle = 1;\n");
+    writeFileSync(join(cwd, "src/beta.ts"), "const other = 2;\n");
+    const messages: Array<{
+      type: string;
+      payload: { matches: Array<{ path: string }>; truncated: boolean; requestId: string };
+    }> = [];
+    const session = createSessionForTest({ messages });
+
+    await session.handleMessage({
+      type: "fs.search.request",
+      root: cwd,
+      query: "needle",
+      mode: "content",
+      requestId: "req-search",
+    });
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].type).toBe("fs.search.response");
+    expect(messages[0].payload.requestId).toBe("req-search");
+    expect(messages[0].payload.matches.map((m) => m.path)).toEqual(["src/alpha.ts"]);
+    expect(messages[0].payload.truncated).toBe(false);
+  });
+
+  test("fs.search rejects a basePath escaping the root via rpc_error", async () => {
+    const cwd = makeRoot();
+    const messages: Array<{ type: string; payload: { error: string } }> = [];
+    const session = createSessionForTest({ messages });
+
+    await session.handleMessage({
+      type: "fs.search.request",
+      root: cwd,
+      query: "needle",
+      mode: "content",
+      basePath: "..",
+      requestId: "req-search-escape",
+    });
+
+    expect(messages).toHaveLength(1);
+    expect(messages[0].type).toBe("rpc_error");
+    expect(messages[0].payload.error).toContain("Access outside of workspace is not allowed");
   });
 });
 

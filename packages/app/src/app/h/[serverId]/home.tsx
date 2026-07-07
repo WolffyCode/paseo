@@ -21,6 +21,7 @@ export default function HostHomeRoute() {
     () => ({
       showsShell: serverId.length > 0,
       workspaceKey: serverId.length > 0 ? `${serverId}:__home__` : null,
+      serverId: serverId.length > 0 ? serverId : null,
     }),
     [serverId],
   );
