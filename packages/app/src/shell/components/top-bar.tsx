@@ -14,7 +14,6 @@ import {
 import { themeModel } from "../theme/theme-model";
 import { BackButton } from "./back-button";
 import {
-  iconForeground,
   iconMuted,
   type ShellIcon,
   ShellFolderTree,
@@ -48,7 +47,13 @@ export const TopBar = observer(function TopBar() {
     <View style={styles.bar} testID="top-bar">
       <ShellTitlebarDragRegion />
       <View style={styles.inset} />
-      <TopBarToggle icon={ShellPanelLeft} toggle={bar.left} onPress={onToggleLeft} />
+      <TopBarToggle
+        icon={ShellPanelLeft}
+        toggle={bar.left}
+        onPress={onToggleLeft}
+        label="侧栏"
+        testID="top-bar-toggle-left"
+      />
       {bar.showBack ? <BackButton /> : null}
       <View style={styles.spacer} />
       <View style={s.slot}>
@@ -63,6 +68,8 @@ export const TopBar = observer(function TopBar() {
             icon={ShellFolderTree}
             toggle={bar.fileTree}
             onPress={shellModel.toggleFileTree}
+            label="目录树"
+            testID="top-bar-toggle-file-tree"
           />
         ) : null}
         {bar.right ? (
@@ -70,6 +77,8 @@ export const TopBar = observer(function TopBar() {
             icon={ShellPanelRight}
             toggle={bar.right}
             onPress={shellModel.toggleRight}
+            label="右侧栏"
+            testID="top-bar-toggle-right"
           />
         ) : null}
       </View>
@@ -77,17 +86,25 @@ export const TopBar = observer(function TopBar() {
   );
 });
 
-// One 28x28 region toggle. The active fill (very light gray) is the primary open-state
-// signal; hover is a faint wash on web only. Disabled (no workspace) is non-interactive.
-// `observer` so a scheme flip repaints the fill + icon color.
+// One region toggle: a 36×36 REAL press target (negative margins keep the layout at the visual
+// 28px footprint) wrapping the 28×28 chip, so near-miss clicks still land. The padding must be
+// real: RN-web ignores `hitSlop` for mouse clicks (DOM hit testing stops at the element box).
+// The active fill (very light gray) is the primary open-state signal; hover is a faint wash on
+// web only. Disabled (no workspace) is non-interactive. `observer` so a scheme flip repaints the
+// fill + icon color. Labeled + testID'd so the toggles are reachable by assistive tech and UI
+// automation (they are icon-only).
 const TopBarToggle = observer(function TopBarToggle({
   icon: Icon,
   toggle,
   onPress,
+  label,
+  testID,
 }: {
   icon: ShellIcon;
   toggle: ToggleModel;
   onPress: () => void;
+  label: string;
+  testID: string;
 }) {
   const [hovered, setHovered] = useState(false);
   const onIn = useCallback(() => setHovered(true), []);
@@ -97,27 +114,33 @@ const TopBarToggle = observer(function TopBarToggle({
     [toggle.active, toggle.enabled],
   );
   const tk = themeModel.tokens;
-  const toggleStyle = useMemo(() => {
+  // Active = accent-blue soft fill + accent icon — unmistakably "on" (the old light-gray fill
+  // read as nothing at a glance; chairman gate-3 feedback).
+  const chipStyle = useMemo(() => {
     let backgroundColor = "transparent";
     if (toggle.active) {
-      backgroundColor = tk.toggleActive;
+      backgroundColor = tk.accentSoft;
     } else if (isWeb && hovered && toggle.enabled) {
       backgroundColor = tk.toggleHover;
     }
     return [styles.toggle, { backgroundColor }];
   }, [toggle.active, toggle.enabled, hovered, tk]);
-  const iconColor = toggle.active ? iconForeground(tk) : iconMuted(tk);
+  const iconColor = toggle.active ? tk.accent : iconMuted(tk);
   return (
     <Pressable
       disabled={!toggle.enabled}
       onPress={onPress}
       onHoverIn={onIn}
       onHoverOut={onOut}
-      style={toggleStyle}
+      style={styles.toggleHit}
       accessibilityRole="button"
       accessibilityState={accessibilityState}
+      accessibilityLabel={label}
+      testID={testID}
     >
-      <Icon size={16} color={iconColor} />
+      <View style={chipStyle}>
+        <Icon size={16} color={iconColor} />
+      </View>
     </Pressable>
   );
 });
@@ -142,6 +165,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   slotText: { fontSize: 12, fontWeight: "500" },
+  // The REAL press target: TOGGLE_SIZE+8 with -4 margins so layout keeps the visual footprint.
+  toggleHit: {
+    width: TOGGLE_SIZE + 8,
+    height: TOGGLE_SIZE + 8,
+    margin: -4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   toggle: {
     width: TOGGLE_SIZE,
     height: TOGGLE_SIZE,

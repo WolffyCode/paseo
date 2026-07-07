@@ -408,6 +408,11 @@ async function createWindow(
     title,
     ...resolveWindowBounds(restoredWindowState),
     show: false,
+    // Deliver the first click to the control under the cursor even when the window is unfocused,
+    // instead of swallowing it just to activate the window (the macOS default). Without this a click
+    // into an inactive window (e.g. the file-tree search toggle) needs two clicks — one to focus, one
+    // to act. Matches the responsive feel of CodePilot and native editors.
+    acceptFirstMouse: true,
     // On mac this spreads transparent + vibrancy:'menu' + alpha-0 backgroundColor
     // + visualEffectState so the NSVisualEffectView shows through the shell gutters;
     // off mac it's a solid opaque backdrop. Mirrors CodePilot's window.

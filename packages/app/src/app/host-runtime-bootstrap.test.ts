@@ -508,14 +508,14 @@ describe("resolveStartupRoute", () => {
     ).toEqual({ kind: "splash" });
   });
 
-  it("lands a returning user on a fresh new conversation, never a restored workspace", () => {
+  it("lands a returning user on the shell home, never a restored workspace", () => {
     expect(
       resolveStartupRoute({
         ...baseIndexInput,
         hosts: [{ serverId: "server-1" }],
         anyOnlineHostServerId: "server-1",
       }),
-    ).toEqual({ kind: "redirect", href: "/h/server-1/new" });
+    ).toEqual({ kind: "redirect", href: "/h/server-1/home" });
   });
 
   it("keeps startup on the splash while the host registry is loading", () => {
@@ -527,13 +527,13 @@ describe("resolveStartupRoute", () => {
     ).toEqual({ kind: "splash" });
   });
 
-  it("lands on a fresh new conversation as soon as a host is online", () => {
+  it("lands on the shell home as soon as a host is online", () => {
     expect(
       resolveStartupRoute({
         ...baseIndexInput,
         anyOnlineHostServerId: "srv-desktop",
       }),
-    ).toEqual({ kind: "redirect", href: "/h/srv-desktop/new" });
+    ).toEqual({ kind: "redirect", href: "/h/srv-desktop/home" });
   });
 
   it("waits on the splash while a returning user is still connecting to a saved host", () => {
@@ -619,14 +619,14 @@ describe("resolveStartupRoute", () => {
     ).toEqual({ kind: "render" });
   });
 
-  it("sends removed host routes to a saved host's new conversation instead of welcome", () => {
+  it("sends removed host routes to a saved host's shell home instead of welcome", () => {
     expect(
       resolveStartupRoute({
         ...baseHostInput,
         route: { kind: "host", serverId: "server-removed" },
         hosts: [{ serverId: "server-next" }],
       }),
-    ).toEqual({ kind: "redirect", href: "/h/server-next/new" });
+    ).toEqual({ kind: "redirect", href: "/h/server-next/home" });
   });
 
   it("shows welcome from a host route only after the registry proves no hosts exist", () => {
@@ -646,10 +646,10 @@ describe("resolveStartupRoute", () => {
         hasGivenUpWaitingForHost: true,
         hasSeenWelcome: false,
       }),
-    ).toEqual({ kind: "redirect", href: "/h/srv-online/new" });
+    ).toEqual({ kind: "redirect", href: "/h/srv-online/home" });
   });
 
-  it("lands the onboarding route on a fresh new conversation once a host is online", () => {
+  it("lands the onboarding route on the shell home once a host is online", () => {
     expect(
       resolveStartupRoute({
         route: { kind: "welcome" },
@@ -658,7 +658,7 @@ describe("resolveStartupRoute", () => {
         hosts: [{ serverId: "server-1" }],
         anyOnlineHostServerId: "server-1",
       }),
-    ).toEqual({ kind: "redirect", href: "/h/server-1/new" });
+    ).toEqual({ kind: "redirect", href: "/h/server-1/home" });
   });
 
   it("renders the onboarding route while a saved host is still connecting", () => {
@@ -728,7 +728,7 @@ describe("index cold-start mount contract", () => {
     });
     expect(resolveStartupRoute({ ...rootInput, anyOnlineHostServerId: "srv-online" })).toEqual({
       kind: "redirect",
-      href: "/h/srv-online/new",
+      href: "/h/srv-online/home",
     });
   });
 });
