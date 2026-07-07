@@ -4319,3 +4319,321 @@ test("waitForFinish with timeout=0 omits timeoutMs and has no client deadline", 
     vi.useRealTimers();
   }
 });
+
+// Connect a client against the mock transport and return both so tests can capture sent frames and
+// inject responses. Shared by the fs-tree RPC tests below (7 near-identical connect dances otherwise).
+async function connectClientForFsTree() {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "clsk_unit_test",
+    logger: createMockLogger(),
+    reconnect: { enabled: false },
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+  const connectPromise = client.connect();
+  mock.triggerOpen();
+  await connectPromise;
+  return { client, mock };
+}
+
+test("fsSearch sends a fs.search.request and returns matches with truncated flag", async () => {
+  const { client, mock } = await connectClientForFsTree();
+
+  const responsePromise = client.fsSearch(
+    { root: "/repo", query: "needle", mode: "content", basePath: "src", limit: 50 },
+    { requestId: "req-search" },
+  );
+
+  expect(parseSentFrame(mock.sent[0])).toEqual({
+    type: "fs.search.request",
+    root: "/repo",
+    query: "needle",
+    mode: "content",
+    basePath: "src",
+    limit: 50,
+    requestId: "req-search",
+  });
+
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "fs.search.response",
+      payload: {
+        requestId: "req-search",
+        matches: [{ path: "src/alpha.ts", kind: "file", line: 1, preview: "const needle = 1;" }],
+        truncated: true,
+      },
+    }),
+  );
+
+  await expect(responsePromise).resolves.toEqual({
+    matches: [{ path: "src/alpha.ts", kind: "file", line: 1, preview: "const needle = 1;" }],
+    truncated: true,
+  });
+});
+
+test("fsSearch omits basePath and limit from the request when not provided", async () => {
+  const { client, mock } = await connectClientForFsTree();
+
+  const responsePromise = client.fsSearch(
+    { root: "/repo", query: "x", mode: "name" },
+    { requestId: "req-min" },
+  );
+
+  expect(parseSentFrame(mock.sent[0])).toEqual({
+    type: "fs.search.request",
+    root: "/repo",
+    query: "x",
+    mode: "name",
+    requestId: "req-min",
+  });
+
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "fs.search.response",
+      payload: { requestId: "req-min", matches: [], truncated: false },
+    }),
+  );
+
+  await expect(responsePromise).resolves.toEqual({ matches: [], truncated: false });
+});
+
+test("fsSearch with onProgress opts into progressive mode and streams batches before resolving", async () => {
+  const { client, mock } = await connectClientForFsTree();
+
+  const batches: Array<Array<{ path: string }>> = [];
+  const responsePromise = client.fsSearch(
+    { root: "/repo", query: "needle", mode: "content" },
+    { requestId: "req-prog", onProgress: (matches) => batches.push([...matches]) },
+  );
+
+  expect(parseSentFrame(mock.sent[0])).toEqual({
+    type: "fs.search.request",
+    root: "/repo",
+    query: "needle",
+    mode: "content",
+    progressive: true,
+    requestId: "req-prog",
+  });
+
+  // Two streamed batches — the second belongs to a DIFFERENT request and must be ignored.
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "fs.search.progress",
+      payload: { requestId: "req-prog", matches: [{ path: "a.ts", kind: "file" }] },
+    }),
+  );
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "fs.search.progress",
+      payload: { requestId: "req-other", matches: [{ path: "zzz.ts", kind: "file" }] },
+    }),
+  );
+  expect(batches).toEqual([[{ path: "a.ts", kind: "file" }]]);
+
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "fs.search.response",
+      payload: {
+        requestId: "req-prog",
+        matches: [
+          { path: "a.ts", kind: "file" },
+          { path: "b.ts", kind: "file" },
+        ],
+        truncated: false,
+      },
+    }),
+  );
+  await expect(responsePromise).resolves.toEqual({
+    matches: [
+      { path: "a.ts", kind: "file" },
+      { path: "b.ts", kind: "file" },
+    ],
+    truncated: false,
+  });
+
+  // The progress subscription is torn down with the request: late frames must not fire onProgress.
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "fs.search.progress",
+      payload: { requestId: "req-prog", matches: [{ path: "late.ts", kind: "file" }] },
+    }),
+  );
+  expect(batches).toEqual([[{ path: "a.ts", kind: "file" }]]);
+});
+
+test("fsCreate sends fs.create.request and returns the landed path", async () => {
+  const { client, mock } = await connectClientForFsTree();
+
+  const responsePromise = client.fsCreate("/repo", "src/new.ts", "req-create");
+
+  expect(parseSentFrame(mock.sent[0])).toEqual({
+    type: "fs.create.request",
+    root: "/repo",
+    path: "src/new.ts",
+    requestId: "req-create",
+  });
+
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "fs.create.response",
+      payload: { requestId: "req-create", path: "src/new.ts" },
+    }),
+  );
+
+  await expect(responsePromise).resolves.toEqual({ path: "src/new.ts" });
+});
+
+test("fsCreate rejects when the daemon answers with rpc_error", async () => {
+  const { client, mock } = await connectClientForFsTree();
+
+  const responsePromise = client.fsCreate("/repo", "dup.ts", "req-dup");
+
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "rpc_error",
+      payload: {
+        requestId: "req-dup",
+        requestType: "fs.create.request",
+        error: "An entry already exists at /repo/dup.ts",
+        code: "fs_request_failed",
+      },
+    }),
+  );
+
+  await expect(responsePromise).rejects.toThrow("An entry already exists");
+});
+
+test("fsMkdir sends fs.mkdir.request and returns the landed path", async () => {
+  const { client, mock } = await connectClientForFsTree();
+
+  const responsePromise = client.fsMkdir("/repo", "src/dir", "req-mkdir");
+
+  expect(parseSentFrame(mock.sent[0])).toEqual({
+    type: "fs.mkdir.request",
+    root: "/repo",
+    path: "src/dir",
+    requestId: "req-mkdir",
+  });
+
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "fs.mkdir.response",
+      payload: { requestId: "req-mkdir", path: "src/dir" },
+    }),
+  );
+
+  await expect(responsePromise).resolves.toEqual({ path: "src/dir" });
+});
+
+test("fsRename sends fs.rename.request and returns the new path", async () => {
+  const { client, mock } = await connectClientForFsTree();
+
+  const responsePromise = client.fsRename("/repo", "src/old.ts", "new.ts", "req-rename");
+
+  expect(parseSentFrame(mock.sent[0])).toEqual({
+    type: "fs.rename.request",
+    root: "/repo",
+    path: "src/old.ts",
+    newName: "new.ts",
+    requestId: "req-rename",
+  });
+
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "fs.rename.response",
+      payload: { requestId: "req-rename", path: "src/new.ts" },
+    }),
+  );
+
+  await expect(responsePromise).resolves.toEqual({ path: "src/new.ts" });
+});
+
+test("fsMove sends fs.move.request and returns the landed path", async () => {
+  const { client, mock } = await connectClientForFsTree();
+
+  const responsePromise = client.fsMove("/repo", "src/a.ts", "lib", "req-move");
+
+  expect(parseSentFrame(mock.sent[0])).toEqual({
+    type: "fs.move.request",
+    root: "/repo",
+    from: "src/a.ts",
+    toDir: "lib",
+    requestId: "req-move",
+  });
+
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "fs.move.response",
+      payload: { requestId: "req-move", path: "lib/a.ts" },
+    }),
+  );
+
+  await expect(responsePromise).resolves.toEqual({ path: "lib/a.ts" });
+});
+
+test("fsCopy sends fs.copy.request and returns the landed path", async () => {
+  const { client, mock } = await connectClientForFsTree();
+
+  const responsePromise = client.fsCopy("/repo", "src/a.ts", "lib", "req-copy");
+
+  expect(parseSentFrame(mock.sent[0])).toEqual({
+    type: "fs.copy.request",
+    root: "/repo",
+    from: "src/a.ts",
+    toDir: "lib",
+    requestId: "req-copy",
+  });
+
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "fs.copy.response",
+      payload: { requestId: "req-copy", path: "lib/a.ts" },
+    }),
+  );
+
+  await expect(responsePromise).resolves.toEqual({ path: "lib/a.ts" });
+});
+
+test("fsDelete sends fs.delete.request and returns the removed path", async () => {
+  const { client, mock } = await connectClientForFsTree();
+
+  const responsePromise = client.fsDelete("/repo", "src/old.ts", "req-delete");
+
+  expect(parseSentFrame(mock.sent[0])).toEqual({
+    type: "fs.delete.request",
+    root: "/repo",
+    path: "src/old.ts",
+    requestId: "req-delete",
+  });
+
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "fs.delete.response",
+      payload: { requestId: "req-delete", path: "src/old.ts" },
+    }),
+  );
+
+  await expect(responsePromise).resolves.toEqual({ path: "src/old.ts" });
+});
+
+test("fsDelete rejects when the daemon answers with rpc_error", async () => {
+  const { client, mock } = await connectClientForFsTree();
+
+  const responsePromise = client.fsDelete("/repo", "ghost.ts", "req-del-missing");
+
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "rpc_error",
+      payload: {
+        requestId: "req-del-missing",
+        requestType: "fs.delete.request",
+        error: "ENOENT: no such file or directory",
+        code: "fs_request_failed",
+      },
+    }),
+  );
+
+  await expect(responsePromise).rejects.toThrow("ENOENT");
+});
