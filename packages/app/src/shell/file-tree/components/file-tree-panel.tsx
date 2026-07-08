@@ -1,3 +1,4 @@
+import { reaction } from "mobx";
 import { observer } from "mobx-react-lite";
 import { useCallback, useEffect, useRef } from "react";
 import { FlatList, Pressable, StyleSheet, View } from "react-native";
@@ -107,6 +108,29 @@ const TreeBody = observer(function TreeBody({ store }: { store: FileTreeStore })
   // Thin themed overlay scrollbar on web (the native web scrollbar is a fat gutter — gate-3).
   const listRef = useRef<FlatList<TreeNodeView>>(null);
   const scrollbar = useWebScrollViewScrollbar(listRef);
+
+  // Scroll the selected row into view whenever an external reveal command locates it (M18, item 23①/②).
+  // Only reveal linkage bumps revealTick, so manual row clicks (which also set selectedPath) never yank
+  // the list; fireImmediately covers the reroot branch, where this list remounts after selection is set.
+  useEffect(() => {
+    return reaction(
+      () => store.revealTick,
+      () => scrollSelectedIntoView(store, listRef.current),
+      { fireImmediately: true },
+    );
+  }, [store]);
+
+  // A revealed row past the virtualization window isn't measured yet — approximate-scroll near it with
+  // the list's measured average row height instead of throwing (RN FlatList's scrollToIndex contract).
+  const onScrollToIndexFailed = useCallback(
+    (info: { index: number; averageItemLength: number }) => {
+      listRef.current?.scrollToOffset({
+        offset: info.averageItemLength * info.index,
+        animated: true,
+      });
+    },
+    [],
+  );
   return (
     <Pressable
       style={styles.bodyFill}
@@ -121,6 +145,7 @@ const TreeBody = observer(function TreeBody({ store }: { store: FileTreeStore })
         data={store.visibleNodes}
         renderItem={renderItem}
         keyExtractor={keyExtractor}
+        onScrollToIndexFailed={onScrollToIndexFailed}
         style={styles.body}
         contentContainerStyle={styles.bodyContent}
         onLayout={scrollbar.onLayout}
@@ -141,6 +166,16 @@ const TreeBody = observer(function TreeBody({ store }: { store: FileTreeStore })
 // Stable key for a tree row: its root-relative path (unique across the visible set).
 function keyExtractor(item: TreeNodeView): string {
   return item.path;
+}
+
+// Center the store's selected row in the list — the reveal linkage's scroll target (M18). A no-op when
+// nothing is selected or the row isn't in the visible set yet (e.g. its ancestors aren't listed), so a
+// missing row never throws. Module-level to keep the reveal effect's nesting flat.
+function scrollSelectedIntoView(store: FileTreeStore, list: FlatList<TreeNodeView> | null): void {
+  const index = store.visibleNodes.findIndex((node) => node.path === store.selectedPath);
+  if (index >= 0) {
+    list?.scrollToIndex({ index, viewPosition: 0.5, animated: true });
+  }
 }
 
 const styles = StyleSheet.create({

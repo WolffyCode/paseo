@@ -18,6 +18,7 @@ import type { FileTreeData, SearchInput } from "../data/file-tree-data";
 import { afterPaste, canPaste, setCopy, setCut } from "./clipboard-state";
 import { deriveContextMenuItems } from "./context-menu-items";
 import { validateInlineName } from "./inline-edit";
+import { resolveRevealAction } from "./reveal-action";
 import { resolveTreeRoot } from "./resolve-root";
 import { advanceSearch, isSearchAvailable } from "./search-state";
 import {
@@ -26,7 +27,7 @@ import {
   selectPath,
   toggleExpandedPath,
 } from "./tree-reducer";
-import { buildAbsoluteTreePath } from "../util/tree-paths";
+import { buildAbsoluteTreePath, parentDirectory, relativeToTreeRoot } from "../util/tree-paths";
 import type {
   Clipboard,
   ContextMenuItem,
@@ -116,6 +117,10 @@ export class FileTreeStore {
   // Root-relative tree state (everything below is in the same relative space as the host's entry paths).
   expanded = new Set<string>();
   selectedPath: string | null = null;
+  // Monotonic id bumped each time an external reveal command (revealFile) locates the selection, so the
+  // view can scroll the selected row into view. A plain selectedPath watch would also fire on manual row
+  // clicks (which must NOT auto-scroll), so the scroll trigger is this deliberate signal, not selection.
+  revealTick = 0;
   dirCache = new Map<string, TreeEntry[]>();
   nodeLoading = new Set<string>();
   nodeError = new Map<string, string>();
@@ -598,6 +603,37 @@ export class FileTreeStore {
       }
       this.selectedPath = path;
     });
+  }
+
+  // Public face (FileTreeController): the right-side file tab commands the tree to locate `absPath` when
+  // the user switches to / focuses its file tab. resolveRevealAction picks one of three pinned branches
+  // (requirement §3.2 / item 23) against the current absolute root; the store then reuses revealPath
+  // (expand ancestors + select) / reroot / select accordingly — it never re-derives the tree. Every
+  // branch ends by bumping revealTick so the view scrolls the located row into view (M18).
+  async revealFile(absPath: string): Promise<void> {
+    const currentRoot = this.absoluteRoot ?? this.hostRoot;
+    const { action } = resolveRevealAction({ targetAbsPath: absPath, currentRoot });
+
+    if (action === "reroot") {
+      // Out of bounds: re-show the tree rooted at the file's own directory, then select the file — now a
+      // direct child of the new root. Selection is set after the reroot so it survives the state reset.
+      const newRoot = parentDirectory(absPath);
+      await this.reroot(newRoot, "external");
+      runInAction(() => {
+        const base = this.absoluteRoot ?? this.hostRoot ?? newRoot;
+        this.selectedPath = relativeToTreeRoot({ treeRoot: base, absolutePath: absPath });
+        this.revealTick += 1;
+      });
+      return;
+    }
+
+    const relPath = relativeToTreeRoot({ treeRoot: currentRoot as string, absolutePath: absPath });
+    if (action === "reveal") {
+      this.revealPath(relPath);
+    } else {
+      this.select(relPath);
+    }
+    this.revealTick += 1;
   }
 
   // Begin a content search scoped to a file/directory (right-click "find in files").

@@ -12,6 +12,11 @@ export interface FileTreeController {
   // Feed a directory root → re-root the tree at it (clearing expanded/selected/search). Sole entry for
   // external "show this directory". Fire-and-forget from the caller's view (listing happens async).
   showDirectory(rootPath: string): void;
+  // Command the tree to locate an absolute file path when the right-side file tab is switched to / focused.
+  // The store dispatches the three branches (reveal deeper descendant / select direct child / reroot when
+  // out of bounds) via resolveRevealAction — the caller only sends the command, never re-draws the tree.
+  // Fire-and-forget from the caller's view (any reroot listing + the scroll happen async).
+  revealFile(absPath: string): void;
   // The current root (absolute host path), read-only.
   readonly rootPath: string | null;
   // The current selection (root-relative path), read-only — for the right-side file tab to consume later.

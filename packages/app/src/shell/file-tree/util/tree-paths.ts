@@ -47,6 +47,17 @@ export function relativeToTreeRoot(input: { treeRoot: string; absolutePath: stri
   return input.absolutePath;
 }
 
+/** The directory containing a path: everything before its last segment, trailing separator removed
+ *  (posix "/x" → "/"). Used by the reveal linkage to re-root at an out-of-bounds file's own directory. */
+export function parentDirectory(path: string): string {
+  const trimmed = path.trim().replace(/[\\/]+$/, "");
+  const index = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  if (index < 0) {
+    return trimmed;
+  }
+  return index === 0 ? trimmed.slice(0, 1) : trimmed.slice(0, index);
+}
+
 /** The display name of a path: its last non-empty segment (either separator style). */
 export function lastSegment(path: string): string {
   const parts = path.split(/[\\/]+/).filter(Boolean);

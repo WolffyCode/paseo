@@ -953,3 +953,60 @@ describe("FileTreeStore absolute root (bug: '~/Desktop' reveal/copy)", () => {
     expect(reveal).toHaveBeenCalledWith("/root/a.ts");
   });
 });
+
+describe("FileTreeStore revealFile (页签→树 three-branch linkage, item 23)", () => {
+  // The file tab commands the tree with an ABSOLUTE path; the store maps it to root-relative space and
+  // dispatches reveal/select/reroot by the file's relation to the current root. Each branch bumps
+  // revealTick so the view scrolls the located row into view — asserted without rendering.
+  test("deeper descendant → reveal: keeps the root, expands ancestors, selects, bumps revealTick", async () => {
+    const { data } = fakeData({ ".": [entry("src", "directory")] });
+    const { store } = makeStore({ data });
+    await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+    const before = store.revealTick;
+
+    await store.revealFile("/root/src/app/index.ts");
+
+    expect(store.rootPath).toBe("/root"); // root unchanged
+    expect(store.expanded.has("src")).toBe(true); // ancestor expanded
+    expect(store.expanded.has("src/app")).toBe(true);
+    expect(store.selectedPath).toBe("src/app/index.ts");
+    expect(store.revealTick).toBe(before + 1);
+  });
+
+  test("direct child → select: keeps root + expansion, only selects, bumps revealTick", async () => {
+    const { data } = fakeData({ ".": [entry("a.ts", "file")] });
+    const { store } = makeStore({ data });
+    await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+    const before = store.revealTick;
+
+    await store.revealFile("/root/a.ts");
+
+    expect(store.rootPath).toBe("/root"); // root unchanged
+    expect(store.expanded.size).toBe(0); // no ancestors expanded
+    expect(store.selectedPath).toBe("a.ts");
+    expect(store.revealTick).toBe(before + 1);
+  });
+
+  test("out of bounds → reroot at the file's directory, select it as a direct child, bump revealTick", async () => {
+    const { data } = fakeData({ ".": [entry("a.ts", "file")] });
+    const { store } = makeStore({ data });
+    await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+    const before = store.revealTick;
+
+    await store.revealFile("/elsewhere/pkg/a.ts");
+
+    expect(store.rootPath).toBe("/elsewhere/pkg"); // re-rooted at the file's own directory
+    expect(store.selectedPath).toBe("a.ts"); // file is now a direct child of the new root
+    expect(store.revealTick).toBe(before + 1);
+  });
+
+  test("no root yet → reroot at the file's directory and select it", async () => {
+    const { data } = fakeData({ ".": [entry("a.ts", "file")] });
+    const { store } = makeStore({ data });
+
+    await store.revealFile("/fresh/dir/a.ts");
+
+    expect(store.rootPath).toBe("/fresh/dir");
+    expect(store.selectedPath).toBe("a.ts");
+  });
+});

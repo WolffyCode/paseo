@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { buildAbsoluteTreePath, isAbsolutePath, relativeToTreeRoot } from "./tree-paths";
+import {
+  buildAbsoluteTreePath,
+  isAbsolutePath,
+  parentDirectory,
+  relativeToTreeRoot,
+} from "./tree-paths";
 
 describe("isAbsolutePath", () => {
   it("recognizes posix, UNC, and windows-drive absolute paths", () => {
@@ -48,6 +53,28 @@ describe("buildAbsoluteTreePath", () => {
     expect(buildAbsoluteTreePath({ treeRoot: "  ", entryPath: "src/index.ts" })).toBe(
       "src/index.ts",
     );
+  });
+});
+
+describe("parentDirectory", () => {
+  it("returns the directory containing a posix file", () => {
+    expect(parentDirectory("/work/project/src/index.ts")).toBe("/work/project/src");
+  });
+
+  it("returns the posix root for a top-level file", () => {
+    expect(parentDirectory("/index.ts")).toBe("/");
+  });
+
+  it("strips a trailing separator before taking the parent", () => {
+    expect(parentDirectory("/work/project/src/")).toBe("/work/project");
+  });
+
+  it("returns the directory containing a windows file", () => {
+    expect(parentDirectory("C:\\work\\project\\a.ts")).toBe("C:\\work\\project");
+  });
+
+  it("returns the value unchanged when it has no separator", () => {
+    expect(parentDirectory("a.ts")).toBe("a.ts");
   });
 });
 
