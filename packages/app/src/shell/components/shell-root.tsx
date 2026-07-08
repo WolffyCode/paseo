@@ -11,6 +11,7 @@ import { type ShellContext, shellModel } from "../model/shell-model";
 import { WINDOW_PADDING } from "../theme/shell-tokens";
 import { resolveThemeScheme, themeModel } from "../theme/theme-model";
 import { FileTreeRegion } from "./file-tree-region";
+import { RightPanelRegion } from "./right-panel-region";
 import { RegionFrame } from "./region-frame";
 import { RegionGutter } from "./region-gutter";
 import { RegionPlaceholder } from "./region-placeholder";
@@ -78,15 +79,34 @@ export const ShellRoot = observer(function ShellRoot({ ctx }: { ctx: ShellContex
           </Fragment>
         ) : null}
 
-        <RegionFrame kind="main">
-          <RegionPlaceholder variant={isSettings ? "settingsContent" : "center"} />
-        </RegionFrame>
+        {/* Center canvas — hidden when the right panel is maximized (it flex-fills the freed space; the
+            selector surfaces rightMaximized only for an open right panel on the conversation page). */}
+        {visible.rightMaximized ? null : (
+          <RegionFrame kind="main">
+            <RegionPlaceholder variant={isSettings ? "settingsContent" : "center"} />
+          </RegionFrame>
+        )}
 
         {visible.right != null && workspaceKey != null ? (
           <Fragment>
-            <RegionGutter region="right" workspaceKey={workspaceKey} currentWidth={visible.right} />
-            <RegionFrame kind="content" width={visible.right}>
-              <RegionPlaceholder variant="right" />
+            {/* Maximized: drop the resize gutter and flex the right frame over the hidden center; docked:
+                fixed remembered width with a gutter. Left rail + file tree stay put either way. */}
+            {visible.rightMaximized ? null : (
+              <RegionGutter
+                region="right"
+                workspaceKey={workspaceKey}
+                currentWidth={visible.right}
+              />
+            )}
+            <RegionFrame
+              kind={visible.rightMaximized ? "main" : "content"}
+              width={visible.rightMaximized ? undefined : visible.right}
+            >
+              {ctx.serverId != null ? (
+                <RightPanelRegion serverId={ctx.serverId} workspaceKey={workspaceKey} />
+              ) : (
+                <RegionPlaceholder variant="right" />
+              )}
             </RegionFrame>
           </Fragment>
         ) : null}
