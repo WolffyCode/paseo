@@ -32,7 +32,8 @@
   - **注入依赖**：`WorkbenchModel` 持一个注入的**内容工厂端口** `TabContentFactory`（`create(request) → TabContent`，`request` shape 见 §3.3 `OpenTabRequest`）；`openTab` 调 `factory.create(...)`、**不 import `FileDocumentModel`**——连构造层也不泄漏具体页签类型（M4）。工厂与 `TabContent` 同源一条缝，绑定在壳挂载点（§3.5），file 是其唯一注册项。
   - `mode` 派生：`tabs.length === 0 ? "launcher" : "tabs"`——「关全部回启动器」不是特判，是这条派生的自然结果（standards §1，不渲染即测）。
 - **纯函数模块（`WorkbenchModel` 委托的派生/策略，各自单测）**：
-  - `model/tab-instancing.ts` — `resolveTabInstancing(existing, request) → { action: "focus"; id } | { action: "append"; tab }`。**去重 + 单实例编排**在此一处裁决：`file` 按 target 去重（同一文件聚焦既有）、`review` 单实例、其余多实例。**不重造相等/身份原语**——复用既有 `workspace/file-open.ts` 的 `workspaceFileLocationsEqual` 与身份 `workspace-tabs/identity.ts`（file tab id = `file_${path}`）；**变的只是「去重编排」从旧 store 迁进本函数**，与 file-tree 桥的既有去重语义一致（§4）。
+  - `model/file-location.ts` — **shell 自有** `FileLocation`（`{ path; lineStart?; lineEnd? }`）+ `normalizeFileLocation(raw)`（trim / `\`→`/` / 段归一 / 行号钳制）+ `sameFilePath(a, b)`（**文件身份判定 = 归一 path、Windows 大小写不敏感**）。**等价重写自旧 `@/workspace/file-open` 的位置归一 + 路径相等、零跨目录引旧**（§4.2）。**关键（评审阻断修正）**：文件身份轴 = **path only**；`lineStart/lineEnd` 是**打开后定位参数、不参与身份**（见 tab-instancing）。
+  - `model/tab-instancing.ts` — `resolveTabInstancing(existing, requestPath) → { action: "focus"; id } | { action: "append"; tab }`。**去重/身份 = 归一 path**（`sameFilePath`）：`file` **一文件一 tab**（同一 path 命中既有 → focus，对齐旧 `file_${path}` + VSCode + 验收 item 17）、`review` 单实例、其余多实例。**行号不进身份**——「打开带行号的 location」= 命中既有则**聚焦 + 把行号交该 tab 的 `FileDocumentModel` 作 reveal/滚动目标（retarget，对齐旧 `applyEnsureTab`）**、未命中则 append 一个 **path 身份**新 tab、以该行号为初始滚动目标；**行号处理在 openFile 编排 / `FileDocumentModel`、不在 `resolveTabInstancing`**（它只裁身份）。新 tab `id` 由归一 path 生成（shell 自定格式，不借旧 `file_${path}`、不引旧 store）。**完整「跳转到行」交互（requirement §7 建议项 1）本轮 deferred**——此处只把**身份轴钉成 path**，让未来带行号源（对话文档地址/输出本地链接，§3.1）**零碰撞、不丢行号**地接入（正是评审要防的潜伏缺陷）。
   - `model/tab-order.ts` — `placeTabAtDropIndex(order, movingId, dropIndex) → order'`：拖拽调序的落位（无固定首位）。
   - `model/tab-kind-policy.ts` — **`TAB_KIND_POLICY` 静态表**（每类的实例规则/图标/本轮是否可用/`⌘P` 提示）。启动器与新建下拉**直接渲染这张表的静态投影**（`file` 可用；对话/浏览器/代码审核/终端 `enabled:false` + `comingSoon:true`）——**不套 `deriveLauncherItems` 函数**（无动态输入、需求无「milestone」概念，套一层是投机 indirection，M9）；去重/单实例也读它。**策略集中**（coding-standards：同一判别式散在 3 处就建表）。
 - **框架 UI（`observer` 纯渲染）**：`components/tab-bar.tsx`（Codex 胶囊 tab 头 + 末尾 `+` + 右上 ⤢/收起 + 悬浮 ✕/脏 ● 复用位）、`components/new-tab-menu.tsx`（新建下拉）、`components/tab-context-menu.tsx`（页签右键 3 项，复用 file-tree 的 `use-web-dom-click` 关闭外点）、`components/launcher.tsx`（竖排五类启动器）、`components/workbench.tsx`（组装 + 按 `focusedTab.kind` 委托给内容渲染器）。
@@ -69,7 +70,7 @@ type ActivityDot = "none" | "dirty";
 - **对话文档地址承接 / 输出本地链接落点**：都不新造入口——三来源与输出链接**统一落在**框架的 `RightPanelController.openFile(location)`（§3.3）。承接侧本轮就位；对话/终端的**发起侧**属各自模块、随其 deferred。
 - **同文件去重 / 切树根不删页签**：去重在 `resolveTabInstancing`（§1.A）；切树根是 file-tree 内部行为，与 `WorkbenchModel.tabs` 无耦合——**天然不删**（两模型无共享状态，这正是低耦合的收益，不需要任何「保留」代码）。
 
-纯函数（`file-tab/model/`，单测）：`document-kind.ts` — `classifyDocumentKind(path, mime) → DocumentKind`（复用 `@getpaseo/highlight` 的 `isLanguageSupported` + 既有 `isRenderedMarkdownFile`，image/binary 看 `FileReadResult.kind`/mime）；`find-state.ts` — `advanceFind(state, event)` 查找/替换状态机（**镜像** file-tree 的 `search-state.ts` `advanceSearch` 形态，不复制代码）。**写 RPC 入参就地组装**（`{ root, path, content: editor.getContent(), expectedModifiedAt: baseline.modifiedAt }` 是一次性对象字面量）——**不抽 `buildWriteFileInput`**：单行透传抽出来只是 indirection（standards §4，M10）。
+纯函数（`file-tab/model/`，单测）：`document-kind.ts` — `classifyDocumentKind(path, mime) → DocumentKind`（**共享包** `@getpaseo/highlight` 的 `isLanguageSupported` 判代码语言；md 判定用 **shell 自有扩展名判定**（**`trim().toLowerCase()` 后 `endsWith(".md"|".markdown")`**——大小写不敏感、`.mdx`/`.md.txt` 自然排除；逐字等价重写旧 `isRenderedMarkdownFile`、**不引旧 `@/components/file-pane-render-mode`**）；image/binary 看 `FileReadResult.kind`/mime——`FileReadResult` 出自**共享** `packages/client`、非旧 app 目录）；`find-state.ts` — `advanceFind(state, event)` 查找/替换状态机（**镜像** file-tree 的 `search-state.ts` `advanceSearch` 形态，不复制代码）。**写 RPC 入参就地组装**（`{ root, path, content: editor.getContent(), expectedModifiedAt: baseline.modifiedAt }` 是一次性对象字面量）——**不抽 `buildWriteFileInput`**：单行透传抽出来只是 indirection（standards §4，M10）。
 
 ### C. 编辑器内核（包裹成熟库 · 适配层）
 
@@ -78,7 +79,7 @@ type ActivityDot = "none" | "dirty";
 - **只渲染 + 发事件**：渲染 `FileDocumentModel` 给的初始内容；发 `onEdited`（→ `markEdited`）、`onBlur`（→ `autosaveOnBlur`）、`onReady`。
 - **持模型的是领域对象、不是它**：编辑器持有「活的编辑缓冲」（CodeMirror 的 `EditorState`）作为交互面，**领域对象不镜像每个字符**——保存时由领域对象**拉**（`handle.getContent()`）。脏是编辑器上报的一个布尔，不是内容副本（预答评审挑战①，§7）。
 - 暴露 imperative handle：`getContent()` / `applyExternalContent(text)`（冲突「重载」用）/ `find` 系操作委托 CodeMirror search 引擎并回报 `{ current, total }`。
-- md 预览复用既有 `MarkdownRenderer`；图片复用 RN `<Image>`（照旧 file-pane）；binary 只读兜底。
+- **md 预览**：`file-tab/components/markdown-preview.tsx` **新写**，构建在**共享 npm 引擎** `react-native-markdown-display` + `markdown-it` 上、代码围栏用 `@getpaseo/highlight`——**不引旧 `@/components/markdown/renderer`**。**图片**：`file-tab/components/image-preview.tsx` **新写薄** RN `<Image>`（client `readFile` bytes → data URI）——**不引旧 `@/components/file-pane`**。**binary** 只读兜底本地新写。（长期若不愿两份 md 包装，另议把 md 组件提升到**共享包**再共用——flag 给总监，非本轮。）
 
 ### D. 查找/替换控制器
 
@@ -117,7 +118,7 @@ type ActivityDot = "none" | "dirty";
 
 ### 3.1 打开文件（三来源 + 输出链接 → 统一落点）
 
-事件（树点文件 / 对话点文档地址 / 输出点本地路径 / 启动器·新建）→ `RightPanelController.openFile(location)` → `resolveTabInstancing`（去重）→ 命中则 `focusTab`，否则 `append` 新 `PanelTab{kind:"file"}`（其 `content = factory.create({ kind: "file", location })`，即 §3.3 `OpenTabRequest`；框架**不 import** 具体类，M4）→ `FileDocumentModel.load()`（`io.readFile`）→ `observer` 渲染。收起态先 `shellModel.openRight()`（复用壳行为）。
+事件（树点文件 / 对话点文档地址 / 输出点本地路径 / 启动器·新建）→ `RightPanelController.openFile(location)` → 按 `location.path` 走 `resolveTabInstancing`（**身份=path**）→ **命中**则 `focusTab` + 若 `location` 带行号则命令该 `FileDocumentModel` reveal 该行（retarget）；**未命中**则 `append` 新 `PanelTab{kind:"file"}`（`content = factory.create({ kind: "file", location })`，§3.3；框架**不 import** 具体类，M4）→ `FileDocumentModel.load()`（`io.readFile`）、带行号则作初始 reveal 目标 → `observer` 渲染。收起态先 `shellModel.openRight()`（复用壳行为）。
 
 ### 3.2 编辑 → 脏 → 失焦自动保存（含并发在途守卫）
 
@@ -134,12 +135,12 @@ type ActivityDot = "none" | "dirty";
 // useWorkspaceLayoutStore.openTabFocused。它**不是** FileTreeController 那种「把 store 收窄成只读视图」的纯类型
 // 收窄——它有真实编排行为（确保右栏展开 + 去重开 tab），故定性为 orchestrator，别与 FileTreeController 混谈（M8）。
 interface RightPanelController {
-  openFile(location: WorkspaceFileLocation): void; // 去重+聚焦/新开 + 确保右栏展开；入参 = file-open 的 canonical 类型，不造第三份（M12）
+  openFile(location: FileLocation): void; // 去重+聚焦/新开 + 确保右栏展开；入参 = shell 自有 FileLocation（§1.A file-location.ts），零旧目录引入。**覆盖旧 M12（当时定 WorkspaceFileLocation）——董事长零旧依赖规则优先**
   openLauncherType(kind: TabKind): void; // 启动器/新建下拉入口（本轮仅 "file" 生效）
 }
 
 // tab 内容契约（框架↔类型唯一缝，§1.A）+ 其构造缝（M4）——框架靠工厂建内容，不 import 具体类：
-type OpenTabRequest = { kind: "file"; location: WorkspaceFileLocation }; // 本轮唯一 arm；未来加 terminal/browser/… arm
+type OpenTabRequest = { kind: "file"; location: FileLocation }; // 本轮唯一 arm；未来加 terminal/browser/… arm
 interface TabContentFactory {
   create(request: OpenTabRequest): TabContent; // 本轮唯一注册项 = file → FileDocumentModel
 }
@@ -173,9 +174,12 @@ interface FileTabContext {
 ### 3.4 树↔页签桥契约（复用既有桥 + 一处新增公共能力）
 
 - **页签→树（新增，本模块发命令）**：`FileTreeController` 扩一个方法 `revealFile(absPath: string): void`；file-tree **内部**用既有 `revealPath`（当前树内展开祖先+选中）+ `reroot`（越界重根）实现三分支，判定逻辑落 file-tree 的纯函数 `resolveRevealAction(targetAbsPath, currentRoot) → { action:"reveal"|"select"|"reroot" }`（单测）。本模块只调 `revealFile`。**M18 前置依赖（诚实标注）**：现 `revealPath`（store:594）**只展开+选中、不滚动**，`file-tree-panel.tsx` 的 `FlatList` 未按 `selectedPath` 滚动。item23① 的「滚动使其可见」需 **file-tree 侧补一处** view 滚动（`FlatList.scrollToIndex` 到选中行的 `visibleNodes` 下标）——**此能力当前不存在、是 reveal 完整落地的一项 file-tree 交付**；本模块只发命令、不越界实现它。
-- **树→页签（复用既有桥，仅换线）**：file-tree 既有 `model/right-tab-bridge.ts`（纯契约 `openFileInRightTab`）+ `right-tab-bridge.wiring.ts`（具体绑定）已预留「switch point」。**本轮把 wiring 从旧 `useWorkspaceLayoutStore.getState().openTabFocused` 改绑到 `RightPanelController.openFile`**——桥的纯契约与调用方（`FileTreeStore`）**一字不动**，正是桥作者写好的「change only the wiring」。**去重不重造**：复用相等/身份原语（`workspaceFileLocationsEqual` / `file_${path}`），**去重编排从旧 store 迁进 `WorkbenchModel`**（`resolveTabInstancing`，§1.A），与 §1.A 对齐（M11）。
+- **树→页签（复用既有桥，仅换线 + 边界转换）**：file-tree 既有 `model/right-tab-bridge.ts`（纯契约 `openFileInRightTab`，其 `location` 本就是结构化 `{path,lineStart?,lineEnd?}`、不引旧类型）+ `right-tab-bridge.wiring.ts`（具体绑定）已预留「switch point」。**本轮把 wiring 从旧 `openTabFocused` 改绑到 `RightPanelController.openFile`**——桥纯契约与调用方（`FileTreeStore`）**一字不动**。**边界转换落在 wiring（file-tree 侧）**：wiring 把桥产出的结构化 location 传给 `openFile`（右面板收 shell 自有 `FileLocation`、结构同形直接满足；**右面板不 import 桥/旧类型**）。**去重不重造**：编排在 `WorkbenchModel`/`resolveTabInstancing`、身份轴 = **path**（shell 自有 `sameFilePath`，§1.A），与 §1.A 对齐（M11）。
+  - **已知不一致（flag 给总监）**：file-tree 自身的 `right-tab-bridge.wiring.ts` 等**仍 import 旧 `@/workspace/file-open`/`@/stores/workspace-*`**——这是 **file-tree 的既有欠账**、违反同一零旧依赖规则，本轮**只把 right-panel 做到零旧依赖**、不回溯整改 file-tree（另议）。**桥的边界转换正是把 right-panel 与该欠账隔离**：右面板永不碰旧类型，转换发生在 file-tree 侧 wiring。
 
 ### 3.5 面板级聚合态
+
+**`WorkbenchModel` 生命周期 + 持久化写死（评审澄清 1）**：一个 `WorkbenchModel` 每 (serverId, workspaceId)、随挂载点建（**对位 `file-tree-region.tsx` 的 `useMemo(createStore, [serverId, workspaceId])` 范式**）、**瞬态不持久**——**打开的文件页签不跨重载存活、切 workspace 重建**。这与旧系统「按 `${serverId}:${workspaceId}` 持久 tab」不同，是**有意的记忆语义变化**（同 M15 `rightMaximized` 瞬态）；因此**不需要** `buildWorkspaceTabPersistenceKey`、无持久 store 槽位。跨重载/跨 workspace 的「记住上次开了哪些文件页签」= **requirement §7 建议项 5 deferred**（届时才引入持久槽 + key）。
 
 `right-panel-region.tsx` 组合 `WorkbenchModel` + 壳上下文（offline/serverId/workspaceKey）派生面板级 空(=launcher) / 加载 / 错误(+重试) / 能力门(更新主机) / 离线(整面板冻结+重连横幅)，**与文件内容态区分**（面板空≠文件空；面板离线≠文件加载）——对位 `FileTreeStore.panelState` 的优先级派生法。
 
@@ -185,17 +189,17 @@ interface FileTabContext {
 
 ### 4.1 迁移 / 删旧处置清单（本轮一行不删 · 随旧路由 cutover 统一删）
 
-**合法性先说清**（避免 §0/§4 的「退役」措辞被误读，M2）：新 shell（`home.tsx → ShellRoot`，右/中区当前是空 `RegionPlaceholder`）与旧 `workspace/[workspaceId] → WorkspaceScreen` 是**两条并存的活路由**。旧 tab 系统全在旧路由下**活着**，本轮**一行不删**——这**合法**（coding-standards《Refactor, don't patch》：新 shell 是分阶段重建，本轮触碰的子系统=**新 shell 右区**，旧路由不在本轮触碰面，故「不删」= untouched legacy、非「打补丁留旧」）。「退役」只是**长期方向**，≠ 本轮处置。
+**合法性先说清**（避免 §0/§4 的「退役」措辞被误读，M2）：新 shell（`home.tsx → ShellRoot`，右/中区当前是空 `RegionPlaceholder`）与旧 `workspace/[workspaceId] → WorkspaceScreen` 是**两条并存的活路由**。旧 tab 系统全在旧路由下**活着**，本轮**一行不删**——这**合法**（coding-standards《Refactor, don't patch》：新 shell 是分阶段重建，本轮触碰的子系统=**新 shell 右区**，旧路由不在本轮触碰面，故「不删」= untouched legacy、非「打补丁留旧」）。「退役」只是**长期方向**，≠ 本轮处置。**更关键（董事长零旧目录规则）**：新 shell **不复用这些旧件的代码**——需要的能力**已在新目录按最新模型方式等价重写**（§4.2 审计）。故旧件对新 shell = **零依赖**，留在旧路由、cutover 删除**对新 shell 零影响**。这消解了「复用旧工具 → 又随 cutover 删」的自相矛盾（那正是规则要避免的坑）。
 
 **A. 旧件——本轮不删、随旧路由 cutover 统一删**：
 
-| 旧件                                                             | 活在哪                          | 本轮处置                                             | 何时删           |
-| ---------------------------------------------------------------- | ------------------------------- | ---------------------------------------------------- | ---------------- |
-| `workspace-layout-store.openTabFocused`                          | 旧 `WorkspaceScreen` 路由       | 不删；file-tree 桥仅**换线**离开它（§3.4）           | 随旧路由 cutover |
-| `workspace-layout-store.rightToolPanelMaximizedByWorkspace`      | 旧路由                          | 不删；新右区放大是 `ShellModel.rightMaximized` 另起  | 随旧路由 cutover |
-| `workspace-tabs-store`（Zustand tab 状态）                       | 旧路由                          | 不删；新框架另起 MobX，**不 extend/不 fork**         | 随旧路由 cutover |
-| `components/file-pane.tsx`（只读文件预览）                       | 旧路由                          | 不删；新可编辑文件页签是新实现、不改它               | 随旧路由 cutover |
-| `buildWorkspaceTabPersistenceKey` / `workspace-tabs/identity.ts` | 旧路由 + 现 file-tree 桥 wiring | 不删；仅**类型/身份原语被复用**（`file_${path}` 等） | 随旧路由 cutover |
+| 旧件                                                             | 活在哪                                         | 本轮处置                                                                                        | 何时删           |
+| ---------------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------- |
+| `workspace-layout-store.openTabFocused`                          | 旧 `WorkspaceScreen` 路由                      | 不删；file-tree 桥仅**换线**离开它（§3.4）                                                      | 随旧路由 cutover |
+| `workspace-layout-store.rightToolPanelMaximizedByWorkspace`      | 旧路由                                         | 不删；新右区放大是 `ShellModel.rightMaximized` 另起                                             | 随旧路由 cutover |
+| `workspace-tabs-store`（Zustand tab 状态）                       | 旧路由                                         | 不删；新框架另起 MobX，**不 extend/不 fork**                                                    | 随旧路由 cutover |
+| `components/file-pane.tsx`（只读文件预览）                       | 旧路由                                         | 不删；新可编辑文件页签是新实现、不改它                                                          | 随旧路由 cutover |
+| `buildWorkspaceTabPersistenceKey` / `workspace-tabs/identity.ts` | 旧路由 + file-tree 桥 wiring（file-tree 欠账） | 不删；**新 shell 完全不用**——right-panel 自有等价（`file-location.ts` + 自家 tab id/key，§4.2） | 随旧路由 cutover |
 
 **Ring-fence 第二 maximize 真相源（M2）**：新 `ShellModel.rightMaximized` **只治新右区**、旧 `rightToolPanelMaximizedByWorkspace` **只治旧屏**；新旧路由**互斥挂载 → 二者永不共渲**，不构成「两处真相源同时活」。
 
@@ -211,23 +215,40 @@ interface FileTabContext {
 
 **诚实边界（收敛过度声明，M3）**：**断链②③在新 shell = 落点（`openFile`）就绪、但端到端「待发起模块迁入新 shell 后方可验」**——这**符合** requirement §2.E 的 deferral（承接侧就位、触发侧随各自模块 deferred），不是漏画强制迁移点。本轮真正端到端连通的只有**断链①（树→文件页签）**；把「承接侧就位」读成「已可用」是不对的。
 
-**复用（明列）**：
+### 4.2 旧 app 目录 import 审计 → 新目录等价落点（董事长零旧依赖规则）
 
-- file-tree 公共能力：`model/right-tab-bridge.ts`（纯契约，换线不换约）、`model/file-tree-public.ts` 的 `FileTreeController`（扩 `revealFile`）、既有 `revealPath`/`reroot`（三分支的实现体）。
-- 壳行为：`ShellModel.openRight()`（收起→展开）、`RegionFrame`/`RegionGutter`（右区卡壳与拖拽手柄——宽度 480/320/800 已定）、`themeModel.tokens`/`scheme`（主题源）、`i18nModel`（文案，键落 `shell/i18n/messages.ts` 的 `shell.rightPanel.*`）。
-- 身份/去重：`workspace/file-open.ts`（**`WorkspaceFileLocation`**（canonical，非自造 `FileLocation`）/`normalizeWorkspaceFileLocation`/`workspaceFileLocationsEqual`/`createWorkspaceFileTabTarget`）、`workspace-tabs/identity.ts`（`file_${path}` 确定性 id + `workspaceTabTargetsEqual`）。
-- 内容渲染：`@getpaseo/highlight`（`resolveSyntaxColors("one")` + `isLanguageSupported`）、`MarkdownRenderer`、`isRenderedMarkdownFile`、`client.readFile`/`FileReadResult`。
-- 「包裹成熟库」思路：`terminal/runtime` + `terminal/webview`（xterm 被包裹、模型自持会话）——编辑器适配层照此边界（库持缓冲、模型持文档/脏/保存/查找/冲突）。
-- 挂载范式：`shell/components/file-tree-region.tsx`（每 workspace 一个模型、喂 offline/root）——`right-panel-region.tsx` 照抄。
+**规则**：`shell/right-panel/`（含 `file-tab/`）+ 挂载点 **对旧 app 目录零直接 import**；需要的能力**按最新模型方式（MobX 类 + 纯函数、模型/UI 分离、命名有价值、不写单行/无用函数）等价重写到新目录**。逐条审计：
+
+| 旧 app 依赖（禁引）                                                             | 原用途                 | 新目录等价落点（零旧引入）                                                                                                         |
+| ------------------------------------------------------------------------------- | ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `@/workspace/file-open`：`WorkspaceFileLocation`/`normalize…`/`…LocationsEqual` | 文件位置类型/归一/相等 | **新写** `right-panel/model/file-location.ts`：`FileLocation`+`normalizeFileLocation`+`sameFilePath`（§1.A · path 身份轴）         |
+| `@/workspace/file-open`：`createWorkspaceFileTabTarget`                         | 建旧 store target      | **不需要**——`resolveTabInstancing` 直接建自家 `PanelTab.target`（不经旧 store）                                                    |
+| `@/stores/workspace-tabs-store`：`file_${path}` 身份 / `…TargetsEqual`          | tab 身份/去重          | **新写**——身份/去重按 `sameFilePath`（**path only**）、行号是定位参数不进身份；tab id = shell 自定格式（§1.A）                     |
+| `@/stores/workspace-tabs-store`：`buildWorkspaceTabPersistenceKey`              | 持久 tab 的 key        | **不需要**——本轮文件页签**瞬态、不跨重载**（§3.5，同 M15）；持久化记忆 = requirement §7 建议项 5 deferred                          |
+| `@/stores/workspace-layout-store`：`openTabFocused`                             | 旧右区开 tab           | **取代**——`WorkbenchModel.openTab`；file-tree 桥 wiring 换线到 `openFile`（转换在 file-tree 侧，§3.4）                             |
+| `@/stores/workspace-layout-store`：`rightToolPanelMaximizedByWorkspace`         | 旧放大态               | **新增** `ShellModel.rightMaximized`（shell 内、非旧目录）；旧 flag 不碰                                                           |
+| `@/components/file-pane-render-mode`：`isRenderedMarkdownFile`                  | md 判定                | **新写**——`document-kind.ts` 扩展名判定（**大小写不敏感 · `.mdx`/`.md.txt` 自然排除**，§1.B）                                      |
+| `@/components/markdown/renderer`：`MarkdownRenderer`                            | md 预览渲染            | **新写** `file-tab/components/markdown-preview.tsx`（共享 npm 引擎 `react-native-markdown-display`/`markdown-it`+highlight，§1.C） |
+| `@/components/file-pane`：图片/二进制预览                                       | 图片只读               | **新写** `file-tab/components/image-preview.tsx`（薄 RN `<Image>`，§1.C）+ binary 本地兜底                                         |
+
+**自验结论（董事长点 6）**：`shell/right-panel/` + 挂载点 **零** `@/workspace/*`、`@/stores/workspace-*`、`@/components/*`（旧 app 目录）import；只剩 **shell 内**（`shell/model|theme|i18n`、file-tree 公共面）+ **共享包**。唯一跨旧目录接触点 = **file-tree 侧 wiring**（file-tree 既有欠账，桥边界转换已隔离，§3.4）。
+
+**复用（明列 · 仅共享包 + shell 内，无旧 app 目录）**：
+
+- **共享包**（非旧 app 目录，照旧引用、不重写）：`@getpaseo/highlight`（`resolveSyntaxColors("one")` + `isLanguageSupported`）、`packages/client`（`readFile` + 新 `fs.write` + `FileReadResult` 类型）、`packages/protocol`、md 引擎 npm 包 `react-native-markdown-display`/`markdown-it`。
+- **file-tree 公共能力**（shell 内）：`model/right-tab-bridge.ts`（纯契约，换线不换约）、`model/file-tree-public.ts` 的 `FileTreeController`（扩 `revealFile`）、既有 `revealPath`/`reroot`（三分支的实现体）。
+- **壳行为**（shell 内）：`ShellModel.openRight()`（收起→展开）、`RegionFrame`/`RegionGutter`（右区卡壳与拖拽手柄——宽度 480/320/800 已定）、`themeModel.tokens`/`scheme`（主题源）、`i18nModel`（文案，键落 `shell/i18n/messages.ts` 的 `shell.rightPanel.*`）。
+- **「包裹成熟库」思路**（仅**形态参照**、不 import terminal）：`terminal/runtime` + `terminal/webview`（xterm 被包裹、模型自持会话）——编辑器适配层照此边界（库持缓冲、模型持文档/脏/保存/查找/冲突）。
+- **挂载范式**（仅**形态参照**）：`shell/components/file-tree-region.tsx`（每 workspace 一个模型、喂 offline/root）——`right-panel-region.tsx` 照此结构新写。
 
 **禁止重造（清单）**：
 
+- **「禁止重造」vs「等价重写」先分清（董事长零旧目录规则）**：**禁止重造** = 重复实现**共享包/成熟库引擎**（`@getpaseo/highlight` tokenizer、md 引擎、CodeMirror）——那是浪费；**要求等价重写** = 把**旧 app 目录的领域小工具**（`FileLocation` 归一/相等、md 扩展名判定、tab 身份/key）按最新 MobX+纯函数方式重写进 `right-panel/`——因**跨目录引旧被禁**（§4.2）。二者不可混谈。
 - **别重画树**：不在文件页签里做任何目录树/文件写操作（新建/重命名/删除/剪切复制粘贴归 file-tree）；reveal/重根只发命令。
-- **别重定义壳行为**：右栏 toggle/宽度/拖拽手柄/记忆宽度/active workspace 门/展开右栏——全沿用，不复制到本模块。
-- **别自造主题源 / 别自造高亮调色**：编辑器背景与代码高亮读 `themeModel` + `@getpaseo/highlight`，不新起配色系统。
-- **别自造 tab 去重/身份**：复用 `file_${path}` + `workspaceFileLocationsEqual`。
-- **别新建 Zustand tab store**：旧 `workspace-layout-store`/`workspace-tabs-store` 是**长期退役方向**（本轮不删、仍服务旧路由，见 §4.1），新框架另起 MobX 类、**不 extend / 不 fork** 它们。
-- **别自造代码编辑器 / markdown / 匹配器**：包裹 CodeMirror + 复用 MarkdownRenderer + 用 CodeMirror search。
+- **别重定义壳行为**：右栏 toggle/宽度/拖拽手柄/记忆宽度/active workspace 门/展开右栏——全沿用 `ShellModel`（shell 内），不复制到本模块。
+- **别自造主题源 / 别自造高亮调色**：编辑器背景与代码高亮读 `themeModel` + `@getpaseo/highlight`（共享），不新起配色系统。
+- **别重造共享引擎**：代码编辑=包裹 CodeMirror、md 渲染=共享 npm 引擎（`react-native-markdown-display`/`markdown-it`）、代码高亮=`@getpaseo/highlight`、查找匹配=CodeMirror search。
+- **别新建 Zustand tab store**：旧 `workspace-layout-store`/`workspace-tabs-store` 本轮**新框架不采用**（长期退役方向、仍服务旧路由，见 §4.1），新框架另起 MobX 类、**不 extend / 不 fork / 不 import**。
 
 **编辑器内核决策（brainstorm → 定）**：
 
@@ -253,7 +274,7 @@ interface FileTabContext {
 
 ## 6. 测试策略
 
-**必单测的纯函数（模型/UI 分离的回报）**：`resolveTabInstancing`（去重命中聚焦 / 单实例 review / 多实例 append）、`placeTabAtDropIndex`（落位边界）、`TAB_KIND_POLICY`（仅 file 可用、四类 comingSoon——静态表形状断言，非 `deriveLauncherItems` 函数，M9）、`classifyDocumentKind`（code/text/md/image/binary 分派）、`advanceFind`（查找→替换展开→大小写/全词/正则→上下条→计数）、`resolveRevealAction`（三分支判定 · 落 file-tree）、能力→只读派生。
+**必单测的纯函数（模型/UI 分离的回报）**：`normalizeFileLocation`/`sameFilePath`（shell 自有文件位置归一 + **path 身份**判定，含 Windows 大小写不敏感——**等价重写的正确性钉死**，§4.2）、`resolveTabInstancing`（**同 path 命中→focus**；**同 path 不同行→focus 既有 + retarget 行号、不新开**（评审阻断用例，验收 item 17）；未命中→append；`review` 单实例；多实例 append）、`placeTabAtDropIndex`（落位边界）、`TAB_KIND_POLICY`（仅 file 可用、四类 comingSoon——静态表形状断言，非 `deriveLauncherItems` 函数，M9）、`classifyDocumentKind`（code/text/md/image/binary 分派；**md 判定大小写不敏感** `.MD`/`.MARKDOWN`、**排除** `.mdx`/`.md.txt`——锁死等价，评审澄清 2）、`advanceFind`（查找→替换展开→大小写/全词/正则→上下条→计数）、`resolveRevealAction`（三分支判定 · 落 file-tree）、能力→只读派生。
 
 **必测的模型逻辑（不渲染即测，注入 fake `FileTabIo` + fake `TabContentFactory`）**：`WorkbenchModel`（open/focus/close/closeOthers/closeAll→launcher、reorder、去重、`PanelTab` 只存身份不双持 title/dot）；`FileDocumentModel`（load；edit→dirty；四种失焦→saving→saved，脏清 + 基线 mtime 更新；写失败→非阻塞 failed 且改动保留；**并发守卫（M6）：saving 期间再失焦 → 串行补写一笔、用最新内容与最新 mtime、不假冲突/不丢写**；close→先自动保存；conflict 三出口各回确定态、**「重载/对比」拉 host 内容**（M7）；md preview↔edit 切换不丢改动；image/binary→只读无脏）。
 
@@ -272,3 +293,4 @@ interface FileTabContext {
 - **失焦自动保存边界风险**：频繁写（**缓解**：触发源是**失焦**不是每键，天然合并；不做 per-keystroke 写）；**在途并发写**（**缓解**：saving 期间串行补写单飞，§3.2 M6，杜绝竞态假冲突/丢写）；并发外部改动（mtime 守卫→冲突而非盲覆盖）；写失败（非阻塞 + 下次失焦重试，不阻断编辑/关闭）。
 - **放大态归属 + 持久化（M8 / M15）**：`ShellModel` 无 maximize（旧 Zustand 有 `rightToolPanelMaximizedByWorkspace`，只治旧屏，§4.1 已 ring-fence）。**取舍**：放大是「哪些卡渲染 + 几何」，属 `ShellModel`（region 几何的单一 owner）——新增 `rightMaximized` + `toggleRightMaximized()` + `selectVisibleRegions` 让右区吃掉中区（左栏/树保留，v7 已决）；tab 条 ⤢ **只派发**、UI **直接读 `ShellModel.rightMaximized`**（`WorkbenchModel` 不代理、不耦合 shell 几何，M8）。**持久化定死（M15）**：`rightMaximized` = **全局瞬态、不进 `ShellPersistedState`**（需求未要求放大跨重载保留）、切 workspace/context 归位 `false`。这是对**内聚 owner 的最小扩展**、非在右面板另起平行几何态（避免两处真相源），是本架构**唯一**对 shell 层的扩展，理由=几何归 shell。
 - **能力门缺失的降级**：只给**可恢复态**（只读 + 「更新主机」/ 冲突可重载 / 失败可续编），**绝不写降级版第二套写实现**（standards §2 + feature contract）。
+- **零旧依赖规则的取舍（等价重写 vs 复用 · 董事长硬规则）**：新 shell 对旧 app 目录零 import → 少量**领域小工具短期重复**（`FileLocation` 归一/相等、md 扩展名判定，在新旧各一份）直到旧路由 cutover。**取舍成立**：重复的只是**小纯函数**（引擎——highlight / markdown / CodeMirror——仍是**共享包、不重复**），换来**新目录自洽、可独立演进、cutover 删旧对新 shell 零影响**。file-tree 自身仍 import 旧目录属**既有欠账**（本轮不回溯），桥边界转换已把 right-panel 与之隔离（§3.4 / §4.2）。
