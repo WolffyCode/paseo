@@ -36,6 +36,22 @@ export function RightPanelRegion({
     () => registerRightPanelTarget(serverId, workspaceId, panel.controller),
     [serverId, workspaceId, panel],
   );
+
+  // Panel-level aggregate state (architecture §3.5, requirement sRS9) is derived HERE, not in the models.
+  // Of the five sRS9 states, two are live and three are structurally N/A in this architecture:
+  //   • 空  = the launcher (no open tabs) — Workbench renders it off `workbench.mode`.
+  //   • 离线 = derived below and threaded to the observer Workbench (top reconnect banner + frozen content).
+  //   • 加载 / 错误 = N/A: the panel is created synchronously (createRightPanelForServer just constructs a
+  //     WorkbenchModel — there is no async host handshake that could be pending or fail), so there is no
+  //     panel-build spinner or panel-build error to show.
+  //   • 能力门「更新主机以使用工作面板」/「查看如何更新」 = N/A as a panel takeover: file READ has no
+  //     capability flag (architecture §5 — it rides the always-present file-explorer channel), so no host
+  //     capability can be absent to make the whole panel unusable. The ONE gated capability — content
+  //     WRITE (features.fsWriteFile) — is file-level: a file stays viewable read-only and shows its own
+  //     "更新主机" hint (see file-document-model readOnlyReason / file-tab-view CapabilityHint), never a
+  //     panel-wide block (a takeover here would wrongly hide viewable files, violating requirement §5).
+  //     A live panel takeover would need a NEW host "workbench" capability flag — an architect decision,
+  //     out of this UI fix's scope; flagged rather than wired as a never-true (dead) gate.
   // Reactive offline read so the observer workbench repaints (banner + freeze) on connection change.
   const isOffline = useHostRuntimeConnectionStatus(serverId) !== "online";
 
