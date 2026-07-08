@@ -19,6 +19,7 @@ function snap(overrides: Partial<ShellSnapshot> = {}): ShellSnapshot {
     rightOpen: false,
     fileTreeOpen: false,
     settingsLeftOpen: true,
+    rightMaximized: false,
     leftWidth: 240,
     widthByRegion: {},
     ...overrides,
@@ -119,6 +120,45 @@ describe("selectVisibleRegions · conversation page", () => {
       shown("srv:ws"),
     );
     expect(regions.right).toBe(600);
+  });
+});
+
+describe("selectVisibleRegions · right maximize", () => {
+  // Maximizing the right panel makes it eat the conversation area (the view flexes right + hides main),
+  // while the left rail and file tree are preserved (requirement item 13/14). The selector surfaces a
+  // rightMaximized flag; left/tree/right widths stay so un-maximize + the tree toggle keep working.
+  it("flags maximize with the left rail and file tree preserved", () => {
+    const regions = selectVisibleRegions(
+      snap({ leftOpen: true, rightOpen: true, fileTreeOpen: true, rightMaximized: true }),
+      shown(),
+    );
+    expect(regions.rightMaximized).toBe(true);
+    expect(regions.left).toBe(240);
+    expect(regions.fileTree).toBe(280);
+    expect(regions.right).toBe(480);
+    expect(regions.main).toBe(true);
+  });
+
+  // Not maximized → no rightMaximized key at all (present-only-when-active, like the region widths), so
+  // the docked layout is identical to before the field existed.
+  it("omits the flag when not maximized", () => {
+    const regions = selectVisibleRegions(snap({ rightOpen: true }), shown());
+    expect("rightMaximized" in regions).toBe(false);
+  });
+
+  // Maximize requires an open right panel — a closed panel cannot be maximized.
+  it("ignores maximize when the right panel is closed", () => {
+    const regions = selectVisibleRegions(snap({ rightOpen: false, rightMaximized: true }), shown());
+    expect("rightMaximized" in regions).toBe(false);
+  });
+
+  // Maximize is a conversation-page concept; the settings page never surfaces it.
+  it("ignores maximize on the settings page", () => {
+    const regions = selectVisibleRegions(
+      snap({ currentPage: "settings", rightOpen: true, rightMaximized: true }),
+      shown(),
+    );
+    expect("rightMaximized" in regions).toBe(false);
   });
 });
 

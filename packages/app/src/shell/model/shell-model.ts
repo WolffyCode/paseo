@@ -127,6 +127,12 @@ export class ShellModel {
   // independence is what lets "return to conversation" restore the prior layout for free.
   settingsLeftOpen = true;
 
+  // Whether the right panel is maximized (eats the conversation area; left rail + file tree stay).
+  // Global TRANSIENT: never persisted (not in ShellPersistedState), and reset when the active workspace
+  // changes — maximize does not survive a reload or a workspace switch. Geometry owner = ShellModel, so
+  // the right panel just dispatches toggleRightMaximized() and the UI reads visibleRegions.rightMaximized.
+  rightMaximized = false;
+
   // The left rail's single app-wide width (px). Global on purpose — not keyed by workspace.
   leftWidth = REGION_CONSTRAINTS.left.default;
   // workspaceKey -> tool -> remembered width (px, already clamped on write).
@@ -153,6 +159,7 @@ export class ShellModel {
         rightOpen: this.rightOpen,
         fileTreeOpen: this.fileTreeOpen,
         settingsLeftOpen: this.settingsLeftOpen,
+        rightMaximized: this.rightMaximized,
         leftWidth: this.leftWidth,
         widthByRegion: this.widthByRegion,
       },
@@ -169,6 +176,7 @@ export class ShellModel {
         rightOpen: this.rightOpen,
         fileTreeOpen: this.fileTreeOpen,
         settingsLeftOpen: this.settingsLeftOpen,
+        rightMaximized: this.rightMaximized,
         leftWidth: this.leftWidth,
         widthByRegion: this.widthByRegion,
       },
@@ -177,8 +185,12 @@ export class ShellModel {
   }
 
   // Feed the route context. Entering/leaving a workspace or connecting a host updates this;
-  // the computeds re-derive and observer components repaint.
+  // the computeds re-derive and observer components repaint. A workspace change resets the transient
+  // maximize (it is per-workspace and must not leak across a switch).
   setContext(ctx: ShellContext): void {
+    if (ctx.workspaceKey !== this.workspaceKey) {
+      this.rightMaximized = false;
+    }
     this.showsShell = ctx.showsShell;
     this.workspaceKey = ctx.workspaceKey;
   }
@@ -212,6 +224,12 @@ export class ShellModel {
   }
   closeRight(): void {
     this._setOpen("rightOpen", false);
+  }
+
+  // Toggle the right panel's maximize (the tab bar's ⤢ dispatches this; the UI reads the resolved
+  // geometry from visibleRegions.rightMaximized). Transient — not routed through the persisted flags.
+  toggleRightMaximized(): void {
+    this.rightMaximized = !this.rightMaximized;
   }
 
   // Region geometry. Left width is global; right/fileTree widths are per-workspace. Both

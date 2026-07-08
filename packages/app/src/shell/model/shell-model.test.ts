@@ -180,6 +180,42 @@ describe("ShellModel · context-driven computeds", () => {
   });
 });
 
+describe("ShellModel · right maximize is transient", () => {
+  // Maximize defaults off and toggles; two toggles return to the docked state.
+  it("toggleRightMaximized flips and is idempotent over two toggles", () => {
+    expect(model.rightMaximized).toBe(false);
+    model.toggleRightMaximized();
+    expect(model.rightMaximized).toBe(true);
+    model.toggleRightMaximized();
+    expect(model.rightMaximized).toBe(false);
+  });
+
+  // Maximize is transient — it never enters the persisted slice, so it does not survive a reload.
+  it("is excluded from the persisted slice", () => {
+    model.toggleRightMaximized();
+    expect("rightMaximized" in partializeShellState(model)).toBe(false);
+  });
+
+  // Maximize is workspace-scoped transient: switching workspace resets it; staying keeps it.
+  it("resets on a workspace change and holds within the same workspace", () => {
+    model.setContext({ showsShell: true, workspaceKey: "srv:ws-a" });
+    model.toggleRightMaximized();
+    expect(model.rightMaximized).toBe(true);
+    model.setContext({ showsShell: true, workspaceKey: "srv:ws-a" });
+    expect(model.rightMaximized).toBe(true);
+    model.setContext({ showsShell: true, workspaceKey: "srv:ws-b" });
+    expect(model.rightMaximized).toBe(false);
+  });
+
+  // The visibleRegions computed reflects maximize once the right panel is open on a workspace.
+  it("surfaces maximize through visibleRegions", () => {
+    model.setContext({ showsShell: true, workspaceKey: "srv:ws" });
+    model.openRight();
+    model.toggleRightMaximized();
+    expect(model.visibleRegions.rightMaximized).toBe(true);
+  });
+});
+
 describe("ShellModel · persistence excludes the page mode and the route context", () => {
   // currentPage is intentionally not persisted (a reload always lands on conversation);
   // the route context (showsShell / workspaceKey) is runtime-only. Only the layout slice

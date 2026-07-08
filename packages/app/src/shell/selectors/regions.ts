@@ -46,6 +46,9 @@ export interface ShellSnapshot {
   // independence is what lets "return to conversation" restore the prior layout for
   // free (settings never mutates a conversation flag).
   settingsLeftOpen: boolean;
+  // Whether the right panel is maximized (eats the conversation area). Transient + workspace-scoped —
+  // it lives on the model but never persists; only the conversation page with an open right panel honors it.
+  rightMaximized: boolean;
   // The left rail's single app-wide width (px). Global on purpose — not keyed by
   // workspace, so entering/leaving a conversation never moves it. Shared by the
   // settings nav (same left geometry).
@@ -77,6 +80,10 @@ export interface VisibleRegions {
   left?: number;
   right?: number;
   fileTree?: number;
+  // Present (and only ever `true`) when the right panel is maximized: the view flexes `right` to fill the
+  // conversation area and hides `main`, keeping `left`/`fileTree` docked. Omitted when not maximized so
+  // the docked shape is unchanged — matching the "present means active" idiom of the region widths.
+  rightMaximized?: true;
 }
 
 export interface ToggleModel {
@@ -132,7 +139,9 @@ function resolveWorkspaceRegionWidth(
 // (global leftWidth) and the two workspace tools additionally require a workspaceKey
 // and read their per-workspace width. On the settings page the left card is the
 // settings nav (settingsLeftOpen, same left geometry) and the workspace tools never
-// appear. Pre-connection (showsShell=false) only the center renders.
+// appear. Pre-connection (showsShell=false) only the center renders. When the right
+// panel is open and maximized it also surfaces rightMaximized (the view then flexes
+// right over the hidden center; left + fileTree stay docked).
 export function selectVisibleRegions(state: ShellSnapshot, ctx: ShellContext): VisibleRegions {
   const regions: VisibleRegions = { main: true };
   if (!ctx.showsShell) {
@@ -150,6 +159,11 @@ export function selectVisibleRegions(state: ShellSnapshot, ctx: ShellContext): V
   if (ctx.workspaceKey != null) {
     if (state.rightOpen) {
       regions.right = resolveWorkspaceRegionWidth(state, ctx.workspaceKey, "right");
+      // Maximize only applies to an open right panel on the conversation page: the view flexes right over
+      // the (hidden) center. left + fileTree stay in the output so the tree still toggles under maximize.
+      if (state.rightMaximized) {
+        regions.rightMaximized = true;
+      }
     }
     if (state.fileTreeOpen) {
       regions.fileTree = resolveWorkspaceRegionWidth(state, ctx.workspaceKey, "fileTree");
