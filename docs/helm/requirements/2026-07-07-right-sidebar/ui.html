@@ -373,26 +373,27 @@
       .edit-body .ematch { background: rgba(97, 175, 239, 0.2); border-radius: 2px; }
       .edit-body .ematch.cur { background: rgba(229, 192, 123, 0.42); box-shadow: 0 0 0 1px #e5c07b; border-radius: 2px; }
 
-      /* 意见3：查找/替换 VSCode 式浮层——绝对定位悬浮于 .edit-body 右上角 */
-      .find-widget { position: absolute; top: 8px; right: 16px; z-index: 8; width: 344px; background: #21252b; border: 1px solid #3e4451; border-radius: 6px; box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.6); padding: 5px 6px 5px 2px; display: flex; align-items: flex-start; gap: 2px; }
-      .fw-expand { width: 16px; align-self: stretch; display: flex; align-items: center; justify-content: center; color: #5c6370; flex: none; }
-      .fw-expand:hover { color: #abb2bf; }
+      /* 意见3：查找/替换 VSCode 式浮层——绝对定位悬浮于 .edit-body 右上角。v7：配色改用主题变量，随 chrome 浅/深主题自动切换（不再恒 ODPF 深）。 */
+      .find-widget { position: absolute; top: 8px; right: 16px; z-index: 8; width: 344px; background: var(--card); border: 1px solid var(--border); border-radius: 6px; box-shadow: 0 10px 28px -10px rgba(31, 35, 40, 0.28); padding: 5px 6px 5px 2px; display: flex; align-items: flex-start; gap: 2px; }
+      .dark .find-widget { box-shadow: 0 10px 28px -10px rgba(0, 0, 0, 0.6); }
+      .fw-expand { width: 16px; align-self: stretch; display: flex; align-items: center; justify-content: center; color: var(--muted-fg); flex: none; }
+      .fw-expand:hover { color: var(--fg); }
       .fw-col { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
       .fw-row { display: flex; align-items: center; gap: 4px; }
-      .fw-field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 3px; height: 26px; padding: 0 4px 0 8px; background: #1b1e23; border: 1px solid #3e4451; border-radius: 3px; }
-      .fw-field.focus { border-color: #61afef; box-shadow: 0 0 0 1px rgba(97, 175, 239, 0.5); }
-      .fw-input { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; color: #abb2bf; }
-      .fw-input.ph { color: #5c6370; }
-      .fw-toggle { width: 22px; height: 20px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 700; color: #6b7381; flex: none; letter-spacing: -0.5px; }
-      .fw-toggle:hover { background: #2c313a; color: #abb2bf; }
-      .fw-toggle.on { background: #3e4451; color: #61afef; }
-      .fw-count { font-family: var(--mono); font-size: 11px; color: #828997; white-space: nowrap; padding: 0 4px; flex: none; }
-      .fw-count.none { color: #e06c75; }
-      .fw-btn { width: 22px; height: 22px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; color: #abb2bf; flex: none; }
-      .fw-btn:hover { background: #3e4451; }
+      .fw-field { flex: 1; min-width: 0; display: flex; align-items: center; gap: 3px; height: 26px; padding: 0 4px 0 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; }
+      .fw-field.focus { border-color: var(--primary); box-shadow: 0 0 0 1px color-mix(in oklch, var(--primary) 50%, transparent); }
+      .fw-input { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--mono); font-size: 12px; color: var(--fg); }
+      .fw-input.ph { color: var(--muted-fg); }
+      .fw-toggle { width: 22px; height: 20px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--muted-fg); flex: none; letter-spacing: -0.5px; }
+      .fw-toggle:hover { background: var(--accent); color: var(--fg); }
+      .fw-toggle.on { background: var(--secondary); color: var(--primary); }
+      .fw-count { font-family: var(--mono); font-size: 11px; color: var(--muted-fg); white-space: nowrap; padding: 0 4px; flex: none; }
+      .fw-count.none { color: var(--destructive); }
+      .fw-btn { width: 22px; height: 22px; border-radius: 3px; display: inline-flex; align-items: center; justify-content: center; color: var(--fg); flex: none; }
+      .fw-btn:hover { background: var(--secondary); }
       .fw-btn.dis { opacity: 0.35; }
-      .fw-rbtn { height: 22px; padding: 0 7px; border-radius: 3px; display: inline-flex; align-items: center; font-size: 11px; color: #abb2bf; flex: none; }
-      .fw-rbtn:hover { background: #3e4451; }
+      .fw-rbtn { height: 22px; padding: 0 7px; border-radius: 3px; display: inline-flex; align-items: center; font-size: 11px; color: var(--fg); flex: none; }
+      .fw-rbtn:hover { background: var(--secondary); }
 
       /* 意见1：失焦自动保存失败——非阻塞轻条（红字·无重试·改动保留） */
       .autosave-warn { flex: none; display: flex; align-items: center; gap: 6px; padding: 5px 10px; font-size: 10.5px; line-height: 1.35; color: var(--destructive); background: color-mix(in oklch, var(--destructive) 10%, transparent); border-top: 1px solid color-mix(in oklch, var(--destructive) 24%, transparent); }
@@ -1564,7 +1565,7 @@
             <ol>
               <li><span class="pin">1</span><div><b>编辑区</b>：点击置光标 → 可输入（闪烁光标）；拖选 → <b>文本选区</b>高亮；输入即产生改动 → 面包屑 <b>●</b> + 状态条「<b>编辑中·未落盘</b>」+ 改动行左侧 <b>gutter 绿条</b>（活跃页签常显 <b>✕</b>，脏经面包屑/状态条体现，不占页签的 ✕ 位）。</div></li>
               <li><span class="pin">2</span><div><b>失焦自动保存</b>（<b>无保存按钮、无 <code>⌘S</code></b>）：编辑器<b>失焦</b>（点其它页签 / 点编辑器外 / 切窗口）→ 自动写盘：脏 ● →（<b>自动保存中</b> spinner）→ <b>已自动保存</b>（●/gutter 清、短暂 ✓）；失败 → <b>非阻塞轻条</b>（红字、<b>无「重试」按钮</b>、改动保留，编辑/再失焦即自动重试）。</div></li>
-              <li><span class="pin">3</span><div><b>查找/替换浮层</b>：<code>⌘F</code> 唤出查找浮层（悬浮编辑区<b>右上角</b>），<code>⌘⌥F</code> 展开替换行，<code>Esc</code> 关闭。含命中计数（如 2/5）+ 上/下条跳转 + <b>Aa</b>(区分大小写)/<b>ab|</b>(全词)/<b>.*</b>(正则) 开关 + 逐个/全部替换；<b>当前命中琥珀强调、其它命中淡蓝</b>。</div></li>
+              <li><span class="pin">3</span><div><b>查找/替换浮层</b>：<code>⌘F</code> 唤出查找浮层（悬浮编辑区<b>右上角</b>），<code>⌘⌥F</code> 展开替换行，<code>Esc</code> 关闭。含命中计数（如 2/5）+ 上/下条跳转 + <b>Aa</b>(区分大小写)/<b>ab|</b>(全词)/<b>.*</b>(正则) 开关 + 逐个/全部替换；<b>当前命中琥珀强调、其它命中淡蓝</b>。<b>浮层配色随 chrome 主题</b>（浅 chrome → 浅色浮层 / 深 chrome → 深色浮层 · v7 董事长意见，与编辑器背景随主题一致）。</div></li>
               <li><span class="pin">4</span><div><b>面包屑</b>：显文件所在路径（只读展示）；<b>不重画目录树</b>（树是第 4 区，切页签会命令树 reveal，见 sRS6）。</div></li>
               <li><span class="pin">5</span><div><b>关闭页签（✕ / 右键关闭）</b>：脏页签关闭 → <b>静默自动保存后关闭</b>（<b>无三择一弹窗</b>）；若自动保存<b>失败</b> → 非阻塞提示、<b>页签保留不强关</b>（见 sRS7）。<b>活跃页签常显 ✕</b>、非活跃 hover 显 ✕。</div></li>
             </ol>
@@ -2243,7 +2244,7 @@
             <div class="states">
               <dl>
                 <dt>布局</dt>
-                <dd><b>桌面 only</b>：整面板放大 = 占中区、左栏保留（默认取「仅盖对话区」，不连带收目录树）。紧凑/手机 deferred。</dd>
+                <dd><b>桌面 only</b>：整面板放大 = <b>只占「对话区 + 右侧工作面板区」</b>、<b>左栏保留</b>、<b>目录树可正常打开 / 关闭</b>（不被放大盖住、不随放大强制收起 · v7 董事长确认 · 原 v4-E 已决）。紧凑/手机 deferred。</dd>
                 <dt>默认</dt>
                 <dd>停靠态：tab 头显 ⤢（整面板放大入口）。</dd>
                 <dt>hover</dt>
