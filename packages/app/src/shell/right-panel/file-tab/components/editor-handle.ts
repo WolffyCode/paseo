@@ -19,8 +19,9 @@ export interface ConnectableEditorHandle extends EditorHandle {
 // Build a handle that buffers a pending seed until the view connects, then routes through the view. This
 // closes the seam between "model built first" and "view mounts later": a pre-connect applyExternalContent
 // (from load()) is remembered and replayed into the view on connect; getContent answers from the buffer
-// until then. disconnect snapshots the view's content back into the buffer so a getContent after unmount
-// (e.g. a trailing autosave) still returns the last-known text.
+// until then. disconnect snapshots the view's content back into the buffer AND re-arms the seed, so a
+// getContent after unmount still returns the last-known text and a later reconnect (tab switched back →
+// fresh, empty view) replays it — the editor never comes back blank.
 export function createConnectableEditorHandle(): ConnectableEditorHandle {
   let backend: EditorBackend | null = null;
   let buffer = "";
@@ -51,6 +52,9 @@ export function createConnectableEditorHandle(): ConnectableEditorHandle {
       if (backend) {
         buffer = backend.getContent();
         backend = null;
+        // Arm a re-seed: the next connect is a fresh/empty view (tab switched back), so the snapshot must
+        // replay or the editor comes back blank (defect B). getContent answers from the buffer meanwhile.
+        pendingSeed = true;
       }
     },
   };

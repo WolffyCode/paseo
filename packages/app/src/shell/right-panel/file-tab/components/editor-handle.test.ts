@@ -72,4 +72,21 @@ describe("createConnectableEditorHandle", () => {
 
     expect(handle.getContent()).toBe("edited then unmounted");
   });
+
+  // Switching a tab away unmounts the view (disconnect) and switching back remounts a FRESH view (connect).
+  // A remounted CodeMirror view starts empty, so the snapshot must be re-seeded on reconnect — otherwise
+  // the editor comes back blank and the user's content is lost (defect B).
+  it("re-seeds a fresh backend on reconnect after a disconnect", () => {
+    const handle = createConnectableEditorHandle();
+    const first = fakeBackend();
+    handle.connect(first);
+    handle.applyExternalContent("edited content"); // routes to the live view
+
+    handle.disconnect(); // tab switched away: snapshot + arm the re-seed
+    const second = fakeBackend(); // tab switched back: a fresh, empty view
+    handle.connect(second);
+
+    expect(second.applyExternalContent).toHaveBeenCalledExactlyOnceWith("edited content");
+    expect(handle.getContent()).toBe("edited content");
+  });
 });
