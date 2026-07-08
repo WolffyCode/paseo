@@ -59,10 +59,24 @@ describe("deriveContentMenu · image", () => {
 });
 
 describe("deriveContentMenu · binary read-only", () => {
-  // Binary/unrecognized is the read-only fallback — no content actions, so no context menu (the three
-  // sets are for editable/viewable content only; there is no fourth set).
-  it("gives binary no menu", () => {
-    expect(deriveContentMenu({ kind: "binary", mdView: "preview" })).toEqual([]);
+  // Binary/unrecognized is the read-only fallback — no edit/copy-content actions, but sRS7 still gives it
+  // the three file actions (copy path / locate in tree / reveal in Finder), the same trailing trio the
+  // image and markdown-preview menus carry.
+  it("gives binary the 3 read-only file actions", () => {
+    expect(ids(deriveContentMenu({ kind: "binary", mdView: "preview" }))).toEqual([
+      "copy-file-path",
+      "locate-in-tree",
+      "reveal-in-finder",
+    ]);
+  });
+
+  // Every binary item is labeled and enabled (no capability gate — reveal-in-finder is always available
+  // on the desktop-only panel).
+  it("labels and enables every binary item", () => {
+    for (const item of deriveContentMenu({ kind: "binary", mdView: "preview" })) {
+      expect(item.label.length).toBeGreaterThan(0);
+      expect(item.enabled).toBe(true);
+    }
   });
 });
 
