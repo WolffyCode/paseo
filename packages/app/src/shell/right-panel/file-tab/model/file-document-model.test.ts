@@ -341,6 +341,31 @@ describe("FileDocumentModel · read-only", () => {
   });
 });
 
+describe("FileDocumentModel · absolute identity path (defect 7)", () => {
+  // The location path is the ABSOLUTE host path (the tab-identity axis, stable across tree roots). The
+  // model derives the root-relative path for IO from it, yet reveals with the absolute path — so identity
+  // dedups across roots while readFile/writeFile still speak the tree's root-relative space.
+  it("derives the root-relative path for writes and reveals with the absolute path", async () => {
+    const io = new FakeIo(read("hello", T0));
+    const editor = new FakeEditor();
+    const revealFile = vi.fn();
+    const model = new FileDocumentModel(
+      { root: "/proj", location: { path: "/proj/src/a.ts" }, writeCapable: true },
+      { io, editor, revealFile },
+    );
+    await model.load();
+    editor.content = "hello!";
+    model.markEdited();
+    model.autosaveOnBlur();
+    await tick();
+
+    expect(io.writeCalls[0]).toMatchObject({ root: "/proj", path: "src/a.ts" });
+    model.onActivated();
+    expect(revealFile).toHaveBeenCalledWith("/proj/src/a.ts");
+    expect(model.title).toBe("a.ts");
+  });
+});
+
 describe("FileDocumentModel · TabContent surface", () => {
   // The tab title is the file name (last path segment).
   it("titles the tab with the file name", () => {

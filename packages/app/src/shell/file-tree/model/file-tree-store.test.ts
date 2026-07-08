@@ -263,8 +263,10 @@ describe("FileTreeStore inline edit state machine (§3.10)", () => {
     expect(createFile).toHaveBeenCalledWith("/root", "hello.ts");
     expect(store.editing).toBeNull();
     expect(rightTabOpen).toHaveBeenCalledTimes(1);
+    // The bridge carries the ABSOLUTE host path (identity axis) — joined under the tree root — so the
+    // right panel dedups a file to one tab regardless of which root opened it (defect 7).
     expect(rightTabOpen.mock.calls[0][0]).toMatchObject({
-      location: { path: "hello.ts" },
+      location: { path: "/root/hello.ts" },
       workspaceId: "ws1",
       serverId: "srv1",
     });
@@ -912,7 +914,27 @@ describe("FileTreeStore file activation → right tab (联动2 · defect A)", ()
 
     expect(store.selectedPath).toBe("a.ts");
     expect(rightTabOpen).toHaveBeenCalledTimes(1);
-    expect(rightTabOpen.mock.calls[0][0]).toMatchObject({ workspaceId: "ws1", serverId: "srv1" });
+    expect(rightTabOpen.mock.calls[0][0]).toMatchObject({
+      location: { path: "/root/a.ts" },
+      workspaceId: "ws1",
+      serverId: "srv1",
+    });
+  });
+
+  // Same file, two tree roots: rooted at "/proj" the file is "src/a.ts"; rooted at "/proj/src" the SAME
+  // file is "a.ts". Both must hand the right panel the same ABSOLUTE identity path so its tab dedups them
+  // into one tab (defect 7 — id was the root-relative path, which differed per root and never deduped).
+  test("activateFile emits the same absolute identity path across tree roots (defect 7)", async () => {
+    const deep = makeStore({ data: fakeData({ ".": [entry("src", "directory")] }).data });
+    await deep.store.ensureRoot({ externalRoot: "/proj", conversationRoot: null });
+    deep.store.activateFile("src/a.ts");
+
+    const nested = makeStore({ data: fakeData({ ".": [entry("a.ts", "file")] }).data });
+    await nested.store.ensureRoot({ externalRoot: "/proj/src", conversationRoot: null });
+    nested.store.activateFile("a.ts");
+
+    expect(deep.rightTabOpen.mock.calls[0][0].location.path).toBe("/proj/src/a.ts");
+    expect(nested.rightTabOpen.mock.calls[0][0].location.path).toBe("/proj/src/a.ts");
   });
 
   // Plain select (used by the reverse reveal: file tab → tree locate, §3.2) must NOT open a right tab, or

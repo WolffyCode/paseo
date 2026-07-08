@@ -12,7 +12,9 @@
 // callers (the store) keep calling openFileInRightTab unchanged.
 
 // A file location to open in the right tab. Structurally matches the right panel's FileLocation but is
-// declared here so the pure half carries no cross-module import; the wiring forwards it as-is.
+// declared here so the pure half carries no cross-module import; the wiring forwards it as-is. `path` is
+// the ABSOLUTE host path (the store joins the root-relative entry under the tree root before calling), so
+// the right panel's tab identity dedups a file to one tab across nested/switched tree roots.
 export interface FileLocation {
   readonly path: string;
   readonly lineStart?: number;

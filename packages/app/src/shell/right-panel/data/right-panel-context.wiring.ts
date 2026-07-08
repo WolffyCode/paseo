@@ -14,7 +14,6 @@ import {
   createConnectableEditorHandle,
 } from "../file-tab/components/editor-handle";
 import { FileDocumentModel, type FileTabIo } from "../file-tab/model/file-document-model";
-import { joinHostPath } from "../model/file-location";
 import {
   createRightPanelController,
   type RightPanelController,
@@ -84,8 +83,9 @@ export function createRightPanelForServer(serverId: string, workspaceId: string)
 
   const factory: TabContentFactory = {
     create(request: OpenTabRequest): TabContent {
-      // Root the document at the file tree's current root (the space its root-relative path lives in),
-      // captured at open time; fall back to the conversation root when no tree is mounted.
+      // Capture the file tree's current root at open time — the base the model derives its root-relative
+      // IO path from (location.path is the absolute identity). Fall back to the conversation root when no
+      // tree is mounted, matching the root the store joined the absolute identity under.
       const root =
         resolveFileTreeAccess(serverId, workspaceId)?.rootPath ??
         conversationRoot(serverId, workspaceId) ??
@@ -96,10 +96,10 @@ export function createRightPanelForServer(serverId: string, workspaceId: string)
         {
           io,
           editor: handle,
-          // Reveal the file in the tree: resolve its absolute host path under the captured root and hand
-          // it to the file tree's reveal command (the three-branch decision belongs to file-tree).
-          revealFile: (relPath) =>
-            resolveFileTreeAccess(serverId, workspaceId)?.revealFile(joinHostPath(root, relPath)),
+          // Reveal the file in the tree: the model hands the ABSOLUTE host path (its identity axis); forward
+          // it straight to the file tree's reveal command (the three-branch decision belongs to file-tree).
+          revealFile: (absPath) =>
+            resolveFileTreeAccess(serverId, workspaceId)?.revealFile(absPath),
         },
       );
       // The factory triggers the load (before the view connects, seeds are buffered by the handle).

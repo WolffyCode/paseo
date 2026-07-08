@@ -945,12 +945,14 @@ export class FileTreeStore {
   }
 
   // Open a root-relative file path in the right tab (联动2). The single funnel for both triggers — an
-  // explicit file-row click (activateFile) and a just-created file (commitNew) — so the tree→file-tab
-  // linkage has exactly one place that hands a file to the right panel.
+  // explicit file-row click (activateFile) and a just-created file (commitNew). The bridge carries the
+  // ABSOLUTE host path (the right panel's tab-identity axis, §1.A): joining under the tree root makes the
+  // same file dedup to one tab no matter which (possibly nested) root opened it. Built from hostRoot — the
+  // very root the right-panel factory captures — so the model recovers the exact root-relative path for IO.
   openInRightTab(path: string): void {
     const ctx = this.deps.getContext();
     this.deps.rightTab.openFileInRightTab({
-      location: { path },
+      location: { path: buildAbsoluteTreePath({ treeRoot: this.hostRoot ?? "", entryPath: path }) },
       workspaceId: ctx.workspaceId,
       serverId: ctx.serverId,
     });

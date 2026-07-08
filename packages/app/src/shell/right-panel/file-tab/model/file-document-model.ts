@@ -8,6 +8,7 @@
 import type { FileReadResult } from "@getpaseo/client/internal/daemon-client";
 import { makeAutoObservable, runInAction } from "mobx";
 import type { FileLocation } from "../../model/file-location";
+import { relativeHostPath } from "../../model/file-location";
 import type { ActivityDot, TabContent } from "../../model/tab-content";
 import { classifyDocumentKind, type DocumentKind } from "./document-kind";
 import { advanceFind, type FindSessionState, IDLE_FIND } from "./find-state";
@@ -80,7 +81,12 @@ type ReadOnlyReason = "image" | "binary" | "capability";
 
 export class FileDocumentModel implements TabContent {
   readonly root: string;
+  // The ABSOLUTE host path — the tab's identity axis (stable across tree roots) + the reveal target.
   readonly path: string;
+  // The root-relative path IO speaks (readFile/writeFile take root + a path relative to it), derived once
+  // from the absolute identity under `root`. A path outside the root falls back to absolute — the daemon
+  // resolves an absolute path directly, so IO still works.
+  private readonly relPath: string;
 
   loadState: LoadState = "idle";
   kind: DocumentKind = "text";
@@ -103,11 +109,12 @@ export class FileDocumentModel implements TabContent {
   constructor(init: FileDocumentInit, deps: FileDocumentDeps) {
     this.root = init.root;
     this.path = init.location.path;
+    this.relPath = relativeHostPath(init.root, init.location.path);
     this.deps = deps;
     this.readOnlyReason = init.writeCapable ? null : "capability";
-    makeAutoObservable<this, "deps" | "savePending">(
+    makeAutoObservable<this, "deps" | "savePending" | "relPath">(
       this,
-      { deps: false, savePending: false },
+      { deps: false, savePending: false, relPath: false },
       { autoBind: true },
     );
   }
@@ -146,7 +153,7 @@ export class FileDocumentModel implements TabContent {
     });
     let result: FileReadResult;
     try {
-      result = await this.deps.io.readFile(this.root, this.path);
+      result = await this.deps.io.readFile(this.root, this.relPath);
     } catch {
       runInAction(() => {
         this.loadState = "error";
@@ -220,7 +227,7 @@ export class FileDocumentModel implements TabContent {
       return;
     }
     if (choice === "reload") {
-      const result = await this.deps.io.readFile(this.root, this.path);
+      const result = await this.deps.io.readFile(this.root, this.relPath);
       runInAction(() => {
         this.deps.editor.applyExternalContent(decodeText(result.bytes));
         this.baseline = { modifiedAt: result.modifiedAt };
@@ -230,7 +237,7 @@ export class FileDocumentModel implements TabContent {
       return;
     }
     if (choice === "diff") {
-      const result = await this.deps.io.readFile(this.root, this.path);
+      const result = await this.deps.io.readFile(this.root, this.relPath);
       runInAction(() => {
         this.conflict = {
           hostModifiedAt: conflict.hostModifiedAt,
@@ -287,7 +294,7 @@ export class FileDocumentModel implements TabContent {
     });
     const input: WriteFileInput = {
       root: this.root,
-      path: this.path,
+      path: this.relPath,
       content: this.deps.editor.getContent(),
       expectedModifiedAt: this.baseline.modifiedAt,
     };

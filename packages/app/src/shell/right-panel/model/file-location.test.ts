@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { joinHostPath, normalizeFileLocation, sameFilePath } from "./file-location";
+import {
+  joinHostPath,
+  normalizeFileLocation,
+  relativeHostPath,
+  sameFilePath,
+} from "./file-location";
 
 // file-location is the shell's own file-position value + identity, equivalently rewritten from the
 // legacy @/workspace/file-open (no cross-directory import). These tests pin the two contracts the
@@ -111,5 +116,47 @@ describe("joinHostPath", () => {
   // Windows backslashes fold to forward slashes so the joined path has one spelling.
   it("folds backslashes before joining", () => {
     expect(joinHostPath("/host/proj", "src\\a.ts")).toBe("/host/proj/src/a.ts");
+  });
+});
+
+describe("relativeHostPath", () => {
+  // The inverse of joinHostPath: strip the root prefix so the file-tab model can derive the root-relative
+  // path its IO wants from the absolute identity path the right panel dedups on.
+  it("strips the root prefix to yield the root-relative path", () => {
+    expect(relativeHostPath("/host/proj", "/host/proj/src/a.ts")).toBe("src/a.ts");
+  });
+
+  // Round-trips with joinHostPath: relativeHostPath(root, joinHostPath(root, rel)) === rel — the guarantee
+  // the identity(abs)/IO(relative) split leans on.
+  it("round-trips with joinHostPath (lossless)", () => {
+    const rel = "src/dir/a.ts";
+    expect(relativeHostPath("/host/proj", joinHostPath("/host/proj", rel))).toBe(rel);
+  });
+
+  // A trailing separator on the root collapses at the seam, same as joinHostPath.
+  it("tolerates a trailing-slash root", () => {
+    expect(relativeHostPath("/host/proj/", "/host/proj/src/a.ts")).toBe("src/a.ts");
+  });
+
+  // The root itself resolves to "." (the tree root's own path in root-relative space).
+  it("maps the root itself to '.'", () => {
+    expect(relativeHostPath("/host/proj", "/host/proj")).toBe(".");
+  });
+
+  // A path outside the root can't be made relative; it passes through as-is (the daemon resolves an
+  // absolute path directly, ignoring the cwd, so IO still works).
+  it("passes a path outside the root through unchanged", () => {
+    expect(relativeHostPath("/host/proj", "/other/x.ts")).toBe("/other/x.ts");
+  });
+
+  // Windows backslashes fold before the prefix comparison so a "\\"-spelled absolute still strips.
+  it("folds backslashes before stripping", () => {
+    expect(relativeHostPath("/host/proj", "\\host\\proj\\src\\a.ts")).toBe("src/a.ts");
+  });
+
+  // With no root there is nothing to strip; the input passes through (the empty-launcher / no-tree case).
+  it("passes through when the root is empty", () => {
+    expect(relativeHostPath("", "src/a.ts")).toBe("src/a.ts");
+    expect(relativeHostPath("", "")).toBe("");
   });
 });

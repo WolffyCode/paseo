@@ -5,6 +5,8 @@
 // one tab regardless of which line a jump requested).
 
 export interface FileLocation {
+  // The ABSOLUTE host path — the tab-identity axis. Absolute (not root-relative) so the same file dedups
+  // to one tab no matter which tree root opened it (the producer joins it under the root; §1.A).
   readonly path: string;
   readonly lineStart?: number;
   readonly lineEnd?: number;
@@ -46,6 +48,24 @@ export function joinHostPath(root: string, relPath: string): string {
     return rel;
   }
   return `${root.replace(/\/+$/, "")}/${rel.replace(/^\/+/, "")}`;
+}
+
+// The inverse of joinHostPath: express an absolute host path relative to `root`, so the file-tab model can
+// recover the root-relative path its IO wants from the absolute identity path the panel dedups on. Both are
+// folded to forward slashes with trailing separators dropped; the root itself → ".", and a path outside the
+// root (or an empty root) passes through unchanged — the daemon resolves an absolute path directly, so IO
+// still works when the split can't be made.
+export function relativeHostPath(root: string, absPath: string): string {
+  const normalizedRoot = root.trim().replace(/\\/g, "/").replace(/\/+$/, "");
+  const normalizedAbs = absPath.trim().replace(/\\/g, "/").replace(/\/+$/, "");
+  if (!normalizedRoot) {
+    return normalizedAbs;
+  }
+  if (normalizedAbs === normalizedRoot) {
+    return ".";
+  }
+  const prefix = `${normalizedRoot}/`;
+  return normalizedAbs.startsWith(prefix) ? normalizedAbs.slice(prefix.length) : normalizedAbs;
 }
 
 // The shared path canonicalization behind both normalizeFileLocation and sameFilePath, so the two can
