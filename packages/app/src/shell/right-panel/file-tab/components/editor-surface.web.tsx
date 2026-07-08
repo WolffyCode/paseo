@@ -8,21 +8,31 @@ import { bracketMatching, indentOnInput } from "@codemirror/language";
 import {
   findNext,
   findPrevious,
+  getSearchQuery,
   replaceAll,
   replaceNext,
   SearchQuery,
   search,
   setSearchQuery,
 } from "@codemirror/search";
-import { Annotation, Compartment, EditorState, type Extension } from "@codemirror/state";
+import {
+  Annotation,
+  Compartment,
+  EditorState,
+  type Extension,
+  RangeSetBuilder,
+} from "@codemirror/state";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import {
+  Decoration,
+  type DecorationSet,
   drawSelection,
   EditorView,
   highlightActiveLine,
   highlightActiveLineGutter,
   keymap,
   lineNumbers,
+  ViewPlugin,
   type ViewUpdate,
 } from "@codemirror/view";
 import { observer } from "mobx-react-lite";
@@ -33,6 +43,7 @@ import { buildEditorTheme } from "../../theme/editor-theme.web";
 import type { FileDocumentModel } from "../model/file-document-model";
 import type { ConnectableEditorHandle } from "./editor-handle";
 import { FindWidget } from "./find-widget";
+import { collectSearchMatches } from "./search-decorations";
 
 // The CodeMirror 6 editor surface — the ONE imperative (non-MobX) adapter, mounting a live EditorView
 // into a web DOM node (desktop/web only). It only renders + emits events: user edits → doc.markEdited();
@@ -59,6 +70,48 @@ function languageExtension(path: string): Extension {
   if (/\.(py|pyi)$/.test(lower)) return python();
   if (/\.(md|markdown)$/.test(lower)) return markdown();
   return [];
+}
+
+// The soft-blue mark for every match + the amber mark for the current one; the class names match the
+// theme's .cm-searchMatch / .cm-searchMatch-selected rules (editor-theme.web.ts).
+const MATCH_MARK = Decoration.mark({ class: "cm-searchMatch" });
+const CURRENT_MATCH_MARK = Decoration.mark({ class: "cm-searchMatch cm-searchMatch-selected" });
+
+// A panel-independent search-match highlighter. CodeMirror's stock highlighter only paints while ITS
+// own search panel is open — the file tab uses its own FindWidget and never opens that panel, so
+// matches went undecorated. This plugin decorates the active query's matches (visible ranges only)
+// with the same classes the theme styles, recomputed on doc / selection / viewport / query change.
+const searchMatchHighlighter = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) {
+      this.decorations = buildMatchDecorations(view);
+    }
+    update(update: ViewUpdate): void {
+      if (
+        update.docChanged ||
+        update.selectionSet ||
+        update.viewportChanged ||
+        getSearchQuery(update.state) !== getSearchQuery(update.startState)
+      ) {
+        this.decorations = buildMatchDecorations(update.view);
+      }
+    }
+  },
+  { decorations: (plugin) => plugin.decorations },
+);
+
+// Build the match decoration set for the active query across the editor's visible ranges (off-screen
+// matches cost nothing and are decorated as they scroll in).
+function buildMatchDecorations(view: EditorView): DecorationSet {
+  const query = getSearchQuery(view.state);
+  const builder = new RangeSetBuilder<Decoration>();
+  for (const { from, to } of view.visibleRanges) {
+    for (const match of collectSearchMatches(query, view.state, from, to)) {
+      builder.add(match.from, match.to, match.selected ? CURRENT_MATCH_MARK : MATCH_MARK);
+    }
+  }
+  return builder.finish();
 }
 
 // Count total matches for the active search query and which one (1-based) the selection sits on, so the
@@ -127,6 +180,7 @@ export const EditorSurface = observer(function EditorSurface({
           indentOnInput(),
           bracketMatching(),
           search({ literal: false }),
+          searchMatchHighlighter,
           keymap.of([
             { key: "Mod-f", run: () => runIntent(() => doc.openFind()) },
             { key: "Mod-Alt-f", run: () => runIntent(() => doc.openReplace()) },
