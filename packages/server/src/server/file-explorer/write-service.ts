@@ -11,6 +11,20 @@ interface CreateParams {
   requestedPath: string;
 }
 
+interface FsWriteFileParams {
+  root: string;
+  requestedPath: string;
+  content: string;
+  // The on-disk mtime read when the file was opened; the guard compares it against the current mtime.
+  expectedModifiedAt: string;
+}
+
+// Content write outcome: exactly one arm. `modifiedAt` = the write landed and this is the new on-disk
+// mtime (the client's next baseline). `conflict` = the file changed under us, so we refused to write.
+export type FsWriteFileServiceResult =
+  | { path: string; modifiedAt: string }
+  | { path: string; conflict: { hostModifiedAt: string } };
+
 interface RenameParams {
   root: string;
   requestedPath: string;
@@ -33,6 +47,31 @@ export async function createFile({ root, requestedPath }: CreateParams): Promise
   );
   await handle.close();
   return { path: normalizeRelativePath({ root, targetPath: scoped.requestedPath }) };
+}
+
+// Overwrite an existing file's CONTENT (autosave-on-blur), guarded against blind-overwriting an
+// external change: stat the file first and, if its mtime no longer equals `expectedModifiedAt` (the
+// mtime read when the file was opened), refuse the write and report the host mtime so the caller can
+// resolve the conflict. Plain writeFile (not O_EXCL) because this replaces an existing file, unlike
+// createFile. mtime is always formatted `.toISOString()` so it compares byte-for-byte with the mtimes
+// the file-explorer read path hands the client. A missing file surfaces ENOENT (autosave only ever
+// targets an already-open file). The residual TOCTOU window between stat and write is ms-scale and
+// accepted (§5) — narrowed, not locked, by doing the stat→compare→write in sequence here.
+export async function writeFileContent({
+  root,
+  requestedPath,
+  content,
+  expectedModifiedAt,
+}: FsWriteFileParams): Promise<FsWriteFileServiceResult> {
+  const scoped = await resolveScopedPath({ root, relativePath: requestedPath });
+  const landedPath = normalizeRelativePath({ root, targetPath: scoped.requestedPath });
+  const hostModifiedAt = (await fs.stat(scoped.resolvedPath)).mtime.toISOString();
+  if (hostModifiedAt !== expectedModifiedAt) {
+    return { path: landedPath, conflict: { hostModifiedAt } };
+  }
+  await fs.writeFile(scoped.resolvedPath, content, "utf8");
+  const modifiedAt = (await fs.stat(scoped.resolvedPath)).mtime.toISOString();
+  return { path: landedPath, modifiedAt };
 }
 
 // Create a single directory at `requestedPath` under `root`. Non-recursive so a missing parent

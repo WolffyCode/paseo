@@ -17,6 +17,8 @@ import {
   FsSearchProgressSchema,
   FsSearchRequestSchema,
   FsSearchResponseSchema,
+  FsWriteFileRequestSchema,
+  FsWriteFileResponseSchema,
   ServerInfoStatusPayloadSchema,
   SessionInboundMessageSchema,
   SessionOutboundMessageSchema,
@@ -42,6 +44,27 @@ describe("file-tree capability gates", () => {
     });
     expect(parsed.features?.fsSearch).toBeUndefined();
     expect(parsed.features?.fsWrite).toBeUndefined();
+  });
+
+  test("parses server_info with fsWriteFile enabled (content-write capability)", () => {
+    const parsed = ServerInfoStatusPayloadSchema.parse({
+      status: "server_info",
+      serverId: "srv-1",
+      features: { fsWrite: true, fsWriteFile: true },
+    });
+    expect(parsed.features).toMatchObject({ fsWrite: true, fsWriteFile: true });
+  });
+
+  test("keeps fsWriteFile absent for an old daemon that gates structure writes but not content writes", () => {
+    // Critical backward-compat: an old daemon may broadcast fsWrite:true (structure writes) yet have no
+    // content-write handler. fsWriteFile MUST stay undefined so a new client never sends fs.write to it.
+    const parsed = ServerInfoStatusPayloadSchema.parse({
+      status: "server_info",
+      serverId: "srv-1",
+      features: { fsWrite: true },
+    });
+    expect(parsed.features?.fsWrite).toBe(true);
+    expect(parsed.features?.fsWriteFile).toBeUndefined();
   });
 });
 
@@ -331,6 +354,66 @@ describe("fs.delete RPC schema", () => {
         payload: { requestId: "1", path: "a" },
       }).type,
     ).toBe("fs.delete.response");
+  });
+});
+
+// fs.write RPC: writes file CONTENT back to disk (autosave-on-blur), carrying the mtime read when the
+// file was opened so the host can guard against blind-overwriting an external change. Gated by
+// features.fsWriteFile (NOT fsWrite — that gates structure writes). The response payload sets exactly
+// one of `modifiedAt` (the write landed) or `conflict` (host refused); denied/unavailable are rpc_error.
+describe("fs.write RPC schema", () => {
+  test("parses an fs.write request carrying content + expected mtime", () => {
+    expect(
+      FsWriteFileRequestSchema.parse({
+        type: "fs.write.request",
+        root: "/repo",
+        path: "src/doc.md",
+        content: "# hello",
+        expectedModifiedAt: "2026-07-07T00:00:00.000Z",
+        requestId: "req-1",
+      }),
+    ).toMatchObject({ type: "fs.write.request", path: "src/doc.md", content: "# hello" });
+  });
+
+  test("parses an fs.write response for a landed write (modifiedAt set, conflict absent)", () => {
+    const parsed = FsWriteFileResponseSchema.parse({
+      type: "fs.write.response",
+      payload: { requestId: "req-1", path: "src/doc.md", modifiedAt: "2026-07-07T00:00:01.000Z" },
+    });
+    expect(parsed.payload.modifiedAt).toBe("2026-07-07T00:00:01.000Z");
+    expect(parsed.payload.conflict).toBeUndefined();
+  });
+
+  test("parses an fs.write response for a conflict (hostModifiedAt set, modifiedAt absent)", () => {
+    const parsed = FsWriteFileResponseSchema.parse({
+      type: "fs.write.response",
+      payload: {
+        requestId: "req-1",
+        path: "src/doc.md",
+        conflict: { hostModifiedAt: "2026-07-07T09:09:09.000Z" },
+      },
+    });
+    expect(parsed.payload.conflict?.hostModifiedAt).toBe("2026-07-07T09:09:09.000Z");
+    expect(parsed.payload.modifiedAt).toBeUndefined();
+  });
+
+  test("registers fs.write.request on the inbound union and response on the outbound union", () => {
+    expect(
+      SessionInboundMessageSchema.parse({
+        type: "fs.write.request",
+        root: "/repo",
+        path: "a.md",
+        content: "x",
+        expectedModifiedAt: "2026-07-07T00:00:00.000Z",
+        requestId: "1",
+      }).type,
+    ).toBe("fs.write.request");
+    expect(
+      SessionOutboundMessageSchema.parse({
+        type: "fs.write.response",
+        payload: { requestId: "1", path: "a.md", modifiedAt: "2026-07-07T00:00:01.000Z" },
+      }).type,
+    ).toBe("fs.write.response");
   });
 });
 

@@ -1184,6 +1184,8 @@ export class VoiceAssistantWebSocketServer {
         fsSearch: true,
         // COMPAT(fsWrite): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
         fsWrite: true,
+        // COMPAT(fsWriteFile): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+        fsWriteFile: true,
       },
     };
   }

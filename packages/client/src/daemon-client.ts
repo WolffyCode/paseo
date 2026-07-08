@@ -27,6 +27,7 @@ import type {
   FsSearchRequest,
   FsSearchResponse,
   FsCreateResponse,
+  FsWriteFileRequest,
   FetchAgentTimelineResponseMessage,
   GitSetupOptions,
   CheckoutStatusResponse,
@@ -334,6 +335,16 @@ export type FsSearchResult = Omit<FsSearchResponse["payload"], "requestId">;
 export type FsWriteResult = Omit<FsCreateResponse["payload"], "requestId">;
 // Search input mirrors the request schema minus the transport-managed type/requestId fields.
 export type FsSearchInput = Omit<FsSearchRequest, "type" | "requestId">;
+// Content-write input mirrors the fs.write request minus the transport-managed type/requestId fields.
+export type FsWriteFileInput = Omit<FsWriteFileRequest, "type" | "requestId">;
+// Content-write outcome as a discriminated union the file-tab model can switch on directly: `ok`
+// carries the new baseline mtime; a conflict carries the host mtime for the resolve-conflict flow;
+// denied/unavailable collapse the transport rpc_error into a reason the UI renders as a non-blocking
+// failure. The daemon only ever answers fs.write when features.fsWriteFile is set — gate before calling.
+export type FsWriteFileResult =
+  | { ok: true; modifiedAt: string }
+  | { ok: false; reason: "conflict"; hostModifiedAt: string }
+  | { ok: false; reason: "denied" | "unavailable" };
 type LegacyFileExplorerFilePayload = NonNullable<FileExplorerPayload["file"]>;
 export interface FileReadResult {
   bytes: Uint8Array;
@@ -3701,6 +3712,39 @@ export class DaemonClient {
       timeout: 10000,
     });
     return { path: payload.path };
+  }
+
+  // Write file content back to `root/path` (autosave-on-blur), guarded by the mtime read when the file
+  // was opened. Returns a discriminated result: ok (the new baseline mtime), conflict (the host mtime —
+  // the file changed under us, drives the resolve-conflict flow), or a non-blocking failure reason.
+  // Gate on features.fsWriteFile before calling — an old daemon without the fs.write handler must never
+  // be sent this request.
+  async writeFile(input: FsWriteFileInput, requestId?: string): Promise<FsWriteFileResult> {
+    try {
+      const payload = await this.sendNamespacedCorrelatedSessionRequest<"fs.write.response">({
+        requestId,
+        message: { type: "fs.write.request", ...input },
+        timeout: 10000,
+      });
+      if (payload.conflict) {
+        return { ok: false, reason: "conflict", hostModifiedAt: payload.conflict.hostModifiedAt };
+      }
+      if (payload.modifiedAt) {
+        return { ok: true, modifiedAt: payload.modifiedAt };
+      }
+      // The host contract sets exactly one of conflict/modifiedAt; a response with neither is malformed
+      // — surface it as a non-blocking failure rather than asserting an unsafe shape.
+      return { ok: false, reason: "unavailable" };
+    } catch (error) {
+      // The daemon rejects via rpc_error. EACCES/EPERM is a permanent permission denial; anything else
+      // (incl. a transport drop) is treated as the capability being unavailable for this attempt.
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
+      const denied =
+        message.includes("eacces") ||
+        message.includes("eperm") ||
+        message.includes("permission denied");
+      return { ok: false, reason: denied ? "denied" : "unavailable" };
+    }
   }
 
   async uploadFile(input: FileUploadInput): Promise<FileUploadResult> {

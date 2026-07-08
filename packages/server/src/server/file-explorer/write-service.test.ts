@@ -9,6 +9,7 @@ import {
   deleteEntry,
   moveEntry,
   renameEntry,
+  writeFileContent,
 } from "./write-service.js";
 
 async function createTempDir(prefix: string): Promise<string> {
@@ -331,6 +332,93 @@ describe("fs write service · deleteEntry", () => {
     } finally {
       await rm(root, { recursive: true, force: true });
       await rm(sibling, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("fs write service · writeFileContent", () => {
+  it("overwrites content when the expected mtime matches and returns the fresh on-disk mtime", async () => {
+    const root = await createTempDir("paseo-fs-write-content-");
+    try {
+      await writeFile(path.join(root, "doc.md"), "old body", "utf-8");
+      const expectedModifiedAt = (await stat(path.join(root, "doc.md"))).mtime.toISOString();
+
+      const result = await writeFileContent({
+        root,
+        requestedPath: "doc.md",
+        content: "new body",
+        expectedModifiedAt,
+      });
+
+      // Landed (not a conflict): content replaced and the returned mtime equals the new on-disk mtime.
+      expect("modifiedAt" in result).toBe(true);
+      expect(result.path).toBe("doc.md");
+      expect(await readFile(path.join(root, "doc.md"), "utf-8")).toBe("new body");
+      if ("modifiedAt" in result) {
+        const onDisk = (await stat(path.join(root, "doc.md"))).mtime.toISOString();
+        expect(result.modifiedAt).toBe(onDisk);
+      }
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("returns a conflict with the host mtime and does not write when the expected mtime is stale", async () => {
+    const root = await createTempDir("paseo-fs-write-content-conflict-");
+    try {
+      await writeFile(path.join(root, "doc.md"), "on disk", "utf-8");
+      const hostModifiedAt = (await stat(path.join(root, "doc.md"))).mtime.toISOString();
+
+      const result = await writeFileContent({
+        root,
+        requestedPath: "doc.md",
+        content: "should not land",
+        // Stale baseline (file was changed externally since open) → the guard must trip.
+        expectedModifiedAt: "1970-01-01T00:00:00.000Z",
+      });
+
+      expect("conflict" in result).toBe(true);
+      expect(result.path).toBe("doc.md");
+      if ("conflict" in result) {
+        expect(result.conflict.hostModifiedAt).toBe(hostModifiedAt);
+      }
+      // The overwrite was refused: the on-disk content is untouched.
+      expect(await readFile(path.join(root, "doc.md"), "utf-8")).toBe("on disk");
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects writing content to a file that does not exist (autosave targets an open file)", async () => {
+    const root = await createTempDir("paseo-fs-write-content-missing-");
+    try {
+      await expect(
+        writeFileContent({
+          root,
+          requestedPath: "ghost.md",
+          content: "x",
+          expectedModifiedAt: new Date().toISOString(),
+        }),
+      ).rejects.toThrow();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it("rejects a path that escapes the root before touching the filesystem", async () => {
+    const root = await createTempDir("paseo-fs-write-content-escape-");
+    try {
+      await expect(
+        writeFileContent({
+          root,
+          requestedPath: "../escape.txt",
+          content: "x",
+          expectedModifiedAt: new Date().toISOString(),
+        }),
+      ).rejects.toThrow("Access outside of workspace is not allowed");
+      expect(await pathExists(path.join(root, "..", "escape.txt"))).toBe(false);
+    } finally {
+      await rm(root, { recursive: true, force: true });
     }
   });
 });

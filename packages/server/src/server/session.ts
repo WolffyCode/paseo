@@ -182,6 +182,7 @@ import {
   deleteEntry,
   moveEntry,
   renameEntry,
+  writeFileContent,
 } from "./file-explorer/write-service.js";
 import { searchFiles, type SearchMatch } from "./file-explorer/search-service.js";
 import { DownloadTokenStore } from "./file-download/token-store.js";
@@ -2191,6 +2192,8 @@ export class Session {
         return this.handleFsCopyRequest(msg);
       case "fs.delete.request":
         return this.handleFsDeleteRequest(msg);
+      case "fs.write.request":
+        return this.handleFsWriteFileRequest(msg);
       default:
         return undefined;
     }
@@ -5931,6 +5934,33 @@ export class Session {
       });
     } catch (error) {
       this.sessionLogger.error({ err: error, root: request.root }, "Failed to fulfill fs.delete");
+      this.emitFsRpcError(request.type, request.requestId, error);
+    }
+  }
+
+  // Write file content back to disk (autosave-on-blur) under the workspace root, guarded by the mtime
+  // read when the file was opened. A stale baseline yields a `conflict` payload (the host mtime, no
+  // overwrite) rather than clobbering an external change; escapes, a missing file, and permission
+  // failures become rpc_error. Gated by features.fsWriteFile — old daemons never receive this request.
+  private async handleFsWriteFileRequest(
+    request: Extract<SessionInboundMessage, { type: "fs.write.request" }>,
+  ): Promise<void> {
+    try {
+      const result = await writeFileContent({
+        root: request.root,
+        requestedPath: request.path,
+        content: request.content,
+        expectedModifiedAt: request.expectedModifiedAt,
+      });
+      this.emit({
+        type: "fs.write.response",
+        payload:
+          "conflict" in result
+            ? { requestId: request.requestId, path: result.path, conflict: result.conflict }
+            : { requestId: request.requestId, path: result.path, modifiedAt: result.modifiedAt },
+      });
+    } catch (error) {
+      this.sessionLogger.error({ err: error, root: request.root }, "Failed to fulfill fs.write");
       this.emitFsRpcError(request.type, request.requestId, error);
     }
   }

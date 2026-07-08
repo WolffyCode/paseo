@@ -2058,6 +2058,19 @@ export const FsDeleteRequestSchema = z.object({
   requestId: z.string(),
 });
 
+// Write file CONTENT back to disk (autosave-on-blur). `expectedModifiedAt` is the mtime read when the
+// file was opened; the host compares it to the on-disk mtime and returns a conflict instead of blind-
+// overwriting when they differ. Gated by features.fsWriteFile (NOT fsWrite, which gates structure
+// writes). COMPAT(fsWriteFile): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+export const FsWriteFileRequestSchema = z.object({
+  type: z.literal("fs.write.request"),
+  root: z.string(),
+  path: z.string(),
+  content: z.string(),
+  expectedModifiedAt: z.string(),
+  requestId: z.string(),
+});
+
 export const ProjectIconRequestSchema = z.object({
   type: z.literal("project_icon_request"),
   cwd: z.string(),
@@ -2333,6 +2346,7 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   FsMoveRequestSchema,
   FsCopyRequestSchema,
   FsDeleteRequestSchema,
+  FsWriteFileRequestSchema,
   ProjectIconRequestSchema,
   FileDownloadTokenRequestSchema,
   FileUploadRequestSchema,
@@ -2573,6 +2587,11 @@ export const ServerInfoStatusPayloadSchema = z
         fsSearch: z.boolean().optional(),
         // COMPAT(fsWrite): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
         fsWrite: z.boolean().optional(),
+        // Content write (autosave). Deliberately separate from fsWrite: an old daemon may gate
+        // structure writes (fsWrite) yet have no content-write handler, so reusing fsWrite would make
+        // it falsely advertise autosave. Only a daemon with the fs.write handler broadcasts this.
+        // COMPAT(fsWriteFile): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+        fsWriteFile: z.boolean().optional(),
       })
       .optional(),
   })
@@ -4055,6 +4074,23 @@ export const FsDeleteResponseSchema = z.object({
   payload: FsWriteResponsePayloadSchema,
 });
 
+// fs.write response payload: exactly one of `modifiedAt` (the write landed; this is the new on-disk
+// mtime the client adopts as its next baseline) or `conflict` (the on-disk mtime != expectedModifiedAt,
+// so the host refused to overwrite). denied/unavailable travel on the transport rpc_error channel, not
+// here — this payload only encodes the two write-landed outcomes. Kept separate from the shared
+// FsWriteResponsePayloadSchema so the six structure writes stay {requestId,path} and are not polluted.
+const FsWriteFileResponsePayloadSchema = z.object({
+  requestId: z.string(),
+  path: z.string(),
+  modifiedAt: z.string().optional(),
+  conflict: z.object({ hostModifiedAt: z.string() }).optional(),
+});
+
+export const FsWriteFileResponseSchema = z.object({
+  type: z.literal("fs.write.response"),
+  payload: FsWriteFileResponsePayloadSchema,
+});
+
 const ProjectIconSchema = z.object({
   data: z.string(),
   mimeType: z.string(),
@@ -4501,6 +4537,7 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   FsMoveResponseSchema,
   FsCopyResponseSchema,
   FsDeleteResponseSchema,
+  FsWriteFileResponseSchema,
   ProjectIconResponseSchema,
   FileDownloadTokenResponseSchema,
   FileUploadResponseSchema,
@@ -4850,6 +4887,8 @@ export type FsCopyRequest = z.infer<typeof FsCopyRequestSchema>;
 export type FsCopyResponse = z.infer<typeof FsCopyResponseSchema>;
 export type FsDeleteRequest = z.infer<typeof FsDeleteRequestSchema>;
 export type FsDeleteResponse = z.infer<typeof FsDeleteResponseSchema>;
+export type FsWriteFileRequest = z.infer<typeof FsWriteFileRequestSchema>;
+export type FsWriteFileResponse = z.infer<typeof FsWriteFileResponseSchema>;
 export type ProjectIconRequest = z.infer<typeof ProjectIconRequestSchema>;
 export type ProjectIconResponse = z.infer<typeof ProjectIconResponseSchema>;
 export type ProjectIcon = z.infer<typeof ProjectIconSchema>;
