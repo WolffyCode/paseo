@@ -365,6 +365,10 @@ const styles = StyleSheet.create({
     gap: 2,
     borderBottomWidth: 1,
     position: "relative",
+    // The new-tab dropdown + tab right-click menu are absolute children that overflow BELOW the 42px bar
+    // into the content region. Lift the whole bar into its own stacking layer so those menus paint (and
+    // stay clickable) above the sibling editor/breadcrumb, which otherwise cover their lower rows.
+    zIndex: 30,
   },
   tab: {
     flexDirection: "row",
