@@ -899,6 +899,37 @@ describe("FileTreeStore cross-module actions", () => {
   });
 });
 
+describe("FileTreeStore file activation → right tab (联动2 · defect A)", () => {
+  // An explicit file-row click both selects the file and opens/focuses its right-panel tab. This is the
+  // hook the whole tree→file-tab chain hangs on: clicking an existing file in the tree must surface it in
+  // the right panel (previously only NEW files did, so opening existing files was a dead chain).
+  test("activateFile selects the file AND opens it in the right tab", async () => {
+    const { data } = fakeData({ ".": [entry("a.ts", "file")] });
+    const { store, rightTabOpen } = makeStore({ data });
+    await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+
+    store.activateFile("a.ts");
+
+    expect(store.selectedPath).toBe("a.ts");
+    expect(rightTabOpen).toHaveBeenCalledTimes(1);
+    expect(rightTabOpen.mock.calls[0][0]).toMatchObject({ workspaceId: "ws1", serverId: "srv1" });
+  });
+
+  // Plain select (used by the reverse reveal: file tab → tree locate, §3.2) must NOT open a right tab, or
+  // switching/arrow-revealing a file would spuriously re-open tabs and loop the two-way linkage. Only the
+  // explicit click (activateFile) opens.
+  test("select alone does not open a right tab (reverse-reveal must not re-open)", async () => {
+    const { data } = fakeData({ ".": [entry("a.ts", "file")] });
+    const { store, rightTabOpen } = makeStore({ data });
+    await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+
+    store.select("a.ts");
+
+    expect(store.selectedPath).toBe("a.ts");
+    expect(rightTabOpen).not.toHaveBeenCalled();
+  });
+});
+
 describe("FileTreeStore absolute root (bug: '~/Desktop' reveal/copy)", () => {
   // When the host root carries a literal "~" (e.g. the desktop root "~/Desktop"), joining it into a
   // reveal/copy-absolute path yields an unresolvable "~/Desktop/a.ts". The root listing now echoes the

@@ -392,9 +392,18 @@ export class FileTreeStore {
   }
 
   // Select a file (single-select, mutually exclusive). The selection is readable for the right-side
-  // file tab to consume later.
+  // file tab to consume later. Pure selection: it does NOT open a right tab, so the reverse reveal
+  // (file tab → tree locate) can reuse it without looping back into another open.
   select(path: string): void {
     this.selectedPath = selectPath(this.selectedPath, path);
+  }
+
+  // The explicit file-row click (联动2): select the file AND open/focus its right-panel tab. This is the
+  // ONE hook that opens the right tab for an already-existing file — bound to the deliberate click, not to
+  // select() (which the reverse reveal fires) so arrow/reveal navigation never spuriously opens tabs.
+  activateFile(path: string): void {
+    this.select(path);
+    this.openInRightTab(path);
   }
 
   // Retry the failed root listing (sFT6 error/offline exit).
@@ -882,12 +891,7 @@ export class FileTreeStore {
         this.rerunActiveSearch();
       });
       if (kind === "new-file") {
-        const ctx = this.deps.getContext();
-        this.deps.rightTab.openFileInRightTab({
-          location: { path: landed },
-          workspaceId: ctx.workspaceId,
-          serverId: ctx.serverId,
-        });
+        this.openInRightTab(landed);
       }
     } catch (error) {
       runInAction(() => {
@@ -940,8 +944,9 @@ export class FileTreeStore {
     this.deps.copyToClipboard(relative ? path : this.toAbsolute(path));
   }
 
-  // Open a file in the right tab (联动2). Internally called by commitNew for a new file; exposed so the
-  // selection flow can extend it later. Only new files trigger it this milestone.
+  // Open a root-relative file path in the right tab (联动2). The single funnel for both triggers — an
+  // explicit file-row click (activateFile) and a just-created file (commitNew) — so the tree→file-tab
+  // linkage has exactly one place that hands a file to the right panel.
   openInRightTab(path: string): void {
     const ctx = this.deps.getContext();
     this.deps.rightTab.openFileInRightTab({

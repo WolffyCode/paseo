@@ -78,8 +78,9 @@ export const TreeNode = observer(function TreeNode({
 
   const labelStyle = useMemo(() => [styles.label, { color: tk.foreground }], [tk.foreground]);
 
-  // A directory toggles expand/collapse; a file selects (single-select). Draft/rename rows ignore the
-  // press (the inline input owns interaction). The store decides the transition; this only dispatches.
+  // A directory toggles expand/collapse; a file activates (select + open in the right tab). Draft/rename
+  // rows ignore the press (the inline input owns interaction). The store decides the transition; this only
+  // dispatches — the click is the explicit open hook (联动2), distinct from a bare select.
   const onPress = useCallback(() => {
     if (inlineEditing) {
       return;
@@ -87,7 +88,7 @@ export const TreeNode = observer(function TreeNode({
     if (node.kind === "directory") {
       void store.toggleExpand(node.path);
     } else {
-      store.select(node.path);
+      store.activateFile(node.path);
     }
   }, [inlineEditing, node.kind, node.path, store]);
 
