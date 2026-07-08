@@ -14,6 +14,9 @@ export const EditorSurface = observer(function EditorSurface(_props: {
   doc: FileDocumentModel;
   editorHandle: ConnectableEditorHandle;
   frozen: boolean;
+  // Kept for prop parity with the web surface (which reports the caret to the status bar); native has no
+  // editor, so this is never called.
+  onCursor: (pos: { line: number; col: number }) => void;
 }) {
   const tk = themeModel.tokens;
   const textStyle = useMemo(

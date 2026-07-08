@@ -137,11 +137,15 @@ export const EditorSurface = observer(function EditorSurface({
   doc,
   editorHandle,
   frozen,
+  onCursor,
 }: {
   doc: FileDocumentModel;
   editorHandle: ConnectableEditorHandle;
   // Offline freeze: the panel is disconnected, so the buffer is shown read-only (no edits, no autosave).
   frozen: boolean;
+  // Report the caret's 1-based line/column on every selection/doc change so the status bar can display it
+  // (the editor owns the caret; the status bar only mirrors it — ui.html sRS4 "行 X, 列 Y").
+  onCursor: (pos: { line: number; col: number }) => void;
 }) {
   const hostRef = useRef<View>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -151,6 +155,9 @@ export const EditorSurface = observer(function EditorSurface({
     editable: new Compartment(),
   });
   const [replaceText, setReplaceText] = useState("");
+  // Latest-ref so the mount-once update listener reports through the current callback without re-subscribing.
+  const onCursorRef = useRef(onCursor);
+  onCursorRef.current = onCursor;
 
   // Reactive reads (subscribe `observer`): scheme drives the theme, read-only reason/freeze drive
   // editability, and the find session drives the CM search query.
@@ -195,7 +202,10 @@ export const EditorSurface = observer(function EditorSurface({
           comp.theme.of(buildEditorTheme(themeModel.scheme)),
           comp.language.of(languageExtension(doc.path)),
           comp.editable.of(editableExtension(doc.readOnlyReason !== null || frozen)),
-          EditorView.updateListener.of((update) => reportEdit(update, doc)),
+          EditorView.updateListener.of((update) => {
+            reportEdit(update, doc);
+            reportCursor(update, onCursorRef.current);
+          }),
           EditorView.domEventHandlers({
             blur: () => {
               doc.autosaveOnBlur();
@@ -303,6 +313,20 @@ function reportEdit(update: ViewUpdate, doc: FileDocumentModel): void {
   if (update.docChanged && !external) {
     doc.markEdited();
   }
+}
+
+// Report the caret's 1-based line/column to the status bar on any selection or document change. CM offsets
+// are 0-based within a line; +1 makes column human-1-based to match the editor's line numbers / ui.html.
+function reportCursor(
+  update: ViewUpdate,
+  onCursor: (pos: { line: number; col: number }) => void,
+): void {
+  if (!update.selectionSet && !update.docChanged) {
+    return;
+  }
+  const head = update.state.selection.main.head;
+  const line = update.state.doc.lineAt(head);
+  onCursor({ line: line.number, col: head - line.from + 1 });
 }
 
 // Run a model find intent from a keymap binding; always report handled so CM stops default processing.

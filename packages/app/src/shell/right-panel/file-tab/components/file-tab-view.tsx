@@ -118,6 +118,9 @@ const LoadedFile = observer(function LoadedFile({
     () => (isOffline ? [styles.bodyInner, styles.frozen] : styles.bodyInner),
     [isOffline],
   );
+  // Caret line/column mirrored from the editor surface (the editor owns the caret; the model has no
+  // position). UI-local — only the status bar consumes it, and only when the editor is mounted.
+  const [cursor, setCursor] = useState({ line: 1, col: 1 });
 
   return (
     <>
@@ -126,11 +129,16 @@ const LoadedFile = observer(function LoadedFile({
       {capabilityReadOnly ? <CapabilityHint /> : null}
       <View style={styles.body} pointerEvents={isOffline ? "none" : "auto"}>
         <View style={innerStyle}>
-          <FileContent doc={doc} editorHandle={editorHandle} isOffline={isOffline} />
+          <FileContent
+            doc={doc}
+            editorHandle={editorHandle}
+            isOffline={isOffline}
+            onCursor={setCursor}
+          />
         </View>
       </View>
       {showAutosaveWarn ? <AutosaveWarn /> : null}
-      {showStatusBar ? <StatusBar doc={doc} isOffline={isOffline} /> : null}
+      {showStatusBar ? <StatusBar doc={doc} isOffline={isOffline} cursor={cursor} /> : null}
     </>
   );
 });
@@ -140,10 +148,12 @@ const FileContent = observer(function FileContent({
   doc,
   editorHandle,
   isOffline,
+  onCursor,
 }: {
   doc: FileDocumentModel;
   editorHandle: ConnectableEditorHandle;
   isOffline: boolean;
+  onCursor: (pos: { line: number; col: number }) => void;
 }) {
   if (doc.kind === "image") {
     return <ImagePreview doc={doc} />;
@@ -154,7 +164,9 @@ const FileContent = observer(function FileContent({
   if (doc.kind === "markdown" && doc.mdView === "preview") {
     return <MarkdownPreview doc={doc} editorHandle={editorHandle} />;
   }
-  return <EditorSurface doc={doc} editorHandle={editorHandle} frozen={isOffline} />;
+  return (
+    <EditorSurface doc={doc} editorHandle={editorHandle} frozen={isOffline} onCursor={onCursor} />
+  );
 });
 
 // The read-only path breadcrumb (folder icon + parent dirs + current file), the dirty dot, and the
@@ -394,14 +406,17 @@ function AutosaveWarn() {
   );
 }
 
-// The bottom status bar: language / encoding / line-ending + the autosave state (or the frozen indicator
-// when offline). Cursor row/column is not shown (the editor owns the cursor; the model has no position).
+// The bottom status bar: caret line/column + language / encoding / line-ending + the autosave state (or
+// the frozen indicator when offline). The line/column is mirrored from the editor surface (ui.html sRS4
+// "行 X, 列 Y"); it leads the row per the design.
 const StatusBar = observer(function StatusBar({
   doc,
   isOffline,
+  cursor,
 }: {
   doc: FileDocumentModel;
   isOffline: boolean;
+  cursor: { line: number; col: number };
 }) {
   const tk = themeModel.tokens;
   const bar = useMemo(
@@ -414,6 +429,9 @@ const StatusBar = observer(function StatusBar({
   );
   return (
     <View style={bar}>
+      <Text style={meta}>
+        行 {cursor.line}, 列 {cursor.col}
+      </Text>
       <Text style={meta}>{languageLabel(doc.path)}</Text>
       <Text style={meta}>UTF-8</Text>
       <Text style={meta}>LF</Text>
