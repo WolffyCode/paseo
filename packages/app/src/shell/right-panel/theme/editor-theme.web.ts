@@ -84,8 +84,6 @@ function buildChromeTheme(scheme: ThemeScheme): Extension {
       ".cm-activeLine": { backgroundColor: tk.currentLine },
       ".cm-activeLineGutter": { backgroundColor: tk.currentLine, color: tk.currentLineNumber },
       ".cm-lineNumbers .cm-gutterElement": { paddingLeft: "8px", paddingRight: "10px" },
-      // The changed-line gutter marker (a left bar) — a class the surface tags edited lines with.
-      ".cm-changedLine .cm-gutterElement": { color: tk.gutterChange },
       // Find matches: soft-blue for all, amber emphasis for the active one (ui.html .ematch / .ematch.cur).
       ".cm-searchMatch": { backgroundColor: tk.match, borderRadius: "2px" },
       ".cm-searchMatch-selected": {
