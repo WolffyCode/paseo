@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Helm · UI 设计稿 v5 · 右侧侧边栏（工作面板 · 多页签）· 文件先行 · 失焦自动保存 · ODPF · 查找替换 · 9 屏全态</title>
+    <title>Helm · UI 设计稿 v6 · 右侧侧边栏（工作面板 · 多页签）· 文件先行 · 失焦自动保存 · 编辑器背景随主题·高亮默认 ODPF · 放大统一整面板 · 查找替换 · 9 屏全态</title>
     <style>
       /* =========================================================================
          主题令牌 = 壳子同源（CodePilot「github」主题）。浅色 :root + 深色 .dark 逐值复用
@@ -263,7 +263,7 @@
       .btn.dis { opacity: 0.45; cursor: not-allowed; }
       .btn .ic { flex: none; }
 
-      /* ===== 文件页签 · 顶栏（面包屑 + 脏点 + 保存 + 单页签 ⤢） ===== */
+      /* ===== 文件页签 · 顶栏（面包屑 + 脏点 + 编辑/预览段控） ===== */
       .file-bar { flex: none; height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 8px 0 12px; border-bottom: 1px solid var(--border); }
       .file-crumb { display: flex; align-items: center; gap: 5px; font-size: 12px; color: var(--muted-fg); font-family: var(--mono); min-width: 0; }
       .file-crumb .sep { color: var(--muted-fg); opacity: 0.6; }
@@ -279,7 +279,7 @@
       .mini-btn.warn { color: var(--warning); }
       /* ★v5 意见1：手动保存按钮 .save-btn 已删除（改失焦自动保存）。 */
 
-      /* 可编辑代码区（内芯 ODPF 深色 · 见下方 v5 块） */
+      /* 可编辑代码区（背景随 chrome 主题：浅底/深 ODPF · 高亮默认 ODPF · 见下方块） */
       .edit-body { flex: 1; min-height: 0; overflow: auto; font-family: var(--mono); font-size: 12px; padding: 6px 0; position: relative; }
       .el { display: flex; min-height: 19px; position: relative; }
       .el.cur-line { background: color-mix(in oklch, var(--primary) 5%, transparent); }
@@ -321,32 +321,55 @@
       .dark .tk-mda { color: #a5d6ff; }
 
       /* =========================================================================
-         ★ v5（董事长闸1 · 6 意见）新增：ODPF 深色编辑器内芯 + 查找/替换浮层 +
-         活跃页签常显 ✕ + 失焦自动保存。放在 .dark .tk-* 之后 → 同特异性后者胜，
-         浅/深 chrome 下 .edit-body 均恒为 ODPF（独立于 chrome 主题）。
+         ★ v5（董事长闸1 · 6 意见）新增：编辑器色板 + 查找/替换浮层 +
+         活跃页签常显 ✕ + 失焦自动保存。放在 .dark .tk-* 之后 → 同特异性后者胜。
+         ★ v6（闸1 细则）：.edit-body 背景随 chrome —— 浅 chrome 浅底 + 浅色 token，
+         深 chrome ODPF 深底 + 深色 token；代码高亮默认 ODPF（浅主题一套浅色默认集）。
          ========================================================================= */
       /* 意见2：活跃页签常显 ✕（VSCode 式）——非活跃页签仍 hover 显 ✕ */
       .rp-tab.on .rp-x { opacity: 1; }
 
-      /* 意见4：代码/文本编辑器内芯恒 ODPF（One Dark Pro Flat）· 精确色板 */
-      .edit-body { background: #282c34; color: #abb2bf; }
-      .edit-body .el .eln { color: #495162; }             /* 行号/gutter */
-      .edit-body .el .ec { color: #abb2bf; }              /* 前景 */
-      .edit-body .el.cur-line { background: #2c313a; }    /* 当前行底 */
-      .edit-body .el.cur-line .eln { color: #abb2bf; }
-      .edit-body .esel { background: #3e4451; }           /* 选区 */
-      .edit-body .ecur { background: #61afef; }           /* 光标 */
-      .edit-body .gutter-edit { color: #98c379; }         /* 改动行号 */
-      .edit-body .tk-kw  { color: #c678dd; font-style: normal; } /* 关键字 */
-      .edit-body .tk-fn  { color: #61afef; font-style: normal; } /* 函数 */
-      .edit-body .tk-str { color: #98c379; }                     /* 字符串 */
-      .edit-body .tk-cm  { color: #5c6370; font-style: normal; } /* 注释（Flat=去斜体） */
-      .edit-body .tk-num { color: #d19a66; }                     /* 数字/常量 */
-      .edit-body .tk-tag { color: #56b6c2; }                     /* 标签/操作符 */
-      .edit-body .tk-mdh { color: #e06c75; font-weight: 600; }   /* md 标题 */
-      .edit-body .tk-mdb { color: #d19a66; font-weight: 700; }   /* md 粗体 */
-      .edit-body .tk-mda { color: #61afef; text-decoration: underline; } /* md 链接 */
-      /* 命中高亮：当前命中琥珀描边强调 + 其它命中淡蓝 */
+      /* ★ v6 意见4【已决 v5-X】：编辑器背景随 chrome 主题 —— 浅 chrome = 浅底 + 浅色
+         token；深 chrome = ODPF 深底 + 深色 token。代码语法高亮默认 ODPF（深主题 ODPF ·
+         浅主题一套浅色默认集，One Light / GitHub Light 风格）。每主题默认集 + 独立自定义
+         = 设置模块后续（deferred）。作用域 = chrome 极性（.dark 祖先 = 深 chrome）。 */
+      /* —— 浅 chrome 编辑器：浅底 + 浅色 token（One Light 风格 · design token） —— */
+      .edit-body { background: #fafafa; color: #383a42; }
+      .edit-body .el .eln { color: #9d9d9f; }              /* 行号/gutter */
+      .edit-body .el .ec { color: #383a42; }               /* 前景 */
+      .edit-body .el.cur-line { background: #eaeaeb; }     /* 当前行底 */
+      .edit-body .el.cur-line .eln { color: #383a42; }
+      .edit-body .esel { background: #d3d7de; }            /* 选区 */
+      .edit-body .ecur { background: #4078f2; }            /* 光标 */
+      .edit-body .gutter-edit { color: #50a14f; }          /* 改动行号 */
+      .edit-body .tk-kw  { color: #a626a4; font-style: normal; } /* 关键字 */
+      .edit-body .tk-fn  { color: #4078f2; font-style: normal; } /* 函数 */
+      .edit-body .tk-str { color: #50a14f; }                     /* 字符串 */
+      .edit-body .tk-cm  { color: #a0a1a7; font-style: normal; } /* 注释 */
+      .edit-body .tk-num { color: #986801; }                     /* 数字/常量 */
+      .edit-body .tk-tag { color: #0184bc; }                     /* 标签/操作符 */
+      .edit-body .tk-mdh { color: #e45649; font-weight: 600; }   /* md 标题 */
+      .edit-body .tk-mdb { color: #986801; font-weight: 700; }   /* md 粗体 */
+      .edit-body .tk-mda { color: #4078f2; text-decoration: underline; } /* md 链接 */
+      /* —— 深 chrome 编辑器：ODPF 深底 + 深色 token（One Dark Pro Flat · design token） —— */
+      .dark .edit-body { background: #282c34; color: #abb2bf; }
+      .dark .edit-body .el .eln { color: #495162; }             /* 行号/gutter */
+      .dark .edit-body .el .ec { color: #abb2bf; }              /* 前景 */
+      .dark .edit-body .el.cur-line { background: #2c313a; }    /* 当前行底 */
+      .dark .edit-body .el.cur-line .eln { color: #abb2bf; }
+      .dark .edit-body .esel { background: #3e4451; }           /* 选区 */
+      .dark .edit-body .ecur { background: #61afef; }           /* 光标 */
+      .dark .edit-body .gutter-edit { color: #98c379; }         /* 改动行号 */
+      .dark .edit-body .tk-kw  { color: #c678dd; font-style: normal; } /* 关键字 */
+      .dark .edit-body .tk-fn  { color: #61afef; font-style: normal; } /* 函数 */
+      .dark .edit-body .tk-str { color: #98c379; }                     /* 字符串 */
+      .dark .edit-body .tk-cm  { color: #5c6370; font-style: normal; } /* 注释（Flat=去斜体） */
+      .dark .edit-body .tk-num { color: #d19a66; }                     /* 数字/常量 */
+      .dark .edit-body .tk-tag { color: #56b6c2; }                     /* 标签/操作符 */
+      .dark .edit-body .tk-mdh { color: #e06c75; font-weight: 600; }   /* md 标题 */
+      .dark .edit-body .tk-mdb { color: #d19a66; font-weight: 700; }   /* md 粗体 */
+      .dark .edit-body .tk-mda { color: #61afef; text-decoration: underline; } /* md 链接 */
+      /* 命中高亮：当前命中琥珀描边强调 + 其它命中淡蓝（深浅通用） */
       .edit-body .ematch { background: rgba(97, 175, 239, 0.2); border-radius: 2px; }
       .edit-body .ematch.cur { background: rgba(229, 192, 123, 0.42); box-shadow: 0 0 0 1px #e5c07b; border-radius: 2px; }
 
@@ -716,39 +739,46 @@
     <div class="board-h">
       <h1>
         <span class="logo"><svg class="i lg" style="color: #fff"><use href="#panel-r" /></svg></span>
-        右侧侧边栏（工作面板 · 多页签）· UI 设计稿 v5
+        右侧侧边栏（工作面板 · 多页签）· UI 设计稿 v6
       </h1>
       <div class="sub">
-        对话页<b>最右侧「工作面板」</b>（壳子 workspace 卡）的<b>内部内容</b>设计：<b>自带 tab 头</b>（照 Codex：图标+文字页签 / <b>活跃=浅灰圆角胶囊</b> / 页签间细竖分隔 / 末尾 + / 右上 ⤢ 放大 + 收起）。<b>五类页签框架</b>：文件 / 终端 / 浏览器 / 代码审核 / 对话。<b>v5 承 v4「文件先行」骨架、据闸1 六意见微调</b>——文件是<b>被依赖最多</b>的页签（目录树点开、对话文档地址、终端输出路径都落到文件）：本轮<b>把工作区框架搭起来 + 落地「文件」页签全态</b>（可编辑·<b>失焦自动保存</b>·<b>ODPF 深色内芯</b>·<b>查找/替换浮层</b> / md 双态·<b>默认预览</b> / 图片只读 / 双向联动 / 编辑必备态），<b>接上三条断链</b>；<b>终端 / 浏览器 / 代码审核 / 对话四类本轮 deferred</b>（框架层声明 + 启动器置灰「后续」，后续独立需求兑现）。壳行为（宽 480/320–800 / 拖拽 / 收起 / 记忆宽度）已有，本稿不重画。视觉令牌 100% 复用壳 CodePilot github 主题，<b>深浅双适配</b>。
+        对话页<b>最右侧「工作面板」</b>（壳子 workspace 卡）的<b>内部内容</b>设计：<b>自带 tab 头</b>（照 Codex：图标+文字页签 / <b>活跃=浅灰圆角胶囊</b> / 页签间细竖分隔 / 末尾 + / 右上 ⤢ 放大 + 收起）。<b>五类页签框架</b>：文件 / 终端 / 浏览器 / 代码审核 / 对话。<b>v5 承 v4「文件先行」骨架、据闸1 六意见微调</b>——文件是<b>被依赖最多</b>的页签（目录树点开、对话文档地址、终端输出路径都落到文件）：本轮<b>把工作区框架搭起来 + 落地「文件」页签全态</b>（可编辑·<b>失焦自动保存</b>·<b>编辑器背景随 chrome 主题</b>（浅底/深 ODPF）·<b>高亮默认 ODPF</b>·<b>查找/替换浮层</b> / md 双态·<b>默认预览</b> / 图片只读 / 双向联动 / 编辑必备态），<b>接上三条断链</b>；<b>终端 / 浏览器 / 代码审核 / 对话四类本轮 deferred</b>（框架层声明 + 启动器置灰「后续」，后续独立需求兑现）。壳行为（宽 480/320–800 / 拖拽 / 收起 / 记忆宽度）已有，本稿不重画。视觉令牌 100% 复用壳 CodePilot github 主题，<b>深浅双适配</b>。
+      </div>
+    </div>
+
+    <div class="rev-bar">
+      <span class="rb-tag">v6 · 闸1 · 两处细则修正</span>
+      <div>
+        本稿据董事长<b>闸 1 两处细则修正</b>由 v5 <b>原地微调为 v6</b>（骨架 sRS1/2/3 / 失焦自动保存 / tab ✕ / 查找替换浮层 / 快捷键 / md 默认预览 / 面板级 sRS9 全不动）。<b>v6 主轴两条</b>：<b>① 文件内容区去「单页签放大」</b>——放大统一走 tab 条右上 <b>⤢ 整面板放大</b>（占满对话区），file-bar 不再放 ⤢、sRS8 只保留整面板放大；<b>②【v5-X 已决】编辑器背景随 chrome 主题</b>（浅 chrome = 浅底 + 浅色 token · 深 chrome = ODPF 深底 + 深色 token）· <b>代码高亮默认 ODPF</b>（深主题 ODPF · 浅主题一套浅色默认集，One Light 风格）· <b>每主题默认高亮集 + 独立自定义 = 设置模块后续</b>（deferred）。
       </div>
     </div>
 
     <div class="rev-bar">
       <span class="rb-tag">v5 · 闸1 · 6 意见微调</span>
       <div>
-        本稿据董事长<b>闸 1 六条意见</b>由 v4 <b>原地微调为 v5</b>（骨架/9 屏不变）：① <b>去手动保存按钮 → 失焦自动保存</b>（sRS4 四态：未落盘 / 自动保存中 / 已自动保存 / <b>自动保存失败·非阻塞</b>·无「重试」；脏 ● 仅作「编辑中未落盘」临时指示）；② <b>活跃页签常显 ✕</b>（VSCode 式，非活跃 hover 显）；③ <b>查找/替换 VSCode 式浮层升为必做</b>（sRS4 · 右上角悬浮 · <code>⌘F</code>/<code>⌘⌥F</code> · 命中计数/上下条/Aa·ab|·.*/逐个全部替换 · 多态）；④ <b>代码/文本编辑器内芯默认 ODPF 深色</b>（One Dark Pro Flat · <b>独立于 chrome 主题</b>，浅色 chrome 卡内芯亦深，<b>待董事长确认 · 开放问题 v5-X</b>）；⑤ <b>md 打开默认落预览</b>（sRS5 预览态为主态）；⑥ <b>常用快捷键</b>（撤销/重做/剪切/复制/粘贴/全选/查找/替换）与右键 9 项（保存/还原 → 查找/替换，<b>开放问题 v5-Y</b>）并存。<b>sRS7 三择一确认删除 → 关闭脏页签静默自动保存·无弹窗</b>。
+        本稿据董事长<b>闸 1 六条意见</b>由 v4 <b>原地微调为 v5</b>（骨架/9 屏不变）：① <b>去手动保存按钮 → 失焦自动保存</b>（sRS4 四态：未落盘 / 自动保存中 / 已自动保存 / <b>自动保存失败·非阻塞</b>·无「重试」；脏 ● 仅作「编辑中未落盘」临时指示）；② <b>活跃页签常显 ✕</b>（VSCode 式，非活跃 hover 显）；③ <b>查找/替换 VSCode 式浮层升为必做</b>（sRS4 · 右上角悬浮 · <code>⌘F</code>/<code>⌘⌥F</code> · 命中计数/上下条/Aa·ab|·.*/逐个全部替换 · 多态）；④【v6 已决】<b>编辑器背景随 chrome 主题</b>（浅 chrome 浅底 · 深 chrome 深底）· <b>代码高亮默认 ODPF</b>（深主题 ODPF · 浅主题一套浅色默认集）· <b>每主题默认高亮集 + 独立自定义 = 设置模块后续</b>（deferred）；⑤ <b>md 打开默认落预览</b>（sRS5 预览态为主态）；⑥ <b>常用快捷键</b>（撤销/重做/剪切/复制/粘贴/全选/查找/替换）与右键 9 项（保存/还原 → 查找/替换，<b>开放问题 v5-Y</b>）并存。<b>sRS7 三择一确认删除 → 关闭脏页签静默自动保存·无弹窗</b>。
       </div>
     </div>
 
     <div class="rev-bar">
       <span class="rb-tag">v4 · 闸1 第三次调向 · 文件先行</span>
       <div>
-        本稿据董事长闸 1 <b>第三次调向</b>由 v3（6 屏 · 终端先行）<b>原地改为 v4（9 屏 · 文件先行）</b>：<span class="strike">删除 v3 sRS4 终端全态屏</span>（终端设计不丢、见 v3 commit <code>60ea6bca</code>、本轮 deferred）；<b>恢复 v2（commit <code>000f1517</code>）已画且经董事长逐条审过的文件全态</b>（v2 sRS4/5/6/7 → 本 v4 sRS4/5/6/7），<b>重构为文件先行</b>；<b>沿用 v2 框架骨架</b>（sRS1 启动器 / sRS2 Codex tab 头 / sRS3 页签管理），<b>启动器可用项由 v3「仅终端」翻转为 v4「仅文件」</b>；<b>保留</b> v2 sRS11/12 <b>为 sRS8（放大缩小·单页签以文件演示）/ sRS9（面板级聚合态）</b>。<b>浏览器全态设计</b>（v2 旧 sRS8/9/10）<b>本轮删除不画屏</b>——设计见 v2 commit <code>000f1517</code>、后续独立需求兑现（<b>不静默丢弃</b>）。sRS6 <b>接上三条断链</b>（树点文件 / 对话文档地址 / 终端输出路径 → 文件页签）。
+        本稿据董事长闸 1 <b>第三次调向</b>由 v3（6 屏 · 终端先行）<b>原地改为 v4（9 屏 · 文件先行）</b>：<span class="strike">删除 v3 sRS4 终端全态屏</span>（终端设计不丢、见 v3 commit <code>60ea6bca</code>、本轮 deferred）；<b>恢复 v2（commit <code>000f1517</code>）已画且经董事长逐条审过的文件全态</b>（v2 sRS4/5/6/7 → 本 v4 sRS4/5/6/7），<b>重构为文件先行</b>；<b>沿用 v2 框架骨架</b>（sRS1 启动器 / sRS2 Codex tab 头 / sRS3 页签管理），<b>启动器可用项由 v3「仅终端」翻转为 v4「仅文件」</b>；<b>保留</b> v2 sRS11/12 <b>为 sRS8（放大缩小·整面板放大）/ sRS9（面板级聚合态）</b>。<b>浏览器全态设计</b>（v2 旧 sRS8/9/10）<b>本轮删除不画屏</b>——设计见 v2 commit <code>000f1517</code>、后续独立需求兑现（<b>不静默丢弃</b>）。sRS6 <b>接上三条断链</b>（树点文件 / 对话文档地址 / 终端输出路径 → 文件页签）。
       </div>
     </div>
 
     <div class="req-log">
-      <div class="rl-h">需求 · 2026-07-07-right-sidebar（v5 · 9 屏高保真设计稿 · 文件先行 · 闸1 六意见微调 · 与 requirement.md sRS1–sRS9 1:1）</div>
+      <div class="rl-h">需求 · 2026-07-07-right-sidebar（v6 · 9 屏高保真设计稿 · 文件先行 · 闸1 两处细则修正 · 与 requirement.md sRS1–sRS9 1:1）</div>
       <table>
         <tr><th>屏</th><th>内容</th><th>状态</th></tr>
         <tr><td>sRS1</td><td>启动器默认态（竖排五类；<b>仅文件可用</b> ⌘P · 终端/浏览器/代码审核/对话禁用+后续；顶部仅 ⤢ + 收起，无 tab 条）</td><td><span class="pill rev">翻转</span></td></tr>
         <tr><td>sRS2</td><td>多页签框架 · Codex tab 头（胶囊活跃 / 细竖分隔 / 五类图标 / 实例规则 / 同类命名=文件名；<b>活跃示例=文件页签</b>，开两三个文件）</td><td><span class="pill rev">改</span></td></tr>
         <tr><td>sRS3</td><td>页签管理（新建 + 下拉<b>仅文件可用</b> / <b>活跃页签常显 ✕</b>·非活跃 hover ✕ / 拖拽调序放置线 / 右键 3 项 / 关全部回启动器；<b>脏页签关闭 = 静默自动保存·无弹窗</b>）</td><td><span class="pill rev">改</span></td></tr>
-        <tr><td>sRS4</td><td><b>文件 · 代码/文本查看+编辑</b>：语法高亮 · <b>ODPF 深色内芯</b>（独立于 chrome）· 可编辑区（光标/选区/当前行/改动 gutter）· 脏 ● · <b>失焦自动保存四态</b> · <b>查找/替换浮层</b>（⌘F/⌘⌥F）· <b>常用快捷键</b> · <b>tab ✕</b> · 右键 9 项（保存/还原→查找/替换）· 单页签 ⤢ · 深浅 chrome</td><td><span class="pill rev">v5 调</span></td></tr>
-        <tr><td>sRS5</td><td><b>文件 · Markdown 双态 + 图片只读</b>：<b>默认落预览</b>（预览态为主态排最前）↔ 编辑（<b>ODPF 源码内芯</b> · <b>失焦自动保存</b> · 无 ⌘S）· 图片只读 · 右键 md 预览 5 项 + 图片 4 项 · 建议项隔离（查找/替换已升 sRS4 必做）</td><td><span class="pill rev">v5 调</span></td></tr>
+        <tr><td>sRS4</td><td><b>文件 · 代码/文本查看+编辑</b>：语法高亮 · <b>编辑器背景随主题 · 高亮默认 ODPF</b> · 可编辑区（光标/选区/当前行/改动 gutter）· 脏 ● · <b>失焦自动保存四态</b> · <b>查找/替换浮层</b>（⌘F/⌘⌥F）· <b>常用快捷键</b> · <b>tab ✕</b> · 右键 9 项（保存/还原→查找/替换）· 深浅 chrome</td><td><span class="pill rev">v5 调</span></td></tr>
+        <tr><td>sRS5</td><td><b>文件 · Markdown 双态 + 图片只读</b>：<b>默认落预览</b>（预览态为主态排最前）↔ 编辑（<b>编辑器背景随主题 · 高亮默认 ODPF</b> · <b>失焦自动保存</b> · 无 ⌘S）· 图片只读 · 右键 md 预览 5 项 + 图片 4 项 · 建议项隔离（查找/替换已升 sRS4 必做）</td><td><span class="pill rev">v5 调</span></td></tr>
         <tr><td>sRS6</td><td><b>文件 · 打开与双向联动</b>（恢复 v2 + <b>接三断链</b>）：三来源打开 · 三分支 reveal · 去重 · 切根不删 · 树用缩略示意非重画</td><td><span class="pill new">接断链</span></td></tr>
         <tr><td>sRS7</td><td><b>文件 · 编辑必备态</b>：<b>关闭脏页签 = 静默自动保存·无弹窗</b>（三择一确认已删）· 外部变更冲突三出口 · 只读兜底 · 空/加载/错误</td><td><span class="pill rev">v5 调</span></td></tr>
-        <tr><td>sRS8</td><td>放大/缩小 · 整面板占满中区 ⤢/⤡ + 单页签各自放大（<b>单页签例=文件</b>·放大态编辑/<b>失焦自动保存</b>照常）<span style="color:#8250df">（v2 sRS11 改名）</span></td><td><span class="pill rev">恢复</span></td></tr>
+        <tr><td>sRS8</td><td>放大/缩小 · <b>整面板占满中区 ⤢/⤡</b>（tab 条右上触发 · 放大态编辑/<b>失焦自动保存</b>照常）<span style="color:#8250df">（v2 sRS11 改名）</span></td><td><span class="pill rev">恢复</span></td></tr>
         <tr><td>sRS9</td><td>面板级聚合态（空/加载/错误/能力门·更新主机不降级/离线；面板空「无页签」≠ 文件空「选择一个文件」）<span style="color:#8250df">（v2 sRS12 改名）</span></td><td><span class="pill rev">恢复</span></td></tr>
       </table>
     </div>
@@ -768,7 +798,7 @@
     <div class="note">
       <svg class="i sm" style="margin-top: 2px; color: #0969da"><use href="#info" /></svg>
       <div>
-        <b>v5 = v4 框架骨架 + 文件页签全态（文件先行）· 闸1 六意见微调</b>（失焦自动保存 / 活跃页签常显 ✕ / 查找替换浮层<b>升为必做</b> / 编辑器 ODPF 深色内芯 / md 默认预览 / 快捷键）；每屏只画<b>右面板这一栏</b>（壳 workspace 卡，几何 480/320–800）。需要壳上下文的屏（sRS1/2/3）用<b>简化壳</b>示意。<b>本轮 deferred（集中说明·不静默丢弃）</b>：<b>终端 / 浏览器 / 代码审核 / 对话</b>四类页签——框架层已声明（启动器/+下拉置灰「后续」、图标/实例规则/命名已定），<b>内部全态后续独立需求补充</b>；其中<b>浏览器</b>曾在 v2（commit <code>000f1517</code>）出全态设计（旧 sRS8/9/10）、<b>终端</b>曾在 v3（commit <code>60ea6bca</code>）出全态设计（v3 sRS4），<b>本轮 deferred、设计不丢、待后续独立需求兑现</b>。<b>文件为本轮唯一可开页签</b>，恢复 v2 已审文件屏。<b>三条断链</b>（① 目录树点文件 ② 终端等输出本地路径点击 ③ 对话文档地址 → 文件页签）在 sRS6 画清「谁已发货 / 谁随谁 deferred」。流程 / 跳转 / 平台差异一律写进注解块，不画进框。<span class="sug-note">补充/建议项以虚线「建议」徽标隔离，与本轮必做一眼可分。</span>每屏浅 + 深双态。
+        <b>v5 = v4 框架骨架 + 文件页签全态（文件先行）· 闸1 六意见微调</b>（失焦自动保存 / 活跃页签常显 ✕ / 查找替换浮层<b>升为必做</b> / 编辑器背景随主题·高亮默认 ODPF / md 默认预览 / 快捷键）；每屏只画<b>右面板这一栏</b>（壳 workspace 卡，几何 480/320–800）。需要壳上下文的屏（sRS1/2/3）用<b>简化壳</b>示意。<b>本轮 deferred（集中说明·不静默丢弃）</b>：<b>终端 / 浏览器 / 代码审核 / 对话</b>四类页签——框架层已声明（启动器/+下拉置灰「后续」、图标/实例规则/命名已定），<b>内部全态后续独立需求补充</b>；其中<b>浏览器</b>曾在 v2（commit <code>000f1517</code>）出全态设计（旧 sRS8/9/10）、<b>终端</b>曾在 v3（commit <code>60ea6bca</code>）出全态设计（v3 sRS4），<b>本轮 deferred、设计不丢、待后续独立需求兑现</b>。<b>文件为本轮唯一可开页签</b>，恢复 v2 已审文件屏。<b>三条断链</b>（① 目录树点文件 ② 终端等输出本地路径点击 ③ 对话文档地址 → 文件页签）在 sRS6 画清「谁已发货 / 谁随谁 deferred」。流程 / 跳转 / 平台差异一律写进注解块，不画进框。<span class="sug-note">补充/建议项以虚线「建议」徽标隔离，与本轮必做一眼可分。</span>每屏浅 + 深双态。
       </div>
     </div>
     <!-- ===================================================================== sRS1 -->
@@ -994,7 +1024,6 @@
               </div>
               <div class="file-bar">
                 <div class="file-crumb"><svg class="i xs ic" style="color: var(--muted-fg)"><use href="#folder-open" /></svg> src <span class="sep">›</span> components <span class="sep">›</span> <span class="cur">combined-model-selector.tsx</span></div>
-                <div class="file-acts"><div class="mini-btn"><svg class="i sm"><use href="#maximize" /></svg></div></div>
               </div>
               <div class="edit-body">
                 <div class="el"><span class="eln">40</span><span class="ec"><span class="tk-kw">export function</span> <span class="tk-fn">ModelPicker</span>() {</span></div>
@@ -1326,16 +1355,16 @@
     <section class="screen" id="sRS4">
       <div class="screen-head">
         <span class="tag">sRS4</span>
-        <h2>文件页签 · 代码/文本查看 + 编辑（类 VSCode · ODPF 内芯 · 失焦自动保存 · 查找/替换 · v5 调）</h2>
+        <h2>文件页签 · 代码/文本查看 + 编辑（类 VSCode · 编辑器背景随主题 · 高亮默认 ODPF · 失焦自动保存 · 查找/替换 · v5 调）</h2>
         <p>
-          文件页签本轮升级为<b>可编辑</b>：代码<b>语法高亮</b> + <b>可输入编辑区</b>（闪烁光标 / 文本选区 / 当前行高亮 / 改动 gutter）+ <b>失焦自动保存</b>（编辑器<b>无保存按钮</b>；脏 <b>●</b> 仅作「编辑中未落盘」临时指示于页签/面包屑；失焦即自动写盘，四态：未落盘 · 自动保存中 · 已自动保存 · 自动保存失败·非阻塞）+ <b>查找/替换浮层</b>（VSCode 式、右上角悬浮，<code>⌘F</code> / <code>⌘⌥F</code>）。编辑器内芯<b>默认 ODPF 深色</b>（One Dark Pro Flat 色板，<b>独立于 chrome 主题</b>——浅色 chrome 卡里内芯亦深）。<b>活跃页签常显 ✕</b>（VSCode 式）。<b>常用快捷键</b>（撤销/重做/剪切/复制/粘贴/全选/查找/替换）与<b>右键 9 项</b>（剪切/复制/粘贴/全选/查找/替换/复制文件路径/在目录树中定位/在 Finder 中显示）并存。设计经 v2 董事长逐条审过，<b>v5</b> 据闸1 六意见调整。
+          文件页签本轮升级为<b>可编辑</b>：代码<b>语法高亮</b> + <b>可输入编辑区</b>（闪烁光标 / 文本选区 / 当前行高亮 / 改动 gutter）+ <b>失焦自动保存</b>（编辑器<b>无保存按钮</b>；脏 <b>●</b> 仅作「编辑中未落盘」临时指示于页签/面包屑；失焦即自动写盘，四态：未落盘 · 自动保存中 · 已自动保存 · 自动保存失败·非阻塞）+ <b>查找/替换浮层</b>（VSCode 式、右上角悬浮，<code>⌘F</code> / <code>⌘⌥F</code>）。编辑器<b>背景随 chrome 主题</b>：浅 chrome 卡 = 浅底 + 浅色 token 高亮、深 chrome 卡 = ODPF 深底 + 深色 token；<b>代码语法高亮默认 One Dark Pro Flat</b>。<b>活跃页签常显 ✕</b>（VSCode 式）。<b>常用快捷键</b>（撤销/重做/剪切/复制/粘贴/全选/查找/替换）与<b>右键 9 项</b>（剪切/复制/粘贴/全选/查找/替换/复制文件路径/在目录树中定位/在 Finder 中显示）并存。设计经 v2 董事长逐条审过，<b>v5</b> 据闸1 六意见调整。
         </p>
       </div>
 
       <!-- 主态：编辑中（脏 · 光标 · 选区） -->
       <div class="stage">
         <div class="fcol">
-          <div class="fcap">编辑中（未落盘脏 ● · 光标闪 · 选区 · 改动 gutter · 失焦自动保存 · ODPF 深色内芯）</div>
+          <div class="fcap">编辑中（未落盘脏 ● · 光标闪 · 选区 · 改动 gutter · 失焦自动保存 · 浅底编辑器 + 浅色 token 高亮）</div>
           <div class="rpcard">
             <div class="rp-tabs">
               <div class="rp-tab on"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">combined-model-selector.tsx</span><span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
@@ -1346,9 +1375,6 @@
             </div>
             <div class="file-bar">
               <div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> src <span class="sep">›</span> components <span class="sep">›</span> <span class="cur">combined-model-selector.tsx</span><span class="ddot"></span></div>
-              <div class="file-acts">
-                <div class="mini-btn"><svg class="i sm"><use href="#maximize" /></svg></div>
-              </div>
             </div>
             <div class="edit-body">
               <div class="el"><span class="eln">38</span><span class="ec"><span class="tk-cm">// 合并供应商 + 型号为级联选择</span></span></div>
@@ -1366,7 +1392,7 @@
         </div>
 
         <div class="fcol dark">
-          <div class="fcap">深色 chrome 变体（外层 tab/file-bar/status 随深色 · 编辑器内芯恒 ODPF #282c34，独立于 chrome）</div>
+          <div class="fcap">深 chrome 变体（编辑器 ODPF 深底 #282c34 + 深色 token · 随深色 chrome）</div>
           <div class="rpcard">
             <div class="rp-tabs">
               <div class="rp-tab on"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">combined-model-selector.tsx</span><span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
@@ -1377,9 +1403,6 @@
             </div>
             <div class="file-bar">
               <div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> src <span class="sep">›</span> components <span class="sep">›</span> <span class="cur">combined-model-selector.tsx</span><span class="ddot"></span></div>
-              <div class="file-acts">
-                <div class="mini-btn"><svg class="i sm"><use href="#maximize" /></svg></div>
-              </div>
             </div>
             <div class="edit-body">
               <div class="el"><span class="eln">41</span><span class="ec"><span class="tk-kw">export function</span> <span class="tk-fn">ModelPicker</span>({ id }: <span class="tk-tag">Props</span>) {</span></div>
@@ -1440,7 +1463,7 @@
               <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div>
               <div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div><div class="rp-btn on"><svg class="i sm"><use href="#panel-r" /></svg></div></div>
             </div>
-            <div class="file-bar"><div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> src <span class="sep">›</span> <span class="cur">vendor.ts</span></div><div class="file-acts"><div class="mini-btn"><svg class="i sm"><use href="#maximize" /></svg></div></div></div>
+            <div class="file-bar"><div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> src <span class="sep">›</span> <span class="cur">vendor.ts</span></div></div>
             <div class="edit-body">
               <div class="find-widget">
                 <div class="fw-expand"><svg class="i xs"><use href="#chev-r" /></svg></div>
@@ -1472,7 +1495,7 @@
               <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div>
               <div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div><div class="rp-btn on"><svg class="i sm"><use href="#panel-r" /></svg></div></div>
             </div>
-            <div class="file-bar"><div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> src <span class="sep">›</span> <span class="cur">vendor.ts</span></div><div class="file-acts"><div class="mini-btn"><svg class="i sm"><use href="#maximize" /></svg></div></div></div>
+            <div class="file-bar"><div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> src <span class="sep">›</span> <span class="cur">vendor.ts</span></div></div>
             <div class="edit-body">
               <div class="find-widget">
                 <div class="fw-expand"><svg class="i xs"><use href="#chev-d" /></svg></div>
@@ -1509,7 +1532,7 @@
               <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div>
               <div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div><div class="rp-btn on"><svg class="i sm"><use href="#panel-r" /></svg></div></div>
             </div>
-            <div class="file-bar"><div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> src <span class="sep">›</span> <span class="cur">vendor.ts</span></div><div class="file-acts"><div class="mini-btn"><svg class="i sm"><use href="#maximize" /></svg></div></div></div>
+            <div class="file-bar"><div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> src <span class="sep">›</span> <span class="cur">vendor.ts</span></div></div>
             <div class="edit-body">
               <div class="find-widget">
                 <div class="fw-expand"><svg class="i xs"><use href="#chev-r" /></svg></div>
@@ -1543,8 +1566,7 @@
               <li><span class="pin">2</span><div><b>失焦自动保存</b>（<b>无保存按钮、无 <code>⌘S</code></b>）：编辑器<b>失焦</b>（点其它页签 / 点编辑器外 / 切窗口）→ 自动写盘：脏 ● →（<b>自动保存中</b> spinner）→ <b>已自动保存</b>（●/gutter 清、短暂 ✓）；失败 → <b>非阻塞轻条</b>（红字、<b>无「重试」按钮</b>、改动保留，编辑/再失焦即自动重试）。</div></li>
               <li><span class="pin">3</span><div><b>查找/替换浮层</b>：<code>⌘F</code> 唤出查找浮层（悬浮编辑区<b>右上角</b>），<code>⌘⌥F</code> 展开替换行，<code>Esc</code> 关闭。含命中计数（如 2/5）+ 上/下条跳转 + <b>Aa</b>(区分大小写)/<b>ab|</b>(全词)/<b>.*</b>(正则) 开关 + 逐个/全部替换；<b>当前命中琥珀强调、其它命中淡蓝</b>。</div></li>
               <li><span class="pin">4</span><div><b>面包屑</b>：显文件所在路径（只读展示）；<b>不重画目录树</b>（树是第 4 区，切页签会命令树 reveal，见 sRS6）。</div></li>
-              <li><span class="pin">5</span><div><b>单页签 ⤢</b>：放大该文件页签内容（→ sRS8），放大态下编辑/失焦自动保存/查找替换照常。</div></li>
-              <li><span class="pin">6</span><div><b>关闭页签（✕ / 右键关闭）</b>：脏页签关闭 → <b>静默自动保存后关闭</b>（<b>无三择一弹窗</b>）；若自动保存<b>失败</b> → 非阻塞提示、<b>页签保留不强关</b>（见 sRS7）。<b>活跃页签常显 ✕</b>、非活跃 hover 显 ✕。</div></li>
+              <li><span class="pin">5</span><div><b>关闭页签（✕ / 右键关闭）</b>：脏页签关闭 → <b>静默自动保存后关闭</b>（<b>无三择一弹窗</b>）；若自动保存<b>失败</b> → 非阻塞提示、<b>页签保留不强关</b>（见 sRS7）。<b>活跃页签常显 ✕</b>、非活跃 hover 显 ✕。</div></li>
             </ol>
           </div>
           <div class="anno-card span2">
@@ -1552,7 +1574,7 @@
             <div class="states">
               <dl>
                 <dt>布局</dt>
-                <dd><b>桌面 only</b>：顶=file-bar（面包屑 + ⤢，<b>无保存按钮</b>）· 中=可编辑代码（<b>ODPF 深色内芯</b>）· 底=状态条（行列 / 编码 / 语言 / 换行 / <b>自动保存态</b>）。紧凑/手机 deferred。</dd>
+                <dd><b>桌面 only</b>：顶=file-bar（面包屑 · <b>无保存按钮</b> · <b>无放大按钮</b>）· 中=可编辑代码（<b>编辑器背景随主题</b>）· 底=状态条（行列 / 编码 / 语言 / 换行 / <b>自动保存态</b>）。紧凑/手机 deferred。</dd>
                 <dt>默认</dt>
                 <dd>只读浏览（无改动）：无脏点、状态条「已自动保存」。</dd>
                 <dt>hover</dt>
@@ -1573,8 +1595,8 @@
                 <dd>读取失败 → 提示 + 重试（sRS7 错误）；<b>自动保存失败</b> → 非阻塞轻条（本屏态④，无「重试」）；外部变更 → 冲突条（sRS7）。</dd>
                 <dt>离线</dt>
                 <dd>主机断连 → 冻结（编辑禁用、不可自动保存），顶部重连提示（面板级 sRS9）。</dd>
-                <dt>深色 / ODPF</dt>
-                <dd><b>编辑器内芯恒 ODPF（One Dark Pro Flat）· 独立于 chrome 主题</b>：底 <code>#282c34</code> / 前景 <code>#abb2bf</code> / kw <code>#c678dd</code> / str <code>#98c379</code> / fn <code>#61afef</code> / num <code>#d19a66</code> / cm <code>#5c6370</code>（Flat=去斜体）。<b>浅色 chrome 卡内芯亦深</b>（<b>开放问题 v5-X</b> · 待董事长确认：浅色 chrome 嵌深编辑器是否 OK，或浅色时换等价浅色主题；默认恒深）。</dd>
+                <dt>编辑器背景 / 高亮</dt>
+                <dd><b>编辑器背景随 chrome 主题</b>（浅 chrome = 浅底 / 深 chrome = 深底）· <b>代码高亮默认 ODPF</b>（深主题）· 浅主题一套浅色默认集 · <b>每主题默认集 + 独立自定义 = 设置模块后续（deferred）</b>。<b>深主题 ODPF</b>：底 <code>#282c34</code> / 前景 <code>#abb2bf</code> / kw <code>#c678dd</code> / str <code>#98c379</code> / fn <code>#61afef</code> / num <code>#d19a66</code> / cm <code>#5c6370</code>（Flat=去斜体）。<b>浅主题（One Light 风格）</b>：底 <code>#fafafa</code> / 前景 <code>#383a42</code> / kw <code>#a626a4</code> / str <code>#50a14f</code> / fn <code>#4078f2</code> / num <code>#986801</code> / cm <code>#a0a1a7</code>。</dd>
               </dl>
             </div>
           </div>
@@ -1605,7 +1627,7 @@
         <span class="tag">sRS5</span>
         <h2>文件页签 · Markdown 预览/编辑双态 + 图片查看（默认预览 · v5 调）</h2>
         <p>
-          <b>Markdown</b> 文件带<b>编辑 ↔ 预览</b>切换（file-bar 右侧一个 <b>编辑 | 预览</b> 段控）：<b>★ md 打开默认落预览</b>（读为主，预览态为主态排最前）；<b>预览</b>=渲染视图（标题/列表/代码块/引用/链接）；显式点「编辑」→ 源码 + md 高亮（<b>ODPF 深色内芯</b>、脏标记、<b>失焦自动保存</b>同 sRS4、<b>无 ⌘S 保存按钮</b>）；<b>md 预览区</b>随 chrome 主题（非代码编辑器）。<b>图片</b>文件=只读图片预览（不可编辑、无保存）。末尾附<b>文件页签建议项</b>（虚线隔离）——原「文件内查找/替换」已升 sRS4 必做，此处只余 minimap / 跳转到行。
+          <b>Markdown</b> 文件带<b>编辑 ↔ 预览</b>切换（file-bar 右侧一个 <b>编辑 | 预览</b> 段控）：<b>★ md 打开默认落预览</b>（读为主，预览态为主态排最前）；<b>预览</b>=渲染视图（标题/列表/代码块/引用/链接）；显式点「编辑」→ 源码 + md 高亮（<b>编辑器背景随 chrome：浅底 / 深 ODPF · 高亮默认 ODPF</b>、脏标记、<b>失焦自动保存</b>同 sRS4、<b>无 ⌘S 保存按钮</b>）；<b>md 预览区</b>随 chrome 主题（非代码编辑器）。<b>图片</b>文件=只读图片预览（不可编辑、无保存）。末尾附<b>文件页签建议项</b>（虚线隔离）——原「文件内查找/替换」已升 sRS4 必做，此处只余 minimap / 跳转到行。
         </p>
       </div>
 
@@ -1622,7 +1644,6 @@
               <div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> <span class="cur">README.md</span></div>
               <div class="file-acts">
                 <div class="seg"><span class="seg-i"><svg class="i xs"><use href="#pen" /></svg> 编辑</span><span class="seg-i on"><svg class="i xs"><use href="#eye" /></svg> 预览</span></div>
-                <div class="mini-btn"><svg class="i sm"><use href="#maximize" /></svg></div>
               </div>
             </div>
             <div class="md-body">
@@ -1638,7 +1659,7 @@
         </div>
 
         <div class="fcol">
-          <div class="fcap">Markdown · 编辑态（点「编辑」进源码 · ODPF 深色内芯 · 段控「编辑」高亮 · 失焦自动保存）</div>
+          <div class="fcap">Markdown · 编辑态（点「编辑」进源码 · 浅底编辑器 + 浅色 md token · 段控「编辑」高亮 · 失焦自动保存）</div>
           <div class="rpcard md">
             <div class="rp-tabs">
               <div class="rp-tab on"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">README.md</span><span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
@@ -1649,7 +1670,6 @@
               <div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> <span class="cur">README.md</span><span class="ddot"></span></div>
               <div class="file-acts">
                 <div class="seg"><span class="seg-i on"><svg class="i xs"><use href="#pen" /></svg> 编辑</span><span class="seg-i"><svg class="i xs"><use href="#eye" /></svg> 预览</span></div>
-                <div class="mini-btn"><svg class="i sm"><use href="#maximize" /></svg></div>
               </div>
             </div>
             <div class="edit-body">
@@ -1676,7 +1696,7 @@
             </div>
             <div class="file-bar">
               <div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> assets <span class="sep">›</span> <span class="cur">logo.png</span></div>
-              <div class="file-acts"><span class="img-ro"><svg class="i xs"><use href="#lock" /></svg> 只读</span><div class="mini-btn"><svg class="i sm"><use href="#maximize" /></svg></div></div>
+              <div class="file-acts"><span class="img-ro"><svg class="i xs"><use href="#lock" /></svg> 只读</span></div>
             </div>
             <div class="img-body">
               <div class="img-frame"><svg class="i lg"><use href="#img" /></svg></div>
@@ -1696,7 +1716,7 @@
             </div>
             <div class="file-bar">
               <div class="file-crumb"><span class="cur">README.md</span></div>
-              <div class="file-acts"><div class="seg"><span class="seg-i"><svg class="i xs"><use href="#pen" /></svg> 编辑</span><span class="seg-i on"><svg class="i xs"><use href="#eye" /></svg> 预览</span></div><div class="mini-btn"><svg class="i sm"><use href="#maximize" /></svg></div></div>
+              <div class="file-acts"><div class="seg"><span class="seg-i"><svg class="i xs"><use href="#pen" /></svg> 编辑</span><span class="seg-i on"><svg class="i xs"><use href="#eye" /></svg> 预览</span></div></div>
             </div>
             <div class="md-body">
               <h1>Paseo</h1>
@@ -1743,8 +1763,7 @@
             <ol>
               <li><span class="pin">1</span><div><b>编辑 | 预览 段控</b>（仅 md 类文件出现）：点<b>编辑</b> → 源码可改（脏标记/失焦自动保存同 sRS4）；点<b>预览</b> → 渲染视图（只读渲染，不改磁盘）。切换<b>不丢未落盘改动</b>（预览渲染的是编辑器当前内容）。</div></li>
               <li><span class="pin">2</span><div><b>预览内链接</b>：点外链 → 交给系统/浏览器打开（不在预览内导航）；点<b>文档内相对路径链接</b> → 可打开对应文件页签（承接跳转，去重聚焦，见 sRS6）。</div></li>
-              <li><span class="pin">3</span><div><b>图片</b>：只读预览，<b>无编辑/无保存/无段控</b>；右上「只读」徽标；可 ⤢ 放大看清（sRS8）。</div></li>
-              <li><span class="pin">4</span><div><b>单页签 ⤢</b>：放大该页签（md/图片皆可，→ sRS8）。</div></li>
+              <li><span class="pin">3</span><div><b>图片</b>：只读预览，<b>无编辑/无保存/无段控</b>；右上「只读」徽标；可经 tab 头 <b>⤢ 整面板放大</b>看清（sRS8）。</div></li>
             </ol>
           </div>
           <div class="anno-card">
@@ -1763,8 +1782,8 @@
                 <dd>图片<b>无编辑禁用</b>之说（本就只读、无保存）。</dd>
                 <dt>空/加载/错误/冲突/离线</dt>
                 <dd>同 sRS7 / sRS9（未选/读取中/读取失败/外部变更/断连）。</dd>
-                <dt>深色 / ODPF</dt>
-                <dd><b>md 编辑源码区</b>与代码一样恒 <b>ODPF 深色内芯</b>（独立于 chrome）；<b>md 预览区</b>随 chrome 主题（预览是渲染阅读、非代码编辑器）。</dd>
+                <dt>编辑器背景 / 高亮</dt>
+                <dd><b>md 编辑源码区</b>与代码一样<b>背景随 chrome 主题</b>（浅 chrome 浅底 + 浅色 token / 深 chrome ODPF 深底 + 深色 token · <b>高亮默认 ODPF</b> · 浅主题一套浅色默认集 · 每主题默认集 + 独立自定义归<b>设置模块后续</b>）；<b>md 预览区</b>随 chrome 主题（预览是渲染阅读、非代码编辑器）。</dd>
               </dl>
             </div>
           </div>
@@ -2157,7 +2176,7 @@
                 <dt>离线</dt>
                 <dd>主机断连 → 编辑冻结、不可保存，顶部重连提示（面板级 sRS9）；恢复后可继续。</dd>
                 <dt>深色</dt>
-                <dd>冲突条 <code>#d29922</code> 系；非阻塞轻条红字系 <code>#f85149</code>；编辑器内芯恒 ODPF <code>#282c34</code>（独立于 chrome）。</dd>
+                <dd>冲突条 <code>#d29922</code> 系；非阻塞轻条红字系 <code>#f85149</code>；编辑器<b>背景随主题</b>（浅底 / ODPF 深底 <code>#282c34</code>）· 高亮默认 ODPF。</dd>
                 <dt>右键</dt>
                 <dd>本屏态多为占位/弹窗，右键沿用 sRS4/5（只读兜底右键 = 复制文件路径 / 在目录树中定位 / 在 Finder 中显示，3 项）。</dd>
               </dl>
@@ -2170,9 +2189,9 @@
     <section class="screen" id="sRS8">
       <div class="screen-head">
         <span class="tag">sRS8</span>
-        <h2>放大 / 缩小 · 整面板 + 单页签（恢复 v2 · 单页签以文件演示）</h2>
+        <h2>放大 / 缩小 · 整面板放大（恢复 v2 · tab 头 ⤢ 占满中区）</h2>
         <p>
-          <b>整面板放大</b>：tab 头右侧 <b>⤢</b> → 右侧边栏<b>扩展占满中区</b>（对话区空间）、<b>左栏保留</b>；<b>⤡ 还原</b>回停靠列。<b>单页签放大</b>：每个页签内容右上角 <b>⤢</b> → 单独放大该页签内容（本轮示例 = <b>文件</b>；后续终端/浏览器接入后各自可放大），<b>⤡ 还原</b>。<b>放大态下文件编辑 / 保存 / 脏点照常实时刷新</b>。
+          <b>整面板放大</b>：tab 头右侧 <b>⤢</b> → 右侧边栏<b>扩展占满中区</b>（对话区空间）、<b>左栏保留</b>；<b>⤡ 还原</b>回停靠列。<b>放大统一走整面板</b>——文件内容区<b>不设单页签放大</b>（v6 修正）：放大后整个工作面板（含当前活跃页签）一并占满中区。<b>放大态下文件编辑 / 失焦自动保存 / 脏点照常实时刷新</b>。
         </p>
       </div>
 
@@ -2207,62 +2226,6 @@
         </div>
       </div>
 
-      <!-- 单页签放大（文件例） -->
-      <div class="stage">
-        <div class="fcol">
-          <div class="fcap">单页签放大 · 页签内容右上角 ⤢（文件例·停靠态）</div>
-          <div class="rpcard sm">
-            <div class="rp-tabs">
-              <div class="rp-tab on"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">app.tsx</span><span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
-              <div class="rp-sep"></div>
-              <div class="rp-tab"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">server.ts</span></div>
-              <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div>
-              <div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div><div class="rp-btn on"><svg class="i sm"><use href="#panel-r" /></svg></div></div>
-            </div>
-            <div class="file-bar">
-              <div class="file-crumb"><span class="cur">app.tsx</span></div>
-              <div class="file-acts"><div class="mini-btn" style="background:var(--secondary); color:var(--fg)"><svg class="i sm"><use href="#maximize" /></svg></div></div>
-            </div>
-            <div class="edit-body"><div class="el"><span class="eln">1</span><span class="ec"><span class="tk-kw">export default</span> <span class="tk-fn">App</span></span></div></div>
-          </div>
-          <div class="mw-cap">页签内容<b>右上角 ⤢</b>（高亮）→ 单独放大<b>该文件页签</b>内容；⤡ 还原。停靠态列窄 → 可见行较少。</div>
-        </div>
-
-        <div class="fcol">
-          <div class="fcap">单页签放大态（占满面板区 · 编辑/失焦自动保存/脏点照常 · ODPF 内芯）</div>
-          <div class="rpcard sm">
-            <div class="file-bar" style="border-top:none">
-              <div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> src <span class="sep">›</span> <span class="cur">app.tsx</span><span class="ddot"></span></div>
-              <div class="file-acts"><div class="mini-btn" style="background:var(--secondary); color:var(--primary)"><svg class="i sm"><use href="#minimize" /></svg></div></div>
-            </div>
-            <div class="edit-body">
-              <div class="el"><span class="eln">1</span><span class="ec"><span class="tk-kw">import</span> { <span class="tk-fn">render</span> } <span class="tk-kw">from</span> <span class="tk-str">"./ui"</span></span></div>
-              <div class="el edited cur-line" style="box-shadow:inset 3px 0 0 var(--success)"><span class="eln gutter-edit">2</span><span class="ec"><span class="tk-kw">export default</span> <span class="tk-fn">App</span><span class="ecur blink"></span></span></div>
-              <div class="el"><span class="eln">3</span><span class="ec"></span></div>
-            </div>
-            <div class="file-status"><span>行 2</span><span class="sp"></span><span class="ss-save dirty"><svg class="i xs"><use href="#alert" /></svg> 编辑中·未落盘</span></div>
-          </div>
-          <div class="mw-cap">单页签放大：内容区顶显 <b>⤡</b>（着蓝活跃）；<b>编辑/失焦自动保存/脏点照常</b>，放大不改变内容态本身。</div>
-        </div>
-
-        <div class="fcol dark">
-          <div class="fcap">深色变体（单页签放大 · 文件例）</div>
-          <div class="rpcard sm">
-            <div class="file-bar" style="border-top:none">
-              <div class="file-crumb"><svg class="i xs ic" style="color:var(--muted-fg)"><use href="#folder-open" /></svg> src <span class="sep">›</span> <span class="cur">server.ts</span><span class="ddot"></span></div>
-              <div class="file-acts"><div class="mini-btn" style="background:var(--secondary); color:var(--primary)"><svg class="i sm"><use href="#minimize" /></svg></div></div>
-            </div>
-            <div class="edit-body">
-              <div class="el"><span class="eln">1</span><span class="ec"><span class="tk-kw">import</span> { <span class="tk-fn">createServer</span> } <span class="tk-kw">from</span> <span class="tk-str">"./ws"</span></span></div>
-              <div class="el edited cur-line" style="box-shadow:inset 3px 0 0 var(--success)"><span class="eln gutter-edit">2</span><span class="ec"><span class="tk-kw">export const</span> port = <span class="tk-num">6767</span><span class="ecur blink"></span></span></div>
-              <div class="el"><span class="eln">3</span><span class="ec"></span></div>
-            </div>
-            <div class="file-status"><span>行 2</span><span class="sp"></span><span class="ss-save dirty"><svg class="i xs"><use href="#alert" /></svg> 编辑中·未落盘</span></div>
-          </div>
-          <div class="mw-cap" style="color:#adbac7">深色放大态还原按钮 ⤡ 着蓝以示活跃；面板底 #0d1117。</div>
-        </div>
-      </div>
-
       <div class="anno">
         <div class="anno-h">交互注解</div>
         <div class="anno-grid">
@@ -2271,10 +2234,8 @@
             <ol>
               <li><span class="pin">1</span><div><b>tab 头 ⤢（整面板放大）</b>：右侧边栏扩展<b>占满中区</b>（对话区让位）、<b>左栏保留</b>；图标变 <b>⤡</b>。</div></li>
               <li><span class="pin">2</span><div><b>tab 头 ⤡（还原）</b>：回到停靠列，恢复中区对话区。</div></li>
-              <li><span class="pin">3</span><div><b>页签内容 ⤢（单页签放大）</b>：只放大<b>当前页签</b>内容（占满面板区）；本轮 = 文件（后续终端/浏览器各自可放大），互不影响其它页签。</div></li>
-              <li><span class="pin">4</span><div><b>页签内容 ⤡（还原）</b>：单页签内容回常规大小。</div></li>
-              <li><span class="pin">5</span><div><b>收起</b>：放大/停靠态下「收起」仍可把整列收起、交还壳（位置不变）。</div></li>
-              <li><span class="pin">6</span><div><b>放大态实时刷新</b>：文件脏点/保存<b>照常</b>，不因放大暂停。</div></li>
+              <li><span class="pin">3</span><div><b>收起</b>：放大/停靠态下「收起」仍可把整列收起、交还壳（位置不变）。</div></li>
+              <li><span class="pin">4</span><div><b>放大态实时刷新</b>：文件脏点/失焦自动保存<b>照常</b>，不因放大暂停。</div></li>
             </ol>
           </div>
           <div class="anno-card span2">
@@ -2282,13 +2243,13 @@
             <div class="states">
               <dl>
                 <dt>布局</dt>
-                <dd><b>桌面 only</b>：整面板放大 = 占中区、左栏保留（默认取「仅盖对话区」，不连带收目录树）；单页签放大 = 占面板内容区。紧凑/手机 deferred。</dd>
+                <dd><b>桌面 only</b>：整面板放大 = 占中区、左栏保留（默认取「仅盖对话区」，不连带收目录树）。紧凑/手机 deferred。</dd>
                 <dt>默认</dt>
-                <dd>停靠态：tab 头显 ⤢；页签内容右上显 ⤢。</dd>
+                <dd>停靠态：tab 头显 ⤢（整面板放大入口）。</dd>
                 <dt>hover</dt>
                 <dd>⤢ / ⤡ hover 变浅。</dd>
                 <dt>active</dt>
-                <dd>整面板放大时 tab 头 ⤡ 高亮；单页签放大时该页签内容 ⤢ 高亮（浅灰底）。</dd>
+                <dd>整面板放大时 tab 头 ⤡ 高亮（着蓝活跃）。</dd>
                 <dt>运行 / 脏 / 保存</dt>
                 <dd>放大态内容照常实时刷新（文件脏点/失焦自动保存四态）。</dd>
                 <dt>禁用/空/加载/错误/离线</dt>
