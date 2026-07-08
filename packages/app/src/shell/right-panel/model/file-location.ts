@@ -33,6 +33,21 @@ export function sameFilePath(a: string, b: string): boolean {
   return normalizePath(a).toLowerCase() === normalizePath(b).toLowerCase();
 }
 
+// Resolve a root-relative host path to an absolute one under `root` — the boundary conversion between the
+// tree/tab's root-relative path space and the absolute paths the tree-reveal + finder-reveal ports want.
+// An already-absolute path (or a "~"-home path) is returned as-is; the tree root itself ("." / "") is the
+// root; otherwise the segment is joined under the root with a single separator.
+export function joinHostPath(root: string, relPath: string): string {
+  const rel = relPath.trim().replace(/\\/g, "/");
+  if (rel === "" || rel === ".") {
+    return root;
+  }
+  if (rel.startsWith("/") || rel.startsWith("~")) {
+    return rel;
+  }
+  return `${root.replace(/\/+$/, "")}/${rel.replace(/^\/+/, "")}`;
+}
+
 // The shared path canonicalization behind both normalizeFileLocation and sameFilePath, so the two can
 // never disagree on what one file's path is.
 function normalizePath(raw: string): string {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { normalizeFileLocation, sameFilePath } from "./file-location";
+import { joinHostPath, normalizeFileLocation, sameFilePath } from "./file-location";
 
 // file-location is the shell's own file-position value + identity, equivalently rewritten from the
 // legacy @/workspace/file-open (no cross-directory import). These tests pin the two contracts the
@@ -82,5 +82,34 @@ describe("sameFilePath", () => {
   // Genuinely different files stay distinct so their tabs never collapse.
   it("is false for different files", () => {
     expect(sameFilePath("src/a.ts", "src/b.ts")).toBe(false);
+  });
+});
+
+describe("joinHostPath", () => {
+  // A root-relative path joins under the root with a single separator (the common tree→abs case).
+  it("joins a relative path under the root", () => {
+    expect(joinHostPath("/host/proj", "src/a.ts")).toBe("/host/proj/src/a.ts");
+  });
+
+  // A trailing separator on the root collapses to one at the seam.
+  it("collapses a trailing-slash root at the seam", () => {
+    expect(joinHostPath("/host/proj/", "src/a.ts")).toBe("/host/proj/src/a.ts");
+  });
+
+  // The tree root itself ("." or "") resolves to the root.
+  it("resolves the tree root to the root", () => {
+    expect(joinHostPath("/host/proj", ".")).toBe("/host/proj");
+    expect(joinHostPath("/host/proj", "")).toBe("/host/proj");
+  });
+
+  // An already-absolute or home-relative path is passed through untouched.
+  it("passes an absolute or home path through", () => {
+    expect(joinHostPath("/host/proj", "/etc/hosts")).toBe("/etc/hosts");
+    expect(joinHostPath("/host/proj", "~/Desktop/a.ts")).toBe("~/Desktop/a.ts");
+  });
+
+  // Windows backslashes fold to forward slashes so the joined path has one spelling.
+  it("folds backslashes before joining", () => {
+    expect(joinHostPath("/host/proj", "src\\a.ts")).toBe("/host/proj/src/a.ts");
   });
 });

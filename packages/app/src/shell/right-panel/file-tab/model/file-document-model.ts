@@ -11,6 +11,7 @@ import type { FileLocation } from "../../model/file-location";
 import type { ActivityDot, TabContent } from "../../model/tab-content";
 import { classifyDocumentKind, type DocumentKind } from "./document-kind";
 import { advanceFind, type FindSessionState, IDLE_FIND } from "./find-state";
+import { toImageDataUri } from "./image-data";
 
 // The content-write RPC input (defined here — the file-tab module owns this port shape). expectedModifiedAt
 // = the baseline mtime; the host compares it against the on-disk mtime as the conflict guard.
@@ -90,6 +91,9 @@ export class FileDocumentModel implements TabContent {
   find: FindSessionState = IDLE_FIND;
   conflict: ConflictState | null = null;
   readOnlyReason: ReadOnlyReason | null;
+  // The decoded image as a data URI, set on load ONLY for the image kind (which has no editor buffer, so
+  // the model is the sole home for its content). null for every other kind.
+  imageDataUri: string | null = null;
 
   private readonly deps: FileDocumentDeps;
   // Single-flight guard: set when a blur/edit arrives during an in-flight save, so exactly one follow-up
@@ -154,6 +158,9 @@ export class FileDocumentModel implements TabContent {
       this.baseline = { modifiedAt: result.modifiedAt };
       if (this.kind === "image" || this.kind === "binary") {
         this.readOnlyReason ??= this.kind;
+        if (this.kind === "image") {
+          this.imageDataUri = toImageDataUri(result.bytes, result.mime);
+        }
       } else {
         this.deps.editor.applyExternalContent(decodeText(result.bytes));
       }

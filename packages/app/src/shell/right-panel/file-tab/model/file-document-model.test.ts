@@ -306,6 +306,24 @@ describe("FileDocumentModel · read-only", () => {
     expect(model.activityDot).toBe("none");
   });
 
+  // An image also decodes to a data URI so the read-only preview can render it (no editor buffer exists).
+  it("exposes the image as a data URI", async () => {
+    const bytes = new TextEncoder().encode("PNGDATA");
+    const { model } = setup({
+      read: {
+        bytes,
+        mime: "image/png",
+        size: bytes.length,
+        path: "logo.png",
+        kind: "image",
+        modifiedAt: T0,
+      },
+      path: "logo.png",
+    });
+    await model.load();
+    expect(model.imageDataUri).toBe("data:image/png;base64,UE5HREFUQQ==");
+  });
+
   // A binary is read-only too (unrecognized fallback).
   it("treats a binary as read-only", async () => {
     const { model } = setup({ path: "app.wasm", read: read("", T0, "binary", "app.wasm") });
