@@ -1,8 +1,10 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useHostRuntimeConnectionStatus } from "@/runtime/host-runtime";
 import { useSessionStore } from "@/stores/session-store";
 import { createFileTreeStoreForServer } from "../file-tree/data/file-tree-context.wiring";
 import { FileTreePanel } from "../file-tree/components/file-tree-panel";
+import { asFileTreeController } from "../file-tree/model/file-tree-public";
+import { registerFileTreeAccess } from "../right-panel/data/workspace-panels";
 
 // The shell-layer mount for the file tree (NOT inside shell/file-tree/, so it may read the old
 // runtime/session reactively). It owns the store's lifecycle — one FileTreeStore per (serverId,
@@ -29,6 +31,12 @@ export function FileTreeRegion({
   const store = useMemo(
     () => createFileTreeStoreForServer(serverId, workspaceId),
     [serverId, workspaceId],
+  );
+  // Expose this workspace's tree to the right panel (its root + reveal command) so an opened file tab can
+  // root its document + drive tree reveal on activation. Cleared on unmount / workspace change.
+  useEffect(
+    () => registerFileTreeAccess(serverId, workspaceId, asFileTreeController(store)),
+    [serverId, workspaceId, store],
   );
   // Reactive offline + conversation root reads so the observer panel repaints on change; the store also
   // reads these fresh via its context getter, but these subscriptions are what trigger the React repaint.

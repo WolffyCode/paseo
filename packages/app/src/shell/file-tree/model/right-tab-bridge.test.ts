@@ -1,31 +1,24 @@
-// Tests for the right-tab bridge (联动2): new-file → open the file in a right-side tab. The bridge is
-// the single seam onto the old workspace-layout store, so these tests pin its behavior with injected
-// fakes (no real layout store): it (a) builds the persistence key from serverId+workspaceId, (b) opens
-// a focused file tab + ensures the shell right region is open, and (c) silently no-ops when the
-// persistence key can't be built (missing workspaceId) — the §7 degrade: create-without-open, never throw.
+// Tests for the right-tab bridge (联动2): new-file → open the file in the right-side tab. The bridge is
+// the single seam onto the new-shell right panel, so these tests pin its behavior with injected fakes (no
+// real shell): it (a) expands the right region + opens the file into the workspace's panel forwarding the
+// full location, and (b) silently no-ops when there is no workspace context — the §7 degrade:
+// create-without-open, never throw.
 
 import { describe, expect, test, vi } from "vitest";
 import { createRightTabBridge, type RightTabBridgeDeps } from "./right-tab-bridge";
 
-// Build the bridge over recording fakes for every old-module function it touches, so a test asserts
-// the wiring (key build → target build → openTabFocused → openRight) without the real layout store.
+// Build the bridge over recording fakes for the shell openRight + the panel-registry openFile, so a test
+// asserts the wiring (guard → openRight → openFile) without the real shell.
 function setup(overrides: Partial<RightTabBridgeDeps> = {}) {
-  const openTabFocused = vi.fn(() => "tab-id");
   const openRight = vi.fn();
-  const deps: RightTabBridgeDeps = {
-    buildPersistenceKey: ({ serverId, workspaceId }) =>
-      serverId && workspaceId ? `${serverId}:${workspaceId}` : null,
-    createFileTabTarget: (location) => ({ kind: "file", ...location }),
-    openTabFocused,
-    openRight,
-    ...overrides,
-  };
-  return { bridge: createRightTabBridge(deps), openTabFocused, openRight };
+  const openFile = vi.fn();
+  const deps: RightTabBridgeDeps = { openRight, openFile, ...overrides };
+  return { bridge: createRightTabBridge(deps), openRight, openFile };
 }
 
 describe("right-tab-bridge openFileInRightTab", () => {
-  test("opens a focused file tab under the composed persistence key and reveals the right region", () => {
-    const { bridge, openTabFocused, openRight } = setup();
+  test("expands the right region and opens the file into the workspace's panel", () => {
+    const { bridge, openRight, openFile } = setup();
 
     bridge.openFileInRightTab({
       location: { path: "/host/root/a.ts" },
@@ -33,19 +26,17 @@ describe("right-tab-bridge openFileInRightTab", () => {
       serverId: "srv1",
     });
 
-    expect(openTabFocused).toHaveBeenCalledTimes(1);
-    expect(openTabFocused).toHaveBeenCalledWith("srv1:ws1", {
-      kind: "file",
-      path: "/host/root/a.ts",
-    });
-    // Two truth sources for "right region visible": layout's tool-panel collapse + the shell's rightOpen.
     expect(openRight).toHaveBeenCalledTimes(1);
+    expect(openFile).toHaveBeenCalledTimes(1);
+    expect(openFile).toHaveBeenCalledWith({
+      serverId: "srv1",
+      workspaceId: "ws1",
+      location: { path: "/host/root/a.ts" },
+    });
   });
 
-  test("silently no-ops (no open, no throw) when the persistence key can't be built", () => {
-    const { bridge, openTabFocused, openRight } = setup({
-      buildPersistenceKey: () => null,
-    });
+  test("silently no-ops (no open, no throw) when there is no workspace", () => {
+    const { bridge, openRight, openFile } = setup();
 
     expect(() =>
       bridge.openFileInRightTab({
@@ -55,12 +46,12 @@ describe("right-tab-bridge openFileInRightTab", () => {
       }),
     ).not.toThrow();
 
-    expect(openTabFocused).not.toHaveBeenCalled();
     expect(openRight).not.toHaveBeenCalled();
+    expect(openFile).not.toHaveBeenCalled();
   });
 
-  test("forwards line range on the location through to the created file target", () => {
-    const { bridge, openTabFocused } = setup();
+  test("forwards line range on the location through to the panel", () => {
+    const { bridge, openFile } = setup();
 
     bridge.openFileInRightTab({
       location: { path: "/host/root/a.ts", lineStart: 10, lineEnd: 12 },
@@ -68,11 +59,10 @@ describe("right-tab-bridge openFileInRightTab", () => {
       serverId: "srv1",
     });
 
-    expect(openTabFocused).toHaveBeenCalledWith("srv1:ws1", {
-      kind: "file",
-      path: "/host/root/a.ts",
-      lineStart: 10,
-      lineEnd: 12,
+    expect(openFile).toHaveBeenCalledWith({
+      serverId: "srv1",
+      workspaceId: "ws1",
+      location: { path: "/host/root/a.ts", lineStart: 10, lineEnd: 12 },
     });
   });
 });
