@@ -46,6 +46,16 @@ describe("resolveTabInstancing · file", () => {
       action: "append",
     });
   });
+
+  // The empty "choose a file" tab (path "") is itself a file identity: a second empty open focuses the one
+  // empty tab rather than stacking duplicates (defect 1 — at most one empty file tab).
+  it("focuses the existing empty 'choose a file' tab (empty path dedups)", () => {
+    const existing: Existing[] = [{ id: "empty", kind: "file", path: "" }];
+    expect(resolveTabInstancing(existing, { kind: "file", path: "" })).toEqual({
+      action: "focus",
+      id: "empty",
+    });
+  });
 });
 
 describe("resolveTabInstancing · single-instance (review)", () => {

@@ -148,6 +148,14 @@ export class FileDocumentModel implements TabContent {
   // Read the file, classify how it renders, seed the editable buffer (text kinds only), and record the
   // baseline mtime. Image/binary become read-only (no buffer). Errors land in the error state.
   async load(): Promise<void> {
+    // The empty "choose a file" tab (launcher with no selection) has no file to read — readFile("") would
+    // resolve to the root dir and error. Land loaded immediately; the view shows the empty state off !path.
+    if (!this.path) {
+      runInAction(() => {
+        this.loadState = "loaded";
+      });
+      return;
+    }
     runInAction(() => {
       this.loadState = "loading";
     });

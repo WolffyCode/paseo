@@ -72,14 +72,16 @@ export class WorkbenchModel {
     this.focusTab(tab.id);
   }
 
-  // The launcher / new-tab entry. Only `file` is usable this round; a file without a location is a no-op
-  // (the "choose a file" empty state is the UI's job).
+  // The launcher / new-tab entry. Only `file` is usable this round. With no location it opens an EMPTY
+  // "choose a file" file tab (path "") so the tab strip appears (requirement item 3 / sRS2·4·7); the empty
+  // path dedups to at most one such tab, and FileTabView renders its "选择一个文件" state off `!doc.path`.
+  // A later file open appends/focuses its own path-identified tab.
   openLauncherType(kind: TabKind, location?: FileLocation): void {
     if (!TAB_KIND_POLICY[kind].enabled) {
       return;
     }
-    if (kind === "file" && location) {
-      this.openTab({ kind: "file", location });
+    if (kind === "file") {
+      this.openTab({ kind: "file", location: location ?? { path: "" } });
     }
   }
 

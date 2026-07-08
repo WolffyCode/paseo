@@ -341,6 +341,27 @@ describe("FileDocumentModel · read-only", () => {
   });
 });
 
+describe("FileDocumentModel · empty 'choose a file' tab (defect 1)", () => {
+  // An empty-path tab is the launcher's "choose a file" state. Load must be a guarded no-op — readFile("")
+  // would resolve to the root dir and error. It lands "loaded" with no editor seed; the view shows the
+  // empty state off !doc.path.
+  it("does not read an empty path and seeds nothing", async () => {
+    const io = new FakeIo(read("should-not-be-read"));
+    const readSpy = vi.spyOn(io, "readFile");
+    const editor = new FakeEditor();
+    const model = new FileDocumentModel(
+      { root: "/proj", location: { path: "" }, writeCapable: true },
+      { io, editor, revealFile: vi.fn() },
+    );
+
+    await model.load();
+
+    expect(readSpy).not.toHaveBeenCalled();
+    expect(model.loadState).toBe("loaded");
+    expect(editor.applied).toHaveLength(0);
+  });
+});
+
 describe("FileDocumentModel · absolute identity path (defect 7)", () => {
   // The location path is the ABSOLUTE host path (the tab-identity axis, stable across tree roots). The
   // model derives the root-relative path for IO from it, yet reveals with the absolute path — so identity

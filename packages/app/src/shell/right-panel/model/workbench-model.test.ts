@@ -188,14 +188,18 @@ describe("WorkbenchModel · reorderTab", () => {
 });
 
 describe("WorkbenchModel · openLauncherType", () => {
-  // The file launcher row with a selection opens that file; without a location it is a no-op (the
-  // "choose a file" empty state is the UI's job).
-  it("opens a file when given a location and is a no-op without one", () => {
+  // The file launcher row WITHOUT a selection opens an empty "choose a file" tab so the tab strip appears
+  // (requirement item 3 / sRS2·4·7); it dedups to at most one empty tab. With a location it opens that file.
+  it("opens an empty 'choose a file' tab without a location (deduped), and the file with one", () => {
     const { wb } = makeWorkbench();
     wb.openLauncherType("file");
-    expect(wb.tabs).toHaveLength(0);
-    wb.openLauncherType("file", { path: "a.ts" });
     expect(wb.tabs).toHaveLength(1);
+    expect(wb.tabs[0].path).toBe("");
+    wb.openLauncherType("file"); // re-click → still one empty tab (dedup by empty path)
+    expect(wb.tabs).toHaveLength(1);
+    wb.openLauncherType("file", { path: "a.ts" });
+    expect(wb.tabs).toHaveLength(2);
+    expect(wb.tabs[1].path).toBe("a.ts");
   });
 
   // A disabled/deferred kind (review) never opens a tab this round.
