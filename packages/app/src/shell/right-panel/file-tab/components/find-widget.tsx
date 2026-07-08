@@ -52,8 +52,10 @@ export const FindWidget = observer(function FindWidget({
   const find = doc.find;
   const queryRef = useRef<TextInput>(null);
 
-  // Focus the query field when the overlay opens, and wire Enter/⇧Enter/Esc on it (web only). Enter =
-  // next match, ⇧Enter = previous, Esc = close.
+  // Focus the query field when the overlay opens, and wire Enter/⇧Enter/Esc + ⌘⌥F/Ctrl+H on it (web only).
+  // Enter = next match, ⇧Enter = previous, Esc = close. ⌘⌥F/Ctrl+H expands the replace row even while the
+  // find box (not the editor) holds focus — the editor's own keymap can't fire there (matches ui.html/
+  // requirement: ⌘⌥F invokes replace regardless of focus). `code` (KeyF/KeyH) dodges Alt remapping the key.
   useEffect(() => {
     const node = queryRef.current as unknown as HTMLElement | null;
     node?.focus?.();
@@ -71,6 +73,12 @@ export const FindWidget = observer(function FindWidget({
       } else if (event.key === "Escape") {
         event.preventDefault();
         doc.closeFind();
+      } else if (
+        (event.altKey && (event.metaKey || event.ctrlKey) && event.code === "KeyF") ||
+        (event.ctrlKey && event.code === "KeyH")
+      ) {
+        event.preventDefault();
+        doc.openReplace();
       }
     };
     node.addEventListener("keydown", onKeyDown);
