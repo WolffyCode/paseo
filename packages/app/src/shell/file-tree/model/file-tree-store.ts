@@ -27,7 +27,12 @@ import {
   selectPath,
   toggleExpandedPath,
 } from "./tree-reducer";
-import { buildAbsoluteTreePath, parentDirectory, relativeToTreeRoot } from "../util/tree-paths";
+import {
+  buildAbsoluteTreePath,
+  isAbsolutePath,
+  parentDirectory,
+  relativeToTreeRoot,
+} from "../util/tree-paths";
 import type {
   Clipboard,
   ContextMenuItem,
@@ -350,14 +355,18 @@ export class FileTreeStore {
     });
   }
 
-  // Re-root the tree with a clean slate. External callers use this for explicit roots; internal
-  // callers can preserve the current source when they only want to clear view state.
+  // Re-root the tree with a clean slate only for a concrete directory. Invalid blank input is rejected
+  // before reset so a bad external/reveal target cannot erase the current tree context.
   private async reroot(
     rootPath: string,
     source: "external" | "conversation" | "desktop",
   ): Promise<void> {
+    const normalizedRoot = rootPath.trim();
+    if (!normalizedRoot) {
+      return;
+    }
     this.resetForRootChange();
-    await this.adoptRoot(rootPath, source);
+    await this.adoptRoot(normalizedRoot, source);
   }
 
   // Expand/collapse a directory; list it on first expand (marking node loading, folding children into
@@ -406,11 +415,19 @@ export class FileTreeStore {
     this.openInRightTab(path);
   }
 
-  // Retry the failed root listing (sFT6 error/offline exit).
-  retry(): void {
-    if (this.hostRoot) {
-      void this.adoptRoot(this.hostRoot, this.rootSource ?? "external");
+  // Retry the failed root listing (sFT6 error exit). A valid failed root is retried in place; a missing or
+  // corrupted blank root re-enters the normal conversation→desktop default-root flow so retry is never dead.
+  async retry(): Promise<void> {
+    const failedRoot = this.hostRoot?.trim();
+    if (failedRoot) {
+      await this.adoptRoot(failedRoot, this.rootSource ?? "external");
+      return;
     }
+    this.resetForRootChange();
+    await this.ensureRoot({
+      externalRoot: null,
+      conversationRoot: this.deps.getContext().conversationRoot,
+    });
   }
 
   // Collapse every expanded directory back to the root's first level (the toolbar's 折叠全部).
@@ -614,29 +631,34 @@ export class FileTreeStore {
     });
   }
 
-  // Public face (FileTreeController): the right-side file tab commands the tree to locate `absPath` when
-  // the user switches to / focuses its file tab. resolveRevealAction picks one of three pinned branches
-  // (requirement §3.2 / item 23) against the current absolute root; the store then reuses revealPath
-  // (expand ancestors + select) / reroot / select accordingly — it never re-derives the tree. Every
-  // branch ends by bumping revealTick so the view scrolls the located row into view (M18).
+  // Public face (FileTreeController): locate a valid absolute file target when its tab activates. Invalid
+  // targets stop at this boundary; valid targets enter the three pinned reveal/select/reroot branches and
+  // bump revealTick so the view scrolls the located row into view (requirement §3.2 / item 23, M18).
   async revealFile(absPath: string): Promise<void> {
+    const targetAbsPath = absPath.trim();
+    if (!isAbsolutePath(targetAbsPath)) {
+      return;
+    }
     const currentRoot = this.absoluteRoot ?? this.hostRoot;
-    const { action } = resolveRevealAction({ targetAbsPath: absPath, currentRoot });
+    const { action } = resolveRevealAction({ targetAbsPath, currentRoot });
 
     if (action === "reroot") {
       // Out of bounds: re-show the tree rooted at the file's own directory, then select the file — now a
       // direct child of the new root. Selection is set after the reroot so it survives the state reset.
-      const newRoot = parentDirectory(absPath);
+      const newRoot = parentDirectory(targetAbsPath);
       await this.reroot(newRoot, "external");
       runInAction(() => {
         const base = this.absoluteRoot ?? this.hostRoot ?? newRoot;
-        this.selectedPath = relativeToTreeRoot({ treeRoot: base, absolutePath: absPath });
+        this.selectedPath = relativeToTreeRoot({ treeRoot: base, absolutePath: targetAbsPath });
         this.revealTick += 1;
       });
       return;
     }
 
-    const relPath = relativeToTreeRoot({ treeRoot: currentRoot as string, absolutePath: absPath });
+    const relPath = relativeToTreeRoot({
+      treeRoot: currentRoot as string,
+      absolutePath: targetAbsPath,
+    });
     if (action === "reveal") {
       this.revealPath(relPath);
     } else {

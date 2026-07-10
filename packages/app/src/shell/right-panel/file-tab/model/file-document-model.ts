@@ -132,9 +132,12 @@ export class FileDocumentModel implements TabContent {
     return this.save.status === "dirty" ? "dirty" : "none";
   }
 
-  // Focused/switched-to → reveal the file in the tree (the three-branch reveal/reroot decision belongs to
-  // file-tree; the model only issues the command).
+  // Focused/switched-to → reveal a real file in the tree. The empty launcher placeholder names no file,
+  // so it must not enter file-tree's reveal/reroot decision or disturb the user's current tree root.
   onActivated(): void {
+    if (!this.path) {
+      return;
+    }
     this.deps.revealFile(this.path);
   }
 

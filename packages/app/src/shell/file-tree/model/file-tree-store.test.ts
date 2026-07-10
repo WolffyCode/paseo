@@ -230,6 +230,48 @@ describe("FileTreeStore switch directory (three forks)", () => {
 
     expect(store.panelState).toBe("error");
   });
+
+  // A blank external root is not a directory. Reject it before the root-change reset so an invalid caller
+  // cannot erase the current listing, expansion, or selection and leave the tree rooted at "".
+  test("showDirectory ignores a blank root without clearing the current tree", async () => {
+    const { data } = fakeData({ ".": [entry("kept.ts", "file")] });
+    const { store } = makeStore({ data });
+    await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+    store.select("kept.ts");
+
+    await store.showDirectory("   ");
+
+    expect(store.rootPath).toBe("/root");
+    expect(store.selectedPath).toBe("kept.ts");
+    expect(store.visibleNodes.map((node) => node.path)).toEqual(["kept.ts"]);
+  });
+
+  // Retry is the error state's required exit. If a prior invalid reveal left hostRoot empty, retry must
+  // recover through the normal default-root choice instead of guarding on the falsy corrupted value and
+  // becoming a permanently dead button.
+  test("retry falls back to the default root when the failed host root is empty", async () => {
+    const listedRoots: string[] = [];
+    const data: FileTreeData = {
+      ...fakeData().data,
+      listDirectory: async (root, path) => {
+        listedRoots.push(root);
+        if (root === "/bad") {
+          throw new Error("cannot list root");
+        }
+        return { path, absolutePath: "/Users/me/Desktop", entries: [] };
+      },
+    };
+    const { store } = makeStore({ data });
+    await store.showDirectory("/bad");
+    expect(store.panelState).toBe("error");
+    store.hostRoot = "";
+
+    await store.retry();
+
+    expect(listedRoots).toEqual(["/bad", "~/Desktop"]);
+    expect(store.rootPath).toBe("~/Desktop");
+    expect(store.panelState).toBe("empty");
+  });
 });
 
 describe("FileTreeStore inline edit state machine (§3.10)", () => {
@@ -1061,5 +1103,32 @@ describe("FileTreeStore revealFile (页签→树 three-branch linkage, item 23)"
 
     expect(store.rootPath).toBe("/fresh/dir");
     expect(store.selectedPath).toBe("a.ts");
+  });
+
+  // revealFile's contract accepts an absolute file path. Empty/relative inputs name no valid external
+  // target, so they must be rejected before the three-branch classifier can turn them into a destructive
+  // re-root and erase the current tree context.
+  test("ignores empty and non-absolute reveal targets without changing tree state", async () => {
+    const listedRoots: string[] = [];
+    const source = fakeData({ ".": [entry("kept.ts", "file")] }).data;
+    const data: FileTreeData = {
+      ...source,
+      listDirectory: async (root, path) => {
+        listedRoots.push(root);
+        return source.listDirectory(root, path);
+      },
+    };
+    const { store } = makeStore({ data });
+    await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+    store.select("kept.ts");
+    const before = store.revealTick;
+
+    await store.revealFile("");
+    await store.revealFile("relative.ts");
+
+    expect(store.rootPath).toBe("/root");
+    expect(store.selectedPath).toBe("kept.ts");
+    expect(store.revealTick).toBe(before);
+    expect(listedRoots).toEqual(["/root"]);
   });
 });

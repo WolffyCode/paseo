@@ -360,6 +360,16 @@ describe("FileDocumentModel · empty 'choose a file' tab (defect 1)", () => {
     expect(model.loadState).toBe("loaded");
     expect(editor.applied).toHaveLength(0);
   });
+
+  // Activating the empty launcher placeholder must not issue a tree reveal: it names no file, and sending
+  // the empty path would make the tree treat it as an out-of-bounds target and destroy its current root.
+  it("does not reveal an empty path when activated", () => {
+    const { model, revealFile } = setup({ path: "" });
+
+    model.onActivated();
+
+    expect(revealFile).not.toHaveBeenCalled();
+  });
 });
 
 describe("FileDocumentModel · absolute identity path (defect 7)", () => {
