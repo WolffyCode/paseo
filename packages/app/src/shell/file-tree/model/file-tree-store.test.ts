@@ -637,6 +637,41 @@ describe("FileTreeStore toolbar actions", () => {
 });
 
 describe("FileTreeStore search machine", () => {
+  test("activating a content file match reveals it and opens the right tab at the matched line", async () => {
+    const { store, rightTabOpen } = makeStore({
+      data: fakeData({ ".": [entry("src", "directory")] }).data,
+    });
+    await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+
+    store.activateSearchResult({
+      path: "src/nested/button.tsx",
+      kind: "file",
+      line: 42,
+      preview: "const button = true;",
+    });
+
+    expect(store.expanded).toEqual(new Set(["src", "src/nested"]));
+    expect(store.selectedPath).toBe("src/nested/button.tsx");
+    expect(rightTabOpen).toHaveBeenCalledWith({
+      location: { path: "/root/src/nested/button.tsx", lineStart: 42, lineEnd: 42 },
+      workspaceId: "ws1",
+      serverId: "srv1",
+    });
+  });
+
+  test("activating a directory match only reveals it in the tree", async () => {
+    const { store, rightTabOpen } = makeStore({
+      data: fakeData({ ".": [entry("src", "directory")] }).data,
+    });
+    await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+
+    store.activateSearchResult({ path: "src/nested", kind: "directory" });
+
+    expect(store.expanded).toEqual(new Set(["src"]));
+    expect(store.selectedPath).toBe("src/nested");
+    expect(rightTabOpen).not.toHaveBeenCalled();
+  });
+
   test("name-mode query searches the HOST (fs.search name mode), covering unexpanded layers", async () => {
     vi.useFakeTimers();
     try {

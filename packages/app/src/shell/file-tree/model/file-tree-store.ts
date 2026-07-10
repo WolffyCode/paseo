@@ -635,6 +635,16 @@ export class FileTreeStore {
     });
   }
 
+  // Activate a search result: every hit is revealed in the tree, while file hits also open/focus the
+  // right-side tab. Content-hit lines become the editor reveal range; directories remain tree-only.
+  activateSearchResult(match: SearchMatch): void {
+    this.revealPath(match.path);
+    if (match.kind === "directory") {
+      return;
+    }
+    this.openInRightTab(match.path, match.line);
+  }
+
   // Public face (FileTreeController): locate a valid absolute file target when its tab activates. Invalid
   // targets stop at this boundary; valid targets enter the three pinned reveal/select/reroot branches and
   // bump revealTick so the view scrolls the located row into view (requirement §3.2 / item 23, M18).
@@ -970,13 +980,16 @@ export class FileTreeStore {
     this.deps.copyToClipboard(relative ? path : this.toAbsolute(path));
   }
 
-  // Open a root-relative file path in the right tab (联动2). Both file clicks and newly created files use
-  // the same canonical absolute-path conversion as reveal/copy/composer, so tab identity and reveal compare
-  // the identical daemon-resolved root representation and one file dedups across nested roots.
-  openInRightTab(path: string): void {
+  // Open a root-relative file path in the right tab (联动2), optionally revealing one matched line.
+  // Every caller shares the canonical absolute-path conversion, so tab identity stays deduplicated.
+  openInRightTab(path: string, line?: number): void {
     const ctx = this.deps.getContext();
+    const location = {
+      path: this.toAbsolute(path),
+      ...(line !== undefined ? { lineStart: line, lineEnd: line } : {}),
+    };
     this.deps.rightTab.openFileInRightTab({
-      location: { path: this.toAbsolute(path) },
+      location,
       workspaceId: ctx.workspaceId,
       serverId: ctx.serverId,
     });

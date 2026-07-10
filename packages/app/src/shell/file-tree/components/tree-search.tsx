@@ -23,8 +23,8 @@ import { FT_BLUE } from "./tokens";
 // The search bar (observer): one input row = a leading name/content mode DROPDOWN, the query field, a
 // clear button, and a trailing search icon; then a result-count line and a flat result list with hit
 // highlighting (or a skeleton while searching) — sFT4/sFT5. Pure view — it renders the store's search
-// state + searchResultsView and dispatches setQuery / setSearchMode / clearSearch / revealPath; ranges
-// come from the tested computeHighlightRanges pure function.
+// state + searchResultsView and dispatches setQuery / setSearchMode / clearSearch /
+// activateSearchResult; ranges come from the tested computeHighlightRanges pure function.
 
 const SKELETON_WIDTHS = [120, 90, 140] as const;
 
@@ -256,7 +256,7 @@ const SearchCount = observer(function SearchCount({ store }: { store: FileTreeSt
   );
 });
 
-// One name-search result: file-type icon + highlighted file name; clicking reveals + selects it.
+// One name-search result: file-type icon + highlighted file name; activation is delegated to the store.
 const NameResult = observer(function NameResult({
   match,
   query,
@@ -267,7 +267,7 @@ const NameResult = observer(function NameResult({
   store: FileTreeStore;
 }) {
   const tk = themeModel.tokens;
-  const onPress = useCallback(() => store.revealPath(match.path), [store, match.path]);
+  const onPress = useCallback(() => store.activateSearchResult(match), [store, match]);
   const onContextMenu = useCallback(
     (event: SearchResultContextMenuEvent) => {
       event.preventDefault?.();
@@ -308,7 +308,7 @@ const NameResult = observer(function NameResult({
 });
 
 // One content-search result: file name + grey relative dir, then the matched line (line number + the
-// preview with the query highlighted). Uses server-provided ranges when present, else computes them.
+// preview with the query highlighted). Activation carries that line through the store to the editor.
 const ContentResult = observer(function ContentResult({
   match,
   query,
@@ -319,7 +319,7 @@ const ContentResult = observer(function ContentResult({
   store: FileTreeStore;
 }) {
   const tk = themeModel.tokens;
-  const onPress = useCallback(() => store.revealPath(match.path), [store, match.path]);
+  const onPress = useCallback(() => store.activateSearchResult(match), [store, match]);
   const onContextMenu = useCallback(
     (event: SearchResultContextMenuEvent) => {
       event.preventDefault?.();
