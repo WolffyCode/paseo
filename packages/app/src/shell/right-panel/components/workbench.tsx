@@ -34,12 +34,19 @@ export const Workbench = observer(function Workbench({
     return <Launcher controller={controller} isOffline={isOffline} />;
   }
   const focused = workbench.tabs.find((tab) => tab.id === workbench.focusedTabId) ?? null;
+  // A content subtree owns exactly one tab identity per mount. The key makes a focus switch disconnect
+  // the old imperative surface before a fresh surface binds the next tab's document and editor handle.
   return (
     <View style={styles.root}>
       <TabBar workbench={workbench} controller={controller} isOffline={isOffline} />
       {isOffline ? <OfflineBanner /> : null}
       {focused ? (
-        <TabContent tab={focused} resolveEditorHandle={resolveEditorHandle} isOffline={isOffline} />
+        <TabContent
+          key={focused.id}
+          tab={focused}
+          resolveEditorHandle={resolveEditorHandle}
+          isOffline={isOffline}
+        />
       ) : null}
     </View>
   );

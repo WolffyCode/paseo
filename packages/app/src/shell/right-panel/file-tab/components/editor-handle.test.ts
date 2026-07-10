@@ -73,20 +73,37 @@ describe("createConnectableEditorHandle", () => {
     expect(handle.getContent()).toBe("edited then unmounted");
   });
 
-  // Switching a tab away unmounts the view (disconnect) and switching back remounts a FRESH view (connect).
-  // A remounted CodeMirror view starts empty, so the snapshot must be re-seeded on reconnect — otherwise
-  // the editor comes back blank and the user's content is lost (defect B).
-  it("re-seeds a fresh backend on reconnect after a disconnect", () => {
-    const handle = createConnectableEditorHandle();
-    const first = fakeBackend();
-    handle.connect(first);
-    handle.applyExternalContent("edited content"); // routes to the live view
+  // Same-kind tabs reuse the same renderer shape, but keyed mounts give each document a fresh backend.
+  // Switching A -> B -> A must preserve each handle's own edits and never seed one document into the other.
+  it("keeps same-kind documents isolated across A to B to A remounts", () => {
+    const handleA = createConnectableEditorHandle();
+    const handleB = createConnectableEditorHandle();
+    handleA.applyExternalContent("A loaded");
+    handleB.applyExternalContent("B loaded");
 
-    handle.disconnect(); // tab switched away: snapshot + arm the re-seed
-    const second = fakeBackend(); // tab switched back: a fresh, empty view
-    handle.connect(second);
+    const firstA = fakeBackend();
+    handleA.connect(firstA);
+    expect(firstA.applyExternalContent).toHaveBeenCalledExactlyOnceWith("A loaded");
+    firstA.text = "A edited";
+    handleA.disconnect();
+    expect(handleA.getContent()).toBe("A edited");
 
-    expect(second.applyExternalContent).toHaveBeenCalledExactlyOnceWith("edited content");
-    expect(handle.getContent()).toBe("edited content");
+    const firstB = fakeBackend();
+    handleB.connect(firstB);
+    expect(firstB.applyExternalContent).toHaveBeenCalledExactlyOnceWith("B loaded");
+    firstB.text = "B edited";
+    handleB.disconnect();
+    expect(handleB.getContent()).toBe("B edited");
+
+    const secondA = fakeBackend();
+    handleA.connect(secondA);
+    expect(secondA.applyExternalContent).toHaveBeenCalledExactlyOnceWith("A edited");
+    expect(handleA.getContent()).toBe("A edited");
+    handleA.disconnect();
+
+    const secondB = fakeBackend();
+    handleB.connect(secondB);
+    expect(secondB.applyExternalContent).toHaveBeenCalledExactlyOnceWith("B edited");
+    expect(handleB.getContent()).toBe("B edited");
   });
 });
