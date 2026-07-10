@@ -9,9 +9,10 @@
 // Path space: the host filesystem RPCs are ROOT-RELATIVE — listDirectory/fs.* take a `root` (the cwd,
 // expanded host-side per call) plus a path relative to it, and the host echoes entry/dir paths
 // root-relative ("." for the root). The tree therefore operates entirely in root-relative space
-// (`treeRoot`/`expanded`/`selectedPath`/cache keys/entry paths are all relative) and keeps the absolute
-// host root separately as `hostRoot` for the RPC cwd + for building absolute copy-paths. This means
-// entry paths flow straight back into the next RPC with no conversion.
+// (`treeRoot`/`expanded`/`selectedPath`/cache keys/entry paths are all relative). `hostRoot` preserves the
+// caller's cwd spelling for RPCs; `absoluteRoot` captures the daemon-expanded spelling from the root
+// listing. Every outward absolute path is built from the canonical `rootPath` projection, so open/reveal
+// never compare a literal "~" path against its expanded host path.
 
 import { makeAutoObservable, observable, runInAction } from "mobx";
 import type { FileTreeData, SearchInput } from "../data/file-tree-data";
@@ -110,8 +111,8 @@ const IDLE_SEARCH: SearchState = { mode: "name", query: "", results: [], phase: 
 const SEARCH_DEBOUNCE_MS = 250;
 
 export class FileTreeStore {
-  // The absolute / "~"-relative host root, used as the cwd for every RPC and as the base for absolute
-  // copy-paths. null = no root defined yet. Distinct from the relative tree space below.
+  // The caller-provided host root spelling, used as the cwd for every RPC. It may contain a literal "~";
+  // outward absolute paths must use rootPath instead. null = no root defined yet.
   hostRoot: string | null = null;
   // The host-resolved absolute root ("~"-free), captured from the root listing's absolutePath. Used as
   // the base for absolute paths (reveal / copy-absolute) so a literal-"~" hostRoot (e.g. "~/Desktop")
@@ -176,9 +177,10 @@ export class FileTreeStore {
 
   // ----- public face (FileTreeController) -----
 
-  // The current root, surfaced as the absolute host root (the meaningful path for external consumers).
+  // The canonical root for every external path: daemon-expanded when the root listing provides it,
+  // otherwise the original root (already absolute for external/conversation roots and old daemons).
   get rootPath(): string | null {
-    return this.hostRoot;
+    return this.absoluteRoot ?? this.hostRoot;
   }
 
   // ----- computed (zero redundant state) -----
@@ -318,11 +320,13 @@ export class FileTreeStore {
     });
     try {
       const listing = await this.deps.data.listDirectory(hostRoot, TREE_ROOT_PATH);
+      const resolvedRoot = listing.absolutePath?.trim() ?? null;
+      const hasResolvedRoot = resolvedRoot !== null && isAbsolutePath(resolvedRoot);
       runInAction(() => {
         this.dirCache = foldDirectoryListing(this.dirCache, TREE_ROOT_PATH, [...listing.entries]);
-        // Capture the host-resolved absolute root so reveal/copy-absolute build "~"-free paths; an old
-        // daemon omits it (undefined) and toAbsolute falls back to the (already absolute) hostRoot.
-        this.absoluteRoot = listing.absolutePath ?? null;
+        // listDirectory is where the host expands "~". Once it settles, all outward paths use this exact
+        // representation; old daemons may omit it, so already-absolute host roots remain the fallback.
+        this.absoluteRoot = hasResolvedRoot ? resolvedRoot : null;
         this.rootListed = true;
       });
     } catch {
@@ -639,7 +643,7 @@ export class FileTreeStore {
     if (!isAbsolutePath(targetAbsPath)) {
       return;
     }
-    const currentRoot = this.absoluteRoot ?? this.hostRoot;
+    const currentRoot = this.rootPath;
     const { action } = resolveRevealAction({ targetAbsPath, currentRoot });
 
     if (action === "reroot") {
@@ -648,7 +652,7 @@ export class FileTreeStore {
       const newRoot = parentDirectory(targetAbsPath);
       await this.reroot(newRoot, "external");
       runInAction(() => {
-        const base = this.absoluteRoot ?? this.hostRoot ?? newRoot;
+        const base = this.rootPath ?? newRoot;
         this.selectedPath = relativeToTreeRoot({ treeRoot: base, absolutePath: targetAbsPath });
         this.revealTick += 1;
       });
@@ -966,15 +970,13 @@ export class FileTreeStore {
     this.deps.copyToClipboard(relative ? path : this.toAbsolute(path));
   }
 
-  // Open a root-relative file path in the right tab (联动2). The single funnel for both triggers — an
-  // explicit file-row click (activateFile) and a just-created file (commitNew). The bridge carries the
-  // ABSOLUTE host path (the right panel's tab-identity axis, §1.A): joining under the tree root makes the
-  // same file dedup to one tab no matter which (possibly nested) root opened it. Built from hostRoot — the
-  // very root the right-panel factory captures — so the model recovers the exact root-relative path for IO.
+  // Open a root-relative file path in the right tab (联动2). Both file clicks and newly created files use
+  // the same canonical absolute-path conversion as reveal/copy/composer, so tab identity and reveal compare
+  // the identical daemon-resolved root representation and one file dedups across nested roots.
   openInRightTab(path: string): void {
     const ctx = this.deps.getContext();
     this.deps.rightTab.openFileInRightTab({
-      location: { path: buildAbsoluteTreePath({ treeRoot: this.hostRoot ?? "", entryPath: path }) },
+      location: { path: this.toAbsolute(path) },
       workspaceId: ctx.workspaceId,
       serverId: ctx.serverId,
     });
@@ -1005,7 +1007,7 @@ export class FileTreeStore {
   // produces an unresolvable "~/Desktop/a.ts"; fall back to hostRoot when the daemon omits absoluteRoot
   // (old daemon) — for external/conversation roots hostRoot is already absolute, so the join is correct.
   private toAbsolute(relPath: string): string {
-    const base = this.absoluteRoot ?? this.hostRoot;
+    const base = this.rootPath;
     if (!base) {
       return relPath;
     }

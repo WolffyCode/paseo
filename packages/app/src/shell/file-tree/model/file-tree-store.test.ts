@@ -269,7 +269,7 @@ describe("FileTreeStore switch directory (three forks)", () => {
     await store.retry();
 
     expect(listedRoots).toEqual(["/bad", "~/Desktop"]);
-    expect(store.rootPath).toBe("~/Desktop");
+    expect(store.rootPath).toBe("/Users/me/Desktop");
     expect(store.panelState).toBe("empty");
   });
 });
@@ -1012,7 +1012,7 @@ describe("FileTreeStore absolute root (bug: '~/Desktop' reveal/copy)", () => {
   test("captures absoluteRoot from the root listing and reveals the '~'-free absolute path", async () => {
     const { store, reveal } = makeStore({ data: desktopData("/Users/me/Desktop") });
     await store.ensureRoot({ externalRoot: null, conversationRoot: null }); // roots at "~/Desktop"
-    expect(store.rootPath).toBe("~/Desktop");
+    expect(store.rootPath).toBe("/Users/me/Desktop");
 
     store.revealInFinder("a.ts");
 
@@ -1046,6 +1046,43 @@ describe("FileTreeStore absolute root (bug: '~/Desktop' reveal/copy)", () => {
     store.revealInFinder("a.ts");
 
     expect(reveal).toHaveBeenCalledWith("/root/a.ts");
+  });
+
+  // Tree→tab path construction and tab→tree comparison must share the host-resolved root. With a literal
+  // "~/Desktop" transport root, both direct-child select and deeper-descendant reveal must remain reachable
+  // without silently re-rooting one level down.
+  test("uses the resolved root for opened tab paths and reaches select/reveal without re-rooting", async () => {
+    const listedRoots: string[] = [];
+    const data: FileTreeData = {
+      ...fakeData().data,
+      listDirectory: async (root, path) => {
+        listedRoots.push(root);
+        return {
+          path,
+          absolutePath: root === "~/Desktop" ? "/Users/me/Desktop" : root,
+          entries: [],
+        };
+      },
+    };
+    const { store, rightTabOpen } = makeStore({ data });
+    await store.ensureRoot({ externalRoot: null, conversationRoot: null });
+
+    store.openInRightTab("sample.ts");
+    const directPath = rightTabOpen.mock.calls[0][0].location.path;
+    await store.revealFile(directPath);
+    expect(store.selectedPath).toBe("sample.ts");
+    expect(store.expanded.size).toBe(0);
+
+    store.openInRightTab("rp-reverify/src/target.ts");
+    const deeperPath = rightTabOpen.mock.calls[1][0].location.path;
+    await store.revealFile(deeperPath);
+
+    expect(store.rootPath).toBe("/Users/me/Desktop");
+    expect(directPath).toBe("/Users/me/Desktop/sample.ts");
+    expect(deeperPath).toBe("/Users/me/Desktop/rp-reverify/src/target.ts");
+    expect(store.expanded).toEqual(new Set(["rp-reverify", "rp-reverify/src"]));
+    expect(store.selectedPath).toBe("rp-reverify/src/target.ts");
+    expect(listedRoots).toEqual(["~/Desktop"]);
   });
 });
 
