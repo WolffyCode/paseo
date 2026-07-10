@@ -30,6 +30,9 @@ function toDropIndex(visualGap: number, movingIndex: number): number {
 
 type DragState = { id: string; gap: number } | null;
 
+// Clear the file tab's 34px breadcrumb row plus a 4px visual gap before the new-tab menu begins.
+const NEW_TAB_MENU_CONTENT_CLEARANCE = 38;
+
 export const TabBar = observer(function TabBar({
   workbench,
   controller,
@@ -88,15 +91,20 @@ export const TabBar = observer(function TabBar({
     return () => bar.removeEventListener("contextmenu", onContextMenu);
   }, [anchorFromViewport]);
 
-  // Open the new-tab dropdown anchored just below the "+" button (disabled offline — nothing can open).
+  // Open the new-tab dropdown aligned to "+" but below the file breadcrumb, keeping the first content row
+  // readable while the menu is open. The desktop-only DOM measurement is disabled offline and off web.
   const onOpenNewTab = useCallback(() => {
-    if (isOffline) {
+    if (!isWeb || isOffline) {
       return;
     }
     const node = newTabRef.current as unknown as HTMLElement | null;
-    const rect = node?.getBoundingClientRect();
+    const bar = barRef.current as unknown as HTMLElement | null;
+    const buttonRect = node?.getBoundingClientRect();
+    const barRect = bar?.getBoundingClientRect();
+    const left = buttonRect?.left ?? barRect?.left ?? 0;
+    const top = (barRect?.bottom ?? buttonRect?.bottom ?? 0) + NEW_TAB_MENU_CONTENT_CLEARANCE;
     setCtxMenu(null);
-    setNewTabAnchor(anchorFromViewport(rect?.left ?? 0, (rect?.bottom ?? 0) + 4));
+    setNewTabAnchor(anchorFromViewport(left, top));
   }, [anchorFromViewport, isOffline]);
 
   const onDropTab = useCallback(() => {
