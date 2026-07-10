@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Helm · UI 设计稿 v6 · 右侧侧边栏（工作面板 · 多页签）· 文件先行 · 失焦自动保存 · 编辑器背景随主题·高亮默认 ODPF · 放大统一整面板 · 查找替换 · 9 屏全态</title>
+    <title>Helm · UI 设计稿 v8 · 右侧侧边栏（工作面板 · 多页签）· 文件先行 · 失焦自动保存 · 编辑器背景随主题·高亮默认 ODPF · 放大统一整面板 · 查找替换 · 长行横向滚动 · 9 屏全态</title>
     <style>
       /* =========================================================================
          主题令牌 = 壳子同源（CodePilot「github」主题）。浅色 :root + 深色 .dark 逐值复用
@@ -740,10 +740,17 @@
     <div class="board-h">
       <h1>
         <span class="logo"><svg class="i lg" style="color: #fff"><use href="#panel-r" /></svg></span>
-        右侧侧边栏（工作面板 · 多页签）· UI 设计稿 v6
+        右侧侧边栏（工作面板 · 多页签）· UI 设计稿 v8
       </h1>
       <div class="sub">
         对话页<b>最右侧「工作面板」</b>（壳子 workspace 卡）的<b>内部内容</b>设计：<b>自带 tab 头</b>（照 Codex：图标+文字页签 / <b>活跃=浅灰圆角胶囊</b> / 页签间细竖分隔 / 末尾 + / 右上 ⤢ 放大 + 收起）。<b>五类页签框架</b>：文件 / 终端 / 浏览器 / 代码审核 / 对话。<b>v5 承 v4「文件先行」骨架、据闸1 六意见微调</b>——文件是<b>被依赖最多</b>的页签（目录树点开、对话文档地址、终端输出路径都落到文件）：本轮<b>把工作区框架搭起来 + 落地「文件」页签全态</b>（可编辑·<b>失焦自动保存</b>·<b>编辑器背景随 chrome 主题</b>（浅底/深 ODPF）·<b>高亮默认 ODPF</b>·<b>查找/替换浮层</b> / md 双态·<b>默认预览</b> / 图片只读 / 双向联动 / 编辑必备态），<b>接上三条断链</b>；<b>终端 / 浏览器 / 代码审核 / 对话四类本轮 deferred</b>（框架层声明 + 启动器置灰「后续」，后续独立需求兑现）。壳行为（宽 480/320–800 / 拖拽 / 收起 / 记忆宽度）已有，本稿不重画。视觉令牌 100% 复用壳 CodePilot github 主题，<b>深浅双适配</b>。
+      </div>
+    </div>
+
+    <div class="rev-bar">
+      <span class="rb-tag">v8 · 闸3 · 验收裁定回写</span>
+      <div>
+        本稿据董事长<b>闸 3 验收裁定</b>回写，<b>其余内容一律不动、屏数不变（仍 sRS1–sRS9）</b>。<b>v8 三条</b>：① <b>启动器 / 新选项卡 + 下拉去「文件」</b>——董事长原话「这个选择的里边不应该有文件，加号下拉也不应该有文件，因为选择了没有意义，都是通过文件目录或者对话框在右侧面板显示的」；sRS1 启动器改为<b>四类后续</b>（无可用项）、sRS3 下拉同步，<b>⌘P 快捷键撤销</b>；原 sRS4/sRS7「空 · 选择一个文件」态因入口消失<b>移出可达状态枚举</b>（sRS9 的「面板空 ≠ 文件空」对照例一并改写）。② <b>tab hover 配色回归令牌</b>——sRS2「非活跃 hover」注解<b>加粗强调</b>「绝不用主蓝 / 选中蓝做底」（实现曾走样、董事长点名打回）。③ <b>长行 = 横向滚动（VSCode 对等）</b>——sRS4 注解补「长行默认不换行、超宽走横向滚动」，换行开关归设置模块后续。
       </div>
     </div>
 
@@ -769,23 +776,23 @@
     </div>
 
     <div class="req-log">
-      <div class="rl-h">需求 · 2026-07-07-right-sidebar（v6 · 9 屏高保真设计稿 · 文件先行 · 闸1 两处细则修正 · 与 requirement.md sRS1–sRS9 1:1）</div>
+      <div class="rl-h">需求 · 2026-07-07-right-sidebar（v8 · 9 屏高保真设计稿 · 文件先行 · 闸3 验收裁定回写 · 与 requirement.md sRS1–sRS9 1:1）</div>
       <table>
         <tr><th>屏</th><th>内容</th><th>状态</th></tr>
-        <tr><td>sRS1</td><td>启动器默认态（竖排五类；<b>仅文件可用</b> ⌘P · 终端/浏览器/代码审核/对话禁用+后续；顶部仅 ⤢ + 收起，无 tab 条）</td><td><span class="pill rev">翻转</span></td></tr>
-        <tr><td>sRS2</td><td>多页签框架 · Codex tab 头（胶囊活跃 / 细竖分隔 / 五类图标 / 实例规则 / 同类命名=文件名；<b>活跃示例=文件页签</b>，开两三个文件）</td><td><span class="pill rev">改</span></td></tr>
-        <tr><td>sRS3</td><td>页签管理（新建 + 下拉<b>仅文件可用</b> / <b>活跃页签常显 ✕</b>·非活跃 hover ✕ / 拖拽调序放置线 / 右键 3 项 / 关全部回启动器；<b>脏页签关闭 = 静默自动保存·无弹窗</b>）</td><td><span class="pill rev">改</span></td></tr>
-        <tr><td>sRS4</td><td><b>文件 · 代码/文本查看+编辑</b>：语法高亮 · <b>编辑器背景随主题 · 高亮默认 ODPF</b> · 可编辑区（光标/选区/当前行/改动 gutter）· 脏 ● · <b>失焦自动保存四态</b> · <b>查找/替换浮层</b>（⌘F/⌘⌥F）· <b>常用快捷键</b> · <b>tab ✕</b> · 右键 9 项（保存/还原→查找/替换）· 深浅 chrome</td><td><span class="pill rev">v5 调</span></td></tr>
+        <tr><td>sRS1</td><td>启动器默认态（竖排<b>四类后续</b>：终端/浏览器/代码审核/对话禁用+后续；<b>「文件」不出现、⌘P 撤销（闸3裁定）</b>；顶部仅 ⤢ + 收起，无 tab 条）</td><td><span class="pill rev">v8 改</span></td></tr>
+        <tr><td>sRS2</td><td>多页签框架 · Codex tab 头（胶囊活跃 / 细竖分隔 / 五类图标 / 实例规则 / 同类命名=文件名；<b>活跃示例=文件页签</b>，开两三个文件；<b>非活跃 hover 令牌加粗强调不用蓝，闸3</b>）</td><td><span class="pill rev">改</span></td></tr>
+        <tr><td>sRS3</td><td>页签管理（新建 + 下拉<b>四类后续（「文件」不出现，闸3裁定）</b> / <b>活跃页签常显 ✕</b>·非活跃 hover ✕ / 拖拽调序放置线 / 右键 3 项 / 关全部回启动器；<b>脏页签关闭 = 静默自动保存·无弹窗</b>）</td><td><span class="pill rev">v8 改</span></td></tr>
+        <tr><td>sRS4</td><td><b>文件 · 代码/文本查看+编辑</b>：语法高亮 · <b>编辑器背景随主题 · 高亮默认 ODPF</b> · 可编辑区（光标/选区/当前行/改动 gutter）· 脏 ● · <b>失焦自动保存四态</b> · <b>查找/替换浮层</b>（⌘F/⌘⌥F）· <b>常用快捷键</b> · <b>长行不换行·横向滚动（闸3）</b> · <b>tab ✕</b> · 右键 9 项（保存/还原→查找/替换）· 深浅 chrome</td><td><span class="pill rev">v5/v8 调</span></td></tr>
         <tr><td>sRS5</td><td><b>文件 · Markdown 双态 + 图片只读</b>：<b>默认落预览</b>（预览态为主态排最前）↔ 编辑（<b>编辑器背景随主题 · 高亮默认 ODPF</b> · <b>失焦自动保存</b> · 无 ⌘S）· 图片只读 · 右键 md 预览 5 项 + 图片 4 项 · 建议项隔离（查找/替换已升 sRS4 必做）</td><td><span class="pill rev">v5 调</span></td></tr>
-        <tr><td>sRS6</td><td><b>文件 · 打开与双向联动</b>（恢复 v2 + <b>接三断链</b>）：三来源打开 · 三分支 reveal · 去重 · 切根不删 · 树用缩略示意非重画</td><td><span class="pill new">接断链</span></td></tr>
-        <tr><td>sRS7</td><td><b>文件 · 编辑必备态</b>：<b>关闭脏页签 = 静默自动保存·无弹窗</b>（三择一确认已删）· 外部变更冲突三出口 · 只读兜底 · 空/加载/错误</td><td><span class="pill rev">v5 调</span></td></tr>
+        <tr><td>sRS6</td><td><b>文件 · 打开与双向联动</b>（恢复 v2 + <b>接三断链</b>）：<b>两来源打开（去 UI 直开，闸3）</b> · 三分支 reveal · 去重 · 切根不删 · 树用缩略示意非重画</td><td><span class="pill new">接断链</span></td></tr>
+        <tr><td>sRS7</td><td><b>文件 · 编辑必备态</b>：<b>关闭脏页签 = 静默自动保存·无弹窗</b>（三择一确认已删）· 外部变更冲突三出口 · 只读兜底 · 加载/错误（<b>空态已移除，闸3裁定</b>）</td><td><span class="pill rev">v5/v8 调</span></td></tr>
         <tr><td>sRS8</td><td>放大/缩小 · <b>整面板占满中区 ⤢/⤡</b>（tab 条右上触发 · 放大态编辑/<b>失焦自动保存</b>照常）<span style="color:#8250df">（v2 sRS11 改名）</span></td><td><span class="pill rev">恢复</span></td></tr>
-        <tr><td>sRS9</td><td>面板级聚合态（空/加载/错误/能力门·更新主机不降级/离线；面板空「无页签」≠ 文件空「选择一个文件」）<span style="color:#8250df">（v2 sRS12 改名）</span></td><td><span class="pill rev">恢复</span></td></tr>
+        <tr><td>sRS9</td><td>面板级聚合态（空/加载/错误/能力门·更新主机不降级/离线；面板层态与页签内容层态相互区分）<span style="color:#8250df">（v2 sRS12 改名）</span></td><td><span class="pill rev">恢复</span></td></tr>
       </table>
     </div>
 
     <div class="nav-idx">
-      <a class="new" href="#sRS1">sRS1 启动器（仅文件可用）</a>
+      <a class="new" href="#sRS1">sRS1 启动器（四类后续·文件经树/对话打开）</a>
       <a class="new" href="#sRS2">sRS2 五类框架·Codex tab</a>
       <a class="new" href="#sRS3">sRS3 页签管理（脏=静默自动保存关）</a>
       <a class="new" href="#sRS4">sRS4 文件·代码查看+编辑</a>
@@ -806,9 +813,9 @@
     <section class="screen" id="sRS1">
       <div class="screen-head">
         <span class="tag">sRS1</span>
-        <h2>启动器默认态 · 竖排五类入口（仅文件可用）</h2>
+        <h2>启动器默认态 · 竖排四类后续入口（无可用项 · 闸3裁定去文件）</h2>
         <p>
-          右面板<b>刚展开、还没开任何页签</b> → 顶部<b>只有 ⤢ 放大 + 收起</b>（<b>没有 tab 页签条、没有「新选项卡 +」</b>），主体是<b>竖排启动器</b>，呈现<b>全部五类</b>：文件 <b>⌘P</b> / 终端 / 浏览器 / 代码审核 / 对话。<b>v4 本轮仅「文件」可用</b>（带快捷键 <code>⌘P</code>）；<b>终端 / 浏览器 / 代码审核 / 对话四类置灰 +「后续」</b>（框架已声明、后续开放即点亮）。点文件行 → 打开<b>文件页签</b>；若<b>无选中文件</b>则落<b>空态「选择一个文件」</b>（→ sRS4 / sRS7 空）。此后长出 tab 条（见 sRS2 / sRS3）。
+          右面板<b>刚展开、还没开任何页签</b> → 顶部<b>只有 ⤢ 放大 + 收起</b>（<b>没有 tab 页签条、没有「新选项卡 +」</b>），主体是<b>竖排启动器</b>，呈现<b>四类后续</b>：终端 / 浏览器 / 代码审核 / 对话，<b>均置灰 +「后续」、点击无响应</b>（框架已声明、后续开放即点亮）。<b>★ 闸3裁定：「文件」不出现在启动器中</b>——董事长原话「这个选择的里边不应该有文件……因为选择了没有意义，都是通过文件目录或者对话框在右侧面板显示的」；启动器呈提示文案<b>「文件经左侧目录树或对话打开 · 其余类型后续开放」</b>。文件的 <code>⌘P</code> 快捷键随之撤销。tab 条只在<b>目录树点文件 / 对话点文档地址</b>打开首个文件后才长出（见 sRS2 / sRS3）。
         </p>
       </div>
 
@@ -852,13 +859,12 @@
               </div>
               <div class="rp-launch">
                 <div class="launch-list">
-                  <div class="launch-row is-hover"><svg class="i md ic"><use href="#file" /></svg> 文件<span class="kbd">⌘P</span></div>
                   <div class="launch-row dis"><svg class="i md ic"><use href="#terminal" /></svg> 终端<span class="soon">后续</span></div>
                   <div class="launch-row dis"><svg class="i md ic"><use href="#globe" /></svg> 浏览器<span class="soon">后续</span></div>
                   <div class="launch-row dis"><svg class="i md ic"><use href="#review" /></svg> 代码审核<span class="soon">后续</span></div>
                   <div class="launch-row dis"><svg class="i md ic"><use href="#chat" /></svg> 对话<span class="soon">后续</span></div>
                 </div>
-                <div class="launch-hint">选一个开始 · 本轮可用「文件」，其余四类后续开放</div>
+                <div class="launch-hint">文件经左侧目录树或对话打开 · 其余四类后续开放</div>
               </div>
             </div>
           </div>
@@ -885,13 +891,12 @@
         </div>
 
         <div class="fcol">
-          <div class="fcap">离线态（主机断连 · 五项置灰 + 顶部提示）</div>
+          <div class="fcap">离线态（主机断连 · 四项置灰 + 顶部提示）</div>
           <div class="rpcard sm narrow">
             <div class="rp-tabs"><div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div><div class="rp-btn on"><svg class="i sm"><use href="#panel-r" /></svg></div></div></div>
             <div class="rp-launch" style="justify-content: flex-start; padding-top: 16px">
               <div class="launch-off"><svg class="i sm"><use href="#off" /></svg> 主机离线 · 无法打开内容</div>
               <div class="launch-list">
-                <div class="launch-row dis"><svg class="i md ic"><use href="#file" /></svg> 文件<span class="kbd">⌘P</span></div>
                 <div class="launch-row dis"><svg class="i md ic"><use href="#terminal" /></svg> 终端<span class="soon">后续</span></div>
                 <div class="launch-row dis"><svg class="i md ic"><use href="#globe" /></svg> 浏览器<span class="soon">后续</span></div>
                 <div class="launch-row dis"><svg class="i md ic"><use href="#review" /></svg> 代码审核<span class="soon">后续</span></div>
@@ -907,13 +912,12 @@
             <div class="rp-tabs"><div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div><div class="rp-btn on"><svg class="i sm"><use href="#panel-r" /></svg></div></div></div>
             <div class="rp-launch">
               <div class="launch-list">
-                <div class="launch-row is-hover"><svg class="i md ic"><use href="#file" /></svg> 文件<span class="kbd">⌘P</span></div>
                 <div class="launch-row dis"><svg class="i md ic"><use href="#terminal" /></svg> 终端<span class="soon">后续</span></div>
                 <div class="launch-row dis"><svg class="i md ic"><use href="#globe" /></svg> 浏览器<span class="soon">后续</span></div>
                 <div class="launch-row dis"><svg class="i md ic"><use href="#review" /></svg> 代码审核<span class="soon">后续</span></div>
                 <div class="launch-row dis"><svg class="i md ic"><use href="#chat" /></svg> 对话<span class="soon">后续</span></div>
               </div>
-              <div class="launch-hint">选一个开始 · 本轮可用「文件」，其余四类后续开放</div>
+              <div class="launch-hint">文件经左侧目录树或对话打开 · 其余四类后续开放</div>
             </div>
           </div>
         </div>
@@ -925,8 +929,8 @@
           <div class="anno-card span2">
             <div class="ac-h">点击效果（每个可点元素）</div>
             <ol>
-              <li><span class="pin">1</span><div><b>文件行</b>（<b>本轮唯一可用</b>）：点击 → 新增<b>文件页签</b>并激活（→ sRS4）；<b>无选中文件</b>时落<b>空态「选择一个文件」</b>（sRS7 空）。快捷键 <code>⌘P</code> 等同（无需先展开面板）。此后长出 tab 条（sRS2 / sRS3）。</div></li>
-              <li><span class="pin">2</span><div><b>终端 / 浏览器 / 代码审核 / 对话行</b>（<b>本轮 deferred 禁用</b>）：置灰 + 右侧「后续」徽标；点击<b>无响应</b>（无 hover 底、无打开）。四类<b>已在框架内预留</b>（图标 / 实例规则 / 命名已定，见 sRS2），后续独立需求开放即点亮（<b>终端</b>曾 v3、<b>浏览器</b>曾 v2 出全态设计）。</div></li>
+              <li><span class="pin">1</span><div><b>终端 / 浏览器 / 代码审核 / 对话行</b>（<b>本轮 deferred 禁用</b>）：置灰 + 右侧「后续」徽标；点击<b>无响应</b>（无 hover 底、无打开）。四类<b>已在框架内预留</b>（图标 / 实例规则 / 命名已定，见 sRS2），后续独立需求开放即点亮（<b>终端</b>曾 v3、<b>浏览器</b>曾 v2 出全态设计）。</div></li>
+              <li><span class="pin">2</span><div><b>启动器本轮无可点开新页签的行</b>（★<b>闸3裁定</b>：「文件」已从启动器移除，⌘P 快捷键随之撤销）：文件页签<b>只经目录树点击或对话点文档地址打开</b>——两者任一发生时右栏（若收起）顺带展开、文件页签直接开出并聚焦，tab 条随之出现（sRS2 / sRS3）。</div></li>
               <li><span class="pin">3</span><div><b>⤢ 放大</b>：右面板扩张<b>占满中区</b>（左栏保留），图标变 ⤡（→ sRS8）。</div></li>
               <li><span class="pin">4</span><div><b>收起（panel_right）</b>：整列收起，开关回<b>顶栏右</b>（壳行为，位置不变）。</div></li>
             </ol>
@@ -938,15 +942,15 @@
                 <dt>布局</dt>
                 <dd><b>桌面 only</b>：右面板 = 壳最右停靠卡，默认宽 <b>480</b>（min320/max800，壳层拖拽 / 按工作区记忆）。启动器竖排居中，行高 40。<b>紧凑 / 手机态：deferred（本轮不做）</b>。</dd>
                 <dt>默认</dt>
-                <dd>五项竖排；<b>仅文件可用</b>带快捷键 <code>⌘P</code>、其余四项带「后续」；顶部<b>仅 ⤢ + 收起，无 tab 条</b>。</dd>
+                <dd>四项竖排，<b>全部禁用 + 「后续」标</b>，无可用项；顶部<b>仅 ⤢ + 收起，无 tab 条</b>；呈提示文案「文件经左侧目录树或对话打开 · 其余类型后续开放」。</dd>
                 <dt>hover</dt>
-                <dd>文件行底 <code>#f6f8fa</code>（--accent）；<b>deferred 四行不响应 hover</b>；⤢ / 收起 hover 变浅。</dd>
+                <dd><b>四行均禁用、不响应 hover</b>（无可用项可 hover）；⤢ / 收起 hover 变浅。</dd>
                 <dt>active 选中</dt>
                 <dd>启动器<b>无常驻选中态</b>——点可用项即打开并切走（进入 tab 内容）。</dd>
                 <dt>运行</dt>
                 <dd>启动器本身<b>无运行态</b>（未承载运行内容）。</dd>
                 <dt>禁用</dt>
-                <dd>两类：① 本轮 deferred 四项（终端/浏览器/代码审核/对话）常态置灰 +「后续」；② 主机离线时<b>五项全置灰</b>（含文件）+ 顶部「主机离线」条。</dd>
+                <dd>①本轮 deferred 四项（终端/浏览器/代码审核/对话）<b>常态置灰 +「后续」、无可用项</b>（闸3裁定：文件已移出启动器）；②主机离线时<b>四项全置灰</b> + 顶部「主机离线」条。</dd>
                 <dt>空</dt>
                 <dd>启动器本身即<b>「空面板」引导</b>（非错误）；关掉全部 tab 也回此态（= sRS9 面板空）。</dd>
                 <dt>加载</dt>
@@ -956,7 +960,7 @@
                 <dt>离线</dt>
                 <dd>主机断连 → 五项灰、顶部「主机离线」；主机恢复自动复原。</dd>
                 <dt>深色</dt>
-                <dd><code>#0d1117</code> 面板、行 hover <code>#1c2128</code>、keycap <code>#21262d</code>。</dd>
+                <dd><code>#0d1117</code> 面板；四行禁用、不响应 hover。</dd>
               </dl>
             </div>
           </div>
@@ -964,7 +968,7 @@
             <div class="ac-h">右键菜单</div>
             <div class="menulist">
               <div class="ml-p"><b>无独立右键。</b>启动器行单击即打开对应 tab，不设右键菜单。面板本身的收起 / 放大走顶部 ⤢ / 收起（及顶栏右开关），不走右键。页签级右键在 tab 出现后提供（见 sRS3）。</div>
-              <div class="ml-note"><b>键位定值（本轮不撞车）</b>：仅<b>可用的文件</b>定键——文件 <code>⌘P</code>（观感参照「快速打开文件」）；deferred 四类（终端/浏览器/代码审核/对话）<b>本轮不占键位</b>，后续开放时再定。</div>
+              <div class="ml-note"><b>键位定值</b>：本轮启动器<b>无可用项、不占用任何键位</b>——文件的 <code>⌘P</code> 快捷键<b>闸3裁定撤销</b>（文件无 UI 直开入口）；deferred 四类（终端/浏览器/代码审核/对话）<b>本轮不占键位</b>，后续开放时再定。</div>
             </div>
           </div>
         </div>
@@ -1121,7 +1125,7 @@
             <ol>
               <li><span class="pin">1</span><div><b>活跃页签 = 浅灰圆角胶囊</b>：底 <code>#eaeef2</code>（深 <code>#21262d</code>）+ 圆角 7 + 文字/图标转 <code>#1f2328</code>（深 <code>#e6edf3</code>）+ 加粗。<b>v1 的 <code>2px 蓝下划线</code> 活跃态整段删除</b>——蓝不再出现在页签上。</div></li>
               <li><span class="pin">2</span><div><b>细竖分隔</b>：<code>1px×18</code> 竖线 <code>#d1d9e0</code>（深 <code>#30363d</code>），<b>只画在两个非活跃相邻页签之间</b>；活跃胶囊<b>左右两侧不画分隔</b>（胶囊自身圆角已分隔）。</div></li>
-              <li><span class="pin">3</span><div><b>非活跃 hover</b>：淡底 <code>#f6f8fa</code>（深 <code>#1c2128</code>）+ 文字转深；<b>不出现蓝、不出现下划线</b>。</div></li>
+              <li><span class="pin">3</span><div><b>非活跃 hover</b>：淡底 <code>#f6f8fa</code>（深 <code>#1c2128</code>）+ 文字转深；<b style="color:var(--destructive)">hover 绝不用主蓝 / 选中蓝做底（闸3董事长点名）</b>，不出现下划线。</div></li>
               <li><span class="pin">4</span><div><b>末尾 +（新选项卡）</b>与右上 <b>⤢ 放大 / 收起</b>照 Codex 位置；蓝仅保留在<b>拖拽放置指示线</b>（见 sRS3）与 focus 环 / 命中高亮。</div></li>
             </ol>
           </div>
@@ -1176,13 +1180,13 @@
         <span class="tag">sRS3</span>
         <h2>页签管理交互 · 新建 / 关闭 / 调序 / 右键 / 关全部（脏页签静默自动保存关闭）</h2>
         <p>
-          页签的<b>完整管理</b>：<b>新选项卡 +</b> 点开下拉（五类 · <b>仅文件可用</b> ⌘P、终端/浏览器/代码审核/对话置灰后续）；页签<b>悬浮行尾浮出 ✕</b>（本轮<b>全部可关</b>）；<b>左右拖拽调序</b>显蓝色放置指示线；页签<b>右键 3 项</b>（关闭页签 / 关闭其它 / 关闭全部）；<b>关掉全部 → 回启动器</b>（sRS1）。<b>★ 关闭行为（v5 改）</b>：文件页签<b>有未落盘改动（脏 ●）</b>时，关闭 = <b>静默自动保存后关闭</b>（<b>无三择一弹窗</b>，见 sRS7）；自动保存<b>失败</b>则<b>非阻塞提示、页签保留不强关</b>。无脏则直接关。
+          页签的<b>完整管理</b>：<b>新选项卡 +</b> 点开下拉（<b>四类后续</b>：终端/浏览器/代码审核/对话，均置灰 + 「后续」、点击无响应；<b>「文件」不出现，★闸3裁定</b>——文件只经目录树 / 对话打开）；页签<b>悬浮行尾浮出 ✕</b>（本轮<b>全部可关</b>）；<b>左右拖拽调序</b>显蓝色放置指示线；页签<b>右键 3 项</b>（关闭页签 / 关闭其它 / 关闭全部）；<b>关掉全部 → 回启动器</b>（sRS1）。<b>★ 关闭行为（v5 改）</b>：文件页签<b>有未落盘改动（脏 ●）</b>时，关闭 = <b>静默自动保存后关闭</b>（<b>无三择一弹窗</b>，见 sRS7）；自动保存<b>失败</b>则<b>非阻塞提示、页签保留不强关</b>。无脏则直接关。
         </p>
       </div>
 
       <div class="stage">
         <div class="fcol">
-          <div class="fcap">① 新选项卡 + · 下拉（五类 · 仅文件可用、四类后续置灰）</div>
+          <div class="fcap">① 新选项卡 + · 下拉（四类后续置灰，「文件」不出现 · 闸3裁定）</div>
           <div class="rpcard sm" style="width: 360px; overflow: visible">
             <div class="rp-tabs">
               <div class="rp-tab on"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">app.tsx</span><span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
@@ -1193,7 +1197,6 @@
             <div style="position: relative; flex: 1">
               <div class="ctx" style="position: absolute; left: 150px; top: 6px; width: 210px">
                 <div class="ctxcap">新选项卡</div>
-                <div class="ctxi is-hover"><svg class="i sm ic"><use href="#file" /></svg> 文件<span class="ki">⌘P</span></div>
                 <div class="ctxi dis"><svg class="i sm ic"><use href="#terminal" /></svg> 终端<span class="ki">后续</span></div>
                 <div class="ctxi dis"><svg class="i sm ic"><use href="#globe" /></svg> 浏览器<span class="ki">后续</span></div>
                 <div class="ctxi dis"><svg class="i sm ic"><use href="#review" /></svg> 代码审核<span class="ki">后续</span></div>
@@ -1266,7 +1269,7 @@
             <div class="link-arrow"><div class="ln"><div class="arrow-line"></div><svg class="i md"><use href="#arrow-r" /></svg></div><div class="lbl">关全部<br />回启动器</div></div>
             <div class="rpcard xs" style="width: 200px; height: 108px">
               <div class="rp-tabs" style="height: 34px"><div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div><div class="rp-btn on"><svg class="i sm"><use href="#panel-r" /></svg></div></div></div>
-              <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:10.5px; color:var(--muted-fg)"><svg class="i lg" style="color:var(--muted-fg)"><use href="#file" /></svg>启动器（仅文件可用）</div>
+              <div style="flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; font-size:10.5px; color:var(--muted-fg)"><svg class="i lg" style="color:var(--muted-fg)"><use href="#panel-r" /></svg>启动器（四类后续）</div>
             </div>
           </div>
         </div>
@@ -1297,7 +1300,7 @@
           <div class="anno-card span2">
             <div class="ac-h">点击效果（每个可点元素）</div>
             <ol>
-              <li><span class="pin">1</span><div><b>新选项卡 +</b>：点击 → 弹下拉【<b>文件</b>(⌘P) / 终端(后续) / 浏览器(后续) / 代码审核(后续·单实例) / 对话(后续)】。点<b>文件</b>（本轮唯一可用）→ 追加文件页签并<b>聚焦</b>（无选中文件落空态「选择一个文件」）；点<b>后续项</b>无响应。点下拉外 / <code>Esc</code> → 关下拉不新增。<b>快捷键等价</b>（<code>⌘P</code> 无需先点 +）。</div></li>
+              <li><span class="pin">1</span><div><b>新选项卡 +</b>：点击 → 弹下拉【终端(后续) / 浏览器(后续) / 代码审核(后续·单实例) / 对话(后续)】，<b>均禁用、点击无响应</b>；<b>「文件」不出现在下拉中</b>（★<b>闸3裁定</b>：文件无 UI 直开入口，只经目录树点击 / 对话文档地址打开）。点下拉外 / <code>Esc</code> → 关下拉不新增。下拉本身<b>不产生任何新页签</b>。</div></li>
               <li><span class="pin">2</span><div><b>页签 ✕</b>（活跃常显 / 非活跃 hover 浮出）：点击 → 关闭该页签（仅布局层移除、可重开）。<b>脏文件</b>（有 ●）关闭 = <b>静默自动保存后关闭</b>（<b>无弹窗</b>，→ sRS7；自动保存失败则非阻塞、页签保留）；<b>无脏</b>则直接关。本轮<b>全部页签可关</b>。</div></li>
               <li><span class="pin">3</span><div><b>页签拖拽</b>：按住左右拖 → 显<b>蓝色放置指示线</b> + 半透拖影；松手在指示位落位。本轮无固定首位项（代码审核为后续），任意文件页签可任意调序。</div></li>
               <li><span class="pin">4</span><div><b>页签本体</b>：点击 → 切到该页签内容（胶囊移到此，见 sRS2）；并命令目录树 reveal 该文件（sRS6）。</div></li>
@@ -1328,7 +1331,7 @@
                 <dt>运行</dt>
                 <dd>拖拽中：被拖页签半透 + 蓝放置线随指针移动。</dd>
                 <dt>禁用</dt>
-                <dd>下拉里<b>终端/浏览器/代码审核/对话置灰 +「后续」</b>，不可点；仅文件可点。</dd>
+                <dd>下拉里<b>终端/浏览器/代码审核/对话置灰 +「后续」</b>，不可点；<b>「文件」不出现（闸3裁定），下拉本轮无可点项</b>。</dd>
                 <dt>空</dt>
                 <dd>关到没有页签 → 回启动器（sRS1）。</dd>
                 <dt>加载/错误/离线</dt>
@@ -1356,9 +1359,9 @@
     <section class="screen" id="sRS4">
       <div class="screen-head">
         <span class="tag">sRS4</span>
-        <h2>文件页签 · 代码/文本查看 + 编辑（类 VSCode · 编辑器背景随主题 · 高亮默认 ODPF · 失焦自动保存 · 查找/替换 · v5 调）</h2>
+        <h2>文件页签 · 代码/文本查看 + 编辑（类 VSCode · 编辑器背景随主题 · 高亮默认 ODPF · 失焦自动保存 · 查找/替换 · 长行横向滚动 · v5/v8 调）</h2>
         <p>
-          文件页签本轮升级为<b>可编辑</b>：代码<b>语法高亮</b> + <b>可输入编辑区</b>（闪烁光标 / 文本选区 / 当前行高亮 / 改动 gutter）+ <b>失焦自动保存</b>（编辑器<b>无保存按钮</b>；脏 <b>●</b> 仅作「编辑中未落盘」临时指示于页签/面包屑；失焦即自动写盘，四态：未落盘 · 自动保存中 · 已自动保存 · 自动保存失败·非阻塞）+ <b>查找/替换浮层</b>（VSCode 式、右上角悬浮，<code>⌘F</code> / <code>⌘⌥F</code>）。编辑器<b>背景随 chrome 主题</b>：浅 chrome 卡 = 浅底 + 浅色 token 高亮、深 chrome 卡 = ODPF 深底 + 深色 token；<b>代码语法高亮默认 One Dark Pro Flat</b>。<b>活跃页签常显 ✕</b>（VSCode 式）。<b>常用快捷键</b>（撤销/重做/剪切/复制/粘贴/全选/查找/替换）与<b>右键 9 项</b>（剪切/复制/粘贴/全选/查找/替换/复制文件路径/在目录树中定位/在 Finder 中显示）并存。设计经 v2 董事长逐条审过，<b>v5</b> 据闸1 六意见调整。
+          文件页签本轮升级为<b>可编辑</b>：代码<b>语法高亮</b> + <b>可输入编辑区</b>（闪烁光标 / 文本选区 / 当前行高亮 / 改动 gutter）+ <b>失焦自动保存</b>（编辑器<b>无保存按钮</b>；脏 <b>●</b> 仅作「编辑中未落盘」临时指示于页签/面包屑；失焦即自动写盘，四态：未落盘 · 自动保存中 · 已自动保存 · 自动保存失败·非阻塞）+ <b>查找/替换浮层</b>（VSCode 式、右上角悬浮，<code>⌘F</code> / <code>⌘⌥F</code>）。编辑器<b>背景随 chrome 主题</b>：浅 chrome 卡 = 浅底 + 浅色 token 高亮、深 chrome 卡 = ODPF 深底 + 深色 token；<b>代码语法高亮默认 One Dark Pro Flat</b>。<b>活跃页签常显 ✕</b>（VSCode 式）。<b>常用快捷键</b>（撤销/重做/剪切/复制/粘贴/全选/查找/替换）与<b>右键 9 项</b>（剪切/复制/粘贴/全选/查找/替换/复制文件路径/在目录树中定位/在 Finder 中显示）并存。设计经 v2 董事长逐条审过，<b>v5</b> 据闸1 六意见调整；<b>v8</b> 据闸3 裁定补<b>长行默认不换行、超宽走横向滚动</b>（VSCode 对等，换行开关归设置后续）。
         </p>
       </div>
 
@@ -1576,6 +1579,8 @@
               <dl>
                 <dt>布局</dt>
                 <dd><b>桌面 only</b>：顶=file-bar（面包屑 · <b>无保存按钮</b> · <b>无放大按钮</b>）· 中=可编辑代码（<b>编辑器背景随主题</b>）· 底=状态条（行列 / 编码 / 语言 / 换行 / <b>自动保存态</b>）。紧凑/手机 deferred。</dd>
+                <dt>长行 / 换行（v8 · 闸3裁定）</dt>
+                <dd><b>默认不换行</b>，长行超出可视宽度<b>走横向滚动</b>（观感参照 VSCode，滚动条随当前 chrome 主题）；<b>换行开关</b>（观感参照 VSCode <code>⌥Z</code>）本轮<b>不做</b>，<b>归设置模块后续</b>。</dd>
                 <dt>默认</dt>
                 <dd>只读浏览（无改动）：无脏点、状态条「已自动保存」。</dd>
                 <dt>hover</dt>
@@ -1588,8 +1593,6 @@
                 <dd><code>⌘F</code> 查找浮层（右上角）/ <code>⌘⌥F</code> 展开替换 / <code>Esc</code> 关；命中计数、上/下条、Aa·ab|·.* 开关、逐个/全部替换；<b>无命中</b> = 计数「无结果」红字 + 上/下条置灰。</dd>
                 <dt>禁用 / 只读</dt>
                 <dd><b>只读/二进制文件</b>整区不可编辑、无自动保存（兜底，见 sRS7）。</dd>
-                <dt>空</dt>
-                <dd>未选文件 →「选择一个文件」（见 sRS7 空）。</dd>
                 <dt>加载</dt>
                 <dd>读取文件中 → 代码区骨架（见 sRS7 加载）。</dd>
                 <dt>错误 / 冲突</dt>
@@ -2013,7 +2016,7 @@
         <span class="tag">sRS7</span>
         <h2>文件页签 · 编辑必备态（关闭脏页签静默自动保存 · v5 调）</h2>
         <p>
-          可编辑带来的<b>必备态</b>：① <b>关闭脏页签 = 静默自动保存后关闭</b>（<b>无三择一弹窗</b>；自动保存失败则非阻塞保留）；② <b>外部文件变更冲突</b>（冲突条 + 重载 / 保留本地 / 对比）；③ <b>只读兜底</b>（图片/二进制/未识别文件不可编辑）；④ <b>空</b>（未选文件「选择一个文件」）；⑤ <b>加载</b>；⑥ <b>错误</b>（无法读取 + 重试）；⑦ <b>离线</b>（冻结 + 重连，见 sRS9）。每态都有定义出口，无死胡同。
+          可编辑带来的<b>必备态</b>：① <b>关闭脏页签 = 静默自动保存后关闭</b>（<b>无三择一弹窗</b>；自动保存失败则非阻塞保留）；② <b>外部文件变更冲突</b>（冲突条 + 重载 / 保留本地 / 对比）；③ <b>只读兜底</b>（图片/二进制/未识别文件不可编辑）；④ <b>加载</b>；⑤ <b>错误</b>（无法读取 + 重试）；⑥ <b>离线</b>（冻结 + 重连，见 sRS9）。每态都有定义出口，无死胡同。（★<b>闸3裁定</b>：原「空 · 未选文件」态因 UI 直开入口撤销、不再是用户可达屏，已移出本屏，见 sRS1 / 下方注解。）
         </p>
       </div>
 
@@ -2080,24 +2083,7 @@
 
       <div class="stage">
         <div class="fcol">
-          <div class="fcap">④ 空态（未选文件「选择一个文件」）</div>
-          <div class="rpcard sm narrow">
-            <div class="rp-tabs">
-              <div class="rp-tab on"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">文件</span><span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
-              <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div>
-              <div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div><div class="rp-btn on"><svg class="i sm"><use href="#panel-r" /></svg></div></div>
-            </div>
-            <div class="rp-state">
-              <div class="si"><svg class="i lg"><use href="#file" /></svg></div>
-              <div class="st">选择一个文件</div>
-              <div class="ss">从目录树点一个文件，或在对话里点某个文档地址，即可在此打开。</div>
-              <div class="sexit">出口：<b>去目录树选一个</b> / <b>对话点一个</b> → 回填内容。</div>
-            </div>
-          </div>
-        </div>
-
-        <div class="fcol">
-          <div class="fcap">⑤ 加载态（读取该文件中）</div>
+          <div class="fcap">④ 加载态（读取该文件中）</div>
           <div class="rpcard sm narrow">
             <div class="rp-tabs"><div class="rp-tab on"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">server.ts</span><span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div><div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div></div>
             <div class="file-bar"><div class="file-crumb"><span class="cur">server.ts</span></div></div>
@@ -2112,7 +2098,7 @@
         </div>
 
         <div class="fcol">
-          <div class="fcap">⑥ 错误态（无法读取 + 重试）</div>
+          <div class="fcap">⑤ 错误态（无法读取 + 重试）</div>
           <div class="rpcard sm narrow">
             <div class="rp-tabs"><div class="rp-tab on"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">secret.env</span><span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div><div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div></div>
             <div class="rp-state">
@@ -2166,8 +2152,6 @@
                 <dd>点 ✕ / 右键关闭 → <b>静默自动保存后关闭</b>；<b>无三择一确认弹窗</b>。自动保存失败 → 页签保留 + 非阻塞轻条（红字、无「重试」、改动保留）。</dd>
                 <dt>只读兜底</dt>
                 <dd>二进制/未识别 → 锁图标 + 「无法编辑」；<b>无编辑区、无保存</b>。出口：Finder / 复制路径 / 切页签。图片只读见 sRS5。</dd>
-                <dt>空</dt>
-                <dd>未选文件 →「选择一个文件」；出口：去树选 / 对话点。<b>≠ 面板空</b>（面板空 = 无任何页签，见 sRS9）。</dd>
                 <dt>加载</dt>
                 <dd>读取中 → 代码骨架 + 「读取文件…」；完成落内容 / 失败转错误。</dd>
                 <dt>错误</dt>
@@ -2275,7 +2259,7 @@
         <span class="tag">sRS9</span>
         <h2>面板级聚合态 · 空 / 加载 / 错误 / 能力门 / 离线（恢复 v2）</h2>
         <p>
-          <b>面板级非常规态</b>（与各页签内容态<b>区分</b>）：<b>面板空</b> = 无任何已开页签 = 启动器（→ sRS1）；<b>面板加载</b> = 首次建立/恢复工作面板中；<b>面板错误</b> = 无法建立工作面板 + 重试；<b>能力门</b> = 主机版本过低/缺工作面板能力 →「更新主机以使用工作面板」+「查看如何更新」，<b>不提供降级/模拟路径</b>；<b>面板离线</b> = 主机断连，<b>整面板所有页签统一冻结</b> + 顶部重连提示。每态有定义出口，无死胡同。<b>★ 面板空「无页签」≠ 文件空「选择一个文件」</b>（后者是某页签<b>内</b>的空，见 sRS7）。
+          <b>面板级非常规态</b>（与各页签内容态<b>区分</b>）：<b>面板空</b> = 无任何已开页签 = 启动器（→ sRS1）；<b>面板加载</b> = 首次建立/恢复工作面板中；<b>面板错误</b> = 无法建立工作面板 + 重试；<b>能力门</b> = 主机版本过低/缺工作面板能力 →「更新主机以使用工作面板」+「查看如何更新」，<b>不提供降级/模拟路径</b>；<b>面板离线</b> = 主机断连，<b>整面板所有页签统一冻结</b> + 顶部重连提示。每态有定义出口，无死胡同。<b>★ 面板空「无页签」是面板层态，与某文件页签自身的加载 / 错误 / 冲突等内容层态是不同层级</b>（互不代表，见 sRS4 / sRS7；★闸3裁定：原对照例「文件空『选择一个文件』」因 UI 直开入口撤销已移除，见 sRS1）。
         </p>
       </div>
 
@@ -2286,13 +2270,12 @@
             <div class="rp-tabs"><div class="rp-ctl"><div class="rp-btn"><svg class="i sm"><use href="#maximize" /></svg></div><div class="rp-btn on"><svg class="i sm"><use href="#panel-r" /></svg></div></div></div>
             <div class="rp-launch" style="justify-content:flex-start; padding-top:16px">
               <div class="launch-list">
-                <div class="launch-row"><svg class="i md ic"><use href="#file" /></svg> 文件<span class="kbd">⌘P</span></div>
                 <div class="launch-row dis"><svg class="i md ic"><use href="#terminal" /></svg> 终端<span class="soon">后续</span></div>
                 <div class="launch-row dis"><svg class="i md ic"><use href="#globe" /></svg> 浏览器<span class="soon">后续</span></div>
                 <div class="launch-row dis"><svg class="i md ic"><use href="#review" /></svg> 代码审核<span class="soon">后续</span></div>
                 <div class="launch-row dis"><svg class="i md ic"><use href="#chat" /></svg> 对话<span class="soon">后续</span></div>
               </div>
-              <div class="launch-hint">出口：点文件开页签（本轮唯一可用）</div>
+              <div class="launch-hint">出口：去目录树选文件 / 对话点文档地址</div>
             </div>
           </div>
         </div>
@@ -2381,11 +2364,11 @@
           <div class="anno-card span2">
             <div class="ac-h">面板级 vs 各页签内容态（务必区分 · 每态出口）</div>
             <ol>
-              <li><span class="pin">1</span><div><b>面板空</b> = 无任何已开页签 = <b>启动器</b>（sRS1）。<b>≠</b> 文件空「选择一个文件」（那是<b>某文件页签内</b>的空，见 sRS7；浏览器空等其它页签内空随其模块后续）。出口：点文件开页签。</div></li>
+              <li><span class="pin">1</span><div><b>面板空</b> = 无任何已开页签 = <b>启动器</b>（sRS1）。<b>≠</b> 某文件页签自身的加载 / 错误 / 冲突等内容态（那是<b>某文件页签内</b>的态，见 sRS4 / sRS7）。出口：去目录树选文件 / 对话点文档地址（文件页签无 UI 直开入口，闸3裁定）。</div></li>
               <li><span class="pin">2</span><div><b>面板加载</b> = 首次建立/恢复工作面板中（整面板级 spinner）。<b>≠</b> 某文件「读取中」。出口：完成落内容 / 失败转面板错误。</div></li>
               <li><span class="pin">3</span><div><b>面板错误</b> = 无法建立工作面板通道 + <b>重试</b>。<b>≠</b> 某文件「无法读取」。出口：重试 / 收起稍后再开。</div></li>
               <li><span class="pin">4</span><div><b>能力门</b>：主机版本过低/缺能力 →「更新主机以使用工作面板」+「查看如何更新」；<b>不提供降级/模拟路径</b>（不写降级版另一套）。出口：升级主机 → 能力就绪即用。</div></li>
-              <li><span class="pin">5</span><div><b>面板离线</b>：主机断连 → <b>整面板所有页签统一冻结</b>当前内容 + <b>顶部一条重连提示</b>；主机恢复后<b>各页签按各自能力恢复</b>。出口：重连（自动 + 可手动）。举例：某文件页签编辑中而另一文件页签空 → 面板正常、仅该页签显「选择一个文件」；≠ 面板空「无页签」。</div></li>
+              <li><span class="pin">5</span><div><b>面板离线</b>：主机断连 → <b>整面板所有页签统一冻结</b>当前内容 + <b>顶部一条重连提示</b>；主机恢复后<b>各页签按各自能力恢复</b>。出口：重连（自动 + 可手动）。举例：某文件页签编辑中而另一文件页签仍在加载 → 面板正常、仅该页签显加载态；≠ 面板空「无页签」。</div></li>
             </ol>
           </div>
           <div class="anno-card span2">
