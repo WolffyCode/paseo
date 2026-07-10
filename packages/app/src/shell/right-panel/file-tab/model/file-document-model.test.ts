@@ -9,9 +9,9 @@ import {
 
 // FileDocumentModel is the file-tab domain object (MobX class, implements TabContent). Driven with a
 // fake FileTabIo + fake editor handle + fake revealFile (no rendering), the tests pin: load/classify,
-// edit→dirty, blur/close autosave with baseline-mtime advance, non-blocking write failure, the M6
-// concurrency guard (single-flight serial re-save), conflict three-exits, md preview⇄edit, image/binary
-// read-only, and the TabContent surface (title/dot/onActivated/onClosing).
+// initial/retarget line reveal consumption, edit→dirty, blur/close autosave with baseline-mtime advance,
+// non-blocking write failure, the M6 concurrency guard (single-flight serial re-save), conflict three-
+// exits, md preview⇄edit, image/binary read-only, and the TabContent surface.
 
 const T0 = "2026-07-08T00:00:00.000Z";
 
@@ -43,10 +43,17 @@ function tick(): Promise<void> {
 class FakeEditor {
   content = "";
   applied: string[] = [];
+  revealedLines: number[] = [];
+  events: string[] = [];
   getContent = (): string => this.content;
   applyExternalContent = (text: string): void => {
     this.content = text;
     this.applied.push(text);
+    this.events.push("seed");
+  };
+  revealLine = (line: number): void => {
+    this.revealedLines.push(line);
+    this.events.push(`reveal:${line}`);
   };
 }
 
@@ -84,7 +91,9 @@ class FakeIo implements FileTabIo {
   }
 }
 
-function setup(opts: { read?: FileReadResult; writeCapable?: boolean; path?: string } = {}) {
+function setup(
+  opts: { read?: FileReadResult; writeCapable?: boolean; path?: string; lineStart?: number } = {},
+) {
   const readResult = opts.read ?? read("hello");
   const io = new FakeIo(readResult);
   const editor = new FakeEditor();
@@ -92,7 +101,10 @@ function setup(opts: { read?: FileReadResult; writeCapable?: boolean; path?: str
   const model = new FileDocumentModel(
     {
       root: "~/proj",
-      location: { path: opts.path ?? "src/a.ts" },
+      location: {
+        path: opts.path ?? "src/a.ts",
+        ...(opts.lineStart !== undefined ? { lineStart: opts.lineStart } : {}),
+      },
       writeCapable: opts.writeCapable ?? true,
     },
     { io, editor, revealFile },
@@ -110,7 +122,36 @@ describe("FileDocumentModel · load", () => {
     expect(model.kind).toBe("code");
     expect(model.baseline).toEqual({ modifiedAt: T0 });
     expect(editor.content).toBe("hello world");
+    expect(editor.revealedLines).toEqual([]);
     expect(model.save).toEqual({ status: "clean" });
+  });
+
+  // An initial search-hit line belongs to the model until text content has been seeded. Load then hands
+  // it to the editor exactly once and clears the model target, preserving seed-before-selection order.
+  it("consumes an initial line reveal after seeding editable content", async () => {
+    const { model, editor } = setup({ read: read("hello world", T0), lineStart: 60 });
+    expect(model.pendingRevealLine).toBe(60);
+    expect(editor.revealedLines).toEqual([]);
+
+    await model.load();
+
+    expect(editor.events).toEqual(["seed", "reveal:60"]);
+    expect(model.pendingRevealLine).toBeNull();
+  });
+});
+
+describe("FileDocumentModel · line retarget", () => {
+  // Re-opening an already-loaded file at a new line reuses the same document and issues a fresh one-shot
+  // reveal immediately; the target never remains to fire again on a later tab activation.
+  it("reveals a new line on an existing document and clears the target", async () => {
+    const { model, editor } = setup();
+    await model.load();
+    editor.events.length = 0;
+
+    model.retarget({ path: "src/a.ts", lineStart: 42 });
+
+    expect(editor.events).toEqual(["reveal:42"]);
+    expect(model.pendingRevealLine).toBeNull();
   });
 });
 
@@ -277,11 +318,14 @@ describe("FileDocumentModel · markdown view", () => {
   it("toggles preview/edit without losing changes", async () => {
     const { model, editor } = setup({
       path: "README.md",
+      lineStart: 12,
       read: read("# hi", T0, "text", "README.md"),
     });
     await model.load();
     expect(model.kind).toBe("markdown");
     expect(model.mdView).toBe("preview");
+    expect(editor.revealedLines).toEqual([]);
+    expect(model.pendingRevealLine).toBeNull();
     editor.content = "# hi edited";
     model.markEdited();
     model.toggleMdView();
@@ -296,11 +340,17 @@ describe("FileDocumentModel · markdown view", () => {
 describe("FileDocumentModel · read-only", () => {
   // An image is read-only: no editor seed, no dirty, edits are ignored.
   it("treats an image as read-only with no dirty state", async () => {
-    const { model, editor } = setup({ path: "logo.png", read: read("", T0, "image", "logo.png") });
+    const { model, editor } = setup({
+      path: "logo.png",
+      lineStart: 12,
+      read: read("", T0, "image", "logo.png"),
+    });
     await model.load();
     expect(model.kind).toBe("image");
     expect(model.readOnlyReason).toBe("image");
     expect(editor.applied).toHaveLength(0);
+    expect(editor.revealedLines).toEqual([]);
+    expect(model.pendingRevealLine).toBeNull();
     model.markEdited();
     expect(model.save).toEqual({ status: "clean" });
     expect(model.activityDot).toBe("none");

@@ -1,9 +1,9 @@
 // FileDocumentModel — one open file tab's domain object (MobX class, implements TabContent). It owns the
 // whole life cycle of a single open file: load, kind, the last-saved baseline mtime (ONLY the mtime — the
 // content lives in the editor buffer, never mirrored here), the blur-autosave lifecycle, markdown
-// view, the find session, and external-conflict resolution. IO and the live editor buffer are injected
-// ports, so the model is fully unit-testable without an editor or a socket. Every derivation is delegated
-// to this directory's pure functions (classifyDocumentKind / advanceFind).
+// view, one-shot line reveals, the find session, and external-conflict resolution. IO and the live editor
+// buffer are injected ports, so the model is fully unit-testable without an editor or a socket. Every
+// derivation is delegated to this directory's pure functions (classifyDocumentKind / advanceFind).
 
 import type { FileReadResult } from "@getpaseo/client/internal/daemon-client";
 import { makeAutoObservable, runInAction } from "mobx";
@@ -37,10 +37,11 @@ export interface FileTabIo {
 }
 
 // The live editor buffer handle (wired by the editor adapter at onReady). The model never mirrors the
-// content: it PULLS on save (getContent) and PUSHES host content on reload/initial-seed (applyExternalContent).
+// content: it PULLS on save, PUSHES host content on reload/initial-seed, and sends one-shot line reveals.
 export interface EditorHandle {
   getContent(): string;
   applyExternalContent(text: string): void;
+  revealLine(line: number): void;
 }
 
 // What the model is constructed with: the host cwd, the file location, and whether the host can write
@@ -97,6 +98,9 @@ export class FileDocumentModel implements TabContent {
   find: FindSessionState = IDLE_FIND;
   conflict: ConflictState | null = null;
   readOnlyReason: ReadOnlyReason | null;
+  // The latest 1-based line requested by openFile. It remains here until editable text has loaded and its
+  // content seed has been handed to the editor, then is consumed exactly once.
+  pendingRevealLine: number | null;
   // The decoded image as a data URI, set on load ONLY for the image kind (which has no editor buffer, so
   // the model is the sole home for its content). null for every other kind.
   imageDataUri: string | null = null;
@@ -112,6 +116,7 @@ export class FileDocumentModel implements TabContent {
     this.relPath = relativeHostPath(init.root, init.location.path);
     this.deps = deps;
     this.readOnlyReason = init.writeCapable ? null : "capability";
+    this.pendingRevealLine = init.location.lineStart ?? null;
     makeAutoObservable<this, "deps" | "savePending" | "relPath">(
       this,
       { deps: false, savePending: false, relPath: false },
@@ -146,6 +151,16 @@ export class FileDocumentModel implements TabContent {
     this.autosaveOnBlur();
   }
 
+  // Retarget an existing file tab after path-only dedup. A new line replaces any still-pending target;
+  // no-line opens preserve the current position and do not disturb an in-flight initial reveal.
+  retarget(location: FileLocation): void {
+    if (location.lineStart === undefined) {
+      return;
+    }
+    this.pendingRevealLine = location.lineStart;
+    this.flushPendingReveal();
+  }
+
   // ----- load -----
 
   // Read the file, classify how it renders, seed the editable buffer (text kinds only), and record the
@@ -156,6 +171,7 @@ export class FileDocumentModel implements TabContent {
     if (!this.path) {
       runInAction(() => {
         this.loadState = "loaded";
+        this.pendingRevealLine = null;
       });
       return;
     }
@@ -183,6 +199,7 @@ export class FileDocumentModel implements TabContent {
         this.deps.editor.applyExternalContent(decodeText(result.bytes));
       }
       this.loadState = "loaded";
+      this.flushPendingReveal();
     });
   }
 
@@ -287,6 +304,19 @@ export class FileDocumentModel implements TabContent {
   closeFind(): void {
     this.findOpen = false;
     this.find = advanceFind(this.find, { type: "close" });
+  }
+
+  // Consume a loaded document's pending line only for code/plain-text editor shapes. Markdown preview,
+  // images, and binary content have no applicable editor viewport, so their targets are discarded.
+  private flushPendingReveal(): void {
+    const line = this.pendingRevealLine;
+    if (line === null || this.loadState !== "loaded") {
+      return;
+    }
+    if (this.kind === "code" || this.kind === "text") {
+      this.deps.editor.revealLine(line);
+    }
+    this.pendingRevealLine = null;
   }
 
   // ----- save engine (single-flight) -----

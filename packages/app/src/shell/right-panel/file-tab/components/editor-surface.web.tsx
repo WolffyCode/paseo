@@ -48,9 +48,9 @@ import { collectSearchMatches } from "./search-decorations";
 // The CodeMirror 6 editor surface — the ONE imperative (non-MobX) adapter, mounting a live EditorView
 // into a web DOM node (desktop/web only). It only renders + emits events: user edits → doc.markEdited();
 // blur/window-hide → doc.autosaveOnBlur(); the model never mirrors the buffer (it pulls via the handle on
-// save). Theme, language, read-only, and search are CM compartments reconfigured from observable model +
-// theme state through effects — read here in render so `observer` subscribes, applied imperatively so the
-// view is created once and never rebuilt.
+// save). The handle may also command a one-shot 1-based line reveal, applied as a caret selection + centered
+// scroll. Theme, language, read-only, and search are CM compartments reconfigured from observable model +
+// theme state through effects — the view is created once and never rebuilt.
 
 // Marks a transaction as an external content replacement (seed/reload/conflict) so its docChanged does
 // NOT mark the document dirty — only genuine user edits do.
@@ -222,6 +222,14 @@ export const EditorSurface = observer(function EditorSurface({
         view.dispatch({
           changes: { from: 0, to: view.state.doc.length, insert: text },
           annotations: EXTERNAL.of(true),
+        });
+      },
+      revealLine: (line) => {
+        const lineNumber = Math.min(Math.max(1, Math.floor(line)), view.state.doc.lines);
+        const target = view.state.doc.line(lineNumber);
+        view.dispatch({
+          selection: { anchor: target.from },
+          effects: EditorView.scrollIntoView(target.from, { y: "center" }),
         });
       },
     });

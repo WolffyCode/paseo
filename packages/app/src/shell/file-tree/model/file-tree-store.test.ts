@@ -644,7 +644,9 @@ describe("FileTreeStore toolbar actions", () => {
 });
 
 describe("FileTreeStore search machine", () => {
-  test("activating a content file match reveals it and opens the right tab at the matched line", async () => {
+  // This sender-side test pins the structured line handoff. FileDocumentModel + editor-handle tests pin
+  // the other half: the line is consumed once after content seed and reaches the live editor backend.
+  test("activating a content match hands its line to the right-panel reveal consumer", async () => {
     const { store, rightTabOpen } = makeStore({
       data: fakeData({ ".": [entry("src", "directory")] }).data,
     });

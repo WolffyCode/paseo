@@ -4,8 +4,8 @@ import { WorkbenchModel } from "./workbench-model";
 
 // WorkbenchModel is the tab-framework domain object (MobX class). These tests drive it with a fake
 // TabContentFactory (never the real FileDocumentModel — the framework must not know concrete types) and
-// assert the framework contract: append/focus/dedup/fill-placeholder/close/reorder, launcher↔tabs mode,
-// and that PanelTab stores IDENTITY ONLY (title/activityDot are read live, never mirrored).
+// assert the framework contract: append/focus/dedup/line-retarget/fill-placeholder/close/reorder,
+// launcher↔tabs mode, and that PanelTab stores IDENTITY ONLY (title/activityDot stay live on content).
 
 // A recording stand-in for a tab's content. title/activityDot are mutable so a test can prove the tab
 // head reads them LIVE off content (no stored copy); the two hooks are spies.
@@ -14,6 +14,7 @@ class FakeContent implements TabContent {
   activityDot: ActivityDot = "none";
   onActivated = vi.fn();
   onClosing = vi.fn();
+  retarget = vi.fn();
   constructor(path: string) {
     this.title = path.split("/").pop() ?? path;
   }
@@ -22,9 +23,11 @@ class FakeContent implements TabContent {
 // A fake factory that records what it built, so tests can reach each tab's content spies.
 class FakeFactory implements TabContentFactory {
   readonly created: FakeContent[] = [];
+  readonly requests: OpenTabRequest[] = [];
   create(request: OpenTabRequest): TabContent {
     const content = new FakeContent(request.location.path);
     this.created.push(content);
+    this.requests.push(request);
     return content;
   }
 }
@@ -49,21 +52,41 @@ describe("WorkbenchModel · openTab", () => {
   // Opening a new file appends a tab and focuses it, activating its content (tree reveal).
   it("appends and focuses a new file, activating its content", () => {
     const { wb, factory } = makeWorkbench();
-    wb.openTab({ kind: "file", location: { path: "src/a.ts" } });
+    wb.openTab({ kind: "file", location: { path: "src/a.ts", lineStart: 31 } });
     expect(wb.tabs).toHaveLength(1);
     expect(wb.focusedTabId).toBe(wb.tabs[0].id);
+    expect(factory.requests[0]).toEqual({
+      kind: "file",
+      location: { path: "src/a.ts", lineStart: 31 },
+    });
     expect(factory.created[0].onActivated).toHaveBeenCalledTimes(1);
   });
 
-  // Re-opening the same file focuses the existing tab — one file, one tab (verify item 17). Identity is
-  // path-only and normalized, so a different spelling (case/slash) still dedups.
-  it("focuses the existing tab for the same file (path identity, normalized)", () => {
-    const { wb } = makeWorkbench();
+  // Re-opening the same file at a new line focuses the existing tab and retargets its content — one file,
+  // one tab. Identity remains path-only and normalized; the line is an after-open command, not identity.
+  it("focuses and retargets the existing tab for the same file", () => {
+    const { wb, factory } = makeWorkbench();
     wb.openTab({ kind: "file", location: { path: "src/App.ts" } });
     const firstId = wb.tabs[0].id;
-    wb.openTab({ kind: "file", location: { path: "src\\app.ts" } });
+    wb.openTab({ kind: "file", location: { path: "src\\app.ts", lineStart: 42 } });
     expect(wb.tabs).toHaveLength(1);
     expect(wb.focusedTabId).toBe(firstId);
+    expect(factory.created[0].retarget).toHaveBeenCalledExactlyOnceWith({
+      path: "src/app.ts",
+      lineStart: 42,
+    });
+  });
+
+  // A path-only re-open keeps the prior behavior: focus/activate the existing tab without issuing a line
+  // command that could move its current caret or scroll position.
+  it("focuses without retargeting when the open request has no line", () => {
+    const { wb, factory } = makeWorkbench();
+    wb.openTab({ kind: "file", location: { path: "src/a.ts" } });
+
+    wb.openTab({ kind: "file", location: { path: "src/a.ts" } });
+
+    expect(wb.tabs).toHaveLength(1);
+    expect(factory.created[0].retarget).not.toHaveBeenCalled();
   });
 
   // Two distinct files get two tabs; the most recently opened is focused.

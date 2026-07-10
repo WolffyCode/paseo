@@ -10,11 +10,12 @@ import type { FileLocation } from "./file-location";
 export type ActivityDot = "none" | "dirty";
 
 // What every tab content exposes to the framework. title/activityDot are read live off the content at
-// render time (never mirrored into framework storage — one truth source). The two hooks let the file
-// tab react to focus (reveal in tree) and close (blur = autosave) without the framework knowing why.
+// render time (never mirrored into framework storage — one truth source). The hooks let content consume
+// a path-deduped open retarget, react to focus, and close without the framework knowing type-specific work.
 export interface TabContent {
   readonly title: string;
   readonly activityDot: ActivityDot;
+  retarget(location: FileLocation): void;
   onActivated(): void;
   onClosing(): void;
 }

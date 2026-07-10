@@ -1,11 +1,11 @@
 import type { EditorHandle } from "../model/file-document-model";
 
-// A live editor buffer the CodeMirror surface exposes to the handle once it mounts: read the current
-// text, replace the whole doc. The surface implements this over its EditorView; the model never sees it
-// directly — only through the connectable handle.
+// A live CodeMirror backend exposed once the surface mounts: read/replace content and reveal a 1-based
+// line. The model only sees the stable connectable handle, never this mount-bound view.
 export interface EditorBackend {
   getContent(): string;
   applyExternalContent(text: string): void;
+  revealLine(line: number): void;
 }
 
 // The connectable handle the factory injects into FileDocumentModel: it satisfies EditorHandle at all
@@ -16,16 +16,14 @@ export interface ConnectableEditorHandle extends EditorHandle {
   disconnect(): void;
 }
 
-// Build a handle that buffers a pending seed until the view connects, then routes through the view. This
-// closes the seam between "model built first" and "view mounts later": a pre-connect applyExternalContent
-// (from load()) is remembered and replayed into the view on connect; getContent answers from the buffer
-// until then. disconnect snapshots the view's content back into the buffer AND re-arms the seed, so a
-// getContent after unmount still returns the last-known text and a later reconnect (tab switched back →
-// fresh, empty view) replays it — the editor never comes back blank.
+// Build a handle that buffers content and the latest one-shot reveal until the view connects. Connect
+// always seeds content first, then reveals; disconnect re-arms only the content snapshot for a fresh view,
+// never a reveal that was already consumed, so switching back to a tab does not jump again.
 export function createConnectableEditorHandle(): ConnectableEditorHandle {
   let backend: EditorBackend | null = null;
   let buffer = "";
   let pendingSeed = false;
+  let pendingRevealLine: number | null = null;
 
   return {
     getContent(): string {
@@ -39,6 +37,13 @@ export function createConnectableEditorHandle(): ConnectableEditorHandle {
       buffer = text;
       pendingSeed = true;
     },
+    revealLine(line: number): void {
+      if (backend) {
+        backend.revealLine(line);
+        return;
+      }
+      pendingRevealLine = line;
+    },
     connect(next: EditorBackend): void {
       backend = next;
       // Replay a seed that arrived before the view existed; skip when none, so we never clobber the
@@ -46,6 +51,10 @@ export function createConnectableEditorHandle(): ConnectableEditorHandle {
       if (pendingSeed) {
         next.applyExternalContent(buffer);
         pendingSeed = false;
+      }
+      if (pendingRevealLine !== null) {
+        next.revealLine(pendingRevealLine);
+        pendingRevealLine = null;
       }
     },
     disconnect(): void {

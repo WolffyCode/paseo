@@ -46,8 +46,8 @@ export class WorkbenchModel {
     return this.tabs.length === 0 ? "launcher" : "tabs";
   }
 
-  // Open a normalized target by focusing its identity, replacing an empty file placeholder in its current
-  // slot, or appending. Replacement closes the placeholder content and gives the real file its canonical id.
+  // Open a normalized target by focusing and retargeting its identity, replacing an empty file placeholder
+  // in place, or appending. Line data is forwarded only after path dedup; it never enters identity policy.
   openTab(request: OpenTabRequest): void {
     const location = normalizeFileLocation(request.location);
     const decision = resolveTabInstancing(
@@ -55,7 +55,14 @@ export class WorkbenchModel {
       { kind: request.kind, path: location.path },
     );
     if (decision.action === "focus") {
-      this.focusTab(decision.id);
+      const target = this.tabs.find((tab) => tab.id === decision.id);
+      if (!target) {
+        return;
+      }
+      if (location.lineStart !== undefined) {
+        target.content.retarget(location);
+      }
+      this.focusTab(target.id);
       return;
     }
     const content = this.factory.create({ kind: request.kind, location });
