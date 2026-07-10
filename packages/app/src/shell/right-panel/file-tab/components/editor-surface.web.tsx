@@ -365,6 +365,6 @@ function getActiveQuery(doc: FileDocumentModel): SearchQuery {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, minHeight: 0, position: "relative" },
-  host: { flex: 1, minHeight: 0 },
+  root: { flex: 1, minWidth: 0, minHeight: 0, position: "relative" },
+  host: { flex: 1, minWidth: 0, minHeight: 0 },
 });

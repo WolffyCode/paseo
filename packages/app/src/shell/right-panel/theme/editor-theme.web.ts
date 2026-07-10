@@ -58,19 +58,41 @@ function buildHighlightStyle(scheme: ThemeScheme): HighlightStyle {
   ]);
 }
 
-// The editor chrome theme (surface / gutter / current line / selection / cursor / search matches) mapped
-// from EDITOR_TOKENS onto CodeMirror's DOM classes.
+// The editor chrome theme maps EDITOR_TOKENS onto CodeMirror's DOM classes and keeps the unwrapped source
+// surface inside its own themed x/y scroller, so long lines never widen into the clipping panel shell.
 function buildChromeTheme(scheme: ThemeScheme): Extension {
   const tk = EDITOR_TOKENS[scheme];
   return EditorView.theme(
     {
-      "&": { backgroundColor: tk.background, color: tk.foreground, height: "100%" },
+      "&": {
+        backgroundColor: tk.background,
+        color: tk.foreground,
+        height: "100%",
+        width: "100%",
+        minWidth: "0",
+      },
       ".cm-scroller": {
         fontFamily:
           'SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
         fontSize: "12px",
         lineHeight: "1.58",
+        minWidth: "0",
+        overflowX: "auto",
+        overflowY: "auto",
+        scrollbarWidth: "thin",
+        scrollbarColor: `${tk.scrollbarThumb} ${tk.scrollbarTrack}`,
       },
+      ".cm-scroller::-webkit-scrollbar": { width: "8px", height: "8px" },
+      ".cm-scroller::-webkit-scrollbar-track": { backgroundColor: tk.scrollbarTrack },
+      ".cm-scroller::-webkit-scrollbar-thumb": {
+        backgroundColor: tk.scrollbarThumb,
+        border: `2px solid ${tk.scrollbarTrack}`,
+        borderRadius: "4px",
+      },
+      ".cm-scroller::-webkit-scrollbar-thumb:hover": {
+        backgroundColor: tk.scrollbarThumbHover,
+      },
+      ".cm-scroller::-webkit-scrollbar-corner": { backgroundColor: tk.scrollbarTrack },
       ".cm-content": { caretColor: tk.cursor },
       ".cm-cursor, .cm-dropCursor": { borderLeftColor: tk.cursor, borderLeftWidth: "1.5px" },
       "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": {

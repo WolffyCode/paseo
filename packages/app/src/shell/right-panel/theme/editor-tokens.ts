@@ -4,7 +4,8 @@ import type { ThemeScheme } from "../../theme/theme-model";
 // The code-editor theme tokens, split into two sources exactly as the design decrees:
 //   1. EDITOR_TOKENS — the editor CHROME (background / gutter / current line / selection / cursor /
 //      change bar + find-match highlight), which FOLLOWS the app chrome scheme (light chrome → light
-//      editor, dark chrome → ODPF dark). Values are lifted verbatim from ui.html sRS4's design tokens.
+//      editor, dark chrome → ODPF dark). Surface/highlight values come from ui.html sRS4; scrollbar roles
+//      extend that same palette for the gate-3 narrow-panel horizontal-scroll contract.
 //   2. editorSyntaxColors — the code SYNTAX highlight, defaulting to One Dark Pro Flat (dark) / One Light
 //      (light), sourced from the shared highlighter's "one" palette so read (chat code blocks) and edit
 //      share one color source and nothing is re-invented.
@@ -34,6 +35,12 @@ export interface EditorTokens {
   matchCurrent: string;
   // The active find match's 1px emphasis ring.
   matchCurrentBorder: string;
+  // The scrollbar track follows the editor surface rather than the outer app chrome.
+  scrollbarTrack: string;
+  // The resting scrollbar thumb stays visible without overpowering source text.
+  scrollbarThumb: string;
+  // The scrollbar thumb brightens on hover so the horizontal affordance is obvious in a narrow panel.
+  scrollbarThumbHover: string;
 }
 
 // The find-match highlight is one value across both schemes in ui.html (.ematch / .ematch.cur), so both
@@ -56,6 +63,9 @@ export const EDITOR_TOKENS: Record<ThemeScheme, EditorTokens> = {
     match: MATCH,
     matchCurrent: MATCH_CURRENT,
     matchCurrentBorder: MATCH_CURRENT_BORDER,
+    scrollbarTrack: "#fafafa",
+    scrollbarThumb: "#c2c6cc",
+    scrollbarThumbHover: "#9d9d9f",
   },
   // One Dark Pro Flat (ui.html sRS4 深 chrome 编辑器 · design token).
   dark: {
@@ -70,6 +80,9 @@ export const EDITOR_TOKENS: Record<ThemeScheme, EditorTokens> = {
     match: MATCH,
     matchCurrent: MATCH_CURRENT,
     matchCurrentBorder: MATCH_CURRENT_BORDER,
+    scrollbarTrack: "#282c34",
+    scrollbarThumb: "#4b5263",
+    scrollbarThumbHover: "#5c6370",
   },
 };
 

@@ -620,7 +620,7 @@ const webSpinStyle = {
 } as unknown as object;
 
 const styles = StyleSheet.create({
-  root: { flex: 1, minHeight: 0, position: "relative" },
+  root: { flex: 1, minWidth: 0, minHeight: 0, position: "relative" },
   fileBar: {
     flexDirection: "row",
     alignItems: "center",
@@ -654,8 +654,8 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
   },
   roText: { fontSize: 11 },
-  body: { flex: 1, minHeight: 0 },
-  bodyInner: { flex: 1, minHeight: 0 },
+  body: { flex: 1, minWidth: 0, minHeight: 0 },
+  bodyInner: { flex: 1, minWidth: 0, minHeight: 0 },
   frozen: { opacity: 0.5 },
   conflictBar: {
     flexDirection: "row",

@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { EDITOR_TOKENS, editorSyntaxColors } from "./editor-tokens";
 
 // EDITOR_TOKENS carries the editor chrome (background/foreground/current-line/selection/cursor/gutter +
-// find-match highlight) per scheme, verbatim from ui.html sRS4's design tokens. It mirrors SHELL_TOKENS'
+// find-match highlight + scrollbar) per scheme. Its surface/highlight values track ui.html sRS4 and its
+// scrollbar roles extend the same palette for narrow-panel horizontal scroll. It mirrors SHELL_TOKENS'
 // shape: light and dark provide the SAME key set with different values, so tokens[scheme].X can never be
 // undefined regardless of which chrome scheme is active. editorSyntaxColors is the code-highlight source,
 // which must be the shared highlighter's "one" (One Dark/Light Pro Flat) palette — never a re-invented one.
@@ -37,6 +38,15 @@ describe("EDITOR_TOKENS", () => {
       expect(EDITOR_TOKENS[scheme].matchCurrent).toBe("rgba(229, 192, 123, 0.42)");
       expect(EDITOR_TOKENS[scheme].matchCurrentBorder).toBe("#e5c07b");
     }
+  });
+
+  it("carries editor-matched scrollbar colors for both chrome schemes", () => {
+    expect(EDITOR_TOKENS.light.scrollbarTrack).toBe("#fafafa");
+    expect(EDITOR_TOKENS.light.scrollbarThumb).toBe("#c2c6cc");
+    expect(EDITOR_TOKENS.light.scrollbarThumbHover).toBe("#9d9d9f");
+    expect(EDITOR_TOKENS.dark.scrollbarTrack).toBe("#282c34");
+    expect(EDITOR_TOKENS.dark.scrollbarThumb).toBe("#4b5263");
+    expect(EDITOR_TOKENS.dark.scrollbarThumbHover).toBe("#5c6370");
   });
 });
 
