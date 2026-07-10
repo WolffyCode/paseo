@@ -21,9 +21,14 @@
 - **develop 守护 PM③（固定角色）**：每当一条分支合并进 develop 后，带 产品/UI/测试 对 develop 做回归——产品查「是否符合整体 product.md」、UI 查「是否符合整体 ui.html」、测试查「代码质量」。**有差异 → 退回该功能项目的开发修**。
 - **员工**：每个 PM 下设 产品 · UI · 架构 · 开发 · 测试，由该 PM 自行调度。
 
-## 模型（硬规则）
+## 模型（硬规则 · 2026-07-08 董事长新任命）
 
-**全层、全员一律 `claude-opus-4-8`（Opus 4.8），思考档 high/max（难任务用 max）。不用 Codex / `gpt` 员工，不降档。** 成本不是约束。
+- **主对话（总监）= Claude Fable 5**。
+- **所有 subagent 一律经 Paseo 调用**（`mcp__paseo__create_agent`），不用内置 Agent tool。
+- **代码编写类员工 = Codex 5.6 Sol（reasoning max）**。
+- **其余角色（PM / 产品 / UI / QA / 架构评审等）= Claude Sonnet 5（思考档 max）**。
+
+> 旧任命「全员 `claude-opus-4-8`」作废（Claude 会话限额多次打断流水线；写码走 Codex、其余走 Sonnet 分流保连续性）。成本不是约束。
 
 ## 每个功能项目的流程
 
