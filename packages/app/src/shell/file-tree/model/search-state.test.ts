@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   advanceSearch,
+  advanceSearchRequest,
   computeHighlightRanges,
+  INITIAL_SEARCH_REQUEST,
   isSearchAvailable,
   searchErrorCopy,
 } from "./search-state";
@@ -157,6 +159,35 @@ describe("advanceSearch — state machine", () => {
       results: [],
       phase: "idle",
     });
+  });
+});
+
+describe("advanceSearchRequest — debounce state machine", () => {
+  it("only lets the latest scheduled input start after the debounce window", () => {
+    const first = advanceSearchRequest(INITIAL_SEARCH_REQUEST, { type: "schedule" });
+    const second = advanceSearchRequest(first, { type: "schedule" });
+
+    expect(first).toEqual({ latestToken: 1, phase: "debouncing" });
+    expect(second).toEqual({ latestToken: 2, phase: "debouncing" });
+    expect(
+      advanceSearchRequest(second, { type: "debounce-elapsed", token: first.latestToken }),
+    ).toBe(second);
+    expect(
+      advanceSearchRequest(second, { type: "debounce-elapsed", token: second.latestToken }),
+    ).toEqual({ latestToken: 2, phase: "running" });
+  });
+
+  it("cancelling invalidates a scheduled search before its debounce elapses", () => {
+    const scheduled = advanceSearchRequest(INITIAL_SEARCH_REQUEST, { type: "schedule" });
+    const cancelled = advanceSearchRequest(scheduled, { type: "cancel" });
+
+    expect(cancelled).toEqual({ latestToken: 2, phase: "idle" });
+    expect(
+      advanceSearchRequest(cancelled, {
+        type: "debounce-elapsed",
+        token: scheduled.latestToken,
+      }),
+    ).toBe(cancelled);
   });
 });
 

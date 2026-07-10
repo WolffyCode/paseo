@@ -21,7 +21,14 @@ import { deriveContextMenuItems } from "./context-menu-items";
 import { validateInlineName } from "./inline-edit";
 import { resolveRevealAction } from "./reveal-action";
 import { resolveTreeRoot } from "./resolve-root";
-import { advanceSearch, isSearchAvailable } from "./search-state";
+import {
+  advanceSearch,
+  advanceSearchRequest,
+  INITIAL_SEARCH_REQUEST,
+  isSearchAvailable,
+  SEARCH_DEBOUNCE_MS,
+  type SearchRequestState,
+} from "./search-state";
 import {
   buildVisibleNodes,
   foldDirectoryListing,
@@ -106,10 +113,6 @@ export interface ConfirmDeleteInput {
 // The empty/idle search state the machine starts and resets to.
 const IDLE_SEARCH: SearchState = { mode: "name", query: "", results: [], phase: "idle" };
 
-// Debounce for the fs.search RPC (both modes): the host search fires only after the user pauses
-// typing, so a fast "p","pa","pac","pack" spawns ONE search instead of four racing host processes.
-const SEARCH_DEBOUNCE_MS = 250;
-
 export class FileTreeStore {
   // The caller-provided host root spelling, used as the cwd for every RPC. It may contain a literal "~";
   // outward absolute paths must use rootPath instead. null = no root defined yet.
@@ -151,6 +154,9 @@ export class FileTreeStore {
   // search fires (interrupts the prior one — the user's "change the query mid-search" case). Transient
   // wiring, not reactive state (excluded from observability below).
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
+  // Pure lifecycle ownership for the debounce boundary. A monotonically increasing token makes an old
+  // timer ineligible to start after newer input or an explicit clear; IO settlement is added separately.
+  private searchRequest: SearchRequestState = INITIAL_SEARCH_REQUEST;
 
   private readonly deps: FileTreeStoreDeps;
 
@@ -161,10 +167,11 @@ export class FileTreeStore {
     // are observable.ref: the store always replaces them with a fresh collection (reducer style), so
     // reference reactivity is exactly right and they stay plain JS Set/Map (not ObservableMap, whose
     // copy/iteration semantics differ) for the pure functions to consume directly.
-    makeAutoObservable<this, "deps" | "searchTimer">(
+    makeAutoObservable<this, "deps" | "searchRequest" | "searchTimer">(
       this,
       {
         deps: false,
+        searchRequest: false,
         searchTimer: false,
         expanded: observable.ref,
         dirCache: observable.ref,
@@ -340,6 +347,7 @@ export class FileTreeStore {
   // Reset all transient view state before adopting a new root. The old root is cleared first so the
   // panel can't briefly paint stale content while the replacement listing is in flight.
   private resetForRootChange(): void {
+    this.cancelSearchRequest();
     runInAction(() => {
       this.expanded = new Set();
       this.selectedPath = null;
@@ -476,9 +484,9 @@ export class FileTreeStore {
   // root on the host); without it the machine goes straight to the error phase (prompt to upgrade
   // host) — no degraded client-side filter is attempted (feature contract: no fallback paths).
   setSearchMode(mode: "name" | "content"): void {
-    this.cancelPendingSearch();
     this.contentSearchBasePath = null;
     if (!isSearchAvailable(this.deps.getContext().features)) {
+      this.cancelSearchRequest();
       this.search = advanceSearch({ ...this.search, mode }, { type: "error", kind: "unsupported" });
       return;
     }
@@ -486,6 +494,8 @@ export class FileTreeStore {
     this.search = next;
     if (next.phase === "searching") {
       this.runSearch(next);
+    } else {
+      this.cancelSearchRequest();
     }
   }
 
@@ -493,7 +503,6 @@ export class FileTreeStore {
   // empty query returns to idle. Any prior pending search is cancelled first, so a new keystroke
   // interrupts the previous one.
   setQuery(query: string): void {
-    this.cancelPendingSearch();
     const next = advanceSearch(this.search, { type: "query-changed", query });
     if (next.phase === "idle") {
       this.contentSearchBasePath = null;
@@ -501,12 +510,14 @@ export class FileTreeStore {
     this.search = next;
     if (next.phase === "searching") {
       this.runSearch(next);
+    } else {
+      this.cancelSearchRequest();
     }
   }
 
   // Clear search, returning to the plain tree (sFT4/5 exit).
   clearSearch(): void {
-    this.cancelPendingSearch();
+    this.cancelSearchRequest();
     this.contentSearchBasePath = null;
     this.search = advanceSearch(this.search, { type: "clear" });
   }
@@ -516,10 +527,12 @@ export class FileTreeStore {
   // architecture's earlier client-side name filter only saw already-listed nodes and missed the rest.
   private runSearch(state: SearchState): void {
     if (!isSearchAvailable(this.deps.getContext().features)) {
+      this.cancelSearchRequest();
       this.search = advanceSearch(state, { type: "error", kind: "unsupported" });
       return;
     }
     if (!this.hostRoot) {
+      this.cancelSearchRequest();
       // No root resolved yet is a run-time condition, not a capability gap — "failed" copy (retry).
       this.search = advanceSearch(state, { type: "error", kind: "failed" });
       return;
@@ -531,25 +544,35 @@ export class FileTreeStore {
   // only if this query/mode is still active when it fires. A burst of keystrokes thus spawns ONE host
   // search, not one per character.
   private scheduleSearch(state: SearchState): void {
-    this.cancelPendingSearch();
+    this.clearSearchTimer();
+    this.searchRequest = advanceSearchRequest(this.searchRequest, { type: "schedule" });
+    const token = this.searchRequest.latestToken;
     this.searchTimer = setTimeout(() => {
       this.searchTimer = null;
-      if (
-        this.search.query === state.query &&
-        this.search.mode === state.mode &&
-        this.search.phase === "searching"
-      ) {
-        void this.runHostSearch(state);
+      const next = advanceSearchRequest(this.searchRequest, {
+        type: "debounce-elapsed",
+        token,
+      });
+      if (next === this.searchRequest) {
+        return;
       }
+      this.searchRequest = next;
+      void this.runHostSearch(state);
     }, SEARCH_DEBOUNCE_MS);
   }
 
-  // Cancel a pending debounced search (a new query / mode change / clear supersedes it).
-  private cancelPendingSearch(): void {
+  // Clear the physical debounce timer before it can dispatch; request ownership is modeled separately.
+  private clearSearchTimer(): void {
     if (this.searchTimer !== null) {
       clearTimeout(this.searchTimer);
       this.searchTimer = null;
     }
+  }
+
+  // Cancel scheduled/running ownership immediately so an old debounce callback cannot start host IO.
+  private cancelSearchRequest(): void {
+    this.clearSearchTimer();
+    this.searchRequest = advanceSearchRequest(this.searchRequest, { type: "cancel" });
   }
 
   // Re-run the active search after a tree write (create/rename/move/copy/delete) so the result list
@@ -686,7 +709,7 @@ export class FileTreeStore {
     if (!this.hostRoot) {
       return;
     }
-    this.cancelPendingSearch();
+    this.cancelSearchRequest();
     this.searchOpen = true;
     this.contentSearchBasePath = findInFilesBasePath(path);
     // Reset to an idle content search THROUGH the machine (clear keeps the mode + empties the

@@ -1,6 +1,15 @@
 import { observer } from "mobx-react-lite";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import {
+  type NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  type TextInputKeyPressEventData,
+  View,
+} from "react-native";
 import { useWebScrollViewScrollbar } from "@/components/use-web-scrollbar";
 import { ChevronDown, Search, X } from "lucide-react-native";
 import { SvgXml } from "react-native-svg";
@@ -63,9 +72,15 @@ export const TreeSearch = observer(function TreeSearch({ store }: { store: FileT
 
   const onChangeText = useCallback((text: string) => store.setQuery(text), [store]);
   const onClear = useCallback(() => store.clearSearch(), [store]);
-  // Deliberately NO Escape handling here: Esc used to close the whole search panel, which threw
-  // users out of an active search by accident (chairman decision 2026-07-07 — removed). The panel
-  // closes only via the toolbar search toggle; Esc still closes menus/inline editors elsewhere.
+  // Escape cancels the active query and returns the body to the tree without closing the search surface.
+  const onKeyPress = useCallback(
+    (event: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+      if (event.nativeEvent.key === "Escape") {
+        store.clearSearch();
+      }
+    },
+    [store],
+  );
   const onModeName = useCallback(() => store.setSearchMode("name"), [store]);
   const onModeContent = useCallback(() => store.setSearchMode("content"), [store]);
   const onBlankContextMenu = useCallback(
@@ -134,6 +149,7 @@ export const TreeSearch = observer(function TreeSearch({ store }: { store: FileT
             ref={inputRef}
             value={query}
             onChangeText={onChangeText}
+            onKeyPress={onKeyPress}
             onFocus={onFocus}
             onBlur={onBlur}
             autoCapitalize="none"

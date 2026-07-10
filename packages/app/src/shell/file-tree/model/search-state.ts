@@ -5,6 +5,24 @@
 
 import type { SearchErrorKind, SearchMatch, SearchState } from "./types";
 
+/** The pause required before the latest search input may start host IO. */
+export const SEARCH_DEBOUNCE_MS = 250;
+
+/** Lifecycle of the one search request that is allowed to leave the debounce boundary. */
+export interface SearchRequestState {
+  readonly latestToken: number;
+  readonly phase: "idle" | "debouncing" | "running";
+}
+
+/** Events that schedule, release, or cancel the debounced search request. */
+export type SearchRequestEvent =
+  | { type: "schedule" }
+  | { type: "debounce-elapsed"; token: number }
+  | { type: "cancel" };
+
+/** Initial request lifecycle: no timer or host request owns the search surface. */
+export const INITIAL_SEARCH_REQUEST: SearchRequestState = { latestToken: 0, phase: "idle" };
+
 /** Events that drive the search state machine. */
 export type SearchEvent =
   | { type: "query-changed"; query: string }
@@ -58,6 +76,24 @@ export function advanceSearch(current: SearchState, event: SearchEvent): SearchS
       };
     case "clear":
       return { mode: current.mode, query: "", results: [], phase: "idle" };
+  }
+}
+
+/** Advance debounce ownership so only the latest scheduled token can start host search IO. */
+export function advanceSearchRequest(
+  current: SearchRequestState,
+  event: SearchRequestEvent,
+): SearchRequestState {
+  switch (event.type) {
+    case "schedule":
+      return { latestToken: current.latestToken + 1, phase: "debouncing" };
+    case "debounce-elapsed":
+      if (current.phase !== "debouncing" || event.token !== current.latestToken) {
+        return current;
+      }
+      return { latestToken: current.latestToken, phase: "running" };
+    case "cancel":
+      return { latestToken: current.latestToken + 1, phase: "idle" };
   }
 }
 

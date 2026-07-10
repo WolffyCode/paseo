@@ -672,6 +672,50 @@ describe("FileTreeStore search machine", () => {
     expect(rightTabOpen).not.toHaveBeenCalled();
   });
 
+  test("debounces consecutive input and dispatches only the latest query after 250ms", async () => {
+    vi.useFakeTimers();
+    try {
+      const { data, search } = fakeData({ ".": [entry("alpha.ts", "file")] });
+      const { store } = makeStore({ data });
+      await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+
+      store.setQuery("a");
+      await vi.advanceTimersByTimeAsync(100);
+      store.setQuery("al");
+      await vi.advanceTimersByTimeAsync(249);
+
+      expect(search).not.toHaveBeenCalled();
+
+      await vi.advanceTimersByTimeAsync(1);
+
+      expect(search).toHaveBeenCalledTimes(1);
+      expect(search).toHaveBeenCalledWith(
+        { root: "/root", query: "al", mode: "name" },
+        expect.any(Function),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("clearing the query immediately cancels its pending debounced search", async () => {
+    vi.useFakeTimers();
+    try {
+      const { data, search } = fakeData({ ".": [entry("alpha.ts", "file")] });
+      const { store } = makeStore({ data });
+      await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+
+      store.setQuery("alpha");
+      store.clearSearch();
+      await vi.advanceTimersByTimeAsync(250);
+
+      expect(store.search.phase).toBe("idle");
+      expect(search).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test("name-mode query searches the HOST (fs.search name mode), covering unexpanded layers", async () => {
     vi.useFakeTimers();
     try {
