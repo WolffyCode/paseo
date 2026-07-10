@@ -75,11 +75,11 @@ describe("WorkbenchModel · openTab", () => {
     expect(wb.focusedTabId).toBe(wb.tabs[1].id);
   });
 
-  // Opening a real file while the "选择一个文件" placeholder exists fills that slot in place. The old
-  // placeholder content closes, and the replacement gets its canonical path id and normal activation.
+  // An empty-path file tab is a model-level intermediate state with no direct UI creation entry. Opening
+  // a real file fills that slot in place; the old content closes and the replacement gets canonical identity.
   it("fills an empty file tab instead of leaving it behind and appending", () => {
     const { wb, factory } = makeWorkbench();
-    wb.openLauncherType("file");
+    wb.openTab({ kind: "file", location: { path: "" } });
     const placeholderId = wb.tabs[0].id;
 
     wb.openTab({ kind: "file", location: { path: "/root/src/a.ts" } });
@@ -206,22 +206,15 @@ describe("WorkbenchModel · reorderTab", () => {
   });
 });
 
-describe("WorkbenchModel · openLauncherType", () => {
-  // The file launcher row without a selection opens one deduped "choose a file" tab so the strip appears.
-  // A later real-file open fills it through openTab (covered above), rather than stacking a second tab.
-  it("opens at most one empty 'choose a file' tab without a location", () => {
+describe("WorkbenchModel · empty file intermediate state", () => {
+  // Empty-path file tabs remain valid model input for fill semantics but have no launcher/new-tab entry;
+  // repeated intermediate creation dedups to one placeholder before a real path replaces it (covered above).
+  it("dedups repeated empty-path file tabs", () => {
     const { wb } = makeWorkbench();
-    wb.openLauncherType("file");
+    wb.openTab({ kind: "file", location: { path: "" } });
     expect(wb.tabs).toHaveLength(1);
     expect(wb.tabs[0].path).toBe("");
-    wb.openLauncherType("file"); // re-click → still one empty tab (dedup by empty path)
+    wb.openTab({ kind: "file", location: { path: "" } });
     expect(wb.tabs).toHaveLength(1);
-  });
-
-  // A disabled/deferred kind (review) never opens a tab this round.
-  it("does nothing for a disabled kind", () => {
-    const { wb } = makeWorkbench();
-    wb.openLauncherType("review", { path: "a.ts" });
-    expect(wb.tabs).toHaveLength(0);
   });
 });

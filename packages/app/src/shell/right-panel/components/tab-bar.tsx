@@ -2,7 +2,6 @@ import { observer } from "mobx-react-lite";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { isWeb } from "@/constants/platform";
-import type { RightPanelController } from "../model/right-panel-controller";
 import type { PanelTab, WorkbenchModel } from "../model/workbench-model";
 import { themeModel } from "../../theme/theme-model";
 import { IconFile, IconPlus, IconX } from "./icons";
@@ -19,9 +18,9 @@ import {
 
 // The Codex-style tab strip (ui.html sRS2/sRS3) — icon+label pills (active = light-grey rounded pill, NOT
 // a blue underline), a trailing "+", the top-right maximize/collapse controls, per-tab visible ✕ / dirty
-// ● swap, and drag-reorder with a drop indicator. Pure view over WorkbenchModel: it renders live
-// title/dot off tab.content and dispatches focus/close/reorder/openLauncherType. Hover is the web CSS
-// :hover path (no JS pointer events). The new-tab dropdown + tab right-click are anchored floating menus.
+// ● swap, and drag-reorder with a drop indicator. Pure view over WorkbenchModel: it renders live title/dot
+// off tab.content and dispatches focus/close/reorder. Hover is the web CSS :hover path (no JS pointer
+// events). The new-tab dropdown + tab right-click are anchored floating menus.
 
 // Convert a visual drop gap (0..N over the full order) into the rest-based drop index placeTabAtDropIndex
 // wants (the moving tab is removed first, so a gap past the moving tab shifts left by one).
@@ -36,11 +35,9 @@ const NEW_TAB_MENU_CONTENT_CLEARANCE = 38;
 
 export const TabBar = observer(function TabBar({
   workbench,
-  controller,
   isOffline,
 }: {
   workbench: WorkbenchModel;
-  controller: RightPanelController;
   isOffline: boolean;
 }) {
   const tk = themeModel.tokens;
@@ -158,7 +155,7 @@ export const TabBar = observer(function TabBar({
       {drag != null && drag.gap === tabs.length ? <DropLine /> : null}
       <NewTabButton hostRef={newTabRef} onPress={onOpenNewTab} disabled={isOffline} />
       <PanelControls />
-      <NewTabMenu controller={controller} anchor={newTabAnchor} onClose={closeMenus} />
+      <NewTabMenu anchor={newTabAnchor} onClose={closeMenus} />
       {ctxMenu ? (
         <TabContextMenu
           workbench={workbench}

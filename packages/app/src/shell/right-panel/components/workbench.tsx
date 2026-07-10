@@ -4,7 +4,6 @@ import { StyleSheet, Text, View } from "react-native";
 import type { ConnectableEditorHandle } from "../file-tab/components/editor-handle";
 import { FileTabView } from "../file-tab/components/file-tab-view";
 import { FileDocumentModel } from "../file-tab/model/file-document-model";
-import type { RightPanelController } from "../model/right-panel-controller";
 import type { TabContent } from "../model/tab-content";
 import type { PanelTab, WorkbenchModel } from "../model/workbench-model";
 import { STATUS_TOKENS } from "../theme/status-tokens";
@@ -21,24 +20,22 @@ import { TabBar } from "./tab-bar";
 
 export const Workbench = observer(function Workbench({
   workbench,
-  controller,
   resolveEditorHandle,
   isOffline,
 }: {
   workbench: WorkbenchModel;
-  controller: RightPanelController;
   resolveEditorHandle: (content: TabContent) => ConnectableEditorHandle;
   isOffline: boolean;
 }) {
   if (workbench.mode === "launcher") {
-    return <Launcher controller={controller} isOffline={isOffline} />;
+    return <Launcher isOffline={isOffline} />;
   }
   const focused = workbench.tabs.find((tab) => tab.id === workbench.focusedTabId) ?? null;
   // A content subtree owns exactly one tab identity per mount. The key makes a focus switch disconnect
   // the old imperative surface before a fresh surface binds the next tab's document and editor handle.
   return (
     <View style={styles.root}>
-      <TabBar workbench={workbench} controller={controller} isOffline={isOffline} />
+      <TabBar workbench={workbench} isOffline={isOffline} />
       {isOffline ? <OfflineBanner /> : null}
       {focused ? (
         <TabContent

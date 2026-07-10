@@ -1,27 +1,18 @@
 import { observer } from "mobx-react-lite";
-import { useCallback, useMemo } from "react";
+import { useMemo } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import type { RightPanelController } from "../model/right-panel-controller";
-import type { TabKind } from "../model/tab-content";
-import { TAB_KIND_POLICY, type TabKindPolicy } from "../model/tab-kind-policy";
 import { STATUS_TOKENS } from "../theme/status-tokens";
 import { themeModel } from "../../theme/theme-model";
 import { type PanelIcon, IconWifiOff } from "./icons";
-import { LAUNCH_ITEMS } from "./launcher-items";
+import { LAUNCH_HINT, LAUNCH_ITEMS } from "./launcher-items";
 import { PanelControls } from "./panel-controls";
 
 // The launcher default state (ui.html sRS1) — the landing view when the panel is open with no tabs. Top
-// is ONLY the maximize/collapse controls (no tab strip, no "+"). The body is a vertical projection of
-// TAB_KIND_POLICY: all five kinds, only `file` usable (⌘P), the other four disabled + "后续". Clicking
-// file dispatches openLauncherType("file"). Offline greys all five + shows a host-offline note.
+// is ONLY the maximize/collapse controls (no tab strip, no "+"). The body projects the four deferred
+// kinds as disabled "后续" rows; file is deliberately absent because it opens only from tree/conversation.
+// Offline keeps the same roadmap rows and adds the host-offline note.
 
-export const Launcher = observer(function Launcher({
-  controller,
-  isOffline,
-}: {
-  controller: RightPanelController;
-  isOffline: boolean;
-}) {
+export const Launcher = observer(function Launcher({ isOffline }: { isOffline: boolean }) {
   const tk = themeModel.tokens;
   const topBar = useMemo(() => [styles.top, { borderColor: tk.border }], [tk.border]);
   return (
@@ -35,11 +26,10 @@ export const Launcher = observer(function Launcher({
           {LAUNCH_ITEMS.map((item) => (
             <LaunchRow
               key={item.kind}
-              kind={item.kind}
               icon={item.icon}
               label={item.label}
-              controller={controller}
-              isOffline={isOffline}
+              enabled={item.policy.enabled}
+              comingSoon={item.policy.comingSoon}
             />
           ))}
         </View>
@@ -49,47 +39,35 @@ export const Launcher = observer(function Launcher({
   );
 });
 
-// One launcher row: the enabled `file` row opens a file tab; the disabled kinds are greyed with a "后续"
-// badge (or their shortcut hint). Offline disables the enabled row too (nothing can open).
+// One policy-driven roadmap row: current items are disabled and carry "后续", with no command attached.
 function LaunchRow({
-  kind,
   icon: Icon,
   label,
-  controller,
-  isOffline,
+  enabled,
+  comingSoon,
 }: {
-  kind: TabKind;
   icon: PanelIcon;
   label: string;
-  controller: RightPanelController;
-  isOffline: boolean;
+  enabled: boolean;
+  comingSoon: boolean;
 }) {
   const tk = themeModel.tokens;
-  const policy = TAB_KIND_POLICY[kind];
-  const active = policy.enabled && !isOffline;
-  const onPress = useCallback(() => controller.openLauncherType(kind), [controller, kind]);
   const rowStyle = useMemo(
-    () => (active ? styles.row : [styles.row, styles.rowDisabled]),
-    [active],
+    () => (enabled ? styles.row : [styles.row, styles.rowDisabled]),
+    [enabled],
   );
   const labelStyle = useMemo(() => [styles.rowLabel, { color: tk.foreground }], [tk.foreground]);
   return (
-    <Pressable
-      style={rowStyle}
-      onPress={active ? onPress : undefined}
-      disabled={!active}
-      accessibilityRole="button"
-    >
+    <Pressable style={rowStyle} disabled={!enabled} accessibilityRole="button">
       <Icon size={16} color={tk.foregroundMuted} />
       <Text style={labelStyle}>{label}</Text>
-      <LaunchTrailing policy={policy} />
+      {comingSoon ? <ComingSoonBadge /> : null}
     </Pressable>
   );
 }
 
-// A row's trailing chip: the "后续" roadmap badge for a deferred kind, or the ⌘P keycap for the usable
-// one (branched here so the row's JSX carries no nested ternary).
-const LaunchTrailing = observer(function LaunchTrailing({ policy }: { policy: TabKindPolicy }) {
+// The trailing "后续" roadmap badge shared by all four launcher rows.
+const ComingSoonBadge = observer(function ComingSoonBadge() {
   const tk = themeModel.tokens;
   const chip = useMemo(
     () => [styles.badge, { backgroundColor: tk.toggleActive, borderColor: tk.border }],
@@ -99,32 +77,18 @@ const LaunchTrailing = observer(function LaunchTrailing({ policy }: { policy: Ta
     () => [styles.badgeText, { color: tk.foregroundMuted }],
     [tk.foregroundMuted],
   );
-  const kbdText = useMemo(
-    () => [styles.badgeText, styles.badgeMono, { color: tk.foregroundMuted }],
-    [tk.foregroundMuted],
+  return (
+    <View style={chip}>
+      <Text style={soonText}>后续</Text>
+    </View>
   );
-  if (policy.comingSoon) {
-    return (
-      <View style={chip}>
-        <Text style={soonText}>后续</Text>
-      </View>
-    );
-  }
-  if (policy.shortcutHint) {
-    return (
-      <View style={chip}>
-        <Text style={kbdText}>{policy.shortcutHint}</Text>
-      </View>
-    );
-  }
-  return null;
 });
 
 // The launcher's "pick one to start" hint line.
 const Hint = observer(function Hint() {
   const tk = themeModel.tokens;
   const style = useMemo(() => [styles.hint, { color: tk.foregroundMuted }], [tk.foregroundMuted]);
-  return <Text style={style}>选一个开始 · 本轮可用「文件」，其余四类后续开放</Text>;
+  return <Text style={style}>{LAUNCH_HINT}</Text>;
 });
 
 // The host-offline note shown above the (all-disabled) list when the panel is offline.
@@ -184,7 +148,6 @@ const styles = StyleSheet.create({
   rowLabel: { fontSize: 14, flex: 1 },
   badge: { borderWidth: 1, borderRadius: 9999, paddingHorizontal: 8, paddingVertical: 1 },
   badgeText: { fontSize: 10, fontWeight: "700" },
-  badgeMono: { fontFamily: "SFMono-Regular", fontWeight: "400", fontSize: 11 },
   hint: { fontSize: 11.5, textAlign: "center", maxWidth: 280, lineHeight: 18 },
   offNote: {
     width: "100%",

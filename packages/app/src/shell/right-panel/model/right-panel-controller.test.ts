@@ -12,7 +12,7 @@ describe("createRightPanelController · openFile", () => {
   it("ensures the right panel is open before opening the tab", () => {
     const openTab = vi.fn();
     const openRight = vi.fn();
-    const workbench = { openTab, openLauncherType: vi.fn() } as unknown as WorkbenchModel;
+    const workbench = { openTab } as unknown as WorkbenchModel;
     const controller = createRightPanelController({ workbench, openRight });
 
     controller.openFile({ path: "src/a.ts", lineStart: 3 });
@@ -23,19 +23,5 @@ describe("createRightPanelController · openFile", () => {
       location: { path: "src/a.ts", lineStart: 3 },
     });
     expect(openRight.mock.invocationCallOrder[0]).toBeLessThan(openTab.mock.invocationCallOrder[0]);
-  });
-});
-
-describe("createRightPanelController · openLauncherType", () => {
-  // The launcher/new-tab entry delegates straight to the workbench; only `file` is usable this round
-  // (that policy lives in the workbench/table, not here).
-  it("delegates the launcher kind to the workbench", () => {
-    const openLauncherType = vi.fn();
-    const workbench = { openTab: vi.fn(), openLauncherType } as unknown as WorkbenchModel;
-    const controller = createRightPanelController({ workbench, openRight: vi.fn() });
-
-    controller.openLauncherType("file");
-
-    expect(openLauncherType).toHaveBeenCalledWith("file");
   });
 });

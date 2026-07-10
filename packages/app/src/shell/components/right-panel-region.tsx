@@ -58,7 +58,6 @@ export function RightPanelRegion({
   return (
     <Workbench
       workbench={panel.workbench}
-      controller={panel.controller}
       resolveEditorHandle={panel.resolveEditorHandle}
       isOffline={isOffline}
     />

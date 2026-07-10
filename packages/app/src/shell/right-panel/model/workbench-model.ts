@@ -7,10 +7,8 @@
 // truth source for them (no mirrored copy on the tab).
 
 import { makeAutoObservable, observable } from "mobx";
-import type { FileLocation } from "./file-location";
 import { normalizeFileLocation } from "./file-location";
 import type { OpenTabRequest, TabContent, TabContentFactory, TabKind } from "./tab-content";
-import { TAB_KIND_POLICY } from "./tab-kind-policy";
 import { resolveTabInstancing } from "./tab-instancing";
 import { placeTabAtDropIndex } from "./tab-order";
 
@@ -75,19 +73,6 @@ export class WorkbenchModel {
     }
     this.tabs.push(tab);
     this.focusTab(tab.id);
-  }
-
-  // The launcher / new-tab entry. Only `file` is usable this round. With no location it opens an EMPTY
-  // "choose a file" file tab (path "") so the tab strip appears (requirement item 3 / sRS2·4·7); the empty
-  // path dedups to at most one such tab, and FileTabView renders its "选择一个文件" state off `!doc.path`.
-  // A later real-file open replaces this placeholder in its slot through openTab's instancing decision.
-  openLauncherType(kind: TabKind, location?: FileLocation): void {
-    if (!TAB_KIND_POLICY[kind].enabled) {
-      return;
-    }
-    if (kind === "file") {
-      this.openTab({ kind: "file", location: location ?? { path: "" } });
-    }
   }
 
   // Focus a tab: blur the previously focused tab (onClosing = its autosave hook) and activate the new one

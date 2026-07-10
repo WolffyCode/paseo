@@ -3,9 +3,8 @@ import type { TabKind } from "./tab-content";
 import { TAB_KIND_POLICY } from "./tab-kind-policy";
 
 // TAB_KIND_POLICY is the one static table the launcher, new-tab dropdown, dedup, and single-instance
-// rules all read. These tests lock its shape: exactly `file` is usable this round; the other four are
-// present-but-coming-soon data rows (a roadmap, not abstractions). It is a table, not a function —
-// there is no dynamic input to derive.
+// rules all read. These tests separate implemented capability from entry-point visibility: file remains
+// usable through path-bearing opens, while only the four deferred roadmap rows appear in creation UI.
 
 const NON_FILE: TabKind[] = ["conversation", "browser", "review", "terminal"];
 
@@ -35,8 +34,14 @@ describe("TAB_KIND_POLICY", () => {
     expect(TAB_KIND_POLICY.terminal.instancing).toBe("multi");
   });
 
-  // The file launcher row advertises its ⌘P shortcut; the table is the source of that hint.
-  it("gives file the ⌘P shortcut hint", () => {
-    expect(TAB_KIND_POLICY.file.shortcutHint).toBe("⌘P");
+  // A file always needs a concrete path from the tree/conversation, so neither creation surface lists it;
+  // the four deferred kinds remain visible in both surfaces as an honest roadmap.
+  it("hides file from both creation surfaces and shows the four deferred kinds", () => {
+    expect(TAB_KIND_POLICY.file.showInLauncher).toBe(false);
+    expect(TAB_KIND_POLICY.file.showInNewTab).toBe(false);
+    for (const kind of NON_FILE) {
+      expect(TAB_KIND_POLICY[kind].showInLauncher).toBe(true);
+      expect(TAB_KIND_POLICY[kind].showInNewTab).toBe(true);
+    }
   });
 });

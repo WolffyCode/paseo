@@ -1,6 +1,6 @@
 import { observer } from "mobx-react-lite";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, type StyleProp, Text, View, type ViewStyle } from "react-native";
 import { isWeb } from "@/constants/platform";
 import { useWebDomClick } from "../../file-tree/components/use-web-dom-click";
 import { themeModel } from "../../theme/theme-model";
@@ -73,56 +73,38 @@ export const AnchoredMenu = observer(function AnchoredMenu({
   );
 });
 
-// One menu row: label + optional leading icon + optional trailing chip (a ⌘-shortcut keycap or a "后续"
-// roadmap badge, driven by data — no JSX prop), dispatched through the raw DOM click hook (RN-web press
-// drops rapid clicks). Disabled rows grey out and don't fire.
+// One executable menu row: label + optional icon, dispatched through the raw DOM click hook because
+// RN-web's synthetic press path drops rapid clicks when the surrounding menu re-renders.
 export const MenuItemRow = observer(function MenuItemRow({
   label,
   icon: Icon,
-  shortcut,
-  soon,
-  disabled,
   onPress,
 }: {
   label: string;
   icon?: PanelIcon;
-  shortcut?: string;
-  soon?: boolean;
-  disabled?: boolean;
   onPress: () => void;
 }) {
   const tk = themeModel.tokens;
-  const hostRef = useWebDomClick({ onPress, disabled: disabled ?? false });
-  const style = useMemo(
-    () => (disabled ? [styles.row, styles.rowDisabled] : styles.row),
-    [disabled],
-  );
+  const hostRef = useWebDomClick({ onPress, disabled: false });
   const textStyle = useMemo(() => [styles.rowText, { color: tk.foreground }], [tk.foreground]);
   return (
-    <Pressable
-      ref={hostRef}
-      style={style}
-      onPress={disabled ? undefined : onPress}
-      disabled={disabled}
-      accessibilityRole="menuitem"
-    >
+    <Pressable ref={hostRef} style={styles.row} onPress={onPress} accessibilityRole="menuitem">
       {Icon ? <Icon size={14} color={tk.foregroundMuted} /> : null}
       <Text style={textStyle}>{label}</Text>
-      <TrailingChip shortcut={shortcut} soon={soon} />
     </Pressable>
   );
 });
 
-// A menu row's trailing chip: the "后续" roadmap badge, the shortcut keycap, or nothing (branched here so
-// the row's JSX carries no nested ternary).
-const TrailingChip = observer(function TrailingChip({
-  shortcut,
-  soon,
+// One commandless deferred row for the new-tab roadmap: icon + label + "后续", always disabled.
+export const DeferredMenuItemRow = observer(function DeferredMenuItemRow({
+  label,
+  icon: Icon,
 }: {
-  shortcut?: string;
-  soon?: boolean;
+  label: string;
+  icon: PanelIcon;
 }) {
   const tk = themeModel.tokens;
+  const textStyle = useMemo(() => [styles.rowText, { color: tk.foreground }], [tk.foreground]);
   const chip = useMemo(
     () => [styles.chip, { backgroundColor: tk.toggleActive, borderColor: tk.border }],
     [tk.toggleActive, tk.border],
@@ -131,25 +113,15 @@ const TrailingChip = observer(function TrailingChip({
     () => [styles.soonText, { color: tk.foregroundMuted }],
     [tk.foregroundMuted],
   );
-  const kbdText = useMemo(
-    () => [styles.kbdText, { color: tk.foregroundMuted }],
-    [tk.foregroundMuted],
-  );
-  if (soon) {
-    return (
+  return (
+    <Pressable style={deferredRowStyle} disabled accessibilityRole="menuitem">
+      <Icon size={14} color={tk.foregroundMuted} />
+      <Text style={textStyle}>{label}</Text>
       <View style={chip}>
         <Text style={soonText}>后续</Text>
       </View>
-    );
-  }
-  if (shortcut) {
-    return (
-      <View style={chip}>
-        <Text style={kbdText}>{shortcut}</Text>
-      </View>
-    );
-  }
-  return null;
+    </Pressable>
+  );
 });
 
 const styles = StyleSheet.create({
@@ -177,5 +149,6 @@ const styles = StyleSheet.create({
   rowText: { fontSize: 13, flex: 1 },
   chip: { borderWidth: 1, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 1 },
   soonText: { fontSize: 10, fontWeight: "700" },
-  kbdText: { fontFamily: "SFMono-Regular", fontSize: 11 },
 });
+
+const deferredRowStyle: StyleProp<ViewStyle> = [styles.row, styles.rowDisabled];
