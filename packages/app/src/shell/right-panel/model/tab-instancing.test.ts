@@ -56,6 +56,34 @@ describe("resolveTabInstancing · file", () => {
       id: "empty",
     });
   });
+
+  // A real file fills the existing empty placeholder's slot instead of appending and leaving the
+  // "选择一个文件" tab behind (requirement §3.2). The policy returns the slot; Workbench replaces content.
+  it("fills the empty file-tab slot when opening a file that is not already open", () => {
+    const existing: Existing[] = [
+      { id: "a", kind: "file", path: "src/a.ts" },
+      { id: "empty", kind: "file", path: "" },
+    ];
+
+    expect(resolveTabInstancing(existing, { kind: "file", path: "src/b.ts" })).toEqual({
+      action: "fill",
+      index: 1,
+    });
+  });
+
+  // Existing-file dedup wins over placeholder filling: opening a.ts must focus its current tab, never fill
+  // the empty slot with a duplicate a.ts and regress one-file-one-tab identity (verify item 17 / defect 7).
+  it("focuses an existing file before considering an empty placeholder", () => {
+    const existing: Existing[] = [
+      { id: "empty", kind: "file", path: "" },
+      { id: "a", kind: "file", path: "src/a.ts" },
+    ];
+
+    expect(resolveTabInstancing(existing, { kind: "file", path: "src/a.ts" })).toEqual({
+      action: "focus",
+      id: "a",
+    });
+  });
 });
 
 describe("resolveTabInstancing · single-instance (review)", () => {

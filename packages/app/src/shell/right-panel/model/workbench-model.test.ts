@@ -4,8 +4,8 @@ import { WorkbenchModel } from "./workbench-model";
 
 // WorkbenchModel is the tab-framework domain object (MobX class). These tests drive it with a fake
 // TabContentFactory (never the real FileDocumentModel — the framework must not know concrete types) and
-// assert the framework contract: append/focus/dedup/close/reorder, launcher↔tabs mode, and that a
-// PanelTab stores IDENTITY ONLY (title/activityDot are read live off content, never mirrored).
+// assert the framework contract: append/focus/dedup/fill-placeholder/close/reorder, launcher↔tabs mode,
+// and that PanelTab stores IDENTITY ONLY (title/activityDot are read live, never mirrored).
 
 // A recording stand-in for a tab's content. title/activityDot are mutable so a test can prove the tab
 // head reads them LIVE off content (no stored copy); the two hooks are spies.
@@ -73,6 +73,25 @@ describe("WorkbenchModel · openTab", () => {
     wb.openTab({ kind: "file", location: { path: "b.ts" } });
     expect(wb.tabs).toHaveLength(2);
     expect(wb.focusedTabId).toBe(wb.tabs[1].id);
+  });
+
+  // Opening a real file while the "选择一个文件" placeholder exists fills that slot in place. The old
+  // placeholder content closes, and the replacement gets its canonical path id and normal activation.
+  it("fills an empty file tab instead of leaving it behind and appending", () => {
+    const { wb, factory } = makeWorkbench();
+    wb.openLauncherType("file");
+    const placeholderId = wb.tabs[0].id;
+
+    wb.openTab({ kind: "file", location: { path: "/root/src/a.ts" } });
+
+    expect(wb.tabs).toHaveLength(1);
+    expect(wb.tabs[0].path).toBe("/root/src/a.ts");
+    expect(wb.tabs[0].id).toBe("file:/root/src/a.ts");
+    expect(wb.tabs[0].id).not.toBe(placeholderId);
+    expect(wb.focusedTabId).toBe(wb.tabs[0].id);
+    expect(factory.created).toHaveLength(2);
+    expect(factory.created[0].onClosing).toHaveBeenCalledTimes(1);
+    expect(factory.created[1].onActivated).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -188,18 +207,15 @@ describe("WorkbenchModel · reorderTab", () => {
 });
 
 describe("WorkbenchModel · openLauncherType", () => {
-  // The file launcher row WITHOUT a selection opens an empty "choose a file" tab so the tab strip appears
-  // (requirement item 3 / sRS2·4·7); it dedups to at most one empty tab. With a location it opens that file.
-  it("opens an empty 'choose a file' tab without a location (deduped), and the file with one", () => {
+  // The file launcher row without a selection opens one deduped "choose a file" tab so the strip appears.
+  // A later real-file open fills it through openTab (covered above), rather than stacking a second tab.
+  it("opens at most one empty 'choose a file' tab without a location", () => {
     const { wb } = makeWorkbench();
     wb.openLauncherType("file");
     expect(wb.tabs).toHaveLength(1);
     expect(wb.tabs[0].path).toBe("");
     wb.openLauncherType("file"); // re-click → still one empty tab (dedup by empty path)
     expect(wb.tabs).toHaveLength(1);
-    wb.openLauncherType("file", { path: "a.ts" });
-    expect(wb.tabs).toHaveLength(2);
-    expect(wb.tabs[1].path).toBe("a.ts");
   });
 
   // A disabled/deferred kind (review) never opens a tab this round.

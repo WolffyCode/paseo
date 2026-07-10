@@ -48,9 +48,8 @@ export class WorkbenchModel {
     return this.tabs.length === 0 ? "launcher" : "tabs";
   }
 
-  // Open a tab for a request: dedup by identity (file = normalized path) and focus the existing tab, or
-  // build content via the factory, append, and focus. The location is normalized here (the one canonical
-  // point) so path identity and the content's initial target are consistent.
+  // Open a normalized target by focusing its identity, replacing an empty file placeholder in its current
+  // slot, or appending. Replacement closes the placeholder content and gives the real file its canonical id.
   openTab(request: OpenTabRequest): void {
     const location = normalizeFileLocation(request.location);
     const decision = resolveTabInstancing(
@@ -68,6 +67,12 @@ export class WorkbenchModel {
       path: location.path,
       content,
     };
+    if (decision.action === "fill") {
+      this.tabs[decision.index].content.onClosing();
+      this.tabs[decision.index] = tab;
+      this.focusTab(tab.id);
+      return;
+    }
     this.tabs.push(tab);
     this.focusTab(tab.id);
   }
@@ -75,7 +80,7 @@ export class WorkbenchModel {
   // The launcher / new-tab entry. Only `file` is usable this round. With no location it opens an EMPTY
   // "choose a file" file tab (path "") so the tab strip appears (requirement item 3 / sRS2·4·7); the empty
   // path dedups to at most one such tab, and FileTabView renders its "选择一个文件" state off `!doc.path`.
-  // A later file open appends/focuses its own path-identified tab.
+  // A later real-file open replaces this placeholder in its slot through openTab's instancing decision.
   openLauncherType(kind: TabKind, location?: FileLocation): void {
     if (!TAB_KIND_POLICY[kind].enabled) {
       return;
