@@ -7,15 +7,16 @@
 import { isWeb } from "@/constants/platform";
 
 const STYLE_ID = "rp-tab-hover";
-let appliedColor: string | null = null;
+let appliedPalette: string | null = null;
 
 // Idempotently install/update the tab hover rules with the CURRENT chrome hover token (no-op off web).
 // Called from the tab bar observer on render, so a scheme flip re-tints the wash.
-export function ensureTabHoverCss(hoverColor: string): void {
+export function ensureTabHoverCss(tabHoverColor: string, foregroundColor: string): void {
   if (!isWeb || typeof document === "undefined") {
     return;
   }
-  if (appliedColor === hoverColor && document.getElementById(STYLE_ID)) {
+  const palette = `${tabHoverColor}|${foregroundColor}`;
+  if (appliedPalette === palette && document.getElementById(STYLE_ID)) {
     return;
   }
   let style = document.getElementById(STYLE_ID) as HTMLStyleElement | null;
@@ -25,14 +26,17 @@ export function ensureTabHoverCss(hoverColor: string): void {
     document.head.appendChild(style);
   }
   style.textContent = [
-    `[data-rptab]:hover { background-color: ${hoverColor} !important; }`,
+    `[data-rptab]:hover { background-color: ${tabHoverColor} !important; }`,
+    `[data-rptab]:hover [data-rptitle] { color: ${foregroundColor} !important; }`,
+    `[data-rptab]:hover svg { color: ${foregroundColor} !important; stroke: ${foregroundColor} !important; }`,
     `[data-rptab]:hover [data-rpx] { opacity: 1 !important; }`,
     `[data-rptab]:hover [data-rpdirty] { opacity: 0 !important; }`,
   ].join("\n");
-  appliedColor = hoverColor;
+  appliedPalette = palette;
 }
 
 // The dataSets marking an inactive tab hover-eligible and its swappable trailing dirty-dot / ✕.
 export const TAB_HOVER_DATASET = { rptab: "1" } as const;
+export const TAB_TITLE_DATASET = { rptitle: "1" } as const;
 export const TAB_X_DATASET = { rpx: "1" } as const;
 export const TAB_DIRTY_DATASET = { rpdirty: "1" } as const;

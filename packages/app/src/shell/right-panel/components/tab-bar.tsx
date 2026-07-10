@@ -13,6 +13,7 @@ import {
   ensureTabHoverCss,
   TAB_DIRTY_DATASET,
   TAB_HOVER_DATASET,
+  TAB_TITLE_DATASET,
   TAB_X_DATASET,
 } from "./tab-hover-css";
 
@@ -43,7 +44,7 @@ export const TabBar = observer(function TabBar({
   isOffline: boolean;
 }) {
   const tk = themeModel.tokens;
-  ensureTabHoverCss(tk.accent);
+  ensureTabHoverCss(tk.tabHover, tk.foreground);
 
   const barRef = useRef<View>(null);
   const newTabRef = useRef<View>(null);
@@ -310,7 +311,7 @@ const TabPill = observer(function TabPill({
     <View ref={hostRef} style={pillStyle} dataSet={tabData}>
       <Pressable style={styles.tabPress} onPress={onFocus} accessibilityRole="tab">
         <IconFile size={14} color={iconColor} />
-        <Text style={titleStyle} numberOfLines={1}>
+        <Text style={titleStyle} numberOfLines={1} dataSet={TAB_TITLE_DATASET}>
           {title}
         </Text>
       </Pressable>

@@ -87,6 +87,15 @@ describe("SHELL_TOKENS", () => {
     expect(SHELL_TOKENS.light.surfaceSidebar).toBe("rgb(228, 238, 240)");
     expect(SHELL_TOKENS.light.surfaceCard).toBe("rgb(255, 255, 255)");
   });
+
+  // Inactive tabs use the chrome's subtle hover wash in both schemes; GitHub blue remains reserved for
+  // focus/highlight/drop indicators and must never become a tab-pill background.
+  it("keeps inactive-tab hover on the subtle chrome token, never the blue accent", () => {
+    expect(SHELL_TOKENS.light.tabHover).toBe("#f6f8fa");
+    expect(SHELL_TOKENS.dark.tabHover).toBe("#1c2128");
+    expect(SHELL_TOKENS.light.tabHover).not.toBe(SHELL_TOKENS.light.accent);
+    expect(SHELL_TOKENS.dark.tabHover).not.toBe(SHELL_TOKENS.dark.accent);
+  });
 });
 
 describe("ThemeModel", () => {

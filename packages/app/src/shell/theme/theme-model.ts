@@ -47,9 +47,10 @@ export interface ShellTokens {
   // gray toggleActive fill alone was invisible to users (chairman gate-3 feedback 2026-07-07).
   accent: string;
   accentSoft: string;
-  // Hover overlays: top-bar toggle wash / sidebar row / ghost (back button).
+  // Hover overlays: top-bar toggle wash / sidebar row / tab pill / ghost (back button).
   toggleHover: string;
   rowHover: string;
+  tabHover: string;
   ghostHover: string;
   // Resize-gutter center line, by state.
   gutterIdle: string;
@@ -80,6 +81,7 @@ export const SHELL_TOKENS: Record<ThemeScheme, ShellTokens> = {
     accentSoft: "rgba(9, 105, 218, 0.14)",
     toggleHover: "rgba(31, 35, 40, 0.07)",
     rowHover: "#eaeef2",
+    tabHover: "#f6f8fa",
     ghostHover: "#f6f8fa",
     gutterIdle: "rgba(31, 35, 40, 0.13)",
     gutterHover: "rgba(31, 35, 40, 0.32)",
@@ -103,6 +105,7 @@ export const SHELL_TOKENS: Record<ThemeScheme, ShellTokens> = {
     accentSoft: "rgba(68, 147, 248, 0.18)",
     toggleHover: "rgba(230, 237, 243, 0.09)",
     rowHover: "#21262d",
+    tabHover: "#1c2128",
     ghostHover: "#161b22",
     gutterIdle: "rgba(230, 237, 243, 0.13)",
     gutterHover: "rgba(230, 237, 243, 0.32)",
