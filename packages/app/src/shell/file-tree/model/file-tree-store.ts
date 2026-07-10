@@ -23,10 +23,12 @@ import { resolveRevealAction } from "./reveal-action";
 import { resolveTreeRoot } from "./resolve-root";
 import {
   advanceSearch,
+  advanceSearchForRequest,
   advanceSearchRequest,
   INITIAL_SEARCH_REQUEST,
   isSearchAvailable,
   SEARCH_DEBOUNCE_MS,
+  type SearchRequestOutcome,
   type SearchRequestState,
 } from "./search-state";
 import {
@@ -135,10 +137,6 @@ export class FileTreeStore {
   nodeError = new Map<string, string>();
   searchOpen = false;
   search: SearchState = IDLE_SEARCH;
-  // True while a host search RPC is in flight — with progressive delivery the phase flips to
-  // "results" on the first streamed batch, and this flag keeps the "仍在搜索" cue visible until the
-  // final (complete) response settles.
-  searchInFlight = false;
   contentSearchBasePath: string | null = null;
   clipboard: Clipboard | null = null;
   editing: Editing = null;
@@ -150,12 +148,12 @@ export class FileTreeStore {
   private rootListed = false;
   // Set when the root listing itself failed (distinct from per-node errors) → panel error state.
   private rootError = false;
-  // Pending debounced content-search timer; cleared/replaced when the query changes so only the latest
+  // Pending debounced search timer; cleared/replaced when the query changes so only the latest
   // search fires (interrupts the prior one — the user's "change the query mid-search" case). Transient
   // wiring, not reactive state (excluded from observability below).
   private searchTimer: ReturnType<typeof setTimeout> | null = null;
-  // Pure lifecycle ownership for the debounce boundary. A monotonically increasing token makes an old
-  // timer ineligible to start after newer input or an explicit clear; IO settlement is added separately.
+  // Pure lifecycle ownership from debounce through settlement. Its monotonic token is the sole authority
+  // for progress/results/errors, so an obsolete request cannot mutate the latest visible search.
   private searchRequest: SearchRequestState = INITIAL_SEARCH_REQUEST;
 
   private readonly deps: FileTreeStoreDeps;
@@ -171,7 +169,7 @@ export class FileTreeStore {
       this,
       {
         deps: false,
-        searchRequest: false,
+        searchRequest: observable.ref,
         searchTimer: false,
         expanded: observable.ref,
         dirCache: observable.ref,
@@ -229,6 +227,12 @@ export class FileTreeStore {
   // The current search results (non-empty only in the results phase) for the result list + highlight.
   get searchResultsView(): ReadonlyArray<SearchMatch> {
     return this.search.phase === "results" ? this.search.results : [];
+  }
+
+  // Whether the latest request is physically in flight; derived from the same token lifecycle that gates
+  // outcomes so clearing/replacing a request updates the streaming cue immediately and cannot go stale.
+  get searchInFlight(): boolean {
+    return this.searchRequest.phase === "running";
   }
 
   // Whether paste is currently available — true exactly when the clipboard holds an entry.
@@ -522,6 +526,22 @@ export class FileTreeStore {
     this.search = advanceSearch(this.search, { type: "clear" });
   }
 
+  // Retry only a genuine failure from the latest request. Capability errors retain their upgrade exit;
+  // a retry re-enters the normal debounce/token path instead of bypassing request ownership.
+  retrySearch(): void {
+    if (this.search.phase !== "error" || this.search.errorKind !== "failed") {
+      return;
+    }
+    const next = advanceSearch(this.search, {
+      type: "query-changed",
+      query: this.search.query,
+    });
+    this.search = next;
+    if (next.phase === "searching") {
+      this.runSearch(next);
+    }
+  }
+
   // Run the active query and settle the machine with results/empty/error. Both modes go through the
   // debounced host RPC so the search covers the WHOLE tree root (unexpanded layers included) — the
   // architecture's earlier client-side name filter only saw already-listed nodes and missed the rest.
@@ -557,7 +577,7 @@ export class FileTreeStore {
         return;
       }
       this.searchRequest = next;
-      void this.runHostSearch(state);
+      void this.runHostSearch(state, token);
     }, SEARCH_DEBOUNCE_MS);
   }
 
@@ -597,12 +617,9 @@ export class FileTreeStore {
     }
   }
 
-  // Fire the fs.search RPC for the state's mode and settle the machine on resolution, ignoring a
-  // stale result if the user changed the query/mode since this request started (last-query-wins, no
-  // out-of-order flash). The find-in-files base path only scopes content mode; name mode always
-  // searches from the root. Progressive: streamed batches append into the results as previews
-  // (first hits paint sub-second); the final response replaces them with the complete set.
-  private async runHostSearch(state: SearchState): Promise<void> {
+  // Fire one token-owned fs.search RPC. Every progress/result/error and the final in-flight settlement
+  // passes through that token, making even identical-query retries latest-wins.
+  private async runHostSearch(state: SearchState, token: number): Promise<void> {
     const input: SearchInput = {
       root: this.hostRoot as string,
       query: state.query,
@@ -611,39 +628,41 @@ export class FileTreeStore {
         ? { basePath: this.contentSearchBasePath }
         : {}),
     };
-    const isCurrent = (): boolean =>
-      this.search.query === state.query && this.search.mode === state.mode;
-    this.searchInFlight = true;
     try {
       const result = await this.deps.data.search(input, (matches) => {
         runInAction(() => {
-          if (isCurrent()) {
-            this.search = advanceSearch(this.search, { type: "progress", matches });
-          }
+          this.search = advanceSearchForRequest({
+            search: this.search,
+            request: this.searchRequest,
+            token,
+            outcome: { type: "progress", matches },
+          });
         });
       });
       runInAction(() => {
-        if (!isCurrent()) {
-          return;
-        }
-        this.search = advanceSearch(
-          this.search,
+        const outcome: SearchRequestOutcome =
           result.matches.length > 0
             ? { type: "results", matches: result.matches }
-            : { type: "empty" },
-        );
+            : { type: "empty" };
+        this.search = advanceSearchForRequest({
+          search: this.search,
+          request: this.searchRequest,
+          token,
+          outcome,
+        });
       });
     } catch {
       runInAction(() => {
-        if (isCurrent()) {
-          // The RPC ran and broke (timeout / disconnect / host error) — "failed" copy, not the
-          // capability-upgrade prompt.
-          this.search = advanceSearch(this.search, { type: "error", kind: "failed" });
-        }
+        this.search = advanceSearchForRequest({
+          search: this.search,
+          request: this.searchRequest,
+          token,
+          outcome: { type: "error", kind: "failed" },
+        });
       });
     } finally {
       runInAction(() => {
-        this.searchInFlight = false;
+        this.searchRequest = advanceSearchRequest(this.searchRequest, { type: "settle", token });
       });
     }
   }

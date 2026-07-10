@@ -18,6 +18,7 @@ export interface SearchRequestState {
 export type SearchRequestEvent =
   | { type: "schedule" }
   | { type: "debounce-elapsed"; token: number }
+  | { type: "settle"; token: number }
   | { type: "cancel" };
 
 /** Initial request lifecycle: no timer or host request owns the search surface. */
@@ -32,6 +33,20 @@ export type SearchEvent =
   | { type: "empty" }
   | { type: "error"; kind?: SearchErrorKind }
   | { type: "clear" };
+
+/** Host outcomes that must pass request-token ownership before they may change visible search state. */
+export type SearchRequestOutcome = Extract<
+  SearchEvent,
+  { type: "progress" | "results" | "empty" | "error" }
+>;
+
+/** Inputs for applying one host outcome through the latest-request gate. */
+export interface SearchRequestOutcomeInput {
+  readonly search: SearchState;
+  readonly request: SearchRequestState;
+  readonly token: number;
+  readonly outcome: SearchRequestOutcome;
+}
 
 /** Advance search: query/mode changes (re)enter searching or reset to idle; outcomes settle phase. */
 export function advanceSearch(current: SearchState, event: SearchEvent): SearchState {
@@ -92,9 +107,27 @@ export function advanceSearchRequest(
         return current;
       }
       return { latestToken: current.latestToken, phase: "running" };
+    case "settle":
+      if (current.phase !== "running" || event.token !== current.latestToken) {
+        return current;
+      }
+      return { latestToken: current.latestToken, phase: "idle" };
     case "cancel":
       return { latestToken: current.latestToken + 1, phase: "idle" };
   }
+}
+
+/** Apply progress/result/error only when its token still owns the running request. */
+export function advanceSearchForRequest({
+  search,
+  request,
+  token,
+  outcome,
+}: SearchRequestOutcomeInput): SearchState {
+  if (request.phase !== "running" || token !== request.latestToken) {
+    return search;
+  }
+  return advanceSearch(search, outcome);
 }
 
 /** All non-overlapping case-insensitive match ranges of query within text, for highlight rendering. */

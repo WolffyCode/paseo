@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   advanceSearch,
+  advanceSearchForRequest,
   advanceSearchRequest,
   computeHighlightRanges,
   INITIAL_SEARCH_REQUEST,
@@ -188,6 +189,112 @@ describe("advanceSearchRequest — debounce state machine", () => {
         token: scheduled.latestToken,
       }),
     ).toBe(cancelled);
+  });
+
+  it("applies outcomes only for the latest running token, even when queries are identical", () => {
+    const firstScheduled = advanceSearchRequest(INITIAL_SEARCH_REQUEST, { type: "schedule" });
+    const firstRunning = advanceSearchRequest(firstScheduled, {
+      type: "debounce-elapsed",
+      token: firstScheduled.latestToken,
+    });
+    const secondScheduled = advanceSearchRequest(firstRunning, { type: "schedule" });
+    const secondRunning = advanceSearchRequest(secondScheduled, {
+      type: "debounce-elapsed",
+      token: secondScheduled.latestToken,
+    });
+    const searching: SearchState = {
+      mode: "name",
+      query: "same",
+      results: [],
+      phase: "searching",
+    };
+    const latestResults = advanceSearchForRequest({
+      search: searching,
+      request: secondRunning,
+      token: secondRunning.latestToken,
+      outcome: { type: "results", matches: [{ path: "new.ts", kind: "file" }] },
+    });
+
+    expect(latestResults.phase).toBe("results");
+    expect(
+      advanceSearchForRequest({
+        search: latestResults,
+        request: secondRunning,
+        token: firstRunning.latestToken,
+        outcome: {
+          type: "results",
+          matches: [{ path: "old.ts", kind: "file" }],
+        },
+      }),
+    ).toBe(latestResults);
+    expect(
+      advanceSearchForRequest({
+        search: latestResults,
+        request: secondRunning,
+        token: firstRunning.latestToken,
+        outcome: { type: "error", kind: "failed" },
+      }),
+    ).toBe(latestResults);
+    expect(
+      advanceSearchRequest(secondRunning, {
+        type: "settle",
+        token: firstRunning.latestToken,
+      }),
+    ).toBe(secondRunning);
+    expect(
+      advanceSearchRequest(secondRunning, {
+        type: "settle",
+        token: secondRunning.latestToken,
+      }),
+    ).toEqual({ latestToken: secondRunning.latestToken, phase: "idle" });
+  });
+
+  it("ignores an error from a request invalidated by explicit cancellation", () => {
+    const scheduled = advanceSearchRequest(INITIAL_SEARCH_REQUEST, { type: "schedule" });
+    const running = advanceSearchRequest(scheduled, {
+      type: "debounce-elapsed",
+      token: scheduled.latestToken,
+    });
+    const cancelled = advanceSearchRequest(running, { type: "cancel" });
+    const cleared: SearchState = { mode: "name", query: "", results: [], phase: "idle" };
+
+    expect(
+      advanceSearchForRequest({
+        search: cleared,
+        request: cancelled,
+        token: running.latestToken,
+        outcome: { type: "error", kind: "failed" },
+      }),
+    ).toBe(cleared);
+  });
+
+  it("turns a real failure from the latest running token into the retryable error phase", () => {
+    const scheduled = advanceSearchRequest(INITIAL_SEARCH_REQUEST, { type: "schedule" });
+    const running = advanceSearchRequest(scheduled, {
+      type: "debounce-elapsed",
+      token: scheduled.latestToken,
+    });
+    const searching: SearchState = {
+      mode: "content",
+      query: "needle",
+      results: [],
+      phase: "searching",
+    };
+
+    expect(
+      advanceSearchForRequest({
+        search: searching,
+        request: running,
+        token: running.latestToken,
+        outcome: { type: "error", kind: "failed" },
+      }),
+    ).toEqual({
+      mode: "content",
+      query: "needle",
+      results: [],
+      phase: "error",
+      errorKind: "failed",
+    });
   });
 });
 

@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { useWebScrollViewScrollbar } from "@/components/use-web-scrollbar";
-import { ChevronDown, Search, X } from "lucide-react-native";
+import { ChevronDown, RotateCw, Search, X } from "lucide-react-native";
 import { SvgXml } from "react-native-svg";
 import { isWeb } from "@/constants/platform";
 import {
@@ -186,7 +186,7 @@ export const TreeSearch = observer(function TreeSearch({ store }: { store: FileT
         {phase === "searching" ? <SearchSkeleton color={tk.toggleActive} /> : null}
         {phase === "empty" ? <NoMatchState /> : null}
         {phase === "error" ? (
-          <SearchErrorState mode={mode} kind={store.search.errorKind ?? "failed"} />
+          <SearchErrorState store={store} mode={mode} kind={store.search.errorKind ?? "failed"} />
         ) : null}
         {phase === "results" ? <ResultList store={store} mode={mode} query={query} /> : null}
       </Pressable>
@@ -503,9 +503,11 @@ function NoMatchState() {
 // (upgrade prompt, no degraded fan-out); "failed" = this run broke (timeout / disconnect / host
 // error — retry prompt). Conflating the two showed "upgrade your host" for plain timeouts.
 function SearchErrorState({
+  store,
   mode,
   kind,
 }: {
+  store: FileTreeStore;
   mode: "name" | "content";
   kind: "unsupported" | "failed";
 }) {
@@ -519,11 +521,23 @@ function SearchErrorState({
     [tk.foregroundMuted],
   );
   const { title, sub } = searchErrorCopy(mode, kind);
+  const retry = useCallback(() => store.retrySearch(), [store]);
   return (
     <View style={styles.noMatch}>
       <Search size={22} color={tk.foregroundMuted} />
       <Text style={titleStyle}>{title}</Text>
       <Text style={subStyle}>{sub}</Text>
+      {kind === "failed" ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="重试搜索"
+          onPress={retry}
+          style={styles.retryButton}
+        >
+          <RotateCw size={13} color={FT_BLUE} />
+          <Text style={styles.retryText}>重试</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -604,4 +618,17 @@ const styles = StyleSheet.create({
   },
   noMatchTitle: { fontSize: 13, fontWeight: "600", textAlign: "center" },
   noMatchSub: { fontSize: 11.5, lineHeight: 17, maxWidth: 200, textAlign: "center" },
+  retryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 2,
+    paddingVertical: 5,
+    paddingHorizontal: 11,
+    borderWidth: 1,
+    borderRadius: 6,
+    borderColor: "rgba(9, 105, 218, 0.35)",
+    backgroundColor: "rgba(9, 105, 218, 0.05)",
+  },
+  retryText: { color: FT_BLUE, fontSize: 12, fontWeight: "500" },
 });

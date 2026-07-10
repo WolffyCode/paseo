@@ -16,6 +16,13 @@ import { FileTreeStore, type FileTreeStoreDeps } from "./file-tree-store";
 import type { DirectoryListing, FileTreeData } from "../data/file-tree-data";
 import type { TreeEntry } from "./types";
 
+type SearchResponse = Awaited<ReturnType<FileTreeData["search"]>>;
+
+interface DeferredSearch {
+  resolve(value: SearchResponse): void;
+  reject(error: Error): void;
+}
+
 // A root-relative directory entry (path == name under the root; "parent/name" deeper) to keep fixtures
 // terse and faithful to what the host returns.
 function entry(name: string, kind: "file" | "directory", parent = ""): TreeEntry {
@@ -711,6 +718,116 @@ describe("FileTreeStore search machine", () => {
 
       expect(store.search.phase).toBe("idle");
       expect(search).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("keeps newer same-query results when an older request fails afterward", async () => {
+    vi.useFakeTimers();
+    try {
+      const pending: DeferredSearch[] = [];
+      const search = vi.fn<FileTreeData["search"]>(
+        () =>
+          new Promise((resolve, reject) => {
+            pending.push({ resolve, reject });
+          }),
+      );
+      const data: FileTreeData = { ...fakeData().data, search };
+      const { store } = makeStore({ data });
+      await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+
+      store.setQuery("same");
+      await vi.advanceTimersByTimeAsync(250);
+      store.setQuery("same");
+      await vi.advanceTimersByTimeAsync(250);
+
+      expect(pending).toHaveLength(2);
+      const first = pending[0];
+      const second = pending[1];
+      if (!first || !second) {
+        throw new Error("Expected two in-flight search requests");
+      }
+      second.resolve({
+        matches: [{ path: "new.ts", kind: "file" }],
+        truncated: false,
+      });
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(store.search.phase).toBe("results");
+      expect(store.searchResultsView.map((match) => match.path)).toEqual(["new.ts"]);
+
+      first.reject(new Error("old request timed out"));
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(store.search.phase).toBe("results");
+      expect(store.searchResultsView.map((match) => match.path)).toEqual(["new.ts"]);
+      expect(store.searchInFlight).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("clear invalidates an in-flight request immediately and its rejection stays non-error", async () => {
+    vi.useFakeTimers();
+    try {
+      const pending: DeferredSearch[] = [];
+      const search = vi.fn<FileTreeData["search"]>(
+        () =>
+          new Promise((resolve, reject) => {
+            pending.push({ resolve, reject });
+          }),
+      );
+      const data: FileTreeData = { ...fakeData().data, search };
+      const { store } = makeStore({ data });
+      await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+
+      store.setQuery("needle");
+      await vi.advanceTimersByTimeAsync(250);
+      expect(store.searchInFlight).toBe(true);
+
+      store.clearSearch();
+
+      expect(store.search.phase).toBe("idle");
+      expect(store.searchInFlight).toBe(false);
+      const request = pending[0];
+      if (!request) {
+        throw new Error("Expected one in-flight search request");
+      }
+      request.reject(new Error("request aborted"));
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(store.search.phase).toBe("idle");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  test("retries the latest real failure and replaces the error with fresh results", async () => {
+    vi.useFakeTimers();
+    try {
+      const search = vi
+        .fn<FileTreeData["search"]>()
+        .mockRejectedValueOnce(new Error("host search failed"))
+        .mockResolvedValueOnce({
+          matches: [{ path: "recovered.ts", kind: "file" }],
+          truncated: false,
+        });
+      const data: FileTreeData = { ...fakeData().data, search };
+      const { store } = makeStore({ data });
+      await store.ensureRoot({ externalRoot: "/root", conversationRoot: null });
+
+      store.setQuery("recover");
+      await vi.advanceTimersByTimeAsync(250);
+      expect(store.search).toMatchObject({ phase: "error", errorKind: "failed" });
+
+      store.retrySearch();
+      expect(store.search.phase).toBe("searching");
+      await vi.advanceTimersByTimeAsync(250);
+
+      expect(search).toHaveBeenCalledTimes(2);
+      expect(store.search.phase).toBe("results");
+      expect(store.searchResultsView.map((match) => match.path)).toEqual(["recovered.ts"]);
     } finally {
       vi.useRealTimers();
     }
