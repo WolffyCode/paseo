@@ -89,7 +89,7 @@ describe("buildConversationTree", () => {
     expect(root?.children[0]?.children[0]?.children[0]?.children[0]?.id).toBe("depth-5");
   });
 
-  test("filters both archived and closed agents together with their unreachable descendants", () => {
+  test("filters an archived parent together with its unreachable descendants", () => {
     const nodes = buildConversationTree({
       agents: [
         agent("kept", { workspaceId: "w1" }),
@@ -98,14 +98,52 @@ describe("buildConversationTree", () => {
           archivedAt: "2026-07-12T03:00:00.000Z",
         }),
         agent("archived-child", { parentAgentId: "archived" }),
-        agent("closed", { workspaceId: "w1", status: "closed" }),
-        agent("closed-child", { parentAgentId: "closed" }),
       ],
       projects: PROJECTS,
       workspaceDetails: new Map(),
     });
 
     expect(nodes[0]?.children.map((node) => node.id)).toEqual(["kept"]);
+  });
+
+  test("promotes an agent whose parent id is absent from every snapshot state to its own root", () => {
+    const nodes = buildConversationTree({
+      agents: [
+        agent("kept", { workspaceId: "w1" }),
+        agent("orphan-root", {
+          workspaceId: "w1",
+          parentAgentId: "cross-daemon-ghost",
+          createdAt: "2026-07-12T02:00:00.000Z",
+        }),
+        agent("orphan-child", { parentAgentId: "orphan-root" }),
+        agent("loose-orphan", { parentAgentId: "also-missing" }),
+      ],
+      projects: PROJECTS,
+      workspaceDetails: new Map(),
+    });
+
+    expect(nodes[0]?.children.map((node) => node.id)).toEqual(["kept", "orphan-root"]);
+    expect(nodes[0]?.children[1]?.children.map((node) => node.id)).toEqual(["orphan-child"]);
+    expect(nodes.map((node) => `${node.kind}:${node.id}`)).toContain("conversation:loose-orphan");
+  });
+
+  test("keeps a live child of a known-but-archived parent invisible rather than promoting it", () => {
+    const nodes = buildConversationTree({
+      agents: [
+        agent("archived-parent", {
+          workspaceId: "w1",
+          archivedAt: "2026-07-12T03:00:00.000Z",
+        }),
+        agent("still-live-child", { parentAgentId: "archived-parent" }),
+      ],
+      projects: PROJECTS,
+      workspaceDetails: new Map(),
+    });
+
+    expect(nodes.map((node) => `${node.kind}:${node.id}`)).not.toContain(
+      "conversation:still-live-child",
+    );
+    expect(nodes[0]?.children).toEqual([]);
   });
 
   test("uses live workspace titles only for root conversations and falls back to agent identity", () => {

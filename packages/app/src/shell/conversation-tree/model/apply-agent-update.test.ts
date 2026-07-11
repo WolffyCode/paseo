@@ -67,7 +67,7 @@ describe("applyAgentUpdate", () => {
     expect(detached.projects.get("new-project")?.workspaceIds).toEqual([]);
   });
 
-  test("remove reports both the exact removed id and descendants made unreachable by its absence", () => {
+  test("remove reports only the exact removed id; its now-parentless descendants stay reachable as promoted roots", () => {
     const root = agent("root");
     const child = agent("child", { parentAgentId: "root" });
     const grandchild = agent("grandchild", { parentAgentId: "child" });
@@ -85,7 +85,7 @@ describe("applyAgentUpdate", () => {
     );
 
     expect(Array.from(result.agents.keys())).toEqual(["child", "grandchild"]);
-    expect(result.unreachableIds).toEqual(new Set(["root", "child", "grandchild"]));
+    expect(result.unreachableIds).toEqual(new Set(["root"]));
   });
 
   test("treats archived or closed upserts as removals from the active snapshot", () => {
@@ -109,7 +109,7 @@ describe("applyAgentUpdate", () => {
     expect(closed.unreachableIds).toEqual(new Set(["root"]));
   });
 
-  test("marks orphan and cyclic upserts unreachable without affecting healthy roots", () => {
+  test("treats a purely dangling parent reference as reachable, matching build-tree's root promotion", () => {
     const healthy = agent("healthy");
     const orphan = agent("orphan", { parentAgentId: "missing" });
     const result = applyAgentUpdate(
@@ -117,6 +117,27 @@ describe("applyAgentUpdate", () => {
       { kind: "upsert", agent: orphan, projectKey: null },
     );
 
-    expect(result.unreachableIds).toEqual(new Set(["orphan"]));
+    expect(result.unreachableIds).toEqual(new Set());
+  });
+
+  test("marks self and mutual parent cycles unreachable without affecting a healthy root", () => {
+    const healthy = agent("healthy");
+    const selfCycle = agent("self-cycle", { parentAgentId: "self-cycle" });
+    const cycleA = agent("cycle-a", { parentAgentId: "cycle-b" });
+    const cycleB = agent("cycle-b", { parentAgentId: "cycle-a" });
+    const result = applyAgentUpdate(
+      {
+        agents: new Map([
+          [healthy.id, healthy],
+          [selfCycle.id, selfCycle],
+          [cycleA.id, cycleA],
+          [cycleB.id, cycleB],
+        ]),
+        projects: new Map(),
+      },
+      { kind: "upsert", agent: healthy, projectKey: null },
+    );
+
+    expect(result.unreachableIds).toEqual(new Set(["self-cycle", "cycle-a", "cycle-b"]));
   });
 });

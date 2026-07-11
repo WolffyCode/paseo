@@ -90,23 +90,34 @@ function updateProjectMembership(
   });
 }
 
-/** Follow parent identities to a surviving root and reject missing links or cycles. */
+/**
+ * Follow parent identities up to a root and reject cycles, matching build-tree's promotion rule:
+ * the target itself must be present, but an ANCESTOR id absent from every snapshot state is a
+ * dangling reference (cross-daemon caller, purged record) that build-tree promotes to its own
+ * root rather than hides — so it counts as reachable here too, and selection state survives it.
+ * Only a genuinely known ancestor that cascades a filter (e.g. archived) keeps the chain broken.
+ */
 function isReachableFromRoot(
   agentId: string,
   agents: ReadonlyMap<string, ConversationTreeAgent>,
 ): boolean {
-  const visited = new Set<string>();
-  let currentId = agentId;
-  while (!visited.has(currentId)) {
-    visited.add(currentId);
-    const current = agents.get(currentId);
-    if (current === undefined) {
+  const start = agents.get(agentId);
+  if (start === undefined) {
+    return false;
+  }
+  const visited = new Set<string>([agentId]);
+  let current = start;
+  while (current.parentAgentId !== null) {
+    const parentId = current.parentAgentId;
+    if (visited.has(parentId)) {
       return false;
     }
-    if (current.parentAgentId === null) {
+    const parent = agents.get(parentId);
+    if (parent === undefined) {
       return true;
     }
-    currentId = current.parentAgentId;
+    visited.add(parentId);
+    current = parent;
   }
-  return false;
+  return true;
 }

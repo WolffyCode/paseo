@@ -265,7 +265,7 @@ describe("ConversationTreeStore", () => {
     expect(data.workspaceHandlers.size).toBe(1);
   });
 
-  test("clears editing, active, and focused identities when an ancestor removal makes them unreachable", async () => {
+  test("clears only the focus pointing at a removed root; its promoted descendants stay selected", async () => {
     const data = new FakeConversationTreeData();
     data.agents = [
       agent("root", { workspaceId: "workspace-root" }),
@@ -289,6 +289,29 @@ describe("ConversationTreeStore", () => {
     store.activateNode(root);
     store.activateNode(child);
     store.beginRename("conversation", "grandchild");
+
+    data.emitAgent({ kind: "remove", agentId: "root" });
+
+    // "child" and "grandchild" lost their only ancestor, not themselves — build-tree now
+    // promotes "child" to its own root, so both stay visible and their selection survives.
+    // Only focusedRootId, which pointed at the exact removed id, falls back to null.
+    expect(store.editing).not.toBeNull();
+    expect(store.activeNodeId).toBe("child");
+    expect(store.focusedRootId).toBeNull();
+  });
+
+  test("clears editing, active, and focused identities when the selected node itself is removed", async () => {
+    const data = new FakeConversationTreeData();
+    data.agents = [agent("root", { workspaceId: "workspace-root" })];
+    data.workspaceSnapshot = {
+      workspaces: [workspace("workspace-root")],
+      emptyProjects: [],
+    };
+    const { store } = createStoreHarness(data);
+    await store.load();
+    const root = firstConversation(store);
+    store.activateNode(root);
+    store.beginRename("conversation", "root");
 
     data.emitAgent({ kind: "remove", agentId: "root" });
 

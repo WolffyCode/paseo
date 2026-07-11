@@ -67,7 +67,13 @@ export function buildConversationTree(input: BuildConversationTreeInput): Conver
   const rootsByProject = new Map<string, ConversationTreeAgent[]>();
   const looseRoots: ConversationTreeAgent[] = [];
   for (const candidate of liveAgents) {
-    if (candidate.parentAgentId !== null) {
+    // A parent id absent from every snapshot state (cross-daemon caller, purged record) can
+    // never be traversed to, so treat the candidate as its own root instead of silently
+    // dropping it and its whole subtree. A parent id that IS present (even if filtered out of
+    // liveAgents, e.g. archived) keeps today's cascade-filter behavior via non-traversal below.
+    const hasKnownParent =
+      candidate.parentAgentId !== null && agentsById.has(candidate.parentAgentId);
+    if (hasKnownParent) {
       continue;
     }
     const workspaceId = normalizeWorkspaceId(candidate.workspaceId);
