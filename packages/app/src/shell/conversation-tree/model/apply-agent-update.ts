@@ -35,13 +35,22 @@ export function applyAgentUpdate(
   }
 
   const candidateIds = new Set([...state.agents.keys(), ...agents.keys()]);
+  const unreachableIds = collectUnreachableAgentIds(candidateIds, agents);
+  return { agents, projects, unreachableIds };
+}
+
+/** Find tracked identities whose parent chain no longer reaches a surviving root agent. */
+export function collectUnreachableAgentIds(
+  candidateIds: Iterable<string>,
+  agents: ReadonlyMap<string, ConversationTreeAgent>,
+): ReadonlySet<string> {
   const unreachableIds = new Set<string>();
   for (const agentId of candidateIds) {
     if (!isReachableFromRoot(agentId, agents)) {
       unreachableIds.add(agentId);
     }
   }
-  return { agents, projects, unreachableIds };
+  return unreachableIds;
 }
 
 /** Keep only snapshots eligible for the active tree rather than retaining hidden closed records. */
