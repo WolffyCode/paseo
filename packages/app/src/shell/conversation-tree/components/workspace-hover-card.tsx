@@ -1,7 +1,7 @@
 import { Portal } from "@gorhom/portal";
 import { Clock3, Folder, GitBranch } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useState, type RefObject } from "react";
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { isWeb } from "@/constants/platform";
 import {
   measureFloatingPanelPortalHost,
@@ -13,12 +13,137 @@ import type { WorkspaceDetail } from "../model/types";
 const CARD_WIDTH = 236;
 const CARD_GAP = 8;
 const SCREEN_GUTTER = 8;
+const HOVER_SAFE_ZONE_GRACE_MS = 100;
 
 interface Rect {
   readonly x: number;
   readonly y: number;
   readonly width: number;
   readonly height: number;
+}
+
+export interface HoverRect {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
+function isInsideHoverRect(rect: HoverRect | null, x: number, y: number): boolean {
+  if (rect === null) return false;
+  return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+}
+
+// Trigger rect ∪ content rect ∪ the rectangular bridge between them, so the pointer
+// can cross the portal's real visual gap without dropping hover. Equivalent copy of
+// @/hooks/hover-safe-zone-tracker.ts — architecture §4.2 requires copying this
+// geometry (not importing) since it isn't in shell/ or a shared foundation package.
+export function isInsideHoverSafeZone(
+  trigger: HoverRect | null,
+  content: HoverRect | null,
+  x: number,
+  y: number,
+): boolean {
+  if (isInsideHoverRect(trigger, x, y)) return true;
+  if (isInsideHoverRect(content, x, y)) return true;
+  if (trigger === null || content === null) return false;
+  const bridgeLeft = Math.min(trigger.right, content.right);
+  const bridgeRight = Math.max(trigger.left, content.left);
+  if (bridgeLeft >= bridgeRight) return false;
+  const bridgeTop = Math.min(trigger.top, content.top);
+  const bridgeBottom = Math.max(trigger.bottom, content.bottom);
+  return x >= bridgeLeft && x <= bridgeRight && y >= bridgeTop && y <= bridgeBottom;
+}
+
+interface HoverSafeZoneTrackerInput {
+  getTriggerRect: () => HoverRect | null;
+  getContentRect: () => HoverRect | null;
+  onEnterSafeZone: () => void;
+  onLeaveSafeZone: () => void;
+}
+
+interface HoverSafeZoneTracker {
+  pointerMoved(x: number, y: number): void;
+  pointerLeftWindow(): void;
+  windowBlurred(): void;
+}
+
+// Fires onEnterSafeZone on every move that lands inside (so callers can refresh a
+// pending-close timer) and onLeaveSafeZone once per inside→outside transition (not
+// on every outside move) — bookkeeping equivalent to hover-safe-zone-tracker.ts.
+export function createHoverSafeZoneTracker(input: HoverSafeZoneTrackerInput): HoverSafeZoneTracker {
+  const { getTriggerRect, getContentRect, onEnterSafeZone, onLeaveSafeZone } = input;
+  let wasInside = true;
+
+  function leave(): void {
+    if (!wasInside) return;
+    wasInside = false;
+    onLeaveSafeZone();
+  }
+
+  return {
+    pointerMoved(x, y) {
+      if (isInsideHoverSafeZone(getTriggerRect(), getContentRect(), x, y)) {
+        wasInside = true;
+        onEnterSafeZone();
+        return;
+      }
+      leave();
+    },
+    pointerLeftWindow: leave,
+    windowBlurred: leave,
+  };
+}
+
+function readHoverRect(ref: RefObject<View | null>): HoverRect | null {
+  const node = ref.current as unknown as Element | null;
+  return node ? node.getBoundingClientRect() : null;
+}
+
+/** Wire the tracker to real pointer/window events: fires onEnter/onLeave as the pointer crosses the trigger/content safe zone or the window loses it. */
+function useHoverSafeZone({
+  enabled,
+  triggerRef,
+  contentRef,
+  onEnterSafeZone,
+  onLeaveSafeZone,
+}: {
+  enabled: boolean;
+  triggerRef: RefObject<View | null>;
+  contentRef: RefObject<View | null>;
+  onEnterSafeZone: () => void;
+  onLeaveSafeZone: () => void;
+}): void {
+  useEffect(() => {
+    if (!isWeb || !enabled) return;
+    const tracker = createHoverSafeZoneTracker({
+      getTriggerRect: () => readHoverRect(triggerRef),
+      getContentRect: () => readHoverRect(contentRef),
+      onEnterSafeZone,
+      onLeaveSafeZone,
+    });
+
+    function handlePointerMove(event: PointerEvent): void {
+      tracker.pointerMoved(event.clientX, event.clientY);
+    }
+
+    function handlePointerOut(event: PointerEvent): void {
+      if (event.relatedTarget === null) tracker.pointerLeftWindow();
+    }
+
+    function handleBlur(): void {
+      tracker.windowBlurred();
+    }
+
+    document.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerout", handlePointerOut);
+    window.addEventListener("blur", handleBlur);
+    return () => {
+      document.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerout", handlePointerOut);
+      window.removeEventListener("blur", handleBlur);
+    };
+  }, [enabled, triggerRef, contentRef, onEnterSafeZone, onLeaveSafeZone]);
 }
 
 /** Render the directory-backed conversation summary in a portal beside its row. */
@@ -28,16 +153,14 @@ export function WorkspaceHoverCard({
   workspaceId,
   title,
   detail,
-  onHoverIn,
-  onHoverOut,
+  onRequestClose,
 }: {
   visible: boolean;
   anchorRef: RefObject<View | null>;
   workspaceId: string;
   title: string;
   detail: WorkspaceDetail;
-  onHoverIn: () => void;
-  onHoverOut: () => void;
+  onRequestClose: () => void;
 }) {
   const portalHostName = useFloatingPanelPortalHostName();
   const window = useWindowDimensions();
@@ -45,6 +168,36 @@ export function WorkspaceHoverCard({
   const [host, setHost] = useState<Rect | null>(null);
   const [cardHeight, setCardHeight] = useState(132);
   const tk = themeModel.tokens;
+  const contentRef = useRef<View | null>(null);
+  const closeGraceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearCloseGraceTimer = useCallback(() => {
+    if (closeGraceTimer.current !== null) {
+      clearTimeout(closeGraceTimer.current);
+      closeGraceTimer.current = null;
+    }
+  }, []);
+  const scheduleClose = useCallback(() => {
+    clearCloseGraceTimer();
+    closeGraceTimer.current = setTimeout(() => {
+      closeGraceTimer.current = null;
+      onRequestClose();
+    }, HOVER_SAFE_ZONE_GRACE_MS);
+  }, [clearCloseGraceTimer, onRequestClose]);
+
+  // Keep the card open while the pointer is inside the row, the card, or the gap
+  // between them; only ask the row to close once it truly leaves that safe zone.
+  useHoverSafeZone({
+    enabled: visible,
+    triggerRef: anchorRef,
+    contentRef,
+    onEnterSafeZone: clearCloseGraceTimer,
+    onLeaveSafeZone: scheduleClose,
+  });
+
+  useEffect(() => {
+    return () => clearCloseGraceTimer();
+  }, [clearCloseGraceTimer]);
 
   useEffect(() => {
     if (!visible || !isWeb || anchorRef.current === null) {
@@ -107,9 +260,8 @@ export function WorkspaceHoverCard({
   }
   return (
     <Portal hostName={portalHostName}>
-      <Pressable
-        onHoverIn={onHoverIn}
-        onHoverOut={onHoverOut}
+      <View
+        ref={contentRef}
         onLayout={handleLayout}
         style={cardStyle}
         testID={`conv-tree-workspace-hover-${workspaceId}`}
@@ -132,7 +284,7 @@ export function WorkspaceHoverCard({
             <Text style={removedStyle}>-{detail.diffStat.removed}</Text>
           </View>
         )}
-      </Pressable>
+      </View>
     </Portal>
   );
 }

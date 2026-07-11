@@ -40,7 +40,6 @@ import { WorkspaceHoverCard } from "./workspace-hover-card";
 const INDENT_PER_DEPTH = 14;
 const MAX_VISUAL_DEPTH = 8;
 const HOVER_CARD_OPEN_DELAY_MS = 350;
-const HOVER_CARD_CLOSE_DELAY_MS = 140;
 const WEB_INPUT_STYLE = (isWeb ? { outlineStyle: "none", userSelect: "text" } : null) as
   | object
   | null;
@@ -63,7 +62,6 @@ export const ConversationTreeRow = observer(function ConversationTreeRow({
   const tk = themeModel.tokens;
   const rowRef = useRef<View | null>(null);
   const openTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hoverCardOpen, setHoverCardOpen] = useState(false);
   const selected = store.isRowSelected(node);
   const inlineEditing = isEditingRow(node, store.editing);
@@ -74,36 +72,27 @@ export const ConversationTreeRow = observer(function ConversationTreeRow({
   useEffect(() => {
     return () => {
       if (openTimer.current !== null) clearTimeout(openTimer.current);
-      if (closeTimer.current !== null) clearTimeout(closeTimer.current);
     };
   }, []);
 
-  const cancelHoverClose = useCallback(() => {
-    if (closeTimer.current !== null) {
-      clearTimeout(closeTimer.current);
-      closeTimer.current = null;
-    }
-  }, []);
+  // Opening is a fixed grace delay off row hover. Closing is not this row's call —
+  // once open, WorkspaceHoverCard tracks its own trigger→content safe zone and asks
+  // to close via onRequestClose (see workspace-hover-card.tsx's useHoverSafeZone).
   const openHoverCard = useCallback(() => {
-    if (workspace === null || !isWeb) return;
-    cancelHoverClose();
+    if (workspace === null || !isWeb || hoverCardOpen) return;
     if (openTimer.current !== null) clearTimeout(openTimer.current);
     openTimer.current = setTimeout(() => {
       setHoverCardOpen(true);
       openTimer.current = null;
     }, HOVER_CARD_OPEN_DELAY_MS);
-  }, [cancelHoverClose, workspace]);
-  const closeHoverCard = useCallback(() => {
+  }, [hoverCardOpen, workspace]);
+  const cancelHoverCardOpen = useCallback(() => {
     if (openTimer.current !== null) {
       clearTimeout(openTimer.current);
       openTimer.current = null;
     }
-    if (closeTimer.current !== null) clearTimeout(closeTimer.current);
-    closeTimer.current = setTimeout(() => {
-      setHoverCardOpen(false);
-      closeTimer.current = null;
-    }, HOVER_CARD_CLOSE_DELAY_MS);
   }, []);
+  const closeHoverCard = useCallback(() => setHoverCardOpen(false), []);
 
   const rowStyle = useMemo(
     () => [
@@ -225,7 +214,7 @@ export const ConversationTreeRow = observer(function ConversationTreeRow({
     <>
       {/* Hover lives on this plain View so nested Pressables (chevron, trailing
           action) never steal hover state from it — docs/hover.md Failure Mode 1. */}
-      <View onPointerEnter={openHoverCard} onPointerLeave={closeHoverCard}>
+      <View onPointerEnter={openHoverCard} onPointerLeave={cancelHoverCardOpen}>
         <Pressable
           ref={rowRef}
           accessibilityLabel={node.title}
@@ -291,8 +280,7 @@ export const ConversationTreeRow = observer(function ConversationTreeRow({
           workspaceId={workspace.workspaceId}
           title={node.title}
           detail={workspace.detail}
-          onHoverIn={cancelHoverClose}
-          onHoverOut={closeHoverCard}
+          onRequestClose={closeHoverCard}
         />
       )}
     </>
