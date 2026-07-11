@@ -750,7 +750,7 @@
     <div class="rev-bar">
       <span class="rb-tag">v8 · 闸3 · 验收裁定回写</span>
       <div>
-        本稿据董事长<b>闸 3 验收裁定</b>回写，<b>其余内容一律不动、屏数不变（仍 sRS1–sRS9）</b>。<b>v8 三条</b>：① <b>启动器 / 新选项卡 + 下拉去「文件」</b>——董事长原话「这个选择的里边不应该有文件，加号下拉也不应该有文件，因为选择了没有意义，都是通过文件目录或者对话框在右侧面板显示的」；sRS1 启动器改为<b>四类后续</b>（无可用项）、sRS3 下拉同步，<b>⌘P 快捷键撤销</b>；原 sRS4/sRS7「空 · 选择一个文件」态因入口消失<b>移出可达状态枚举</b>（sRS9 的「面板空 ≠ 文件空」对照例一并改写）。② <b>tab hover 配色回归令牌</b>——sRS2「非活跃 hover」注解<b>加粗强调</b>「绝不用主蓝 / 选中蓝做底」（实现曾走样、董事长点名打回）。③ <b>长行 = 横向滚动（VSCode 对等）</b>——sRS4 注解补「长行默认不换行、超宽走横向滚动」，换行开关归设置模块后续。
+        本稿据董事长<b>闸 3 验收裁定</b>回写，<b>其余内容一律不动、屏数不变（仍 sRS1–sRS9）</b>。<b>v8 三条</b>：① <b>启动器 / 新选项卡 + 下拉去「文件」</b>——董事长原话「这个选择的里边不应该有文件，加号下拉也不应该有文件，因为选择了没有意义，都是通过文件目录或者对话框在右侧面板显示的」；sRS1 启动器改为<b>四类后续</b>（无可用项）、sRS3 下拉同步，<b>⌘P 快捷键撤销</b>；原 sRS4/sRS7「空 · 选择一个文件」态因入口消失<b>移出可达状态枚举</b>（sRS9 的「面板空 ≠ 文件空」对照例一并改写）。② <b>tab hover 配色回归令牌</b>——sRS2「非活跃 hover」注解<b>加粗强调</b>「绝不用主蓝 / 选中蓝做底」（实现曾走样、董事长点名打回）。③ <b>长行 = 横向滚动（VSCode 对等）</b>——sRS4 注解补「长行默认不换行、超宽走横向滚动」，换行开关归设置模块后续。<b>v8 补（闸3 又一小项裁定 · commit 70091945）</b>：① tab 头<b>页签间分隔线移除</b>（董事长：「这个竖线 UI 不好看」，视觉改靠活跃胶囊 / hover 区分，sRS2 注解 + mock 同步去除）；② 「页签超宽横向滚动 · + 与放大 / 收起常驻」由注解承诺<b>转为已实测落地</b>（滚轮纵转横、聚焦页签自动滚入视口）。
       </div>
     </div>
 
@@ -780,7 +780,7 @@
       <table>
         <tr><th>屏</th><th>内容</th><th>状态</th></tr>
         <tr><td>sRS1</td><td>启动器默认态（竖排<b>四类后续</b>：终端/浏览器/代码审核/对话禁用+后续；<b>「文件」不出现、⌘P 撤销（闸3裁定）</b>；顶部仅 ⤢ + 收起，无 tab 条）</td><td><span class="pill rev">v8 改</span></td></tr>
-        <tr><td>sRS2</td><td>多页签框架 · Codex tab 头（胶囊活跃 / 细竖分隔 / 五类图标 / 实例规则 / 同类命名=文件名；<b>活跃示例=文件页签</b>，开两三个文件；<b>非活跃 hover 令牌加粗强调不用蓝，闸3</b>）</td><td><span class="pill rev">改</span></td></tr>
+        <tr><td>sRS2</td><td>多页签框架 · Codex tab 头（胶囊活跃 / 五类图标 / 实例规则 / 同类命名=文件名；<b>活跃示例=文件页签</b>，开两三个文件；<b>非活跃 hover 令牌加粗强调不用蓝，闸3</b>；<b>页签间分隔线已去除、超宽横向滚动已落地，闸3</b>）</td><td><span class="pill rev">改</span></td></tr>
         <tr><td>sRS3</td><td>页签管理（新建 + 下拉<b>四类后续（「文件」不出现，闸3裁定）</b> / <b>活跃页签常显 ✕</b>·非活跃 hover ✕ / 拖拽调序放置线 / 右键 3 项 / 关全部回启动器；<b>脏页签关闭 = 静默自动保存·无弹窗</b>）</td><td><span class="pill rev">v8 改</span></td></tr>
         <tr><td>sRS4</td><td><b>文件 · 代码/文本查看+编辑</b>：语法高亮 · <b>编辑器背景随主题 · 高亮默认 ODPF</b> · 可编辑区（光标/选区/当前行/改动 gutter）· 脏 ● · <b>失焦自动保存四态</b> · <b>查找/替换浮层</b>（⌘F/⌘⌥F）· <b>常用快捷键</b> · <b>长行不换行·横向滚动（闸3）</b> · <b>tab ✕</b> · 右键 9 项（保存/还原→查找/替换）· 深浅 chrome</td><td><span class="pill rev">v5/v8 调</span></td></tr>
         <tr><td>sRS5</td><td><b>文件 · Markdown 双态 + 图片只读</b>：<b>默认落预览</b>（预览态为主态排最前）↔ 编辑（<b>编辑器背景随主题 · 高亮默认 ODPF</b> · <b>失焦自动保存</b> · 无 ⌘S）· 图片只读 · 右键 md 预览 5 项 + 图片 4 项 · 建议项隔离（查找/替换已升 sRS4 必做）</td><td><span class="pill rev">v5 调</span></td></tr>
@@ -980,7 +980,7 @@
         <span class="tag">sRS2</span>
         <h2>多页签框架 · Codex tab 头 + 五类 + 实例规则（文件活跃）</h2>
         <p>
-          有内容后顶部出现<b>自带 tab 头</b>（照 Codex 03 复刻）：<b>[图标+文字 活跃=浅灰圆角胶囊] │ [图标+文字] │ … [+]</b>，右上 <b>⤢ 放大 + 收起</b>。<b>细竖分隔仅在非活跃相邻页签间</b>（活跃胶囊两侧不画）。<b>★ v1 蓝色下划线活跃态已废弃删除</b>。<b>五类专属图标</b>：文件=文档 / 终端=<code>&gt;_</code> / 浏览器=地球 / 代码审核=diff暂存框 / 对话=气泡。<b>实例规则</b>：<b>代码审核单实例</b>、<b>文件等其余四类多实例</b>；同类多页签<b>按各自内容命名</b>（文件=文件名 · 终端=序号/工作目录 · 浏览器=页面标题 · 对话=标题），过长省略号。<b>v4 本轮活跃示例 = 文件页签</b>（开两三个文件）；实际可开实例<b>只有文件</b>（其余四类框架已定、内部 deferred）。
+          有内容后顶部出现<b>自带 tab 头</b>（照 Codex 03 复刻）：<b>[图标+文字 活跃=浅灰圆角胶囊] │ [图标+文字] │ … [+]</b>，右上 <b>⤢ 放大 + 收起</b>。<b>页签间无分隔线，视觉靠活跃胶囊 / hover 区分（闸3董事长裁定移除）</b>。<b>★ v1 蓝色下划线活跃态已废弃删除</b>。<b>五类专属图标</b>：文件=文档 / 终端=<code>&gt;_</code> / 浏览器=地球 / 代码审核=diff暂存框 / 对话=气泡。<b>实例规则</b>：<b>代码审核单实例</b>、<b>文件等其余四类多实例</b>；同类多页签<b>按各自内容命名</b>（文件=文件名 · 终端=序号/工作目录 · 浏览器=页面标题 · 对话=标题），过长省略号。<b>v4 本轮活跃示例 = 文件页签</b>（开两三个文件）；实际可开实例<b>只有文件</b>（其余四类框架已定、内部 deferred）。
         </p>
       </div>
 
@@ -1019,7 +1019,6 @@
               <div class="rp-tabs">
                 <div class="rp-tab on"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">combined-model-selector.tsx</span><span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
                 <div class="rp-tab"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">vendor.ts</span></div>
-                <div class="rp-sep"></div>
                 <div class="rp-tab"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">server.ts</span></div>
                 <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div>
                 <div class="rp-ctl">
@@ -1047,12 +1046,11 @@
       <!-- tab 头解剖 + 五类图例 + 命名规则 -->
       <div class="stage">
         <div class="fcol">
-          <div class="fcap">① Codex tab 头拆解（胶囊活跃 · 细竖分隔 · 末尾 + · 右上 ⤢/收起）</div>
+          <div class="fcap">① Codex tab 头拆解（胶囊活跃 · 末尾 + · 右上 ⤢/收起）</div>
           <div class="rpcard head" style="width: 460px">
             <div class="rp-tabs">
               <div class="rp-tab on"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">app.tsx</span><span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
               <div class="rp-tab"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">vendor.ts</span></div>
-              <div class="rp-sep"></div>
               <div class="rp-tab"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">server.ts</span></div>
               <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div>
               <div class="rp-ctl">
@@ -1062,7 +1060,7 @@
             </div>
             <div style="flex:1; display:flex; flex-direction:column; align-items:flex-start; justify-content:center; gap:9px; padding:14px 16px; font-size:12px; color:var(--muted-fg)">
               <div style="display:flex; align-items:center; gap:8px"><span class="rp-tab on" style="pointer-events:none"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">活跃 = 浅灰胶囊</span></span> 底 <code style="font-family:var(--mono);background:var(--secondary);padding:0 4px;border-radius:3px">#eaeef2</code> · 字/图标 <code style="font-family:var(--mono);background:var(--secondary);padding:0 4px;border-radius:3px">#1f2328</code> · <b style="color:var(--fg)">不铺蓝</b></div>
-              <div style="display:flex; align-items:center; gap:8px"><span class="rp-sep" style="height:16px"></span> 细竖分隔 <code style="font-family:var(--mono);background:var(--secondary);padding:0 4px;border-radius:3px">#d1d9e0</code>，<b style="color:var(--fg)">仅非活跃相邻页签间</b>（胶囊两侧吸收分隔）</div>
+              <div style="display:flex; align-items:center; gap:8px"><b style="color:var(--fg)">页签间无分隔线（闸3裁定移除）</b></div>
               <div style="display:flex; align-items:center; gap:8px"><span class="rp-newtab" style="pointer-events:none"><svg class="i sm"><use href="#plus" /></svg></span> 末尾新选项卡 + · 右上 <span class="rp-btn" style="pointer-events:none"><svg class="i sm"><use href="#maximize" /></svg></span> ⤢ 放大 <span class="rp-btn on" style="pointer-events:none"><svg class="i sm"><use href="#panel-r" /></svg></span> 收起</div>
             </div>
           </div>
@@ -1088,9 +1086,7 @@
             <div class="rp-tabs" style="overflow:hidden">
               <div class="rp-tab on"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">app.tsx</span><span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
               <div class="rp-tab"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">server.ts</span></div>
-              <div class="rp-sep"></div>
               <div class="rp-tab"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">combined-model-selector.tsx</span></div>
-              <div class="rp-sep"></div>
               <div class="rp-tab"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">components/index.ts</span></div>
               <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div>
             </div>
@@ -1099,12 +1095,11 @@
         </div>
 
         <div class="fcol dark">
-          <div class="fcap">深色变体（胶囊 #21262d · 分隔 #30363d · 无蓝下划线）</div>
+          <div class="fcap">深色变体（胶囊 #21262d · 无分隔线 · 无蓝下划线）</div>
           <div class="rpcard head" style="width: 400px">
             <div class="rp-tabs">
               <div class="rp-tab on"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">app.tsx</span><span class="rp-x"><svg class="i xs"><use href="#x" /></svg></span></div>
               <div class="rp-tab"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">server.ts</span></div>
-              <div class="rp-sep"></div>
               <div class="rp-tab"><svg class="i sm ic"><use href="#file" /></svg><span class="tl">vendor.ts</span></div>
               <div class="rp-newtab"><svg class="i sm"><use href="#plus" /></svg></div>
               <div class="rp-ctl">
@@ -1124,7 +1119,7 @@
             <div class="ac-h">Codex tab 头对齐要点（★活跃胶囊如何替换蓝下划线）</div>
             <ol>
               <li><span class="pin">1</span><div><b>活跃页签 = 浅灰圆角胶囊</b>：底 <code>#eaeef2</code>（深 <code>#21262d</code>）+ 圆角 7 + 文字/图标转 <code>#1f2328</code>（深 <code>#e6edf3</code>）+ 加粗。<b>v1 的 <code>2px 蓝下划线</code> 活跃态整段删除</b>——蓝不再出现在页签上。</div></li>
-              <li><span class="pin">2</span><div><b>细竖分隔</b>：<code>1px×18</code> 竖线 <code>#d1d9e0</code>（深 <code>#30363d</code>），<b>只画在两个非活跃相邻页签之间</b>；活跃胶囊<b>左右两侧不画分隔</b>（胶囊自身圆角已分隔）。</div></li>
+              <li><span class="pin">2</span><div><b>页签间无分隔线</b>（<b>闸3董事长裁定</b>：「这个竖线 UI 不好看」，原 <code>1px×18</code> 竖线 <code>#d1d9e0</code> 整段移除）；视觉改靠<b>活跃胶囊高亮 / hover 淡底</b>区分相邻页签，不再画任何分隔线。</div></li>
               <li><span class="pin">3</span><div><b>非活跃 hover</b>：淡底 <code>#f6f8fa</code>（深 <code>#1c2128</code>）+ 文字转深；<b style="color:var(--destructive)">hover 绝不用主蓝 / 选中蓝做底（闸3董事长点名）</b>，不出现下划线。</div></li>
               <li><span class="pin">4</span><div><b>末尾 +（新选项卡）</b>与右上 <b>⤢ 放大 / 收起</b>照 Codex 位置；蓝仅保留在<b>拖拽放置指示线</b>（见 sRS3）与 focus 环 / 命中高亮。</div></li>
             </ol>
@@ -1146,9 +1141,9 @@
             <div class="states">
               <dl>
                 <dt>布局</dt>
-                <dd><b>桌面 only</b>：tab 头高 42，胶囊高 28。页签超宽<b>横向可滚</b>，+ 与右上控件常驻可见。紧凑/手机 deferred。</dd>
+                <dd><b>桌面 only</b>：tab 头高 42，胶囊高 28。页签超宽<b>横向可滚</b>，+ 与右上控件常驻可见（<b>闸3实测落地</b>：滚轮纵转横、聚焦页签自动滚入视口）。紧凑/手机 deferred。</dd>
                 <dt>默认</dt>
-                <dd>活跃胶囊 + 其余 muted；非活跃间细竖分隔。</dd>
+                <dd>活跃胶囊 + 其余 muted；<b>页签间无分隔线</b>（闸3裁定移除）。</dd>
                 <dt>hover</dt>
                 <dd>非活跃页签淡底 + 悬浮浮出 ✕（关闭见 sRS3）。</dd>
                 <dt>active</dt>
@@ -1160,7 +1155,7 @@
                 <dt>空/加载/错误/离线</dt>
                 <dd>无 tab 时回启动器（sRS1）；面板级见 sRS9。</dd>
                 <dt>深色</dt>
-                <dd>胶囊 <code>#21262d</code>、分隔 <code>#30363d</code>、hover <code>#1c2128</code>，无蓝下划线。</dd>
+                <dd>胶囊 <code>#21262d</code>、hover <code>#1c2128</code>，无分隔线、无蓝下划线。</dd>
               </dl>
             </div>
           </div>
