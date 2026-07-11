@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { AddHostMethodModal } from "@/components/add-host-method-modal";
 import { AddHostModal } from "@/components/add-host-modal";
@@ -19,6 +19,7 @@ import {
 import { createConversationTreeStoreForServer } from "../conversation-tree/data/conversation-tree-context.wiring";
 import type { ConversationTreeStore } from "../conversation-tree/model/conversation-tree-store";
 import { HostSwitcher } from "../host-switcher/components/host-switcher";
+import { ConversationSearchOverlay } from "./conversation-search-overlay";
 
 type AddHostStep = "methods" | "direct" | "pair" | null;
 
@@ -27,17 +28,33 @@ interface TreeMount {
   readonly store: ConversationTreeStore;
 }
 
-function openCommandCenter(): void {
-  useKeyboardShortcutsStore.getState().setCommandCenterOpen(true);
-}
-
-/** Own the active host's tree lifecycle and bind the two shell-level React injection points. */
+/**
+ * Own the active host's tree lifecycle and bind the shell-level React injection points
+ * (search, add-host). Search has two triggers that must both stay inside the shell: the tree's
+ * own toolbar button (wired directly below) and the global ⌘K shortcut, which the old command
+ * center owns with no injection seam — it hardcodes candidate-select to a pre-shell workspace
+ * route (see conversation-search-overlay.tsx). The layout effect below intercepts every
+ * commandCenterOpen transition while this region is mounted and redirects it to the shell's own
+ * overlay before the old modal can paint, since useLayoutEffect flushes before the browser paints.
+ */
 export function LeftRegion({ serverId }: { serverId: string }) {
   const [treeMount, setTreeMount] = useState<TreeMount | null>(null);
   const [addHostStep, setAddHostStep] = useState<AddHostStep>(null);
+  const [shellSearchOpen, setShellSearchOpen] = useState(false);
   const connectionStatus = useHostRuntimeConnectionStatus(serverId);
   const isOffline = connectionStatus === "offline" || connectionStatus === "error";
   const store = treeMount?.serverId === serverId ? treeMount.store : null;
+  const commandCenterOpen = useKeyboardShortcutsStore((state) => state.commandCenterOpen);
+
+  const openShellSearch = useCallback(() => setShellSearchOpen(true), []);
+  const closeShellSearch = useCallback(() => setShellSearchOpen(false), []);
+
+  useLayoutEffect(() => {
+    if (commandCenterOpen) {
+      useKeyboardShortcutsStore.getState().setCommandCenterOpen(false);
+      setShellSearchOpen(true);
+    }
+  }, [commandCenterOpen]);
 
   useEffect(() => {
     const runtime = getHostRuntimeStore();
@@ -47,7 +64,7 @@ export function LeftRegion({ serverId }: { serverId: string }) {
         return;
       }
       nextStore = createConversationTreeStoreForServer(serverId, {
-        openSearch: openCommandCenter,
+        openSearch: openShellSearch,
       });
       setTreeMount({ serverId, store: nextStore });
     };
@@ -57,7 +74,7 @@ export function LeftRegion({ serverId }: { serverId: string }) {
       stopRuntime();
       nextStore?.dispose();
     };
-  }, [serverId]);
+  }, [serverId, openShellSearch]);
 
   const switchHost = useCallback((targetServerId: string) => {
     router.navigate(buildHostRootRoute(targetServerId));
@@ -93,7 +110,14 @@ export function LeftRegion({ serverId }: { serverId: string }) {
           <ConversationTreeLoadingState />
         </View>
       ) : (
-        <ConversationTreePanel store={store} isOffline={isOffline} />
+        <>
+          <ConversationTreePanel store={store} isOffline={isOffline} />
+          <ConversationSearchOverlay
+            store={store}
+            visible={shellSearchOpen}
+            onClose={closeShellSearch}
+          />
+        </>
       )}
 
       <AddHostMethodModal
