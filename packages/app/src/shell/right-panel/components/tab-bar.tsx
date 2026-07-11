@@ -15,12 +15,13 @@ import {
   TAB_TITLE_DATASET,
   TAB_X_DATASET,
 } from "./tab-hover-css";
+import { TabStripLayout } from "./tab-strip-layout";
 
 // The Codex-style tab strip (ui.html sRS2/sRS3) — icon+label pills (active = light-grey rounded pill, NOT
-// a blue underline), a trailing "+", the top-right maximize/collapse controls, per-tab visible ✕ / dirty
-// ● swap, and drag-reorder with a drop indicator. Pure view over WorkbenchModel: it renders live title/dot
-// off tab.content and dispatches focus/close/reorder. Hover is the web CSS :hover path (no JS pointer
-// events). The new-tab dropdown + tab right-click are anchored floating menus.
+// a blue underline), horizontally scrolling tabs, a fixed trailing "+" + maximize/collapse cluster,
+// per-tab visible ✕ / dirty ● swap, and drag-reorder with a drop indicator. Pure view over WorkbenchModel:
+// it renders live title/dot off tab.content and dispatches focus/close/reorder. Hover is the web CSS
+// :hover path (no JS pointer events). The new-tab dropdown + tab right-click are anchored floating menus.
 
 // Convert a visual drop gap (0..N over the full order) into the rest-based drop index placeTabAtDropIndex
 // wants (the moving tab is removed first, so a gap past the moving tab shifts left by one).
@@ -125,55 +126,56 @@ export const TabBar = observer(function TabBar({
     setCtxMenu(null);
   }, []);
 
-  const barStyle = useMemo(
-    () => [styles.bar, { borderColor: tk.border, backgroundColor: tk.surfaceCard }],
-    [tk.border, tk.surfaceCard],
-  );
-
   return (
-    <View ref={barRef} style={barStyle}>
-      {tabs.map((tab, index) => {
-        const active = tab.id === focusedId;
-        const prevActive = index > 0 && tabs[index - 1].id === focusedId;
-        const showSep = index > 0 && !active && !prevActive;
-        return (
-          <TabSlot
-            key={tab.id}
-            tab={tab}
-            index={index}
-            active={active}
-            showSep={showSep}
-            dropLineBefore={drag != null && drag.gap === index}
-            workbench={workbench}
-            onDragStart={onDragStart}
-            onDragOverGap={onDragOverGap}
-            onDropTab={onDropTab}
-            onDragEnd={onDragEnd}
-          />
-        );
-      })}
-      {drag != null && drag.gap === tabs.length ? <DropLine /> : null}
-      <NewTabButton hostRef={newTabRef} onPress={onOpenNewTab} disabled={isOffline} />
-      <PanelControls />
-      <NewTabMenu anchor={newTabAnchor} onClose={closeMenus} />
-      {ctxMenu ? (
-        <TabContextMenu
+    <TabStripLayout
+      ref={barRef}
+      focusedTabId={focusedId}
+      borderColor={tk.border}
+      backgroundColor={tk.surfaceCard}
+      actions={
+        <>
+          <NewTabButton hostRef={newTabRef} onPress={onOpenNewTab} disabled={isOffline} />
+          <PanelControls />
+        </>
+      }
+      overlay={
+        <>
+          <NewTabMenu anchor={newTabAnchor} onClose={closeMenus} />
+          {ctxMenu ? (
+            <TabContextMenu
+              workbench={workbench}
+              targetId={ctxMenu.targetId}
+              anchor={ctxMenu.anchor}
+              onClose={closeMenus}
+            />
+          ) : null}
+        </>
+      }
+    >
+      {tabs.map((tab, index) => (
+        <TabSlot
+          key={tab.id}
+          tab={tab}
+          index={index}
+          active={tab.id === focusedId}
+          dropLineBefore={drag != null && drag.gap === index}
           workbench={workbench}
-          targetId={ctxMenu.targetId}
-          anchor={ctxMenu.anchor}
-          onClose={closeMenus}
+          onDragStart={onDragStart}
+          onDragOverGap={onDragOverGap}
+          onDropTab={onDropTab}
+          onDragEnd={onDragEnd}
         />
-      ) : null}
-    </View>
+      ))}
+      {drag != null && drag.gap === tabs.length ? <DropLine /> : null}
+    </TabStripLayout>
   );
 });
 
-// A tab pill plus the optional preceding separator and drop-indicator line.
+// A tab pill plus its optional preceding drag drop-indicator line.
 const TabSlot = observer(function TabSlot({
   tab,
   index,
   active,
-  showSep,
   dropLineBefore,
   workbench,
   onDragStart,
@@ -184,7 +186,6 @@ const TabSlot = observer(function TabSlot({
   tab: PanelTab;
   index: number;
   active: boolean;
-  showSep: boolean;
   dropLineBefore: boolean;
   workbench: WorkbenchModel;
   onDragStart: (id: string, index: number) => void;
@@ -192,12 +193,9 @@ const TabSlot = observer(function TabSlot({
   onDropTab: () => void;
   onDragEnd: () => void;
 }) {
-  const tk = themeModel.tokens;
-  const sepStyle = useMemo(() => [styles.sep, { backgroundColor: tk.border }], [tk.border]);
   return (
     <>
       {dropLineBefore ? <DropLine /> : null}
-      {showSep ? <View style={sepStyle} /> : null}
       <TabPill
         tab={tab}
         index={index}
@@ -363,22 +361,10 @@ function DropLine() {
 }
 
 const styles = StyleSheet.create({
-  bar: {
-    flexDirection: "row",
-    alignItems: "center",
-    height: 42,
-    paddingHorizontal: 6,
-    gap: 2,
-    borderBottomWidth: 1,
-    position: "relative",
-    // The new-tab dropdown + tab right-click menu are absolute children that overflow BELOW the 42px bar
-    // into the content region. Lift the whole bar into its own stacking layer so those menus paint (and
-    // stay clickable) above the sibling editor/breadcrumb, which otherwise cover their lower rows.
-    zIndex: 30,
-  },
   tab: {
     flexDirection: "row",
     alignItems: "center",
+    flexShrink: 0,
     gap: 6,
     height: 28,
     paddingLeft: 10,
@@ -412,8 +398,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  sep: { width: 1, height: 18, alignSelf: "center" },
-  dropLine: { width: 2, height: 24, borderRadius: 2, alignSelf: "center", marginHorizontal: 1 },
+  dropLine: {
+    width: 2,
+    height: 24,
+    borderRadius: 2,
+    alignSelf: "center",
+    flexShrink: 0,
+    marginHorizontal: 1,
+  },
   newtab: {
     width: 26,
     height: 26,
