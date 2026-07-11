@@ -64,6 +64,7 @@ export const TreeContextMenu = observer(function TreeContextMenu({
   );
 });
 
+/** Position the menu at the click anchor and pick the project vs. conversation body. */
 const MenuBody = observer(function MenuBody({
   store,
   target,
@@ -83,6 +84,7 @@ const MenuBody = observer(function MenuBody({
   return <ConversationMenuBody store={store} node={target.node} isOffline={isOffline} />;
 });
 
+/** Derive and render the project row's context-menu items. */
 const ProjectMenuBody = observer(function ProjectMenuBody({
   store,
   node,
@@ -115,6 +117,7 @@ const ProjectMenuBody = observer(function ProjectMenuBody({
   );
 });
 
+/** Derive and render the conversation/subagent row's shared context-menu items. */
 const ConversationMenuBody = observer(function ConversationMenuBody({
   store,
   node,
@@ -157,6 +160,7 @@ const ConversationMenuBody = observer(function ConversationMenuBody({
   );
 });
 
+/** Render one project-menu item and dispatch its action on select. */
 function ProjectMenuRow({
   store,
   node,
@@ -184,6 +188,7 @@ function ProjectMenuRow({
   );
 }
 
+/** Render one conversation-menu item and dispatch its action on select. */
 function ConversationMenuRow({
   store,
   node,
@@ -210,6 +215,7 @@ function ConversationMenuRow({
   );
 }
 
+/** Render one context-menu item's icon, label, and pending/destructive styling. */
 function MenuRow({
   id,
   enabled,
@@ -249,6 +255,7 @@ function MenuRow({
   );
 }
 
+/** Route a selected project-menu item id to its store action. */
 function dispatchProjectItem(
   store: ConversationTreeStore,
   node: Extract<ConversationTreeNode, { kind: "project" }>,
@@ -283,6 +290,7 @@ function dispatchProjectItem(
   }
 }
 
+/** Route a selected conversation-menu item id to its store action. */
 function dispatchConversationItem(
   store: ConversationTreeStore,
   node: Exclude<ConversationTreeNode, { kind: "project" }>,

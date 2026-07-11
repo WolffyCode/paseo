@@ -160,6 +160,7 @@ export const HostSwitcher = observer(function HostSwitcher({
   );
 });
 
+/** Render one dropdown host row and route its press to reconnect (offline) or switch (online). */
 function HostSwitcherRow({
   serverId,
   label,
@@ -222,6 +223,7 @@ function HostSwitcherRow({
   );
 }
 
+/** Render the tone-colored connection status dot. */
 function ConnectionDot({
   tone,
   tokens,
@@ -239,11 +241,13 @@ function ConnectionDot({
   return <View dataSet={dataSet} style={style} testID={testID} />;
 }
 
+/** Fall back to the raw server id when the host has no display label. */
 function normalizeHostLabel(label: string | null | undefined, serverId: string): string {
   const normalized = label?.trim() ?? "";
   return normalized.length === 0 ? serverId : normalized;
 }
 
+/** Map a connection tone to its status token color. */
 function toneColor(tone: HostConnectionTone, tokens: ShellTokens): string {
   switch (tone) {
     case "online":

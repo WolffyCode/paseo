@@ -287,6 +287,7 @@ export const ConversationTreeRow = observer(function ConversationTreeRow({
   );
 });
 
+/** Render the expand/collapse arrow, or a same-width blank spacer when the row can't expand. */
 function TreeChevron({
   row,
   onPress,
@@ -312,6 +313,7 @@ function TreeChevron({
   );
 }
 
+/** Pick the folder/bot glyph for the node's kind. */
 function NodeIcon({ node }: { node: ConversationTreeNode }) {
   const tk = themeModel.tokens;
   const Icon = node.kind === "project" ? Folder : Bot;
@@ -323,6 +325,7 @@ function NodeIcon({ node }: { node: ConversationTreeNode }) {
   );
 }
 
+/** Render the node's status dot in its status-specific fill/glow. */
 function StatusDot({ status, nodeId }: { status: ConversationStatusDot; nodeId: string }) {
   const tk = themeModel.tokens;
   const palette = STATUS_PALETTE[status](tk);
@@ -334,6 +337,7 @@ function StatusDot({ status, nodeId }: { status: ConversationStatusDot; nodeId: 
   return <View dataSet={dataSet} style={dotStyle} testID={`conv-tree-status-${nodeId}`} />;
 }
 
+/** Render the focused rename textbox and dispatch the store's commit/cancel on submit/Escape. */
 const InlineRenameInput = observer(function InlineRenameInput({
   store,
   node,
@@ -405,6 +409,7 @@ const InlineRenameInput = observer(function InlineRenameInput({
   );
 });
 
+/** Check whether this node is the one the store's inline-rename state currently targets. */
 function isEditingRow(node: ConversationTreeNode, editing: Editing): boolean {
   if (editing === null || editing.targetId !== node.id) return false;
   return (

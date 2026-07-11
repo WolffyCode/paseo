@@ -75,6 +75,7 @@ export const ConversationTreePanel = observer(function ConversationTreePanel({
   );
 });
 
+/** Switch between the loading, error, and virtualized tree list bodies by panel state. */
 const PanelBody = observer(function PanelBody({
   store,
   panelState,
@@ -105,6 +106,7 @@ const PanelBody = observer(function PanelBody({
   );
 });
 
+/** Flatten the store's rows into a virtualized FlatList and keep the active node scrolled into view. */
 const TreeList = observer(function TreeList({
   store,
   isOffline,
@@ -197,6 +199,7 @@ const TreeList = observer(function TreeList({
   );
 });
 
+/** Interleave section headers and empty-state placeholders between each group's flattened rows for the FlatList. */
 function buildPanelItems(store: ConversationTreeStore): PanelItem[] {
   const rootSection = new Map<string, ConversationTreeSectionId>();
   for (const node of store.partitionedNodes.pinned) {
@@ -229,6 +232,7 @@ function buildPanelItems(store: ConversationTreeStore): PanelItem[] {
   return items;
 }
 
+/** Push one section's header, rows, and optional empty-state placeholder onto the flat item list. */
 function appendSection(
   items: PanelItem[],
   section: ConversationTreeSectionId,
@@ -262,20 +266,24 @@ function appendSection(
   }
 }
 
+/** Build the stable per-node key shared by grouping and row identity. */
 function nodeKey(kind: string, id: string): string {
   return `${kind}:${id}`;
 }
 
+/** FlatList key extractor — items already carry a stable key. */
 function keyExtractor(item: PanelItem): string {
   return item.key;
 }
 
+/** Pick the list container's testID for empty/offline snapshot states, undefined otherwise. */
 function treeStateTestId(isEmpty: boolean, isOffline: boolean): string | undefined {
   if (isEmpty) return "conv-tree-empty";
   if (isOffline) return "conv-tree-offline-tree";
   return undefined;
 }
 
+/** Report each row's fixed height so FlatList can scroll to an index without measuring. */
 function getItemLayout(_data: ArrayLike<PanelItem> | null | undefined, index: number) {
   return { length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index };
 }

@@ -30,6 +30,7 @@ export interface HoverRect {
   readonly bottom: number;
 }
 
+/** Check whether point (x, y) falls inside rect, treating a missing rect as a miss. */
 function isInsideHoverRect(rect: HoverRect | null, x: number, y: number): boolean {
   if (rect === null) return false;
   return x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
@@ -96,6 +97,7 @@ export function createHoverSafeZoneTracker(input: HoverSafeZoneTrackerInput): Ho
   };
 }
 
+/** Read a mounted View's live screen rect for safe-zone geometry, or null before it's mounted. */
 function readHoverRect(ref: RefObject<View | null>): HoverRect | null {
   const node = ref.current as unknown as Element | null;
   return node ? node.getBoundingClientRect() : null;
@@ -304,6 +306,7 @@ export function WorkspaceHoverCard({
   );
 }
 
+/** Render one icon+text metadata line; becomes a copy-to-clipboard button when copyValue is given. */
 function MetadataRow({
   icon: Icon,
   value,
@@ -367,6 +370,7 @@ function MetadataRow({
   );
 }
 
+/** Format a workspace's last-change timestamp as a short relative-time label. */
 function formatLastChange(value: string | null): string {
   if (value === null) {
     return "暂无最近变更";

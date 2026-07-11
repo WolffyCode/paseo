@@ -28,6 +28,7 @@ export const ConversationTreeLoadingState = observer(function ConversationTreeLo
   );
 });
 
+/** Render one fixed-width placeholder row for the loading skeleton. */
 function SkeletonRow({
   width,
   indented,

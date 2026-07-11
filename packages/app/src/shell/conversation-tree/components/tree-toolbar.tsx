@@ -39,6 +39,7 @@ export const TreeToolbar = observer(function TreeToolbar({
   );
 });
 
+/** Render one pressable toolbar entry with hover/disabled styling and an optional shortcut hint. */
 const ToolbarRow = observer(function ToolbarRow({
   icon: Icon,
   label,
