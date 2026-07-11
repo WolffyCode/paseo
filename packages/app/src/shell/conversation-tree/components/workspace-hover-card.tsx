@@ -1,7 +1,7 @@
 import { Portal } from "@gorhom/portal";
-import { Clock3, Folder, GitBranch } from "lucide-react-native";
+import { Check, Clock3, Folder, GitBranch } from "lucide-react-native";
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { isWeb } from "@/constants/platform";
 import {
   measureFloatingPanelPortalHost,
@@ -14,6 +14,7 @@ const CARD_WIDTH = 236;
 const CARD_GAP = 8;
 const SCREEN_GUTTER = 8;
 const HOVER_SAFE_ZONE_GRACE_MS = 100;
+const COPY_FEEDBACK_MS = 2000;
 
 interface Rect {
   readonly x: number;
@@ -270,9 +271,23 @@ export function WorkspaceHoverCard({
           {title}
         </Text>
         {detail.branch === null ? null : (
-          <MetadataRow icon={GitBranch} value={detail.branch} color={tk.foregroundMuted} />
+          <MetadataRow
+            icon={GitBranch}
+            value={detail.branch}
+            color={tk.foregroundMuted}
+            copyValue={detail.branch}
+            copyLabel="复制分支名称"
+            testID={`conv-tree-hover-copy-branch-${workspaceId}`}
+          />
         )}
-        <MetadataRow icon={Folder} value={detail.directory} color={tk.foregroundMuted} />
+        <MetadataRow
+          icon={Folder}
+          value={detail.directory}
+          color={tk.foregroundMuted}
+          copyValue={detail.directory}
+          copyLabel="复制工作目录"
+          testID={`conv-tree-hover-copy-directory-${workspaceId}`}
+        />
         <MetadataRow
           icon={Clock3}
           value={formatLastChange(detail.lastChangeAt)}
@@ -293,19 +308,62 @@ function MetadataRow({
   icon: Icon,
   value,
   color,
+  copyValue,
+  copyLabel,
+  testID,
 }: {
   icon: typeof Folder;
   value: string;
   color: string;
+  copyValue?: string;
+  copyLabel?: string;
+  testID?: string;
 }) {
   const textStyle = useMemo(() => [styles.metadataText, { color }], [color]);
+  const [copied, setCopied] = useState(false);
+  const copyFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copyFeedbackTimer.current !== null) clearTimeout(copyFeedbackTimer.current);
+    };
+  }, []);
+
+  const handleCopy = useCallback(() => {
+    if (copyValue === undefined || !isWeb) return;
+    void navigator.clipboard.writeText(copyValue).catch(() => {});
+    setCopied(true);
+    if (copyFeedbackTimer.current !== null) clearTimeout(copyFeedbackTimer.current);
+    copyFeedbackTimer.current = setTimeout(() => {
+      setCopied(false);
+      copyFeedbackTimer.current = null;
+    }, COPY_FEEDBACK_MS);
+  }, [copyValue]);
+
+  if (copyValue === undefined) {
+    return (
+      <View style={styles.metadataRow}>
+        <Icon size={12} color={color} />
+        <Text numberOfLines={1} style={textStyle}>
+          {value}
+        </Text>
+      </View>
+    );
+  }
   return (
-    <View style={styles.metadataRow}>
-      <Icon size={12} color={color} />
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={copyLabel}
+      hitSlop={4}
+      onPress={handleCopy}
+      style={styles.metadataRow}
+      testID={testID}
+    >
+      {copied ? <Check size={12} color={color} /> : <Icon size={12} color={color} />}
       <Text numberOfLines={1} style={textStyle}>
         {value}
       </Text>
-    </View>
+    </Pressable>
   );
 }
 
