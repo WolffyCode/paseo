@@ -223,65 +223,67 @@ export const ConversationTreeRow = observer(function ConversationTreeRow({
 
   return (
     <>
-      <Pressable
-        ref={rowRef}
-        accessibilityLabel={node.title}
-        accessibilityState={rowAccessibilityState}
-        dataSet={highlighted ? CONVERSATION_ROW_DATASET : CONVERSATION_ROW_HOVER_DATASET}
-        onHoverIn={openHoverCard}
-        onHoverOut={closeHoverCard}
-        onPress={activate}
-        // @ts-expect-error onContextMenu is a guarded desktop-web interaction.
-        onContextMenu={onContextMenu}
-        style={rowStyle}
-        testID={`conv-tree-row-${node.kind}-${node.id}`}
-      >
-        <TreeChevron row={row} onPress={toggleExpand} />
-        <NodeIcon node={node} />
-        {inlineEditing ? (
-          <InlineRenameInput store={store} node={node} />
-        ) : (
-          <>
-            {node.kind === "project" ? null : (
-              <StatusDot status={node.statusDot} nodeId={node.id} />
-            )}
-            <Text numberOfLines={1} style={titleStyle}>
-              {node.title}
-            </Text>
-            {node.kind === "project" || node.subagentCount === 0 ? null : (
-              <Text
-                dataSet={CONVERSATION_BADGE_DATASET}
-                style={badgeStyle}
-                testID={`conv-tree-badge-${node.id}`}
-              >
-                {node.subagentCount}
+      {/* Hover lives on this plain View so nested Pressables (chevron, trailing
+          action) never steal hover state from it — docs/hover.md Failure Mode 1. */}
+      <View onPointerEnter={openHoverCard} onPointerLeave={closeHoverCard}>
+        <Pressable
+          ref={rowRef}
+          accessibilityLabel={node.title}
+          accessibilityState={rowAccessibilityState}
+          dataSet={highlighted ? CONVERSATION_ROW_DATASET : CONVERSATION_ROW_HOVER_DATASET}
+          onPress={activate}
+          // @ts-expect-error onContextMenu is a guarded desktop-web interaction.
+          onContextMenu={onContextMenu}
+          style={rowStyle}
+          testID={`conv-tree-row-${node.kind}-${node.id}`}
+        >
+          <TreeChevron row={row} onPress={toggleExpand} />
+          <NodeIcon node={node} />
+          {inlineEditing ? (
+            <InlineRenameInput store={store} node={node} />
+          ) : (
+            <>
+              {node.kind === "project" ? null : (
+                <StatusDot status={node.statusDot} nodeId={node.id} />
+              )}
+              <Text numberOfLines={1} style={titleStyle}>
+                {node.title}
               </Text>
-            )}
-          </>
-        )}
-        {inlineEditing ? null : (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={node.kind === "project" ? "在项目中发起新对话" : "更多操作"}
-            accessibilityState={actionAccessibilityState}
-            dataSet={CONVERSATION_ACTION_DATASET}
-            disabled={node.kind === "project" && isOffline}
-            onPress={node.kind === "project" ? openProjectConversation : openMoreMenu}
-            style={trailingActionStyle}
-            testID={
-              node.kind === "project"
-                ? `conv-tree-project-new-${node.id}`
-                : `conv-tree-more-${node.id}`
-            }
-          >
-            {node.kind === "project" ? (
-              <PenLine size={13} color={tk.foregroundMuted} />
-            ) : (
-              <MoreHorizontal size={14} color={tk.foregroundMuted} />
-            )}
-          </Pressable>
-        )}
-      </Pressable>
+              {node.kind === "project" || node.subagentCount === 0 ? null : (
+                <Text
+                  dataSet={CONVERSATION_BADGE_DATASET}
+                  style={badgeStyle}
+                  testID={`conv-tree-badge-${node.id}`}
+                >
+                  {node.subagentCount}
+                </Text>
+              )}
+            </>
+          )}
+          {inlineEditing ? null : (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={node.kind === "project" ? "在项目中发起新对话" : "更多操作"}
+              accessibilityState={actionAccessibilityState}
+              dataSet={CONVERSATION_ACTION_DATASET}
+              disabled={node.kind === "project" && isOffline}
+              onPress={node.kind === "project" ? openProjectConversation : openMoreMenu}
+              style={trailingActionStyle}
+              testID={
+                node.kind === "project"
+                  ? `conv-tree-project-new-${node.id}`
+                  : `conv-tree-more-${node.id}`
+              }
+            >
+              {node.kind === "project" ? (
+                <PenLine size={13} color={tk.foregroundMuted} />
+              ) : (
+                <MoreHorizontal size={14} color={tk.foregroundMuted} />
+              )}
+            </Pressable>
+          )}
+        </Pressable>
+      </View>
       {workspace === null || !hoverCardOpen ? null : (
         <WorkspaceHoverCard
           visible
