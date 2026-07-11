@@ -25,6 +25,11 @@ function project(projectKey: string, workspaceIds: readonly string[]): Conversat
   return { projectKey, name: `Project ${projectKey}`, workspaceIds };
 }
 
+/** Build the upsert event's project placement exactly as the daemon always bundles it. */
+function placement(projectKey: string, projectName = `Project ${projectKey}`) {
+  return { projectKey, projectName };
+}
+
 describe("applyAgentUpdate", () => {
   test("upserts an agent and moves its workspace onto the event's project identity", () => {
     const previousAgent = agent("root", { workspaceId: "old-workspace" });
@@ -37,7 +42,7 @@ describe("applyAgentUpdate", () => {
           ["target", project("target", [])],
         ]),
       },
-      { kind: "upsert", agent: nextAgent, projectKey: "target" },
+      { kind: "upsert", agent: nextAgent, project: placement("target") },
     );
 
     expect(result.agents.get("root")).toBe(nextAgent);
@@ -50,21 +55,59 @@ describe("applyAgentUpdate", () => {
     const newAgent = agent("new", { workspaceId: "workspace-new" });
     const added = applyAgentUpdate(
       { agents: new Map(), projects: new Map() },
-      { kind: "upsert", agent: newAgent, projectKey: "new-project" },
+      { kind: "upsert", agent: newAgent, project: placement("new-project") },
     );
 
     expect(added.projects.get("new-project")).toEqual({
       projectKey: "new-project",
-      name: "new-project",
+      name: "Project new-project",
       workspaceIds: ["workspace-new"],
     });
 
     const detached = applyAgentUpdate(added, {
       kind: "upsert",
       agent: newAgent,
-      projectKey: null,
+      project: null,
     });
     expect(detached.projects.get("new-project")?.workspaceIds).toEqual([]);
+  });
+
+  test("names a newly created project from the upsert's resolved projectName, not the raw key", () => {
+    const rawKey = "/Users/dev/Desktop/ct-verify/proj-gamma";
+    const result = applyAgentUpdate(
+      { agents: new Map(), projects: new Map() },
+      {
+        kind: "upsert",
+        agent: agent("agent-a", { workspaceId: "workspace-a" }),
+        project: { projectKey: rawKey, projectName: "proj-gamma" },
+      },
+    );
+
+    expect(result.projects.get(rawKey)?.name).toBe("proj-gamma");
+  });
+
+  test("merges two same-key upserts into one project entry regardless of arrival order", () => {
+    const agentA = agent("agent-a", { workspaceId: "workspace-a" });
+    const agentB = agent("agent-b", { workspaceId: "workspace-b" });
+    const samePlacement = placement("proj-gamma", "proj-gamma");
+    const empty = { agents: new Map(), projects: new Map() };
+
+    const forward = applyAgentUpdate(
+      applyAgentUpdate(empty, { kind: "upsert", agent: agentA, project: samePlacement }),
+      { kind: "upsert", agent: agentB, project: samePlacement },
+    );
+    const reversed = applyAgentUpdate(
+      applyAgentUpdate(empty, { kind: "upsert", agent: agentB, project: samePlacement }),
+      { kind: "upsert", agent: agentA, project: samePlacement },
+    );
+
+    for (const result of [forward, reversed]) {
+      expect(result.projects.size).toBe(1);
+      expect(result.projects.get("proj-gamma")?.name).toBe("proj-gamma");
+      expect(new Set(result.projects.get("proj-gamma")?.workspaceIds)).toEqual(
+        new Set(["workspace-a", "workspace-b"]),
+      );
+    }
   });
 
   test("remove reports only the exact removed id; its now-parentless descendants stay reachable as promoted roots", () => {
@@ -95,7 +138,7 @@ describe("applyAgentUpdate", () => {
       {
         kind: "upsert",
         agent: { ...root, archivedAt: "2026-07-12T02:00:00.000Z" },
-        projectKey: null,
+        project: null,
       },
     );
 
@@ -107,7 +150,7 @@ describe("applyAgentUpdate", () => {
     const root = agent("root");
     const closed = applyAgentUpdate(
       { agents: new Map([[root.id, root]]), projects: new Map() },
-      { kind: "upsert", agent: { ...root, status: "closed" }, projectKey: null },
+      { kind: "upsert", agent: { ...root, status: "closed" }, project: null },
     );
 
     expect(closed.agents.size).toBe(1);
@@ -120,7 +163,7 @@ describe("applyAgentUpdate", () => {
     const orphan = agent("orphan", { parentAgentId: "missing" });
     const result = applyAgentUpdate(
       { agents: new Map([[healthy.id, healthy]]), projects: new Map() },
-      { kind: "upsert", agent: orphan, projectKey: null },
+      { kind: "upsert", agent: orphan, project: null },
     );
 
     expect(result.unreachableIds).toEqual(new Set());
@@ -141,7 +184,7 @@ describe("applyAgentUpdate", () => {
         ]),
         projects: new Map(),
       },
-      { kind: "upsert", agent: healthy, projectKey: null },
+      { kind: "upsert", agent: healthy, project: null },
     );
 
     expect(result.unreachableIds).toEqual(new Set(["self-cycle", "cycle-a", "cycle-b"]));

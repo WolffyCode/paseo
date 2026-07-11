@@ -339,7 +339,7 @@ describe("createConversationTreeData", () => {
           createdAt: "2026-07-12T00:00:00.000Z",
           sessionId: "session-pushed",
         },
-        projectKey: "pushed-project",
+        project: { projectKey: "pushed-project", projectName: "Project pushed-project" },
       },
     ]);
     expect(workspaceUpdates).toEqual([pushedWorkspace]);
@@ -354,6 +354,25 @@ describe("createConversationTreeData", () => {
     expect(client.listeners.size).toBe(1);
     stopWorkspaces();
     expect(client.listeners.size).toBe(0);
+  });
+
+  test("decodes an upsert without project placement as project: null rather than a partial key", () => {
+    const client = new FakeConversationTreeRpcClient();
+    const data = createConversationTreeData({
+      client,
+      subscriptionIdPrefix: "conversation-tree:test",
+    });
+    const agentUpdates: AgentUpdateEvent[] = [];
+    data.onAgentUpdate((event) => agentUpdates.push(event));
+
+    client.emit({
+      type: "agent_update",
+      agentId: "unplaced",
+      payload: { kind: "upsert", agent: agentSnapshot("unplaced") },
+    });
+
+    expect(agentUpdates).toHaveLength(1);
+    expect(agentUpdates[0]).toMatchObject({ kind: "upsert", project: null });
   });
 
   test("delegates rename and remove writes through the injected client", async () => {

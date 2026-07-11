@@ -1,11 +1,17 @@
 import type { ConversationTreeAgent, ConversationTreeProject } from "./types";
 import { normalizeWorkspaceId } from "./workspace-id";
 
+/** The project a workspace belongs to, always carrying both the merge key and its display name. */
+export interface AgentUpdateProjectPlacement {
+  readonly projectKey: string;
+  readonly projectName: string;
+}
+
 export type AgentUpdateEvent =
   | {
       readonly kind: "upsert";
       readonly agent: ConversationTreeAgent;
-      readonly projectKey: string | null;
+      readonly project: AgentUpdateProjectPlacement | null;
     }
   | { readonly kind: "remove"; readonly agentId: string };
 
@@ -31,7 +37,7 @@ export function applyAgentUpdate(
     // Closed stays in the snapshot (status-dot.ts maps it to idle); archive is the only
     // transition that removes an agent from the active tree, matching build-tree.ts.
     agents.set(event.agent.id, event.agent);
-    updateProjectMembership(projects, event.agent.workspaceId, event.projectKey);
+    updateProjectMembership(projects, event.agent.workspaceId, event.project);
   } else {
     agents.delete(event.agent.id);
   }
@@ -55,11 +61,18 @@ export function collectUnreachableAgentIds(
   return unreachableIds;
 }
 
-/** Move one workspace identity to its latest project placement without disturbing other workspaces. */
+/**
+ * Move one workspace identity to its latest project placement without disturbing other
+ * workspaces. The merge key is always placement.projectKey — a Map can't fork into two rows
+ * for the same key regardless of arrival order. A brand-new project takes its display name from
+ * placement.projectName (the daemon always bundles it with projectKey, never one without the
+ * other); an already-known project keeps its existing name so this never clobbers a user's
+ * custom rename, which arrives through a separate explicit patch (see commitRename).
+ */
 function updateProjectMembership(
   projects: Map<string, ConversationTreeProject>,
   rawWorkspaceId: string | null,
-  projectKey: string | null,
+  placement: AgentUpdateProjectPlacement | null,
 ): void {
   const workspaceId = normalizeWorkspaceId(rawWorkspaceId);
   if (workspaceId === null) {
@@ -73,15 +86,19 @@ function updateProjectMembership(
       projects.set(key, { ...project, workspaceIds: remainingWorkspaceIds });
     }
   }
-  if (projectKey === null) {
+  if (placement === null) {
     return;
   }
-  const project = projects.get(projectKey);
+  const project = projects.get(placement.projectKey);
   if (project === undefined) {
-    projects.set(projectKey, { projectKey, name: projectKey, workspaceIds: [workspaceId] });
+    projects.set(placement.projectKey, {
+      projectKey: placement.projectKey,
+      name: placement.projectName,
+      workspaceIds: [workspaceId],
+    });
     return;
   }
-  projects.set(projectKey, {
+  projects.set(placement.projectKey, {
     ...project,
     workspaceIds: [...project.workspaceIds, workspaceId],
   });

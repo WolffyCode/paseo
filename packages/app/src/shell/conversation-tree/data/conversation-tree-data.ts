@@ -221,9 +221,13 @@ function decodeAgentUpdate(event: DaemonEvent): AgentUpdateEvent | null {
   if (event.payload.kind === "remove") {
     return { kind: "remove", agentId: event.payload.agentId };
   }
+  const project = event.payload.project;
   return {
     kind: "upsert",
     agent: decodeConversationTreeAgent(event.payload.agent),
-    projectKey: event.payload.project?.projectKey ?? null,
+    project:
+      project === null || project === undefined
+        ? null
+        : { projectKey: project.projectKey, projectName: project.projectName },
   };
 }

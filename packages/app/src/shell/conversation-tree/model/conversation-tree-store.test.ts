@@ -256,7 +256,11 @@ describe("ConversationTreeStore", () => {
     await store.load();
     const pushed = agent("pushed", { workspaceId: "workspace-pushed", status: "running" });
 
-    data.emitAgent({ kind: "upsert", agent: pushed, projectKey: "new-project" });
+    data.emitAgent({
+      kind: "upsert",
+      agent: pushed,
+      project: { projectKey: "new-project", projectName: "New project" },
+    });
 
     expect(store.agents.get("pushed")).toBe(pushed);
     expect(store.projects.get("new-project")?.workspaceIds).toEqual(["workspace-pushed"]);
@@ -333,7 +337,7 @@ describe("ConversationTreeStore", () => {
     data.emitAgent({
       kind: "upsert",
       agent: { ...root, title: "Remote agent title" },
-      projectKey: "project",
+      project: { projectKey: "project", projectName: "Project" },
     });
     data.emitWorkspace(workspace("workspace-root", { name: "Remote workspace title" }));
 
@@ -410,7 +414,7 @@ describe("ConversationTreeStore", () => {
     store.dispose();
     store.dispose();
 
-    data.emitAgent({ kind: "upsert", agent: agent("late"), projectKey: null });
+    data.emitAgent({ kind: "upsert", agent: agent("late"), project: null });
     data.emitWorkspace(workspace("late"));
 
     expect(data.agentUnsubscribeCount).toBe(1);
