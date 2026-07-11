@@ -454,9 +454,9 @@ export class ConversationTreeStore {
       if (this.disposed) {
         return;
       }
-      const activeAgents = agents.filter(
-        (agent) => agent.archivedAt === null && agent.status !== "closed",
-      );
+      // Closed agents stay in the snapshot (build-tree.ts renders them into the idle bucket);
+      // only archive removes an agent from the active tree.
+      const activeAgents = agents.filter((agent) => agent.archivedAt === null);
       const nextAgents = new Map(activeAgents.map((agent) => [agent.id, agent]));
       const groupedProjects = groupWorkspacesIntoProjects({
         workspaces: workspaceSnapshot.workspaces,

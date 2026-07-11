@@ -27,7 +27,9 @@ export function applyAgentUpdate(
   const projects = new Map(state.projects);
   if (event.kind === "remove") {
     agents.delete(event.agentId);
-  } else if (isActiveAgent(event.agent)) {
+  } else if (event.agent.archivedAt === null) {
+    // Closed stays in the snapshot (status-dot.ts maps it to idle); archive is the only
+    // transition that removes an agent from the active tree, matching build-tree.ts.
     agents.set(event.agent.id, event.agent);
     updateProjectMembership(projects, event.agent.workspaceId, event.projectKey);
   } else {
@@ -51,11 +53,6 @@ export function collectUnreachableAgentIds(
     }
   }
   return unreachableIds;
-}
-
-/** Keep only snapshots eligible for the active tree rather than retaining hidden closed records. */
-function isActiveAgent(agent: ConversationTreeAgent): boolean {
-  return agent.archivedAt === null && agent.status !== "closed";
 }
 
 /** Move one workspace identity to its latest project placement without disturbing other workspaces. */

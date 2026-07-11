@@ -88,7 +88,7 @@ describe("applyAgentUpdate", () => {
     expect(result.unreachableIds).toEqual(new Set(["root"]));
   });
 
-  test("treats archived or closed upserts as removals from the active snapshot", () => {
+  test("treats an archived upsert as a removal from the active snapshot", () => {
     const root = agent("root");
     const archived = applyAgentUpdate(
       { agents: new Map([[root.id, root]]), projects: new Map() },
@@ -98,15 +98,21 @@ describe("applyAgentUpdate", () => {
         projectKey: null,
       },
     );
+
+    expect(archived.agents.size).toBe(0);
+    expect(archived.unreachableIds).toEqual(new Set(["root"]));
+  });
+
+  test("keeps a closed upsert in the snapshot instead of treating it as a removal", () => {
+    const root = agent("root");
     const closed = applyAgentUpdate(
       { agents: new Map([[root.id, root]]), projects: new Map() },
       { kind: "upsert", agent: { ...root, status: "closed" }, projectKey: null },
     );
 
-    expect(archived.agents.size).toBe(0);
-    expect(archived.unreachableIds).toEqual(new Set(["root"]));
-    expect(closed.agents.size).toBe(0);
-    expect(closed.unreachableIds).toEqual(new Set(["root"]));
+    expect(closed.agents.size).toBe(1);
+    expect(closed.agents.get("root")?.status).toBe("closed");
+    expect(closed.unreachableIds).toEqual(new Set());
   });
 
   test("treats a purely dangling parent reference as reachable, matching build-tree's root promotion", () => {

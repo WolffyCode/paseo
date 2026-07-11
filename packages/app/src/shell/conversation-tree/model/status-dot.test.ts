@@ -45,6 +45,17 @@ describe("deriveConversationStatusDot", () => {
     ).toBe("initializing");
   });
 
+  test("maps closed straight to idle even when stale attention flags are still set", () => {
+    expect(
+      deriveConversationStatusDot({
+        status: "closed",
+        requiresAttention: true,
+        attentionReason: "finished",
+        pendingPermissionCount: 3,
+      }),
+    ).toBe("idle");
+  });
+
   test("keeps permission above errors and errors above finished attention", () => {
     expect(
       deriveConversationStatusDot({

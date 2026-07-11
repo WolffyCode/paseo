@@ -106,6 +106,23 @@ describe("buildConversationTree", () => {
     expect(nodes[0]?.children.map((node) => node.id)).toEqual(["kept"]);
   });
 
+  test("keeps a closed agent and its live children visible, mapped into the idle status dot", () => {
+    const nodes = buildConversationTree({
+      agents: [
+        agent("kept", { workspaceId: "w1" }),
+        agent("closed-root", { workspaceId: "w1", status: "closed" }),
+        agent("closed-root-child", { parentAgentId: "closed-root" }),
+      ],
+      projects: PROJECTS,
+      workspaceDetails: new Map(),
+    });
+
+    expect(nodes[0]?.children.map((node) => node.id)).toEqual(["closed-root", "kept"]);
+    const closedRoot = nodes[0]?.children[0];
+    expect(closedRoot?.statusDot).toBe("idle");
+    expect(closedRoot?.children.map((node) => node.id)).toEqual(["closed-root-child"]);
+  });
+
   test("promotes an agent whose parent id is absent from every snapshot state to its own root", () => {
     const nodes = buildConversationTree({
       agents: [

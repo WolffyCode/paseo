@@ -12,6 +12,11 @@ export interface ConversationStatusDotInput {
 export function deriveConversationStatusDot(
   input: ConversationStatusDotInput,
 ): ConversationStatusDot {
+  // A closed agent's runtime is gone, so any requiresAttention/pendingPermissionCount left over
+  // from before it closed is stale and must not resurrect a running-conversation-only state.
+  if (input.status === "closed") {
+    return "idle";
+  }
   const needsPermission =
     input.pendingPermissionCount > 0 || input.attentionReason === "permission";
   if (needsPermission) {

@@ -544,7 +544,7 @@ describe("ConversationTreeStore", () => {
     expect(store.panelState).toBe("ready");
   });
 
-  test("filters archived and closed records from the initial active snapshot", async () => {
+  test("filters archived records but keeps closed agents from the initial active snapshot", async () => {
     const data = new FakeConversationTreeData();
     data.agents = [
       agent("archived", { archivedAt: "2026-07-12T02:00:00.000Z" }),
@@ -554,7 +554,7 @@ describe("ConversationTreeStore", () => {
 
     await store.load();
 
-    expect(store.agents.size).toBe(0);
-    expect(store.panelState).toBe("empty");
+    expect(Array.from(store.agents.keys())).toEqual(["closed"]);
+    expect(store.panelState).toBe("ready");
   });
 });

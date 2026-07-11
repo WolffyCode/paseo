@@ -37,8 +37,11 @@ export function buildConversationTree(input: BuildConversationTreeInput): Conver
   for (const candidate of input.agents) {
     agentsById.set(candidate.id, candidate);
   }
+  // Archive is the only state that hides a conversation from the tree; closed conversations stay
+  // visible (mapped into the idle status dot by status-dot.ts) since their history isn't lost and
+  // a new message revives them.
   const liveAgents = Array.from(agentsById.values()).filter(
-    (candidate) => candidate.archivedAt === null && candidate.status !== "closed",
+    (candidate) => candidate.archivedAt === null,
   );
 
   const childrenByParent = new Map<string, ConversationTreeAgent[]>();
