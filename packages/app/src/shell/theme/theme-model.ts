@@ -39,6 +39,13 @@ export interface ShellTokens {
   surfaceCard: string;
   foreground: string;
   foregroundMuted: string;
+  // Shared semantic status colors used by shell-owned navigation and work surfaces.
+  statusSuccess: string;
+  statusSuccessSoft: string;
+  statusWarning: string;
+  statusWarningSoft: string;
+  statusDanger: string;
+  statusDangerSoft: string;
   // The card's only visible edge (a hairline), plus the placeholder dashed outline.
   border: string;
   // Toggle "expanded/active" fill — a very light gray, never black or primary.
@@ -75,6 +82,12 @@ export const SHELL_TOKENS: Record<ThemeScheme, ShellTokens> = {
     surfaceCard: "rgb(255, 255, 255)",
     foreground: "#1f2328",
     foregroundMuted: "#59636e",
+    statusSuccess: "#1a7f37",
+    statusSuccessSoft: "rgba(26, 127, 55, 0.14)",
+    statusWarning: "#9a6700",
+    statusWarningSoft: "rgba(154, 103, 0, 0.14)",
+    statusDanger: "#cf222e",
+    statusDangerSoft: "rgba(207, 34, 46, 0.12)",
     border: "#d1d9e0",
     toggleActive: "#eaeef2",
     accent: "#0969da",
@@ -99,6 +112,12 @@ export const SHELL_TOKENS: Record<ThemeScheme, ShellTokens> = {
     surfaceCard: "rgb(22, 27, 34)",
     foreground: "#e6edf3",
     foregroundMuted: "#8b949e",
+    statusSuccess: "#3fb950",
+    statusSuccessSoft: "rgba(63, 185, 80, 0.16)",
+    statusWarning: "#d29922",
+    statusWarningSoft: "rgba(210, 153, 34, 0.16)",
+    statusDanger: "#f85149",
+    statusDangerSoft: "rgba(248, 81, 73, 0.14)",
     border: "#30363d",
     toggleActive: "#21262d",
     accent: "#4493f8",
