@@ -1,0 +1,1757 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · UI 设计稿 v1 · 左侧对话树（项目 → 对话 → subagent 嵌套 · 主机切换 · 新对话/搜索）· codePilot 主题 · 7 屏全态</title>
+    <style>
+      /* =========================================================================
+         主题令牌 = 与右侧侧边栏 v8 / 壳子同源（CodePilot「github」主题），:root 浅色 + .dark
+         深色逐值原样复用（不重定义数值，保持全站一套 token 来源）。--sidebar 即本屏左栏底色
+         （右侧栏 token 注释已标「左栏(深) #010409」，本稿是其消费方）。
+         hover 一律 --accent(#f6f8fa/#1c2128) 绝不用蓝；选中/激活 = --secondary（比 hover 深一档的
+         淡灰，浅底深字）；蓝(--primary)仅 focus 环/链接/点缀，不铺满选中行。
+         ========================================================================= */
+      :root {
+        --bg: oklch(1 0 0);
+        --fg: oklch(0.254 0.011 254);
+        --card: oklch(1 0 0);
+        --primary: oklch(0.54 0.191 257.5);
+        --primary-fg: oklch(1 0 0);
+        --secondary: oklch(0.947 0.007 247.9);
+        --secondary-fg: oklch(0.338 0.015 252.3);
+        --muted: oklch(0.947 0.007 247.9);
+        --muted-fg: oklch(0.531 0.017 251.3);
+        --accent: oklch(0.978 0.003 247.9);
+        --accent-fg: oklch(0.338 0.015 252.3);
+        --border: oklch(0.876 0.012 248);
+        --input: oklch(0.876 0.012 248);
+        --ring: oklch(0.54 0.191 257.5);
+        --sidebar: oklch(0.978 0.003 247.9);
+        --sidebar-accent: oklch(0.947 0.007 247.9);
+        --sidebar-accent-fg: oklch(0.338 0.015 252.3);
+        --destructive: oklch(0.552 0.205 24.5);
+        --success: oklch(0.503 0.137 152);
+        --warning: oklch(0.555 0.118 75);
+        --info: oklch(0.54 0.191 257.5);
+        --radius: 12px;
+        --r-card: 12px;
+        --r-ctrl: 6px;
+        --r-sm: 6px;
+        --card-drop: 0 1px 0 rgba(31, 35, 40, 0.04), 0 1px 3px rgba(31, 35, 40, 0.08);
+        --win-backdrop:
+          radial-gradient(135% 90% at 12% -10%, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0) 55%),
+          radial-gradient(120% 120% at 108% 115%, rgba(160, 184, 222, 0.52), rgba(160, 184, 222, 0) 52%),
+          linear-gradient(152deg, #d8e2f1 0%, #cbd8eb 50%, #d5e0f0 100%);
+        --win-shadow: 0 12px 30px -16px rgba(31, 35, 40, 0.16), 0 2px 6px -3px rgba(31, 35, 40, 0.1);
+        --ui: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        --mono: "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      }
+      .dark {
+        --bg: oklch(0.176 0.014 258.4);
+        --fg: oklch(0.943 0.011 243.7);
+        --card: oklch(0.22 0.016 256.8);
+        --primary: oklch(0.569 0.202 259.7);
+        --primary-fg: oklch(1 0 0);
+        --secondary: oklch(0.267 0.015 256.8);
+        --secondary-fg: oklch(0.857 0.014 248);
+        --muted: oklch(0.267 0.015 256.8);
+        --muted-fg: oklch(0.662 0.018 250.9);
+        --accent: oklch(0.246 0.015 256.8);
+        --accent-fg: oklch(0.943 0.011 243.7);
+        --border: oklch(0.33 0.015 252.3);
+        --input: oklch(0.33 0.015 252.3);
+        --ring: oklch(0.569 0.202 259.7);
+        --sidebar: oklch(0.104 0.019 248.3);
+        --sidebar-accent: oklch(0.267 0.015 256.8);
+        --sidebar-accent-fg: oklch(0.943 0.011 243.7);
+        --destructive: oklch(0.665 0.205 27);
+        --success: oklch(0.65 0.15 152);
+        --warning: oklch(0.74 0.13 80);
+        --info: oklch(0.569 0.202 259.7);
+        --card-drop: 0 1px 0 rgba(1, 4, 9, 0.3), 0 1px 3px rgba(1, 4, 9, 0.4);
+        --win-backdrop:
+          radial-gradient(135% 90% at 12% -10%, rgba(60, 72, 92, 0.5), rgba(60, 72, 92, 0) 55%),
+          radial-gradient(120% 120% at 108% 115%, rgba(20, 28, 44, 0.7), rgba(20, 28, 44, 0) 50%),
+          linear-gradient(152deg, #11151c 0%, #0b0e14 55%, #0d1117 100%);
+        --win-shadow: 0 12px 30px -16px rgba(0, 0, 0, 0.6), 0 2px 6px -3px rgba(0, 0, 0, 0.5);
+      }
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      html, body { background: #eaeef2; color: var(--fg); font-family: var(--ui); -webkit-font-smoothing: antialiased; font-size: 16px; line-height: 1.45; }
+      body { padding: 40px 32px 120px; }
+      button { font: inherit; color: inherit; background: none; border: none; padding: 0; cursor: pointer; }
+      svg.i { width: 16px; height: 16px; stroke: currentColor; stroke-width: 2; fill: none; stroke-linecap: round; stroke-linejoin: round; flex: none; display: block; }
+      .i.xs { width: 12px; height: 12px; }
+      .i.sm { width: 14px; height: 14px; }
+      .i.md { width: 16px; height: 16px; }
+      .i.lg { width: 22px; height: 22px; }
+      .fill { fill: currentColor; stroke: none; }
+
+      /* ===== board header（同 sRS v8 版式） ===== */
+      .board-h { max-width: 1480px; margin: 0 auto 20px; }
+      .board-h h1 { font-size: 30px; font-weight: 600; letter-spacing: -0.5px; display: flex; align-items: center; gap: 12px; color: #1f2328; }
+      .board-h h1 .logo { width: 34px; height: 34px; border-radius: 9px; background: #0969da; display: flex; align-items: center; justify-content: center; color: #fff; }
+      .board-h .sub { color: #59636e; font-size: 14px; margin-top: 8px; max-width: 1180px; }
+      .board-h .sub b { color: #1f2328; font-weight: 600; }
+      .rev-bar { max-width: 1480px; margin: 0 auto 18px; display: flex; align-items: flex-start; gap: 10px; padding: 12px 16px; border: 1px solid rgba(9,105,218,0.32); border-radius: 12px; background: rgba(9,105,218,0.06); font-size: 13px; color: #1f2328; }
+      .rev-bar .rb-tag { flex: none; font-size: 11px; font-weight: 700; letter-spacing: 0.4px; color: #fff; background: #0969da; border-radius: 9999px; padding: 2px 10px; margin-top: 1px; }
+      .rev-bar b { font-weight: 600; }
+      .req-log { max-width: 1480px; margin: 0 auto 18px; border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; overflow: hidden; }
+      .req-log .rl-h { padding: 10px 16px; background: #eaeef2; font-size: 12px; font-weight: 600; color: #59636e; letter-spacing: 0.4px; text-transform: uppercase; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #d1d9e0; }
+      .req-log table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+      .req-log td, .req-log th { padding: 7px 16px; text-align: left; border-top: 1px solid #d1d9e0; vertical-align: top; }
+      .req-log th { color: #59636e; font-weight: 500; font-size: 12px; }
+      .req-log td:first-child { color: #59636e; white-space: nowrap; font-variant-numeric: tabular-nums; font-weight: 600; }
+      .pill { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 9999px; font-size: 11px; font-weight: 500; }
+      .pill.new { color: #0969da; background: rgba(9, 105, 218, 0.12); }
+      .nav-idx { max-width: 1480px; margin: 0 auto 30px; display: flex; flex-wrap: wrap; gap: 8px; }
+      .nav-idx a { font-size: 12px; color: #59636e; text-decoration: none; padding: 5px 11px; border: 1px solid #d1d9e0; border-radius: 9999px; background: #f6f8fa; }
+      .nav-idx a:hover { color: #1f2328; background: #eaeef2; }
+      .nav-idx a.new { color: #0969da; border-color: rgba(9, 105, 218, 0.3); }
+      .note { max-width: 1480px; margin: 0 auto 30px; font-size: 13px; color: #59636e; display: flex; align-items: flex-start; gap: 8px; padding: 12px 14px; border: 1px dashed #d1d9e0; border-radius: 10px; background: #f6f8fa; }
+      .note b { color: #1f2328; }
+
+      /* ===== screen scaffold ===== */
+      .screen { max-width: 1480px; margin: 0 auto 60px; scroll-margin-top: 20px; }
+      .screen-head { margin-bottom: 14px; }
+      .screen-head .tag { display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px; color: #0969da; background: rgba(9, 105, 218, 0.12); padding: 2px 9px; border-radius: 9999px; margin-bottom: 8px; }
+      .screen-head h2 { font-size: 20px; font-weight: 600; letter-spacing: -0.2px; color: #1f2328; }
+      .screen-head p { color: #59636e; font-size: 14px; margin-top: 5px; max-width: 1180px; }
+      .screen-head p b { color: #1f2328; font-weight: 600; }
+
+      .stage { border-radius: 16px; background: var(--win-backdrop); box-shadow: var(--win-shadow); padding: 18px; display: flex; gap: 18px; flex-wrap: wrap; align-items: flex-start; }
+      .stage.one { justify-content: center; }
+      .stage.dark { background: linear-gradient(152deg, #11151c 0%, #0b0e14 55%, #0d1117 100%); }
+      .fcap { font-size: 11px; font-weight: 600; color: #3d444d; text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 8px; }
+      .dark .fcap, .stage.dark .fcap { color: #adbac7; }
+      .fcol { display: flex; flex-direction: column; position: relative; }
+
+      /* ===== 简化壳（左栏落壳上下文）——顶栏为壳/codepilot-layout 内容，本稿仅示意不重画其交互 ===== */
+      .lshell { width: 760px; max-width: 100%; border-radius: 16px; background: var(--win-backdrop); box-shadow: var(--win-shadow); padding: 8px 10px 10px; display: flex; flex-direction: column; gap: 6px; height: 640px; }
+      .ls-top { height: 36px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 4px; opacity: 0.62; }
+      .lights { display: flex; gap: 8px; padding-left: 4px; margin-right: 4px; }
+      .lights span { width: 12px; height: 12px; border-radius: 9999px; }
+      .lights .r { background: #ff5f57; }
+      .lights .y { background: #febc2e; }
+      .lights .g { background: #28c840; }
+      .ls-tbtn { width: 26px; height: 26px; border-radius: 7px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted-fg); flex: none; }
+      .ls-tbtn.on { background: var(--secondary); color: var(--fg); }
+      .ls-crumb { font-size: 12px; color: var(--muted-fg); display: flex; align-items: center; gap: 5px; }
+      .ls-crumb b { color: var(--fg); font-weight: 500; }
+      .ls-sp { flex: 1; }
+      .ls-branch { font-size: 11.5px; color: var(--muted-fg); display: inline-flex; align-items: center; gap: 5px; }
+      .ls-shellnote { position: absolute; top: 6px; right: 10px; font-size: 10px; color: var(--muted-fg); background: var(--card); border: 1px dashed var(--border); border-radius: 9999px; padding: 2px 9px; }
+      .ls-body { flex: 1; min-height: 0; display: flex; gap: 12px; }
+
+      /* ===== 左侧边栏卡（= 壳 workspace 几何：默认 240 / min180 / max300，拖拽属壳） ===== */
+      .lsb { width: 240px; flex: none; border-radius: var(--r-card); border: 1px solid var(--border); background: var(--sidebar); box-shadow: var(--card-drop); overflow: hidden; display: flex; flex-direction: column; }
+      .lsb.mini { width: 220px; }
+      .lsb-scroll { flex: 1; min-height: 0; overflow: auto; padding: 8px 8px 10px; display: flex; flex-direction: column; }
+      .ls-main { flex: 1; min-width: 0; border-radius: var(--r-card); border: 1px solid var(--border); background: var(--bg); box-shadow: var(--card-drop); display: flex; align-items: center; justify-content: center; padding: 20px; }
+      .ls-main .t { font-size: 12.5px; color: var(--muted-fg); text-align: center; line-height: 1.6; max-width: 260px; }
+      .ls-main .t b { color: var(--fg); font-weight: 600; }
+
+      /* host switcher */
+      .host-switch { position: relative; margin: 2px 2px 8px; }
+      .host-pill { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border-radius: 9px; background: var(--card); border: 1px solid var(--border); font-size: 13px; color: var(--fg); }
+      .host-pill:hover, .host-pill.is-hover { background: var(--accent); }
+      .host-pill.open { border-color: var(--primary); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 18%, transparent); }
+      .host-pill .nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .host-pill .ic { color: var(--muted-fg); flex: none; }
+      .host-dd { position: absolute; top: calc(100% + 6px); left: 0; right: 0; background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 12px 28px -8px rgba(31,35,40,0.24); padding: 5px; z-index: 20; }
+      .dark .host-dd { box-shadow: 0 12px 28px -8px rgba(0,0,0,0.6); }
+      .host-dd .hd-h { font-size: 10.5px; font-weight: 700; color: var(--muted-fg); text-transform: uppercase; letter-spacing: 0.4px; padding: 5px 9px 4px; }
+      .host-row { display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 9px; border-radius: 6px; font-size: 12.5px; color: var(--fg); }
+      .host-row:hover, .host-row.is-hover { background: var(--accent); }
+      .host-row.sel { background: var(--secondary); font-weight: 600; }
+      .host-row .hr-nm { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .host-row .hr-st { flex: none; font-size: 11px; color: var(--muted-fg); }
+      .host-row .hr-st.on { color: var(--success); }
+      .host-row .hr-st.ing { color: var(--warning); }
+      .host-row .hr-st.off { color: var(--destructive); }
+      .host-row.off { opacity: 0.66; }
+      .host-row .relay { flex: none; color: var(--muted-fg); }
+      .host-row .chk { margin-left: auto; color: var(--primary); flex: none; }
+
+      /* dots (host/agent 共用状态点视觉) */
+      .hdot { width: 7px; height: 7px; border-radius: 9999px; flex: none; }
+      .hdot.on { background: var(--success); }
+      .hdot.ing { background: var(--warning); }
+      .hdot.off { background: var(--destructive); }
+
+      /* new-conversation / search 顶部行 */
+      .lsb-top { display: flex; flex-direction: column; gap: 2px; margin-bottom: 6px; }
+      .lsb-item { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 9px; border-radius: 7px; font-size: 13.5px; color: var(--fg); position: relative; }
+      .lsb-item:hover, .lsb-item.is-hover { background: var(--accent); }
+      .lsb-item.dis { opacity: 0.45; }
+      .lsb-item.dis:hover { background: none; }
+      .lsb-item .ic { color: var(--muted-fg); flex: none; }
+      .lsb-item .muted { color: var(--muted-fg); }
+      .lsb-item .kbd { margin-left: auto; font-family: var(--mono); font-size: 10.5px; color: var(--muted-fg); background: var(--secondary); border: 1px solid var(--border); border-radius: 5px; padding: 1px 6px; flex: none; }
+
+      /* section header（置顶/项目/对话） */
+      .lsb-sec { display: flex; align-items: center; gap: 6px; padding: 8px 9px 4px; font-size: 12.5px; font-weight: 500; color: var(--muted-fg); }
+      .lsb-sec .act { margin-left: auto; width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted-fg); opacity: 0; flex: none; }
+      .lsb-sec:hover .act, .lsb-sec.show-act .act { opacity: 1; }
+      .lsb-sec .act:hover { background: var(--accent); color: var(--fg); }
+      .lsb-empty { padding: 5px 9px 7px; font-size: 12.5px; color: var(--muted-fg); }
+      .lsb-empty.ind { padding-left: 44px; }
+
+      /* tree rows */
+      .tree { display: flex; flex-direction: column; gap: 1px; }
+      .tnode { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px 0 8px; border-radius: var(--r-sm); font-size: 13.5px; color: var(--fg); position: relative; margin-bottom: 1px; }
+      .tnode:hover, .tnode.is-hover { background: var(--accent); }
+      .tnode.on { background: var(--secondary); }
+      .tnode.dim { opacity: 0.5; }
+      .twedge { flex: none; width: 14px; height: 14px; display: flex; align-items: center; justify-content: center; color: var(--muted-fg); border-radius: 3px; }
+      .twedge.exp svg { transform: rotate(90deg); }
+      .twedge:hover { background: var(--secondary); }
+      .tnode .ti { flex: none; color: var(--muted-fg); }
+      .tnode .ti.bot-sub { width: 14px; height: 14px; }
+      .tname { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .tlock { flex: none; color: var(--muted-fg); opacity: 0.75; }
+      .tbadge { flex: none; font-size: 10px; color: var(--muted-fg); background: var(--secondary); border-radius: 9999px; padding: 0 6px; line-height: 16px; font-variant-numeric: tabular-nums; }
+      .tact { position: absolute; right: 8px; top: 0; bottom: 0; width: 22px; display: flex; align-items: center; justify-content: center; opacity: 0; }
+      .tnode:hover .tact, .tnode.is-hover .tact, .tnode.showact .tact { opacity: 1; }
+      /* hover 尾部动作与角标共用同一槽位：hover 时角标让位（本稿在真实实现绝对定位基础上补的处理，见 sCT3 注解） */
+      .tnode:hover .tbadge, .tnode.is-hover .tbadge, .tnode.showact .tbadge { opacity: 0; }
+      .tact .tbtn { width: 20px; height: 20px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted-fg); }
+      .tact .tbtn:hover { background: var(--secondary); color: var(--fg); }
+      .tind1 { padding-left: 22px; }
+      .tind2 { padding-left: 36px; }
+      .tind3 { padding-left: 50px; }
+      .tind4 { padding-left: 64px; }
+      .tind8 { padding-left: 120px; }
+      .trename { flex: 1; height: 22px; background: var(--bg); border: 1px solid var(--primary); border-radius: 5px; padding: 0 6px; font-size: 13px; color: var(--fg); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 18%, transparent); }
+      .tghost { opacity: 0.5; }
+      .tghost .ti { color: var(--muted-fg); }
+      .tdropline { height: 2px; border-radius: 2px; background: var(--primary); margin: 1px 8px 1px 30px; box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 20%, transparent); }
+      .grip { color: var(--muted-fg); opacity: 0.55; transform: rotate(90deg); }
+
+      /* 状态点（运行态族·扎根 status + requiresAttention 真实字段，见注解） */
+      .tdot { width: 7px; height: 7px; border-radius: 9999px; flex: none; }
+      .tdot.run { background: var(--success); box-shadow: 0 0 0 3px color-mix(in oklch, var(--success) 22%, transparent); animation: dotpulse 1.8s ease-in-out infinite; }
+      .tdot.idle { background: var(--muted-fg); }
+      .tdot.err { background: var(--destructive); }
+      .tdot.init { background: var(--primary); box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 20%, transparent); }
+      .tdot.attn { background: var(--warning); box-shadow: 0 0 0 3px color-mix(in oklch, var(--warning) 24%, transparent); animation: dotpulse 1.8s ease-in-out infinite; }
+      @keyframes dotpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+      .lsb-foot { border-top: 1px solid var(--border); padding: 7px 1px 1px; margin-top: 4px; }
+      .lsb-foot .lsb-item { color: var(--muted-fg); }
+      .lsb-foot-note { font-size: 9.5px; color: var(--muted-fg); text-align: center; margin-top: 3px; opacity: 0.8; }
+
+      /* workspace hover 卡（真实 WorkspaceHoverCard 字段：标题/分支/目录/最后更改/diffstat/PR） */
+      .whc { width: 236px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 10px 26px -8px rgba(31,35,40,0.26); padding: 9px 0 6px; }
+      .dark .whc { box-shadow: 0 10px 26px -8px rgba(0,0,0,0.6); }
+      .whc-t { font-size: 13px; color: var(--fg); padding: 0 12px 8px; font-weight: 500; }
+      .whc-row { display: flex; align-items: center; gap: 6px; padding: 0 12px 8px; font-size: 11px; color: var(--muted-fg); }
+      .whc-row .ic { flex: none; }
+      .whc-meta { display: flex; align-items: center; gap: 8px; padding: 0 12px 4px; }
+      .whc-diff { font-family: var(--mono); font-size: 11px; display: flex; gap: 5px; }
+      .whc-diff .add { color: var(--success); }
+      .whc-diff .del { color: var(--destructive); }
+      .whc-pr { display: inline-flex; align-items: center; gap: 4px; font-size: 10.5px; color: var(--muted-fg); background: var(--secondary); border-radius: 9999px; padding: 1px 8px; }
+
+      /* ===== 右键菜单浮层（同 sRS v8 .ctx 规格） ===== */
+      .ctxwrap { position: relative; }
+      .ctx { width: 224px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; box-shadow: 0 8px 24px -6px rgba(31, 35, 40, 0.22), 0 2px 6px -2px rgba(31, 35, 40, 0.12); padding: 5px; font-size: 13px; }
+      .ctx.narrow { width: 192px; }
+      .dark .ctx { box-shadow: 0 8px 24px -6px rgba(0, 0, 0, 0.6), 0 2px 6px -2px rgba(0, 0, 0, 0.5); }
+      .ctxi { display: flex; align-items: center; gap: 9px; height: 29px; padding: 0 10px; border-radius: 6px; color: var(--fg); cursor: default; white-space: nowrap; }
+      .ctxi .ic { color: var(--muted-fg); flex: none; }
+      .ctxi .ki { margin-left: auto; font-size: 10.5px; color: var(--muted-fg); font-family: var(--mono); }
+      .ctxi:hover, .ctxi.is-hover { background: var(--accent); }
+      .ctxi.danger { color: var(--destructive); }
+      .ctxi.danger .ic { color: var(--destructive); }
+      .ctxi.dis { color: var(--muted-fg); opacity: 0.48; cursor: not-allowed; }
+      .ctxi.dis .ic { opacity: 0.8; }
+      .ctxi.dis:hover { background: none; }
+      .ctxi.pending { color: var(--muted-fg); }
+      .ctxsep { height: 1px; background: var(--border); margin: 5px 7px; }
+      .ctxcap { font-size: 9.5px; font-weight: 700; color: #768390; text-transform: uppercase; letter-spacing: 0.4px; padding: 3px 9px; }
+
+      /* 确认弹窗（移除项目） */
+      .modal-scrim { position: absolute; inset: 0; background: rgba(31,35,40,0.28); display: flex; align-items: center; justify-content: center; z-index: 10; padding: 18px; border-radius: var(--r-card); }
+      .dark .modal-scrim { background: rgba(1,4,9,0.5); }
+      .confirm { width: 268px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 40px -12px rgba(31,35,40,0.4); overflow: hidden; }
+      .dark .confirm { box-shadow: 0 16px 40px -12px rgba(0,0,0,0.7); }
+      .confirm-b { padding: 14px 15px 9px; }
+      .confirm-b .t { font-size: 13.5px; font-weight: 600; color: var(--fg); margin-bottom: 5px; display: flex; align-items: center; gap: 7px; }
+      .confirm-b .t .ic { color: var(--warning); flex: none; }
+      .confirm-b .d { font-size: 12px; color: var(--muted-fg); line-height: 1.5; }
+      .confirm-b .d b { color: var(--fg); font-weight: 600; }
+      .confirm-foot { display: flex; align-items: center; gap: 8px; padding: 9px 15px 13px; }
+      .confirm-foot .btn.gap { margin-left: auto; }
+
+      /* ===== 按钮 ===== */
+      .btn { display: inline-flex; align-items: center; gap: 5px; height: 27px; padding: 0 11px; border-radius: 6px; font-size: 12px; font-weight: 500; border: 1px solid transparent; white-space: nowrap; }
+      .btn.out { border-color: var(--border); background: var(--bg); color: var(--fg); }
+      .btn.out:hover { background: var(--accent); }
+      .btn.ghost { color: var(--muted-fg); }
+      .btn.ghost:hover { background: var(--accent); color: var(--fg); }
+      .btn.prim { background: var(--primary); color: #fff; }
+      .btn.danger { background: var(--destructive); color: #fff; }
+      .btn.dis { opacity: 0.45; cursor: not-allowed; }
+
+      /* ===== 联动箭头（同 sRS6 手法：接断链 · 诚实标注） ===== */
+      .link-flow { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; justify-content: center; }
+      .link-arrow { display: flex; flex-direction: column; align-items: center; gap: 5px; flex: none; min-width: 90px; }
+      .link-arrow .ln { display: flex; align-items: center; color: var(--primary); }
+      .link-arrow.rev .ln { color: var(--success); }
+      .link-arrow .lbl { font-size: 11px; color: var(--muted-fg); max-width: 160px; text-align: center; line-height: 1.4; }
+      .link-arrow .lbl b { color: var(--fg); font-weight: 600; }
+      .arrow-line { height: 2px; width: 42px; border-radius: 2px; background: var(--primary); }
+      .link-arrow.rev .arrow-line { background: var(--success); }
+      .sug-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; border-radius: 9999px; padding: 1px 8px; letter-spacing: 0.3px; border: 1px solid; }
+
+      /* ===== cmdk（⌘K 命令面板·搜索结果承接示意，另一模块拥有全态） ===== */
+      .cmdk { width: 320px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 16px 40px -12px rgba(31,35,40,0.32); overflow: hidden; }
+      .dark .cmdk { box-shadow: 0 16px 40px -12px rgba(0,0,0,0.7); }
+      .cmdk-in { display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 12px; border-bottom: 1px solid var(--border); font-size: 13px; color: var(--fg); }
+      .cmdk-in .ph { color: var(--muted-fg); }
+      .cmdk-sec { font-size: 10.5px; font-weight: 700; color: var(--muted-fg); text-transform: uppercase; letter-spacing: 0.4px; padding: 8px 12px 4px; }
+      .ci { display: flex; align-items: center; gap: 9px; height: 32px; padding: 0 12px; font-size: 12.5px; color: var(--fg); }
+      .ci .ic { color: var(--muted-fg); flex: none; }
+      .ci.on, .ci:hover { background: var(--accent); }
+      .ci .snip { color: var(--muted-fg); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .ci .snip mark { background: color-mix(in oklch, var(--primary) 24%, transparent); color: var(--fg); border-radius: 2px; }
+      .ci .proj { margin-left: auto; flex: none; font-size: 10.5px; color: var(--muted-fg); }
+
+      /* ===== 联动示意·右栏页签条缩略（承接侧示意，非重画右侧栏全态） ===== */
+      .xpanel { width: 216px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg); box-shadow: var(--card-drop); overflow: hidden; display: flex; flex-direction: column; }
+      .xtabs { height: 32px; flex: none; display: flex; align-items: center; gap: 3px; padding: 0 6px; border-bottom: 1px solid var(--border); }
+      .xtab { display: inline-flex; align-items: center; gap: 5px; height: 24px; padding: 0 8px; border-radius: 6px; font-size: 11.5px; color: var(--muted-fg); }
+      .xtab.on { background: var(--secondary); color: var(--fg); font-weight: 600; }
+      .xtab.sug { border: 1.5px dashed color-mix(in oklch, var(--warning) 55%, transparent); background: color-mix(in oklch, var(--warning) 8%, transparent); color: var(--warning); }
+      .xbody { flex: 1; display: flex; align-items: center; justify-content: center; padding: 14px; font-size: 10.5px; color: var(--muted-fg); text-align: center; line-height: 1.5; }
+      .msgsk { flex: 1; padding: 14px; display: flex; flex-direction: column; gap: 9px; }
+      .msgsk .b { border-radius: 8px; }
+      .badge-flat { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 700; border-radius: 9999px; padding: 1px 8px; letter-spacing: 0.2px; }
+      .badge-flat.wait { border: 1px dashed color-mix(in oklch, var(--warning) 55%, transparent); background: color-mix(in oklch, var(--warning) 12%, transparent); color: var(--warning); }
+      .badge-flat.go { border: 1px solid color-mix(in oklch, var(--success) 45%, transparent); background: color-mix(in oklch, var(--success) 12%, transparent); color: var(--success); }
+
+      /* ===== 空/加载/错误/离线 聚合态 ===== */
+      .sk { background: linear-gradient(90deg, var(--secondary) 0%, var(--accent) 50%, var(--secondary) 100%); border-radius: 4px; }
+      .skln { height: 18px; display: flex; align-items: center; gap: 8px; padding: 0 9px; }
+      .loadrow { display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--muted-fg); padding: 8px 9px; }
+      .loadrow .sp { color: var(--primary); }
+      @keyframes spin { to { transform: rotate(360deg); } }
+      .loadrow .sp svg { animation: spin 0.9s linear infinite; }
+      .ctxi.pending .ic svg { animation: spin 0.9s linear infinite; }
+      .tstate { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; padding: 20px 16px; text-align: center; }
+      .tstate .si { width: 38px; height: 38px; border-radius: 10px; display: flex; align-items: center; justify-content: center; background: var(--secondary); color: var(--muted-fg); }
+      .tstate .si.err { background: color-mix(in oklch, var(--destructive) 12%, transparent); color: var(--destructive); }
+      .tstate .si.off { background: color-mix(in oklch, var(--warning) 16%, transparent); color: var(--warning); }
+      .tstate .st { font-size: 12.5px; font-weight: 600; color: var(--fg); }
+      .tstate .ss { font-size: 11.5px; line-height: 1.5; color: var(--muted-fg); max-width: 200px; }
+      .tstate .sbtn { margin-top: 2px; font-size: 11.5px; font-weight: 500; color: var(--primary); border: 1px solid color-mix(in oklch, var(--primary) 35%, transparent); border-radius: 6px; padding: 5px 12px; background: color-mix(in oklch, var(--primary) 6%, transparent); }
+      .offbar { flex: none; display: flex; align-items: center; gap: 7px; padding: 7px 9px; background: color-mix(in oklch, var(--warning) 12%, transparent); border-bottom: 1px solid color-mix(in oklch, var(--warning) 30%, transparent); font-size: 11px; color: var(--warning); }
+      .offbar .rc { margin-left: auto; color: var(--primary); font-weight: 500; flex: none; }
+
+      /* ===== 结构拆解用图例卡（token 化·随浅深，区别于恒浅色的 .anno-card 文档卡） ===== */
+      .legend-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 4px 12px; box-shadow: var(--card-drop); font-size: 12.5px; color: var(--fg); }
+      .legend-row { display: flex; align-items: center; gap: 9px; padding: 8px 2px; border-top: 1px solid var(--border); }
+      .legend-row:first-child { border-top: none; }
+      .legend-row .lt { font-weight: 600; min-width: 76px; flex: none; display: flex; align-items: center; gap: 7px; }
+      .legend-row .ld { color: var(--muted-fg); font-size: 11px; line-height: 1.5; }
+      .mline { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 5px 2px; border-top: 1px dashed var(--border); font-size: 11.5px; }
+      .mline:first-child { border-top: none; }
+      .mline .k { color: var(--muted-fg); }
+      .mline .v { font-family: var(--mono); color: var(--fg); font-weight: 600; }
+
+      /* miniwin（主机切换过场示意，同 home-shell s7 手法重制） */
+      .miniwin { width: 240px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--bg); box-shadow: var(--card-drop); }
+      .mw-top { height: 20px; display: flex; align-items: center; gap: 5px; padding: 0 8px; border-bottom: 1px solid var(--border); background: var(--sidebar); }
+      .mw-top .l { width: 8px; height: 8px; border-radius: 50%; }
+      .mw-body { display: flex; height: 118px; }
+      .mw-side { flex: none; width: 92px; background: var(--sidebar); border-right: 1px solid var(--border); padding: 8px 6px; display: flex; flex-direction: column; gap: 5px; }
+      .mw-line { height: 6px; border-radius: 3px; background: var(--secondary); }
+      .mw-main { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 10.5px; color: var(--muted-fg); text-align: center; padding: 8px; }
+      .spin-sm { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--secondary); border-top-color: var(--primary); animation: spin 0.8s linear infinite; }
+      .spinner { border-radius: 50%; border: 2px solid var(--secondary); border-top-color: var(--primary); animation: spin 0.8s linear infinite; }
+
+      /* ===== annotation block（house style 四维度 · 恒浅色文档 chrome） ===== */
+      .anno { border: 1px solid #d1d9e0; border-radius: 12px; background: #f6f8fa; overflow: hidden; margin-top: 18px; }
+      .anno > .anno-h { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 11px 14px 4px; }
+      .anno-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 12px; padding: 12px 14px 14px; align-items: start; }
+      .anno-card { border: 1px solid #d1d9e0; border-radius: 8px; background: #fff; overflow: hidden; }
+      .anno-card > .ac-h { font-size: 12px; font-weight: 600; color: #59636e; text-transform: uppercase; letter-spacing: 0.4px; padding: 10px 13px 7px; }
+      .anno-card.span2 { grid-column: 1 / -1; }
+      .anno ol { list-style: none; display: flex; flex-direction: column; }
+      .anno-card ol li { display: flex; gap: 10px; padding: 9px 13px; border-top: 1px solid #d1d9e0; font-size: 13px; line-height: 1.6; color: #59636e; }
+      .anno-card ol li b { color: #1f2328; font-weight: 600; }
+      .anno-card ol li code { font-family: var(--mono); font-size: 12px; background: #eaeef2; padding: 0 4px; border-radius: 3px; color: #1f2328; }
+      .pin { flex: none; width: 18px; height: 18px; border-radius: 9999px; background: #0969da; color: #fff; font-size: 11px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; margin-top: 1px; }
+      .pin.g { background: #1a7f37; }
+      .pin.p { background: #8250df; }
+      .pin.o { background: #9a6700; }
+      .menulist { background: #fff; padding: 4px 13px 12px; font-size: 13px; line-height: 1.6; color: #59636e; }
+      .menulist .ml-grp { font-size: 10.5px; font-weight: 700; color: #768390; text-transform: uppercase; letter-spacing: 0.3px; margin-top: 10px; }
+      .menulist .ml-grp:first-child { margin-top: 2px; }
+      .menulist .ml-i { display: flex; gap: 8px; padding: 4px 0; }
+      .menulist .ml-i b { color: #1f2328; font-weight: 600; }
+      .menulist .ml-p { display: block; padding: 4px 0; color: #59636e; line-height: 1.65; }
+      .menulist .ml-p b { color: #1f2328; font-weight: 600; }
+      .menulist .ml-p code, .anno-card ol li code { white-space: nowrap; }
+      .menulist .ml-note { color: #59636e; margin-top: 9px; padding-top: 9px; border-top: 1px dashed #d1d9e0; }
+      .menulist .ml-open { margin-top: 9px; padding: 7px 9px; border: 1px dashed rgba(9, 105, 218, 0.4); border-radius: 6px; background: rgba(9, 105, 218, 0.05); color: #59636e; }
+      .menulist .ml-open b { color: #0969da; }
+      .states { padding: 4px 13px 12px; }
+      .states dl { display: grid; grid-template-columns: 104px 1fr; gap: 8px 14px; font-size: 13px; line-height: 1.55; }
+      .states dt { color: #3d444d; font-weight: 600; }
+      .states dd { margin: 0; color: #59636e; }
+      .states dd b { color: #1f2328; font-weight: 500; }
+      .states dd code { font-family: var(--mono); font-size: 12px; background: #eaeef2; padding: 0 4px; border-radius: 3px; color: #1f2328; }
+      .clickpt { position: absolute; width: 9px; height: 9px; border-radius: 50%; background: #cf222e; box-shadow: 0 0 0 3px rgba(207, 34, 46, 0.2); z-index: 6; }
+      .clickpt::after { content: "右键"; position: absolute; left: 13px; top: -3px; font-size: 10px; font-weight: 700; color: #cf222e; white-space: nowrap; }
+    </style>
+  </head>
+  <body>
+    <!-- ============ SVG SPRITE ============ -->
+    <svg width="0" height="0" style="position: absolute" aria-hidden="true">
+      <symbol id="panel-l" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" /></symbol>
+      <symbol id="panel-r" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M15 3v18" /></symbol>
+      <symbol id="folder" viewBox="0 0 24 24"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2z" /></symbol>
+      <symbol id="folder-open" viewBox="0 0 24 24"><path d="M6 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v2" /><path d="M2 20l2.5-6a1 1 0 0 1 1-.7h14a1 1 0 0 1 1 1.3L20 20z" /></symbol>
+      <symbol id="folder-plus" viewBox="0 0 24 24"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2z" /><path d="M12 10v6M9 13h6" /></symbol>
+      <symbol id="bot" viewBox="0 0 24 24"><path d="M12 8V4H8" /><rect x="4" y="8" width="16" height="12" rx="2" /><path d="M2 14h2M20 14h2M9 13v2M15 13v2" /></symbol>
+      <symbol id="pen" viewBox="0 0 24 24"><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></symbol>
+      <symbol id="search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></symbol>
+      <symbol id="chev-r" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6" /></symbol>
+      <symbol id="chev-l" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6" /></symbol>
+      <symbol id="chev-d" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+      <symbol id="arrow-r" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></symbol>
+      <symbol id="check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5" /></symbol>
+      <symbol id="x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12" /></symbol>
+      <symbol id="plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></symbol>
+      <symbol id="more-h" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /><circle cx="5" cy="12" r="1" /></symbol>
+      <symbol id="pin-ic" viewBox="0 0 24 24"><path d="M12 17v5" /><path d="M8 3h8l-1 7 2.5 2.5a1 1 0 0 1-.7 1.7H6.2a1 1 0 0 1-.7-1.7L8 10z" /></symbol>
+      <symbol id="archive" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="4" rx="1" /><path d="M4 8v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" /><path d="M10 13h4" /></symbol>
+      <symbol id="trash" viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6M14 11v6" /></symbol>
+      <symbol id="link2" viewBox="0 0 24 24"><path d="M15 7h2a5 5 0 0 1 0 10h-2" /><path d="M9 17H7A5 5 0 0 1 7 7h2" /><path d="M8 12h8" /></symbol>
+      <symbol id="git-fork" viewBox="0 0 24 24"><circle cx="6" cy="5" r="2" /><circle cx="18" cy="5" r="2" /><circle cx="12" cy="19" r="2" /><path d="M6 7v2a4 4 0 0 0 4 4M18 7v2a4 4 0 0 0-4 4M12 13v4" /></symbol>
+      <symbol id="circle" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /></symbol>
+      <symbol id="network" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="6" rx="1.5" /><rect x="3" y="14" width="18" height="6" rx="1.5" /><path d="M7 7h.01M7 17h.01" /></symbol>
+      <symbol id="git-branch" viewBox="0 0 24 24"><line x1="6" y1="3" x2="6" y2="15" /><circle cx="18" cy="6" r="3" /><circle cx="6" cy="18" r="3" /><path d="M18 9a9 9 0 0 1-9 9" /></symbol>
+      <symbol id="lock" viewBox="0 0 24 24"><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></symbol>
+      <symbol id="grip-v" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.2" /><circle cx="9" cy="12" r="1.2" /><circle cx="9" cy="18" r="1.2" /><circle cx="15" cy="6" r="1.2" /><circle cx="15" cy="12" r="1.2" /><circle cx="15" cy="18" r="1.2" /></symbol>
+      <symbol id="settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2" /><path d="M12 3v2.4M12 18.6V21M4.9 4.9l1.7 1.7M17.4 17.4l1.7 1.7M3 12h2.4M18.6 12H21M4.9 19.1l1.7-1.7M17.4 6.6l1.7-1.7" /></symbol>
+      <symbol id="copy" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></symbol>
+      <symbol id="external" viewBox="0 0 24 24"><path d="M15 3h6v6" /><path d="M10 14 21 3" /><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /></symbol>
+      <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></symbol>
+      <symbol id="alert" viewBox="0 0 24 24"><path d="M10.3 3.8 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0z" /><path d="M12 9v4M12 17h.01" /></symbol>
+      <symbol id="off" viewBox="0 0 24 24"><path d="M2 2l20 20" /><path d="M8.5 16.5a5 5 0 0 1 7 0" /><path d="M5 12.9a10 10 0 0 1 5.2-2.7" /><path d="M2 8.8a16 16 0 0 1 4.3-2.6" /><path d="M22 8.8a16 16 0 0 0-5.2-3" /><path d="M12 20h.01" /></symbol>
+      <symbol id="empty" viewBox="0 0 24 24"><path d="M4 20a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2z" /><path d="M9 14h6" /></symbol>
+      <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></symbol>
+      <symbol id="spinner" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9" /></symbol>
+      <symbol id="refresh" viewBox="0 0 24 24"><path d="M3 12a9 9 0 0 1 15-6.7L21 8" /><path d="M21 3v5h-5" /><path d="M21 12a9 9 0 0 1-15 6.7L3 16" /><path d="M3 21v-5h5" /></symbol>
+    </svg>
+
+    <!-- ============ board header ============ -->
+    <div class="board-h">
+      <h1>
+        <span class="logo"><svg class="i lg" style="color: #fff"><use href="#panel-l" /></svg></span>
+        左侧对话树 · UI 设计稿 v1
+      </h1>
+      <div class="sub">
+        壳左侧边栏（空容器）的<b>内部内容</b>设计——「CodePilot 外壳 + Helm 内胆」左栏的内胆一侧：<b>主机切换器</b>（顶）+ <b>新对话 / 搜索会话</b>入口 + <b>对话树</b>（置顶 / 项目 → 对话(根) → subagent 无限嵌套，chevron 前置 · 机器人图标 · 本地目录名 · 选中淡灰 · 状态点 · 悬浮更多 · 右键菜单 · 双击重命名 · 拖拽排序）+ <b>设置入口</b>（壳级按钮，落在左栏最下方，本稿画其上下文）。<b>内容源</b>：home-shell s6（对话树）/ s7（主机切换器）/ s8（⌘K 命令面板，搜索承接）+ <b>真实现有实现</b> <code>packages/app/src/conversation-tree/*</code>（状态字段 / 右键菜单真实项 / 置顶分组 / hover 卡）；<b>视觉令牌</b> 100% 复用右侧侧边栏 v8 的 codePilot 主题（浅+深）。壳（顶栏三 toggle / 交通灯 / 240·180–300 拖拽 / 设置页切换）已有，本稿不重画其交互，仅用简化壳示意落点。
+      </div>
+    </div>
+
+    <div class="req-log">
+      <div class="rl-h">需求 · 2026-07-11-conversation-tree（v1 · 7 屏高保真设计稿 · 与 requirement.md sCT1–sCT7 1:1）</div>
+      <table>
+        <tr><th>屏</th><th>内容</th><th>状态</th></tr>
+        <tr><td>sCT1</td><td>左栏默认态：主机切换器 + 新对话/搜索 + 对话树（置顶/项目/对话）+ 设置入口上下文；浅深双出</td><td><span class="pill new">新</span></td></tr>
+        <tr><td>sCT2</td><td>树结构拆解：缩进/chevron/图标/本地目录名/选中淡灰 + 状态点图例（运行/需关注/出错/待输入）+ 只读子标记 + 深度封顶</td><td><span class="pill new">新</span></td></tr>
+        <tr><td>sCT3</td><td>交互态：hover 更多浮出 / 选中 / 双击内联重命名 / hover 工作区卡片 / 拖拽排序 / 右键菜单（目录 6 项 · 对话行两种真实形态）/ 移除确认</td><td><span class="pill new">新</span></td></tr>
+        <tr><td>sCT4</td><td>新对话 + 搜索会话态：入口默认/hover/离线，搜索承接 ⌘K 命令面板（诚实断链标注）</td><td><span class="pill new">新</span></td></tr>
+        <tr><td>sCT5</td><td>主机切换器全态：胶囊同宽下拉 / 在线·连接中·离线·添加主机 / 切换全流程三态</td><td><span class="pill new">新</span></td></tr>
+        <tr><td>sCT6</td><td>联动：点根对话→中区加载 / 点 subagent→右栏「对话」页签，接断链诚实标注（承接归 conversation-page / 右侧栏）</td><td><span class="pill new">新</span></td></tr>
+        <tr><td>sCT7</td><td>空「暂无对话」（两种真实空位）/ 加载骨架 / 错误 / 离线聚合态</td><td><span class="pill new">新</span></td></tr>
+      </table>
+    </div>
+
+    <div class="nav-idx">
+      <a class="new" href="#sCT1">sCT1 默认态</a>
+      <a class="new" href="#sCT2">sCT2 树结构拆解</a>
+      <a class="new" href="#sCT3">sCT3 交互态</a>
+      <a class="new" href="#sCT4">sCT4 新对话+搜索</a>
+      <a class="new" href="#sCT5">sCT5 主机切换器</a>
+      <a class="new" href="#sCT6">sCT6 联动</a>
+      <a class="new" href="#sCT7">sCT7 空/加载/错误/离线</a>
+    </div>
+
+    <div class="note">
+      <svg class="i sm" style="margin-top: 2px; color: #0969da"><use href="#info" /></svg>
+      <div>
+        <b>边界（董事长「外壳 vs 内胆」硬边界，见 codepilot-layout §5 / shell §7）</b>：本稿只画左栏<b>内胆</b>——主机切换器 / 新对话 / 搜索会话 / 对话树 / 设置入口的<b>上下文位置</b>；左栏容器本身（默认 240 · 拖拽 180–300 · 展开/收起 toggle · 交通灯 · 统一顶栏其余槽位）归<b>壳 + codepilot-layout</b>，本稿用<b>简化壳</b>（浅透明、非本屏交互对象）示意落点、不重画其交互。<b>行为溯源</b>：状态点/右键菜单项/置顶分组/悬浮工作区卡片等取自<b>真实现有实现</b>（<code>conversation-tree/render.tsx</code> · <code>select.ts</code> · <code>use-*-row-actions.ts</code>），非凭空造；与视觉参照 home-shell（s6/s7/s8）内容不一致处，以真实实现为准，差异在各屏注解中<b>诚实标注</b>。<b>视觉</b>100% 复用右侧侧边栏 v8 的 codePilot 令牌：hover 恒 <code>--accent</code>（#f6f8fa/#1c2128）绝不用蓝；选中/激活 = <code>--secondary</code>（比 hover 深一档的淡灰，浅底深字），与右侧栏 tab/启动器同款两级灰阶（现有 RN 实现把 hover/选中并作一色，是旧主题下的局部微调；本稿在 codePilot 令牌体系下按其原生两级灰阶重新分开，注解中说明这一处理由）；无分隔线偏好——树行/菜单沿用右侧栏「靠色块而非竖线区分」的克制。<b>联动</b>：点对话/subagent 触发中区或右栏承接，承接侧内容归 conversation-page / 右侧侧边栏，本稿只画到「送出去」这一步（诚实断链，同 sRS6 手法）。⌘K 命令面板全态归 home-shell s8，本稿 sCT4 只画搜索入口与承接态。每屏浅 + 深双态，交互注解块四维度齐全。
+      </div>
+    </div>
+
+    <!-- ===================================================================== sCT1 -->
+    <section class="screen" id="sCT1">
+      <div class="screen-head">
+        <span class="tag">sCT1</span>
+        <h2>左栏默认态 · 主机切换器 + 新对话/搜索 + 对话树 + 设置入口</h2>
+        <p>
+          日常默认态：顶部<b>主机切换器</b>（当前主机 + 在线点）→ <b>新对话 / 搜索会话</b>两个常驻入口 →
+          <b>置顶</b>（仅有置顶项时出现）→ <b>项目</b>（本地目录分组，展开/收起）→ <b>对话</b>（无项目归属的游离对话）三段树 →
+          最下方<b>设置入口</b>（壳级按钮，本稿画其上下文位置）。树内容取自真实实现：<b>状态点</b>为本稿新设计（原实现已移除、见 sCT2 注解）、<b>角标</b>=
+          subagent 总后代数、<b>无行内时间文字</b>（真实现有实现里已删除，hover 只露「更多」，见 sCT3）。
+        </p>
+      </div>
+
+      <div class="stage one">
+        <div class="lshell">
+          <div class="ls-shellnote">壳上下文 · 非本屏交互对象</div>
+          <div class="ls-top">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="ls-tbtn on"><svg class="i sm"><use href="#panel-l" /></svg></div>
+            <div class="ls-crumb"><b>重构 checkout 子系统</b> · paseo-main</div>
+            <div class="ls-sp"></div>
+            <div class="ls-branch"><svg class="i xs"><use href="#git-branch" /></svg> develop</div>
+            <div class="ls-tbtn"><svg class="i sm"><use href="#folder-open" /></svg></div>
+            <div class="ls-tbtn"><svg class="i sm"><use href="#panel-r" /></svg></div>
+          </div>
+          <div class="ls-body">
+            <div class="lsb">
+              <div class="lsb-scroll">
+                <div class="host-switch">
+                  <div class="host-pill">
+                    <span class="hdot on"></span><span class="nm">本机 · 我的 Mac</span>
+                    <svg class="i sm ic"><use href="#chev-d" /></svg>
+                  </div>
+                </div>
+                <div class="lsb-top">
+                  <div class="lsb-item"><svg class="i sm ic"><use href="#pen" /></svg> 新对话</div>
+                  <div class="lsb-item"><svg class="i sm ic"><use href="#search" /></svg> <span class="muted">搜索</span><span class="kbd">⌘K</span></div>
+                </div>
+
+                <div class="lsb-sec">置顶</div>
+                <div class="tree">
+                  <div class="tnode">
+                    <span class="twedge"></span>
+                    <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot idle"></span>
+                    <span class="tname">写周报纪要</span>
+                  </div>
+                </div>
+
+                <div class="lsb-sec">项目<span class="act"><svg class="i xs"><use href="#folder-plus" /></svg></span></div>
+                <div class="tree">
+                  <div class="tnode">
+                    <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                    <svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span>
+                  </div>
+                  <div class="tnode on tind1">
+                    <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                    <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span>
+                    <span class="tname">重构 checkout 子系统</span><span class="tbadge">5</span>
+                  </div>
+                  <div class="tnode tind2">
+                    <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                    <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot idle"></span>
+                    <span class="tname">Explore · 扫描 server</span><span class="tlock"><svg class="i xs"><use href="#lock" /></svg></span><span class="tbadge">2</span>
+                  </div>
+                  <div class="tnode tind3">
+                    <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                    <svg class="i xs ti"><use href="#bot" /></svg><span class="tdot run"></span>
+                    <span class="tname">general-purpose · 读 protocol</span><span class="tlock"><svg class="i xs"><use href="#lock" /></svg></span>
+                  </div>
+                  <div class="tnode tind4">
+                    <span class="twedge"></span>
+                    <svg class="i xs ti"><use href="#bot" /></svg><span class="tdot run"></span>
+                    <span class="tname">Explore · 查 schema</span><span class="tlock"><svg class="i xs"><use href="#lock" /></svg></span>
+                  </div>
+                  <div class="tnode tind2">
+                    <span class="twedge"></span>
+                    <svg class="i xs ti"><use href="#bot" /></svg><span class="tdot run"></span>
+                    <span class="tname">build:server</span>
+                  </div>
+                  <div class="tnode">
+                    <span class="twedge"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                    <svg class="i sm ti"><use href="#folder" /></svg><span class="tname">helm-relay</span>
+                  </div>
+                </div>
+
+                <div class="lsb-sec">对话</div>
+                <div class="tree">
+                  <div class="tnode">
+                    <span class="twedge"></span>
+                    <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot idle"></span>
+                    <span class="tname">解释 Zod schema 用法</span>
+                  </div>
+                </div>
+              </div>
+              <div class="lsb-foot">
+                <div class="lsb-item"><svg class="i sm ic"><use href="#settings" /></svg> 设置</div>
+                <div class="lsb-foot-note">壳级按钮 · 归 shell</div>
+              </div>
+            </div>
+            <div class="ls-main"><div class="t"><b>对话区（占位）</b><br />属 conversation-page，本稿不重画</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage dark">
+        <div class="lshell dark">
+          <div class="ls-shellnote">壳上下文 · 非本屏交互对象</div>
+          <div class="ls-top">
+            <div class="lights"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+            <div class="ls-tbtn on"><svg class="i sm"><use href="#panel-l" /></svg></div>
+            <div class="ls-crumb"><b>重构 checkout 子系统</b> · paseo-main</div>
+            <div class="ls-sp"></div>
+            <div class="ls-branch"><svg class="i xs"><use href="#git-branch" /></svg> develop</div>
+            <div class="ls-tbtn"><svg class="i sm"><use href="#folder-open" /></svg></div>
+            <div class="ls-tbtn"><svg class="i sm"><use href="#panel-r" /></svg></div>
+          </div>
+          <div class="ls-body">
+            <div class="lsb">
+              <div class="lsb-scroll">
+                <div class="host-switch">
+                  <div class="host-pill">
+                    <span class="hdot on"></span><span class="nm">本机 · 我的 Mac</span>
+                    <svg class="i sm ic"><use href="#chev-d" /></svg>
+                  </div>
+                </div>
+                <div class="lsb-top">
+                  <div class="lsb-item"><svg class="i sm ic"><use href="#pen" /></svg> 新对话</div>
+                  <div class="lsb-item"><svg class="i sm ic"><use href="#search" /></svg> <span class="muted">搜索</span><span class="kbd">⌘K</span></div>
+                </div>
+                <div class="lsb-sec">置顶</div>
+                <div class="tree">
+                  <div class="tnode">
+                    <span class="twedge"></span>
+                    <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot idle"></span>
+                    <span class="tname">写周报纪要</span>
+                  </div>
+                </div>
+                <div class="lsb-sec">项目<span class="act"><svg class="i xs"><use href="#folder-plus" /></svg></span></div>
+                <div class="tree">
+                  <div class="tnode">
+                    <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                    <svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span>
+                  </div>
+                  <div class="tnode on tind1">
+                    <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                    <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span>
+                    <span class="tname">重构 checkout 子系统</span><span class="tbadge">5</span>
+                  </div>
+                  <div class="tnode tind2">
+                    <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                    <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot idle"></span>
+                    <span class="tname">Explore · 扫描 server</span><span class="tlock"><svg class="i xs"><use href="#lock" /></svg></span><span class="tbadge">2</span>
+                  </div>
+                  <div class="tnode tind2">
+                    <span class="twedge"></span>
+                    <svg class="i xs ti"><use href="#bot" /></svg><span class="tdot run"></span>
+                    <span class="tname">build:server</span>
+                  </div>
+                  <div class="tnode">
+                    <span class="twedge"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                    <svg class="i sm ti"><use href="#folder" /></svg><span class="tname">helm-relay</span>
+                  </div>
+                </div>
+                <div class="lsb-sec">对话</div>
+                <div class="tree">
+                  <div class="tnode">
+                    <span class="twedge"></span>
+                    <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot idle"></span>
+                    <span class="tname">解释 Zod schema 用法</span>
+                  </div>
+                </div>
+              </div>
+              <div class="lsb-foot">
+                <div class="lsb-item"><svg class="i sm ic"><use href="#settings" /></svg> 设置</div>
+                <div class="lsb-foot-note">壳级按钮 · 归 shell</div>
+              </div>
+            </div>
+            <div class="ls-main"><div class="t"><b>对话区（占位）</b><br />属 conversation-page，本稿不重画</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果（每个可点元素）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>主机切换器胶囊</b>：点击展开下拉（同宽锚正下方）→ 详见 sCT5；显当前主机名 + 在线点。</div></li>
+              <li><span class="pin">2</span><div><b>新对话</b>：点击创建新对话——近实时插入树中并选中/加载 → 详见 sCT4。</div></li>
+              <li><span class="pin">3</span><div><b>搜索</b>（同 <code>⌘K</code>）：打开命令面板、narrow 到会话搜索 → 详见 sCT4（承接归 ⌘K 命令面板，另一模块）。</div></li>
+              <li><span class="pin">4</span><div><b>项目行</b>：点击展开/收起其下对话（与 chevron 同效）；<b>不导航、不进入选中态</b>——项目行永远不会高亮为「当前」。</div></li>
+              <li><span class="pin">5</span><div><b>对话(根)行</b>：点击导航到该对话，加载进<b>中区</b>（conversation-page）→ 详见 sCT6。</div></li>
+              <li><span class="pin">6</span><div><b>subagent 行</b>：点击导航到该 subagent，打开/聚焦<b>右栏「对话」页签</b>（与根对话不同承载面）→ 详见 sCT6。</div></li>
+              <li><span class="pin">7</span><div><b>chevron</b>：仅展开/收起该节点子树，<b>不触发行的导航语义</b>；叶子行（无子节点）不出现 chevron，用等宽占位保持图标左对齐。</div></li>
+              <li><span class="pin">8</span><div><b>状态点 / 角标</b>：纯指示，无点击动作（角标 = subagent <b>总后代数</b>，非仅直接子数）。</div></li>
+              <li><span class="pin">9</span><div><b>设置入口</b>（左栏最下方）：<b>壳级按钮</b>，点击进入设置页模式（见 shell §6.B.13）；本稿只画其在左栏的上下文落位，交互归壳。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>桌面 only</b>：左栏容器默认 <b>240</b>（拖拽 180–300、展开/收起 toggle）<b>归壳</b>，本稿不重画；紧凑 / 手机态 deferred（随桌面统一适配）。</dd>
+                <dt>默认</dt>
+                <dd>主机切换器（闭合）+ 新对话/搜索 + 置顶（<b>仅有置顶项时出现</b>，无则该段整体不显）+ 项目 + 对话 三段树 + 设置入口。</dd>
+                <dt>hover / 选中 / 重命名 / 右键 / 拖拽</dt>
+                <dd>见 <a href="#sCT3" style="color:#0969da">sCT3</a>（本屏只画静态默认态，不叠加鼠标态，避免默认态失真）。</dd>
+                <dt>运行 / 状态点</dt>
+                <dd>见 <a href="#sCT2" style="color:#0969da">sCT2</a> 状态点图例（运行 / 需关注 / 出错 / 待输入，扎根真实 <code>status</code> + <code>requiresAttention</code> 字段）。</dd>
+                <dt>禁用 / 离线</dt>
+                <dd>主机离线时整棵树<b>只读、动作变灰</b> + 顶部重连提示条 → 见 <a href="#sCT7" style="color:#0969da">sCT7</a>。</dd>
+                <dt>空 / 加载 / 错误</dt>
+                <dd>见 <a href="#sCT7" style="color:#0969da">sCT7</a>。</dd>
+                <dt>深色</dt>
+                <dd><code>--sidebar</code> 取 <code>#010409</code>（右侧栏 token 注释已标「左栏(深)」，本稿是其消费方）；行 hover/选中同 <code>--accent</code>/<code>--secondary</code> 深色映射。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-p">本屏为默认态，不叠加右键浮层。<b>目录（项目）行 6 项</b> / <b>对话·subagent 行两种真实形态</b>（随 <code>hasWorkspace</code>/<code>canReveal</code>/<code>canOpenInNewWindow</code> 能力位增减，非按节点类型硬切）/ <b>双击内联重命名</b> / <b>拖拽排序</b> 全量清单 + 状态见 <a href="#sCT3" style="color:#0969da">sCT3</a>。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sCT2 -->
+    <section class="screen" id="sCT2">
+      <div class="screen-head">
+        <span class="tag">sCT2</span>
+        <h2>树结构拆解 · 缩进 / chevron / 图标 / 状态点图例</h2>
+        <p>
+          单支展开的测量与图例参照。缩进 / 图标尺寸 / chevron 尺寸取<b>真实实现</b>数值（<code>conversation-tree/render.tsx</code>）；
+          <b>状态点为本稿新设计</b>（原生实现的状态图标已被移除——真实代码注释「状态图标先删(反馈: 达不到想要的效果)」；数据层的
+          <code>status</code>/<code>requiresAttention</code> 字段仍在，本稿在 codePilot 视觉体系下重新给出一版克制的状态点）。
+        </p>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">缩进 · chevron · 图标（单支 5 层展开）</div>
+          <div class="lsb" style="width: 300px">
+            <div class="lsb-scroll" style="padding-top: 10px">
+              <div class="tree">
+                <div class="tnode">
+                  <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                  <svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main <span style="color:var(--muted-fg)">（深度 0）</span></span>
+                </div>
+                <div class="tnode on tind1">
+                  <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                  <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span>
+                  <span class="tname">重构 checkout 子系统 <span style="color:var(--muted-fg)">（深度 1）</span></span><span class="tbadge">5</span>
+                </div>
+                <div class="tnode tind2">
+                  <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                  <svg class="i xs ti"><use href="#bot" /></svg><span class="tdot idle"></span>
+                  <span class="tname">Explore <span style="color:var(--muted-fg)">（深度 2）</span></span><span class="tlock"><svg class="i xs"><use href="#lock" /></svg></span>
+                </div>
+                <div class="tnode tind3">
+                  <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                  <svg class="i xs ti"><use href="#bot" /></svg><span class="tdot run"></span>
+                  <span class="tname">general-purpose（深度 3）</span><span class="tlock"><svg class="i xs"><use href="#lock" /></svg></span>
+                </div>
+                <div class="tnode tind4">
+                  <span class="twedge"></span>
+                  <svg class="i xs ti"><use href="#bot" /></svg><span class="tdot run"></span>
+                  <span class="tname">查 schema（深度 4 · 叶子）</span><span class="tlock"><svg class="i xs"><use href="#lock" /></svg></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">测量值（真实实现）</div>
+          <div class="legend-card" style="width: 250px">
+            <div class="mline"><span class="k">行高</span><span class="v">30px</span></div>
+            <div class="mline"><span class="k">基础缩进</span><span class="v">8px</span></div>
+            <div class="mline"><span class="k">每层增量</span><span class="v">+14px</span></div>
+            <div class="mline"><span class="k">缩进封顶深度</span><span class="v">8 层</span></div>
+            <div class="mline"><span class="k">chevron</span><span class="v">14×14</span></div>
+            <div class="mline"><span class="k">项目/对话图标</span><span class="v">16×16</span></div>
+            <div class="mline"><span class="k">subagent 图标</span><span class="v">14×14</span></div>
+            <div class="mline"><span class="k">行圆角</span><span class="v">var(--r-sm)</span></div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">深度封顶（&gt; 8 层缩进停止增长，仅靠 chevron/图标区分）</div>
+          <div class="lsb" style="width: 250px">
+            <div class="lsb-scroll" style="padding-top: 10px">
+              <div class="tree">
+                <div class="tnode tind8"><span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span><svg class="i xs ti"><use href="#bot" /></svg><span class="tdot run"></span><span class="tname">深度 8</span></div>
+                <div class="tnode tind8"><span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span><svg class="i xs ti"><use href="#bot" /></svg><span class="tdot run"></span><span class="tname">深度 9（缩进不变）</span></div>
+                <div class="tnode tind8"><span class="twedge"></span><svg class="i xs ti"><use href="#bot" /></svg><span class="tdot run"></span><span class="tname">深度 10（叶子）</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">状态点图例（扎根真实字段 <code style="font-family:var(--mono)">status</code> + <code style="font-family:var(--mono)">requiresAttention</code>）</div>
+          <div class="legend-card" style="width: 340px">
+            <div class="legend-row"><span class="lt"><span class="tdot attn"></span> 需关注</span><span class="ld"><code style="font-family:var(--mono)">requiresAttention=true</code> —— 优先级最高，覆盖下方任何状态色；如等待权限确认 / 有内容待你查看</span></div>
+            <div class="legend-row"><span class="lt"><span class="tdot run"></span> 运行</span><span class="ld"><code style="font-family:var(--mono)">status="running"</code> —— 代理正在执行（脉冲）；<b style="color:var(--fg)">运行中 subagent 把「运行」贡献给父对话所属工作区聚合状态</b></span></div>
+            <div class="legend-row"><span class="lt"><span class="tdot err"></span> 出错</span><span class="ld"><code style="font-family:var(--mono)">status="error"</code> —— 该节点出错，不连累其它节点</span></div>
+            <div class="legend-row"><span class="lt"><span class="tdot idle"></span> 待输入</span><span class="ld"><code style="font-family:var(--mono)">status="idle"</code> —— 轮次结束、等待你的下一条消息（沿用同一 idle 灰点覆盖 <code style="font-family:var(--mono)">"closed"</code>）</span></div>
+            <div class="legend-row"><span class="lt"><span class="tdot init"></span> 初始化中</span><span class="ld"><code style="font-family:var(--mono)">status="initializing"</code> —— 短暂过渡态，进程正在起来</span></div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">图标 + 标题规则</div>
+          <div class="legend-card" style="width: 300px">
+            <div class="legend-row"><span class="lt"><svg class="i sm" style="color:var(--muted-fg)"><use href="#folder" /></svg> 项目</span><span class="ld">目录图标 16px；标题 = 本地目录 basename（用户重命名优先，否则取自 workspace-structure 解析）</span></div>
+            <div class="legend-row"><span class="lt"><svg class="i sm" style="color:var(--muted-fg)"><use href="#bot" /></svg> 对话(根)</span><span class="ld">机器人图标 16px；标题优先取 workspace 显示名（rename 即时反映），否则回退 agent 标题</span></div>
+            <div class="legend-row"><span class="lt"><svg class="i xs" style="color:var(--muted-fg)"><use href="#bot" /></svg> subagent</span><span class="ld">同款机器人图标缩小到 14px；标题为空时整行回退显示 agent id（真实兜底，不留空白行）</span></div>
+            <div class="legend-row"><span class="lt"><svg class="i xs" style="color:var(--muted-fg)"><use href="#lock" /></svg> 只读子</span><span class="ld">provider 内部子（如 Claude Task）不具独立 workspace——右键操作大多不可用（见 sCT3）；🔒 视觉本轮定稿，字段随 <a href="../2026-06-27-subagent-native-tree/requirement.md" style="color:#0969da">subagent-native-tree</a>（评审中）闸过后接入</span></div>
+          </div>
+        </div>
+        <div class="fcol dark">
+          <div class="fcap">深色变体</div>
+          <div class="lsb" style="width: 260px">
+            <div class="lsb-scroll" style="padding-top: 10px">
+              <div class="tree">
+                <div class="tnode on"><span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot attn"></span><span class="tname">需关注示例</span><span class="tbadge">3</span></div>
+                <div class="tnode tind1"><span class="twedge"></span><svg class="i xs ti"><use href="#bot" /></svg><span class="tdot err"></span><span class="tname">出错子任务</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果</div>
+            <ol>
+              <li><span class="pin">1</span><div>本屏为<b>测量/图例参照</b>，元素本身不承载新点击语义——点击效果同 sCT1（chevron 展开收起 / 行导航）。</div></li>
+              <li><span class="pin">2</span><div><b>状态点 / 锁标 / 角标</b>：均为<b>纯指示</b>，不可点击、无 hover 态。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd>缩进 = <code>8 + min(深度,8) × 14</code> px（真实实现 <code>ROW_BASE_PADDING</code>/<code>INDENT_PER_DEPTH</code>/<code>MAX_INDENT_DEPTH</code>）；深度不限（<code>MAX_RENDER_DEPTH=64</code>，数据层无限递归），缩进在第 8 层封顶，更深层<b>仍渲染、仍可点开</b>，只靠 chevron + 图标区分层级。</dd>
+                <dt>状态点优先级</dt>
+                <dd><b>需关注 &gt; 运行 &gt; 出错 &gt; 初始化中 &gt; 待输入</b>（默认）——即便节点在跑，只要 <code>requiresAttention=true</code> 也显琥珀点，确保「需要你」的信号不被「正在跑」盖掉。</dd>
+                <dt>只读子</dt>
+                <dd>🔒 出现在<b>无独立 workspace</b> 的 subagent 行（典型如 provider 内部子）；paseo-run 子有自己的 workspace，<b>无</b> 🔒，与只读子同树共存（见 sCT1「build:server」示例）。</dd>
+                <dt>空</dt>
+                <dd>无子节点 → 无 chevron（等宽占位保持左对齐），<b>不出现</b>空的展开箭头。</dd>
+                <dt>深色</dt>
+                <dd>状态点色值不变（token 自动映射：<code>--success</code>/<code>--warning</code>/<code>--destructive</code>/<code>--primary</code>/<code>--muted-fg</code> 浅深两套已含深色值）。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-p">本屏无右键（纯测量参照）。完整右键菜单三态见 <a href="#sCT3" style="color:#0969da">sCT3</a>。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sCT3 -->
+    <section class="screen" id="sCT3">
+      <div class="screen-head">
+        <span class="tag">sCT3</span>
+        <h2>交互态 · hover / 选中 / 重命名 / hover 卡片 / 拖拽 / 右键菜单</h2>
+        <p>
+          全部取自<b>真实现有实现</b>（<code>use-project-row-actions.ts</code> / <code>use-conversation-row-actions.ts</code> /
+          <code>workspace-hover-card.tsx</code>）。<b>右键菜单项数与项名与代码 1:1</b>——含<b>已是禁用占位</b>的项（语义待董事长定，先灰显不藏）；
+          对话/subagent 行菜单<b>不是</b>按节点类型硬切两套，而是随 <code>hasWorkspace</code> 等能力位增减，本屏并排两种真实形态对照。
+        </p>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">hover（项目行 · 尾部浮出「新对话」）</div>
+          <div class="lsb" style="width: 232px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="tree">
+                <div class="tnode is-hover showact">
+                  <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                  <svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span>
+                  <span class="tact"><span class="tbtn"><svg class="i xs"><use href="#pen" /></svg></span></span>
+                </div>
+                <div class="tnode tind1"><span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot idle"></span><span class="tname">重构 checkout 子系统</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">hover（对话/subagent 行 · 尾部浮出「更多」· 角标让位）</div>
+          <div class="lsb" style="width: 232px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="tree">
+                <div class="tnode"><span class="twedge"></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                <div class="tnode tind1">
+                  <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                  <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span><span class="tname">重构 checkout 子系统</span><span class="tbadge">5</span>
+                </div>
+                <div class="tnode is-hover showact tind1">
+                  <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                  <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span><span class="tname">重构 checkout 子系统</span><span class="tbadge">5</span>
+                  <span class="tact"><span class="tbtn"><svg class="i xs"><use href="#more-h" /></svg></span></span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted-fg); margin-top: 6px; max-width: 232px; line-height: 1.5">
+            同一行默认态（角标 5 可见）↕ hover 态（角标<b style="color: var(--fg)">淡出让位</b>给「更多」）——二者共用行尾同一槽位，不挤占、不变宽（本稿在真实实现的绝对定位基础上补的让位处理，CSS 已生效非仅口头声明）。
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">选中（<code style="font-family:var(--mono)">--secondary</code>，比 hover 深一档）</div>
+          <div class="lsb" style="width: 220px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="tree">
+                <div class="tnode on"><span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span><span class="tname">重构 checkout 子系统</span></div>
+                <div class="tnode is-hover" style="margin-top:2px"><span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot idle"></span><span class="tname">另一行 hover 对照</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted-fg); margin-top: 6px; max-width: 220px; line-height: 1.5">
+            <b style="color: var(--fg)">与现有实现的差异（诚实标注）</b>：现有实现选中/hover 同色（反馈驱动的历史决定）；本稿在 codePilot 两级灰阶体系下<b>重新区分</b>，见头部「note」说明。
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">双击内联重命名（项目行 · 菜单「重命名项目」同效）</div>
+          <div class="lsb" style="width: 232px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="tree">
+                <div class="tnode">
+                  <span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span>
+                  <svg class="i sm ti"><use href="#folder" /></svg><input class="trename" value="paseo-main" readonly />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">双击内联重命名（对话行 · 菜单「重命名」/ F2 同效）</div>
+          <div class="lsb" style="width: 232px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="tree">
+                <div class="tnode on tind1">
+                  <span class="twedge"></span>
+                  <svg class="i sm ti"><use href="#bot" /></svg><input class="trename" value="重构 checkout 子系统" readonly />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted-fg); margin-top: 6px; max-width: 232px; line-height: 1.5">
+            蓝色聚焦环替换整行；<b style="color: var(--fg)">Enter 提交 / Esc 取消</b>。<b style="color:var(--fg)">subagent 行不可重命名</b>（<code style="font-family:var(--mono)">hasWorkspace=false</code> 时菜单不出现「重命名」，双击也不触发）。
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">拖拽排序（设计延伸 · 见下方注解「边界」）</div>
+          <div class="lsb" style="width: 232px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="tree">
+                <div class="tnode"><span class="twedge"></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                <div class="tdropline"></div>
+                <div class="tnode tghost tind1">
+                  <svg class="i xs grip-v" style="color:var(--muted-fg)"><use href="#grip-v" /></svg>
+                  <svg class="i sm ti"><use href="#bot" /></svg><span class="tname">拖拽中…</span>
+                </div>
+                <div class="tnode tind1"><span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot idle"></span><span class="tname">解释 Zod schema 用法</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">hover 工作区卡片（对话行 · 桌面 web 专属，标题/分支/目录/最后更改/diff/PR）</div>
+          <div style="display:flex; gap:10px; align-items:flex-start">
+            <div class="lsb" style="width: 220px">
+              <div class="lsb-scroll" style="padding-top: 8px">
+                <div class="tree">
+                  <div class="tnode on is-hover"><span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span><span class="tname">重构 checkout 子系统</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="whc">
+              <div class="whc-t">重构 checkout 子系统</div>
+              <div class="whc-row"><svg class="i xs ic"><use href="#git-branch" /></svg> feat/checkout-refactor</div>
+              <div class="whc-row"><svg class="i xs ic"><use href="#folder" /></svg> ~/paseo-main</div>
+              <div class="whc-row"><svg class="i xs ic"><use href="#clock" /></svg> 12 分钟前</div>
+              <div class="whc-meta">
+                <span class="whc-diff"><span class="add">+128</span><span class="del">-34</span></span>
+                <span class="whc-pr">PR #482 · 检查中</span>
+              </div>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted-fg); margin-top: 8px; max-width: 460px; line-height: 1.5">
+            浮出于行右侧（左侧空间不足则自动翻到左侧）；<b style="color:var(--fg)">分支名 / 目录路径</b>行可点复制（hover 变「复制」图标）。<b>关联 PR 有 CI 检查</b>时卡片下方追加「检查」汇总行（通过/失败/进行中计数），本屏从略、行为归属 PR 状态展示模块。
+            <b style="color:var(--fg)">项目行 / subagent 行不出此卡</b>（仅根对话且有 workspace 时出现）。
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">右键 · 目录（项目）行 · 6 项</div>
+          <div class="ctxwrap">
+            <div class="ctx narrow">
+              <div class="ctxi"><svg class="i sm ic"><use href="#pin-ic" /></svg> 置顶</div>
+              <div class="ctxi"><svg class="i sm ic"><use href="#folder-open" /></svg> 在 Finder 中显示</div>
+              <div class="ctxi"><svg class="i sm ic"><use href="#git-branch" /></svg> 创建工作树…</div>
+              <div class="ctxi"><svg class="i sm ic"><use href="#pen" /></svg> 重命名项目</div>
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#archive" /></svg> 归档</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi danger"><svg class="i sm ic"><use href="#trash" /></svg> 移除</div>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted-fg); margin-top: 8px; max-width: 220px; line-height: 1.5">
+            「在 Finder 中显示」「创建工作树…」仅在<b style="color:var(--fg)">桌面 + 有解析出目录</b>时出现；<b>「归档」项目级语义待定，禁用占位</b>；<b>分隔线为本稿新增</b>（现有代码无分隔，纯视觉分组，不改行为——见头部 note）。
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">右键 · 对话/subagent 行 · 完整形态（有 workspace，典型=根对话）</div>
+          <div class="ctxwrap">
+            <div class="ctx">
+              <div class="ctxi"><svg class="i sm ic"><use href="#pin-ic" /></svg> 取消置顶</div>
+              <div class="ctxi"><svg class="i sm ic"><use href="#pen" /></svg> 重命名</div>
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#archive" /></svg> 归档</div>
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#circle" /></svg> 标记为未读</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi"><svg class="i sm ic"><use href="#folder-open" /></svg> 在 Finder 中显示</div>
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#copy" /></svg> 复制工作目录</div>
+              <div class="ctxi"><svg class="i sm ic"><use href="#copy" /></svg> 复制会话 ID</div>
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#link2" /></svg> 复制深度链接</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#git-fork" /></svg> 派生到本地</div>
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#git-fork" /></svg> 派生到新工作树</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi"><svg class="i sm ic"><use href="#external" /></svg> 在新窗口打开</div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">右键 · 对话/subagent 行 · 精简形态（无 workspace，典型=provider 内部只读子）</div>
+          <div class="ctxwrap">
+            <div class="ctx">
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#archive" /></svg> 归档</div>
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#circle" /></svg> 标记为未读</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#copy" /></svg> 复制工作目录</div>
+              <div class="ctxi"><svg class="i sm ic"><use href="#copy" /></svg> 复制会话 ID</div>
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#link2" /></svg> 复制深度链接</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#git-fork" /></svg> 派生到本地</div>
+              <div class="ctxi dis"><svg class="i sm ic"><use href="#git-fork" /></svg> 派生到新工作树</div>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted-fg); margin-top: 8px; max-width: 220px; line-height: 1.5">
+            <b style="color:var(--fg)">无置顶 / 重命名 / Finder / 新窗口</b>（均需 workspace）；「复制会话 ID」<b>始终可用</b>（回退用 agent id，不依赖 workspace）。
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">移除项目 · 确认弹窗（危险操作二次确认）</div>
+          <div class="lsb" style="width: 260px; position: relative; height: 190px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="tree"><div class="tnode on"><span class="twedge"></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">helm-relay</span></div></div>
+            </div>
+            <div class="modal-scrim">
+              <div class="confirm">
+                <div class="confirm-b">
+                  <div class="t"><svg class="i sm ic"><use href="#alert" /></svg> 移除项目？</div>
+                  <div class="d">将从左栏移除 <b>helm-relay</b>，<b>不删除磁盘上的任何文件</b>。</div>
+                </div>
+                <div class="confirm-foot">
+                  <div class="btn ghost">取消</div>
+                  <div class="btn danger gap">移除</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">移除中…（pending）</div>
+          <div class="ctxwrap">
+            <div class="ctx narrow">
+              <div class="ctxi"><svg class="i sm ic"><use href="#pin-ic" /></svg> 置顶</div>
+              <div class="ctxi"><svg class="i sm ic"><use href="#pen" /></svg> 重命名项目</div>
+              <div class="ctxsep"></div>
+              <div class="ctxi pending"><svg class="i sm ic"><use href="#spinner" /></svg> 移除中…</div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol dark">
+          <div class="fcap">深色变体（hover + 选中对照）</div>
+          <div class="lsb" style="width: 220px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="tree">
+                <div class="tnode on"><span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span><span class="tname">选中态</span></div>
+                <div class="tnode is-hover showact" style="margin-top:2px"><span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot idle"></span><span class="tname">hover 态</span><span class="tact"><span class="tbtn"><svg class="i xs"><use href="#more-h" /></svg></span></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>行尾「更多」/「新对话」</b>：hover 时淡出角标、浮出图标按钮；点击「更多」= 打开该行右键菜单（与真正右键同一菜单，长按在触屏上同效）；点击项目行「新对话」= 在该项目下创建新对话。</div></li>
+              <li><span class="pin">2</span><div><b>双击行</b>：进入内联重命名（项目 / 有 workspace 的对话行）；<b>subagent 行双击无效</b>（无 workspace）。F2 / 菜单「重命名」同效。</div></li>
+              <li><span class="pin">3</span><div><b>Enter</b>提交重命名、<b>Esc</b>取消，恢复原名。</div></li>
+              <li><span class="pin">4</span><div><b>拖拽行</b>：长按拖动改顺序 / 拖到另一目录下，显<b>放置指示线</b>（主蓝）+ 拖拽行变淡 + 抓手图标。</div></li>
+              <li><span class="pin">5</span><div><b>菜单项点击</b>：见下「右键菜单」逐项效果；<b>禁用项不响应点击</b>（灰显、光标 not-allowed）。</div></li>
+              <li><span class="pin">6</span><div><b>「移除」</b>：先弹危险确认（说明「不删磁盘文件」）→ 确认后菜单/行进入 <b>pending</b>（「移除中…」，其余菜单项仍可操作）→ 完成后该项目从树中移除。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>桌面 only</b>；hover 卡片 / hover 尾部动作<b>仅 web 桌面</b>（原生触屏用「常显」替代 hover，同 docs/hover.md 约定）。</dd>
+                <dt>hover</dt>
+                <dd>行底色 <code>--accent</code>；尾部动作淡入、角标淡出（同一槽位互斥，不挤占宽度）。</dd>
+                <dt>选中</dt>
+                <dd><code>--secondary</code>（见头部 note 的「与现有实现差异」披露）；右键该行时同时进入选中态。</dd>
+                <dt>重命名</dt>
+                <dd>行变输入框 + 蓝聚焦环；此态下该行<b>不可 hover/选中切换</b>，其余行操作照常。</dd>
+                <dt>拖拽</dt>
+                <dd>被拖行半透明 + 抓手；目标位置显 2px 蓝色放置线；其余行不变淡（仅被拖行变淡，与右侧栏 tab 拖拽的「其余变淡」不同——树行更密集，全变淡会影响可读性，故只淡化被拖行本身）。</dd>
+                <dt>禁用（菜单项）</dt>
+                <dd>不透明度 0.48、<code>cursor:not-allowed</code>，不响应 hover。</dd>
+                <dt>pending（移除中）</dt>
+                <dd>菜单项显 spinner + 文案变化，<b>菜单不自动关闭</b>，允许用户继续查看/操作其它项。</dd>
+                <dt>深色</dt>
+                <dd>见本屏深色变体；卡片阴影加深（<code>rgba(0,0,0,.6)</code> 系）。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单（逐项效果）</div>
+            <div class="menulist">
+              <div class="ml-grp">目录（项目）行 · 6 项</div>
+              <div class="ml-i"><b>置顶/取消置顶</b> → 整个项目子树移入/移出「置顶」段 · <b>在 Finder 中显示</b>（能力门：桌面 + 有效目录）→ 打开系统文件管理器定位到该目录 · <b>创建工作树…</b>（能力门：有效目录）→ 跳转新建工作区流程，预填该项目 · <b>重命名项目</b> → 进入内联重命名 · <b>归档</b>（禁用，语义待定）· <b style="color:#b91c1c">移除</b>（红）→ 二次确认「不删磁盘文件」→ 确认后 pending → 从树移除</div>
+              <div class="ml-grp">对话 / subagent 行 · 完整形态（11 项，含 3 条视觉分隔）</div>
+              <div class="ml-i"><b>取消置顶</b> · <b>重命名</b> → 内联重命名 · <b>归档</b>（禁用）· <b>标记为未读</b>（禁用，现仅有「标记已读」能力、无「置未读」）· <b>在 Finder 中显示</b>（能力门同上）· <b>复制工作目录</b>（禁用，语义待定）· <b>复制会话 ID</b> → 复制 provider 原生 session id（无则回退 agent id）· <b>复制深度链接</b>（禁用，语义待定）· <b>派生到本地</b> / <b>派生到新工作树</b>（均禁用，语义待定）· <b>在新窗口打开</b>（能力门：Electron + 有效目录）</div>
+              <div class="ml-grp">对话 / subagent 行 · 精简形态（无 workspace）</div>
+              <div class="ml-i">仅剩<b>归档</b>（禁用）/ <b>标记为未读</b>（禁用）/ <b>复制工作目录</b>（禁用）/ <b>复制会话 ID</b>（可用）/ <b>复制深度链接</b>（禁用）/ <b>派生到本地·新工作树</b>（均禁用）——<b>无</b>置顶、重命名、Finder、新窗口。</div>
+              <div class="ml-note"><b>边界（拖拽排序）</b>：真实代码当前<b>未实现</b>拖拽——本屏「拖拽排序」为设计延伸（shell §7.b.16 已将其列为本模块归属的后续内容里程碑），供后续开发对齐视觉，非「已实现」断言。<b>禁用项均保留可见</b>（不隐藏），与真实代码「先占位、语义待董事长定」的一贯处理一致。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sCT4 -->
+    <section class="screen" id="sCT4">
+      <div class="screen-head">
+        <span class="tag">sCT4</span>
+        <h2>新对话 + 搜索会话态 · 入口全态 + ⌘K 承接（诚实断链）</h2>
+        <p>
+          左栏顶部两个常驻入口的全态，以及「搜索」被点击后的承接去向。<b>⌘K 命令面板的完整全态归 home-shell s8（另一模块）</b>——本屏只画
+          <b>入口本身</b>（默认/hover/离线禁用）与<b>承接后narrow到会话搜索</b>的结果态，不重画命令面板的跳转/操作/切中转站等其它分组。
+        </p>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">默认</div>
+          <div class="lsb" style="width: 216px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="lsb-top">
+                <div class="lsb-item"><svg class="i sm ic"><use href="#pen" /></svg> 新对话</div>
+                <div class="lsb-item"><svg class="i sm ic"><use href="#search" /></svg> <span class="muted">搜索</span><span class="kbd">⌘K</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">hover（各自独立）</div>
+          <div class="lsb" style="width: 216px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="lsb-top">
+                <div class="lsb-item is-hover"><svg class="i sm ic"><use href="#pen" /></svg> 新对话</div>
+                <div class="lsb-item"><svg class="i sm ic"><use href="#search" /></svg> <span class="muted">搜索</span><span class="kbd">⌘K</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">离线禁用（主机断连）</div>
+          <div class="lsb" style="width: 216px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="lsb-top">
+                <div class="lsb-item dis"><svg class="i sm ic"><use href="#pen" /></svg> 新对话</div>
+                <div class="lsb-item dis"><svg class="i sm ic"><use href="#search" /></svg> <span class="muted">搜索</span><span class="kbd">⌘K</span></div>
+              </div>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted-fg); margin-top: 6px; max-width: 216px; line-height: 1.5">新建需要主机在线；<b style="color:var(--fg)">搜索本地已落盘的会话历史不强依赖实时连接</b>，是否随离线一并禁用留给承接模块判断，本屏按保守全禁绘制。</div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="fcol" style="width: 100%">
+          <div class="fcap">新对话 · 点击效果</div>
+          <div class="link-flow" style="justify-content: flex-start">
+            <div class="lsb" style="width: 200px">
+              <div class="lsb-scroll" style="padding-top: 8px">
+                <div class="lsb-top"><div class="lsb-item is-hover"><svg class="i sm ic"><use href="#pen" /></svg> 新对话</div></div>
+                <div class="lsb-sec">项目</div>
+                <div class="tree"><div class="tnode"><span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div></div>
+              </div>
+            </div>
+            <div class="link-arrow"><div class="lbl">点击</div><div class="ln"><div class="arrow-line"></div><svg class="i md"><use href="#arrow-r" /></svg></div></div>
+            <div class="lsb" style="width: 200px">
+              <div class="lsb-scroll" style="padding-top: 8px">
+                <div class="lsb-top"><div class="lsb-item"><svg class="i sm ic"><use href="#pen" /></svg> 新对话</div></div>
+                <div class="lsb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode"><span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on tind1"><span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot init"></span><span class="tname">新对话</span></div>
+                </div>
+              </div>
+            </div>
+            <div style="font-size: 11px; color: var(--muted-fg); max-width: 160px; line-height: 1.5">近实时插入<b style="color:var(--fg)">当前上下文项目</b>下（无当前项目上下文则落「对话」段），<b>初始化点</b>，随后进入选中态并加载进中区。</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="fcol" style="width: 100%">
+          <div class="fcap">搜索 · 承接 ⌘K 命令面板（narrow 到会话搜索）</div>
+          <div class="link-flow" style="flex-wrap: nowrap; align-items: flex-start; justify-content: flex-start">
+            <div class="lsb" style="width: 190px">
+              <div class="lsb-scroll" style="padding-top: 8px">
+                <div class="lsb-top"><div class="lsb-item is-hover"><svg class="i sm ic"><use href="#search" /></svg> <span class="muted">搜索</span><span class="kbd">⌘K</span></div></div>
+              </div>
+            </div>
+            <div class="link-arrow" style="align-self: center"><div class="lbl">点击 / <code style="font-family:var(--mono)">⌘K</code></div><div class="ln"><div class="arrow-line"></div><svg class="i md"><use href="#arrow-r" /></svg></div></div>
+            <div class="cmdk">
+              <div class="cmdk-in"><svg class="i md"><use href="#search" /></svg> checkout<span style="margin-left:auto; font-size:10px; color:var(--muted-fg); font-family:var(--mono)">Esc</span></div>
+              <div class="cmdk-sec">会话</div>
+              <div class="ci on"><svg class="i sm ic"><use href="#bot" /></svg> <span>重构 <mark>checkout</mark> 子系统</span><span class="proj">paseo-main</span></div>
+              <div class="ci"><svg class="i sm ic"><use href="#bot" /></svg> <span class="snip">…改好 <mark>checkout</mark> 的边界条件…</span><span class="proj">paseo-main</span></div>
+              <div class="cmdk-sec">跳转</div>
+              <div class="ci"><svg class="i sm ic"><use href="#pen" /></svg> 新对话<span class="proj" style="font-family:var(--mono)">⌘N</span></div>
+            </div>
+            <div style="font-size: 11px; color: var(--muted-fg); max-width: 170px; line-height: 1.5; align-self: center">
+              <b style="color:var(--fg)">本模块只负责「发起」这一步</b>；面板内的分组 / 跨主机聚合 / 跳转与操作项全态<b>归 home-shell s8</b>（另一模块），本屏不重画。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">搜索 · 无结果</div>
+          <div class="cmdk" style="width: 260px">
+            <div class="cmdk-in"><svg class="i md"><use href="#search" /></svg> zzzznotfound</div>
+            <div style="padding: 28px 16px; text-align: center; font-size: 12px; color: var(--muted-fg)">无匹配会话</div>
+          </div>
+        </div>
+        <div class="fcol dark">
+          <div class="fcap">深色变体</div>
+          <div class="lsb" style="width: 216px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="lsb-top">
+                <div class="lsb-item"><svg class="i sm ic"><use href="#pen" /></svg> 新对话</div>
+                <div class="lsb-item is-hover"><svg class="i sm ic"><use href="#search" /></svg> <span class="muted">搜索</span><span class="kbd">⌘K</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>新对话</b>：创建请求发出 → 新行<b>近实时插入</b>相关项目下（无当前项目上下文则落「对话」段）并进入<b>初始化态</b> → 就绪后选中并加载进中区（承接见 <a href="#sCT6" style="color:#0969da">sCT6</a>）。</div></li>
+              <li><span class="pin">2</span><div><b>搜索 / <code>⌘K</code></b>：打开命令面板，<b>预置聚焦到会话搜索分组</b>；键入即筛选，命中片段高亮；上下键选择、回车打开该会话、Esc 关闭。</div></li>
+              <li><span class="pin">3</span><div><b>结果行点击</b>：关闭面板 + 导航到该会话（根对话 → 中区；subagent 结果 → 右栏「对话」页签，同 <a href="#sCT6" style="color:#0969da">sCT6</a> 语义）。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>桌面 only</b>；面板本身居中弹窗（约 600 宽，归 home-shell s8）。</dd>
+                <dt>默认 / hover</dt>
+                <dd>两行常驻；hover 底色 <code>--accent</code>；「搜索」尾部常驻 <code>⌘K</code> 徽标（非 hover 才显，聚焦/输入中不必要重复提示）。</dd>
+                <dt>禁用（离线）</dt>
+                <dd>主机断连时两行整体置灰，见 <a href="#sCT7" style="color:#0969da">sCT7</a>；「新对话」离线必禁（需主机创建）。</dd>
+                <dt>加载</dt>
+                <dd>新对话创建中显<b>初始化点</b>（<code style="font-family:var(--mono)">status="initializing"</code>）；搜索聚合跨主机结果时面板底部显行级加载条（归 s8）。</dd>
+                <dt>空</dt>
+                <dd>搜索无匹配 → 面板内「无匹配会话」短句居中，<b>不关闭面板</b>，允许继续修改查询。</dd>
+                <dt>深色</dt>
+                <dd>两行 / 面板深色映射同 token。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist"><div class="ml-p">两个入口行本身<b>无右键菜单</b>（单击/键盘为唯一触发方式）。</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sCT5 -->
+    <section class="screen" id="sCT5">
+      <div class="screen-head">
+        <span class="tag">sCT5</span>
+        <h2>主机切换器态 · 胶囊 / 下拉 / 切换全流程</h2>
+        <p>
+          左栏顶部<b>主机切换器</b>全态，内容 1:1 承接 home-shell s7（Helm 净新能力，CodePilot 单主机无此物），视觉重制为 codePilot 令牌。
+          <b>下拉必须与胶囊同宽、锚在其正下方</b>（左右同缘），绝不铺满栏宽；离线主机行<b>点击触发重连</b>而非直接切走。
+        </p>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">默认（闭合）</div>
+          <div class="lsb" style="width: 216px; height: 60px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="host-switch"><div class="host-pill"><span class="hdot on"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm ic"><use href="#chev-d" /></svg></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">hover</div>
+          <div class="lsb" style="width: 216px; height: 60px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="host-switch"><div class="host-pill is-hover"><span class="hdot on"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm ic"><use href="#chev-d" /></svg></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">打开（下拉同宽 · 锚正下方）</div>
+          <div class="lsb" style="width: 224px; height: 260px; position: relative; overflow: visible">
+            <div class="lsb-scroll" style="padding-top: 8px; overflow: visible">
+              <div class="host-switch">
+                <div class="host-pill open"><span class="hdot on"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm ic"><use href="#chev-d" /></svg></div>
+                <div class="host-dd">
+                  <div class="hd-h">主机 · Hosts</div>
+                  <div class="host-row sel"><span class="hdot on"></span><span class="hr-nm">本机 · 我的 Mac</span><span class="chk"><svg class="i xs"><use href="#check" /></svg></span></div>
+                  <div class="host-row"><span class="hdot on"></span><span class="hr-nm">公司 MacBook</span><svg class="i xs relay" style="margin-left:auto"><use href="#network" /></svg><span class="hr-st on">在线</span></div>
+                  <div class="host-row"><span class="hdot ing"></span><span class="hr-nm">云服务器</span><span class="hr-st ing">连接中</span></div>
+                  <div class="host-row off"><span class="hdot off"></span><span class="hr-nm">旧 Mini</span><span class="hr-st off">离线</span></div>
+                  <div class="ctxsep"></div>
+                  <div class="host-row"><svg class="i sm" style="color:var(--muted-fg)"><use href="#plus" /></svg><span class="hr-nm">添加主机…</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">① 切换中（选另一台在线主机）</div>
+          <div class="miniwin">
+            <div class="mw-top"><span class="l" style="background:#ff5f57"></span><span class="l" style="background:#febc2e"></span><span class="l" style="background:#28c840"></span></div>
+            <div class="mw-body">
+              <div class="mw-side">
+                <div class="host-pill" style="height:20px; padding:0 6px; font-size:10px"><span class="hdot ing" style="width:5px;height:5px"></span><span class="nm">公司 MacBook</span></div>
+                <div class="mw-line"></div><div class="mw-line" style="width:70%"></div>
+              </div>
+              <div class="mw-main"><span class="spin-sm"></span>连接 公司 MacBook…</div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">② 整工作区重载（左栏树 + 中区 + 右栏全重载）</div>
+          <div class="miniwin">
+            <div class="mw-top"><span class="l" style="background:#ff5f57"></span><span class="l" style="background:#febc2e"></span><span class="l" style="background:#28c840"></span></div>
+            <div class="mw-body">
+              <div class="mw-side"><div class="mw-line" style="background:var(--muted-fg); opacity:.4"></div><div class="mw-line"></div><div class="mw-line" style="width:60%"></div><div class="mw-line" style="width:80%"></div></div>
+              <div class="mw-main"><span class="spinner" style="width:18px;height:18px"></span>重载工作区…</div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">③ 离线主机点击重连（不直接切走）</div>
+          <div class="miniwin">
+            <div class="mw-top"><span class="l" style="background:#ff5f57"></span><span class="l" style="background:#febc2e"></span><span class="l" style="background:#28c840"></span></div>
+            <div class="mw-body">
+              <div class="mw-side"><div class="host-row off" style="height:20px; padding:0 5px; font-size:10px"><span class="hdot off" style="width:5px;height:5px"></span><span class="hr-nm">旧 Mini</span></div><div class="mw-line"></div></div>
+              <div class="mw-main"><span class="spin-sm"></span>重连 旧 Mini…<div style="font-size:9.5px; color:var(--muted-fg)">退避重试 · 失败出提示条</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage dark">
+        <div class="fcol dark">
+          <div class="fcap">深色变体（打开态）</div>
+          <div class="lsb" style="width: 224px; height: 240px; position: relative; overflow: visible">
+            <div class="lsb-scroll" style="padding-top: 8px; overflow: visible">
+              <div class="host-switch">
+                <div class="host-pill open"><span class="hdot on"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm ic"><use href="#chev-d" /></svg></div>
+                <div class="host-dd">
+                  <div class="hd-h">主机 · Hosts</div>
+                  <div class="host-row sel"><span class="hdot on"></span><span class="hr-nm">本机 · 我的 Mac</span><span class="chk"><svg class="i xs"><use href="#check" /></svg></span></div>
+                  <div class="host-row off"><span class="hdot off"></span><span class="hr-nm">旧 Mini</span><span class="hr-st off">离线</span></div>
+                  <div class="ctxsep"></div>
+                  <div class="host-row"><svg class="i sm" style="color:var(--muted-fg)"><use href="#plus" /></svg><span class="hr-nm">添加主机…</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>胶囊</b>：显当前主机 + 在线点；点击展开下拉。<b>下拉与胶囊同宽、锚其正下方（左右同缘）</b>，绝不铺满栏宽/全屏；主机名过长省略号截断。</div></li>
+              <li><span class="pin">2</span><div><b>在线主机行</b>：点击 → 切换（① 切换中过场 → ② 整工作区重载 → 完成落新主机数据）。</div></li>
+              <li><span class="pin">3</span><div><b>离线主机行</b>：点击<b>触发重连</b>（不直接切走），退避重试；失败见 <a href="#sCT7" style="color:#0969da">sCT7</a> 重连提示条；成功后可再次点击切换。</div></li>
+              <li><span class="pin">4</span><div><b>添加主机…</b>：打开添加方式入口（直连 / 配对链接 / 扫码），详情属另一模块，本屏只露入口。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>桌面 only</b>；下拉<b>严格等宽</b>于胶囊（<code style="font-family:var(--mono)">left:0;right:0</code> 锚定），受限宽度内放小色点 + 短状态文案。</dd>
+                <dt>默认</dt>
+                <dd>胶囊 = 当前主机名 + 在线绿点 + ▾。</dd>
+                <dt>hover</dt>
+                <dd>胶囊底色 <code>--accent</code>；下拉行 hover 同色。</dd>
+                <dt>活跃（打开）</dt>
+                <dd>胶囊边框变蓝 + 聚焦环；当前主机行打 ✓ + <code>--secondary</code> 选中底。</dd>
+                <dt>运行</dt>
+                <dd>「连接中」主机显琥珀点 + 琥珀字；切换中显①过场、随后②整工作区重载过场。</dd>
+                <dt>禁用</dt>
+                <dd>离线主机半透明（<b>可点，非纯禁用</b>——点击触发重连）。</dd>
+                <dt>空</dt>
+                <dd>仅本机一台时，下拉只列本机 + 添加主机…。</dd>
+                <dt>错误</dt>
+                <dd>切换 / 保存主机失败 → 左栏顶出轻提示条（见 <a href="#sCT7" style="color:#0969da">sCT7</a>）。</dd>
+                <dt>离线（当前主机）</dt>
+                <dd>当前所在主机离线 → 胶囊显红点，见 <a href="#sCT7" style="color:#0969da">sCT7</a> 顶部重连提示条。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist"><div class="ml-p">本屏<b>无右键菜单</b>（下拉项本身即菜单）。主机的管理动作（重命名 / 移除 / 连接设置）在设置的主机级页，本屏只露入口。</div></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sCT6 -->
+    <section class="screen" id="sCT6">
+      <div class="screen-head">
+        <span class="tag">sCT6</span>
+        <h2>联动 · 点对话 → 中区 / 点 subagent → 右栏「对话」页签（接断链 · 诚实标注）</h2>
+        <p>
+          真实实现按<b>节点类型分两条承载路径</b>（<code style="font-family:var(--mono)">navigateToAgent({ surface })</code>）：<b>根对话</b>点击 →
+          加载进<b>中区</b>（单画布、替换式，非多页签）；<b>subagent</b> 点击 → 打开/聚焦<b>右栏「对话」类型页签</b>（多页签、可与其它 subagent 并存）。
+          本屏是两条链路的<b>落地演示屏</b>（同 sRS6 手法）：本模块只负责<b>发起 + 送达</b>，承接内容归对应模块。
+        </p>
+      </div>
+
+      <div class="stage">
+        <div class="fcol" style="width: 100%">
+          <div class="fcap">场景 A · 根对话 → 中区（单画布 · 替换式）<span class="badge-flat go" style="margin-left:6px"><svg class="i xs"><use href="#check" /></svg> 发起侧就绪</span></div>
+          <div class="link-flow" style="justify-content: flex-start">
+            <div class="lsb" style="width: 190px">
+              <div class="lsb-scroll" style="padding-top: 8px">
+                <div class="lsb-sec">项目</div>
+                <div class="tree">
+                  <div class="tnode"><span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div>
+                  <div class="tnode on is-hover tind1"><span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span><span class="tname">重构 checkout 子系统</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="link-arrow"><div class="lbl"><b>点击</b>根对话行 →<br />加载中区（替换当前）</div><div class="ln"><div class="arrow-line"></div><svg class="i md"><use href="#arrow-r" /></svg></div></div>
+            <div class="ls-main" style="width: 260px; height: 150px">
+              <div class="msgsk" style="width:100%">
+                <div class="sk b" style="height:12px;width:60%"></div>
+                <div class="sk b" style="height:34px;width:88%"></div>
+                <div class="sk b" style="height:20px;width:70%; align-self:flex-end"></div>
+              </div>
+            </div>
+            <div style="font-size: 11px; color: var(--muted-fg); max-width: 170px; line-height: 1.5">
+              中区<b style="color:var(--fg)">始终只有一份、无独立页签</b>（壳规则）——切换根对话是<b>整体替换</b>，不是新开一页；内容渲染<b>归 conversation-page</b>，本模块只负责导航 + 树侧选中态同步。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="fcol" style="width: 100%">
+          <div class="fcap">场景 B · subagent → 右栏「对话」页签<span class="badge-flat wait" style="margin-left:6px"><svg class="i xs"><use href="#alert" /></svg> 承接侧 deferred（右侧栏 v8 sRS1）</span></div>
+          <div class="link-flow" style="justify-content: flex-start">
+            <div class="lsb" style="width: 190px">
+              <div class="lsb-scroll" style="padding-top: 8px">
+                <div class="tree">
+                  <div class="tnode tind1"><span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span><span class="tname">重构 checkout 子系统</span></div>
+                  <div class="tnode on is-hover tind2"><span class="twedge"></span><svg class="i xs ti"><use href="#bot" /></svg><span class="tdot idle"></span><span class="tname">Explore · 扫描 server</span><span class="tlock"><svg class="i xs"><use href="#lock" /></svg></span></div>
+                </div>
+              </div>
+            </div>
+            <div class="link-arrow"><div class="lbl"><b>点击</b> subagent 行 →<br /><code style="font-family:var(--mono)">surface:"right"</code></div><div class="ln"><div class="arrow-line"></div><svg class="i md"><use href="#arrow-r" /></svg></div></div>
+            <div class="xpanel">
+              <div class="xtabs">
+                <div class="xtab sug"><svg class="i xs"><use href="#folder" /></svg> 文件</div>
+                <div class="xtab on"><svg class="i xs"><use href="#folder" /></svg> Explore</div>
+              </div>
+              <div class="xbody">「对话」页签类型内容<br />归右侧侧边栏模块</div>
+            </div>
+            <div style="font-size: 11px; color: var(--muted-fg); max-width: 190px; line-height: 1.5">
+              <b style="color:var(--fg)">本模块触发侧真实</b>（<code style="font-family:var(--mono)">navigateToAgent</code> 已按 kind 分流 surface）；<b style="color:var(--warning)">右侧栏「对话」页签类型本身在其 v8 设计中仍是禁用「后续」态</b>（见右侧侧边栏 sRS1 启动器，四类含「对话」均 deferred）——本联动是该类型<b>第一个真实触发方</b>，待其开放即接通，本模块无需改动。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">chevron ≠ 导航（回顾）</div>
+          <div class="lsb" style="width: 200px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="tree"><div class="tnode"><span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div></div>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted-fg); margin-top: 6px; max-width: 200px; line-height: 1.5">点 chevron 仅展开/收起，<b style="color:var(--fg)">不触发</b>本屏的中区/右栏联动（同 sCT1 注解 7）。</div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">再次点击已打开的同一对话</div>
+          <div class="lsb" style="width: 200px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="tree"><div class="tnode on"><span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span><span class="tname">重构 checkout 子系统</span></div></div>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted-fg); margin-top: 6px; max-width: 200px; line-height: 1.5">幂等——<b style="color:var(--fg)">不重复加载</b>，中区内容/右栏页签保持原样。</div>
+        </div>
+        <div class="fcol dark">
+          <div class="fcap">深色变体（场景 A）</div>
+          <div class="link-flow" style="flex-wrap:nowrap">
+            <div class="lsb" style="width: 170px">
+              <div class="lsb-scroll" style="padding-top: 8px">
+                <div class="tree"><div class="tnode on"><span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span><span class="tname">重构 checkout</span></div></div>
+              </div>
+            </div>
+            <div class="link-arrow"><div class="ln"><div class="arrow-line"></div><svg class="i md"><use href="#arrow-r" /></svg></div></div>
+            <div class="ls-main" style="width: 140px; height: 100px">
+              <div class="msgsk" style="width:100%"><div class="sk b" style="height:10px;width:60%"></div><div class="sk b" style="height:24px;width:88%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">联动语义（方向画清 · 本模块发起，不重画承接侧）</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>根对话 → 中区</b>：点击导航，中区<b>整体替换</b>为该对话内容；同时该行进入选中态（<code style="font-family:var(--mono)">--secondary</code>）。</div></li>
+              <li><span class="pin">2</span><div><b>subagent → 右栏</b>：点击导航，<code style="font-family:var(--mono)">surface:"right"</code> → 右栏打开/聚焦一个「对话」类型页签；<b>若右栏当前收起，跳转顺带展开</b>（复用壳「展开右侧边栏」公共行为，同 sRS6 联动②）。</div></li>
+              <li><span class="pin">3</span><div><b>去重</b>：同一 subagent 已有对应页签时<b>聚焦既有页签</b>，不新开（与 sRS6 文件页签去重同一套原则）。</div></li>
+              <li><span class="pin">4</span><div><b>chevron 独立</b>：展开/收起子树<b>不触发</b>①②的导航联动。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">两条链路 · 谁已就绪 / 谁承接待接通</div>
+            <div class="menulist">
+              <div class="ml-i"><span class="pin g">A</span><b>根对话 → 中区</b>：触发侧（本模块）真实；承接侧内容渲染归 <b>conversation-page</b>（另一模块，本屏不重画其消息流/Composer 全态）。</div>
+              <div class="ml-i"><span class="pin o">B</span><b>subagent → 右栏「对话」页签</b>：触发侧（本模块 <code style="font-family:var(--mono)">navigateToAgent</code>）真实、已按节点类型分流 <code style="font-family:var(--mono)">surface</code>；<b>承接侧「对话」页签类型内容</b>在右侧侧边栏 v8（sRS1 启动器）中<b>仍是禁用「后续」态</b>——本模块是该类型的<b>第一个真实触发来源</b>，待右侧栏开放「对话」类型即自动接通，<b>本模块无需改动</b>。</div>
+              <div class="ml-note">与 sRS6「三条断链」手法一致：本屏不假装承接侧已建好，也不因承接侧未就绪而隐藏本模块的真实触发行为——<b>诚实画出「送到哪一步」</b>。</div>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态 + 右键 + 边界</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>桌面 only</b>；中区始终单画布无独立宽度（壳规则），右栏默认 480（拖拽 320–800，归壳）。</dd>
+                <dt>hover/active</dt>
+                <dd>本屏无新增可点元素；联动由「点根对话行 / 点 subagent 行」触发，见 sCT3 行态。</dd>
+                <dt>空/加载/错误/离线</dt>
+                <dd>中区/右栏各自的空态归其自身模块；树侧断连时联动冻结（见 <a href="#sCT7" style="color:#0969da">sCT7</a>）。</dd>
+                <dt>右键</dt>
+                <dd>本屏<b>无独立右键</b>；树行右键见 <a href="#sCT3" style="color:#0969da">sCT3</a>，右栏页签右键归右侧侧边栏模块。</dd>
+                <dt>边界</dt>
+                <dd><b>不重画</b>中区消息流/Composer；<b>不重画</b>右栏页签框架/「对话」类型内容；<b>不新增</b>布局原语（复用壳「展开右栏」）。</dd>
+              </dl>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================================================================== sCT7 -->
+    <section class="screen" id="sCT7">
+      <div class="screen-head">
+        <span class="tag">sCT7</span>
+        <h2>空 / 加载 / 错误 / 离线聚合态</h2>
+        <p>
+          真实实现里「空」<b>不是单一态</b>——整棵树首次为空，与「某个项目展开后恰好没有对话」是<b>两条不同的真实代码路径</b>，
+          文案相同（「暂无对话」）但<b>出现位置与缩进不同</b>，本屏分别画出，不合并成一种。
+        </p>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">首次整棵树为空（无项目 / 无游离对话）</div>
+          <div class="lsb" style="width: 220px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="host-switch"><div class="host-pill"><span class="hdot on"></span><span class="nm">本机 · 我的 Mac</span><svg class="i sm ic"><use href="#chev-d" /></svg></div></div>
+              <div class="lsb-top">
+                <div class="lsb-item"><svg class="i sm ic"><use href="#pen" /></svg> 新对话</div>
+                <div class="lsb-item"><svg class="i sm ic"><use href="#search" /></svg> <span class="muted">搜索</span><span class="kbd">⌘K</span></div>
+              </div>
+              <div class="lsb-sec">项目<span class="act"><svg class="i xs"><use href="#folder-plus" /></svg></span></div>
+              <div class="lsb-sec">对话</div>
+              <div class="lsb-empty">暂无对话</div>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted-fg); margin-top: 6px; max-width: 220px; line-height: 1.5">「项目」段<b style="color:var(--fg)">仅显标题</b>（真实实现无项目时不显额外空态文案）；「暂无对话」<b>只挂在「对话」段下</b>。点「新对话」即可开始，出口不死。</div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">项目展开、恰好没有对话</div>
+          <div class="lsb" style="width: 220px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="lsb-sec">项目</div>
+              <div class="tree">
+                <div class="tnode"><span class="twedge exp"><svg class="i xs"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">new-service</span></div>
+              </div>
+              <div class="lsb-empty ind">暂无对话</div>
+              <div class="tree"><div class="tnode"><span class="twedge"><svg class="i xs"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div></div>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted-fg); margin-top: 6px; max-width: 220px; line-height: 1.5">紧跟在该项目行下、<b style="color:var(--fg)">缩进到其子级</b>（与「悬浮新对话」同一入口即可消解此态）。</div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">加载（切主机 / 首次拉取）</div>
+          <div class="lsb" style="width: 220px">
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="skln"><span class="sk" style="width:16px;height:16px;border-radius:5px"></span><span class="sk" style="height:11px;width:52%"></span></div>
+              <div class="skln"><span class="sk" style="width:16px;height:16px;border-radius:5px"></span><span class="sk" style="height:11px;width:66%"></span></div>
+              <div class="skln" style="padding-left:28px"><span class="sk" style="width:14px;height:14px;border-radius:5px"></span><span class="sk" style="height:11px;width:44%"></span></div>
+              <div class="skln"><span class="sk" style="width:16px;height:16px;border-radius:5px"></span><span class="sk" style="height:11px;width:58%"></span></div>
+              <div class="loadrow"><span class="sp"><svg class="i sm"><use href="#spinner" /></svg></span> 加载对话树…</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="fcol">
+          <div class="fcap">错误（上游会话列表加载失败）</div>
+          <div class="lsb" style="width: 220px; height: 200px; display: flex">
+            <div class="tstate">
+              <div class="si err"><svg class="i md"><use href="#alert" /></svg></div>
+              <div class="st">无法加载对话列表</div>
+              <div class="ss">与主机通信异常，其余左栏功能（新对话/搜索/主机切换）不受影响</div>
+              <div class="sbtn">重试</div>
+            </div>
+          </div>
+        </div>
+        <div class="fcol">
+          <div class="fcap">离线（主机断连 · 只读 + 顶部重连提示）</div>
+          <div class="lsb" style="width: 220px">
+            <div class="offbar"><svg class="i sm"><use href="#off" /></svg> 主机离线<span class="rc">重连</span></div>
+            <div class="lsb-scroll" style="padding-top: 8px">
+              <div class="host-switch"><div class="host-pill"><span class="hdot off"></span><span class="nm">旧 Mini</span><svg class="i sm ic"><use href="#chev-d" /></svg></div></div>
+              <div class="lsb-top">
+                <div class="lsb-item dis"><svg class="i sm ic"><use href="#pen" /></svg> 新对话</div>
+                <div class="lsb-item dis"><svg class="i sm ic"><use href="#search" /></svg> <span class="muted">搜索</span></div>
+              </div>
+              <div class="lsb-sec">项目</div>
+              <div class="tree"><div class="tnode dim"><span class="twedge"><svg class="i xs"><use href="#chev-r" /></svg></span><svg class="i sm ti"><use href="#folder" /></svg><span class="tname">paseo-main</span></div></div>
+            </div>
+          </div>
+          <div style="font-size: 11px; color: var(--muted-fg); margin-top: 6px; max-width: 220px; line-height: 1.5">树<b style="color:var(--fg)">只读可见</b>（可浏览/点开看历史，不可新建/搜索/重命名/拖拽/右键改写项）；主机恢复自动复原、提示条自动消失。</div>
+        </div>
+        <div class="fcol dark">
+          <div class="fcap">深色变体（错误 + 空）</div>
+          <div class="lsb" style="width: 220px; height: 170px; display: flex">
+            <div class="tstate">
+              <div class="si err"><svg class="i md"><use href="#alert" /></svg></div>
+              <div class="st">无法加载对话列表</div>
+              <div class="sbtn">重试</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="anno">
+        <div class="anno-h">交互注解</div>
+        <div class="anno-grid">
+          <div class="anno-card span2">
+            <div class="ac-h">点击效果</div>
+            <ol>
+              <li><span class="pin">1</span><div><b>「新对话」</b>（空态引导）：与常态入口同效，见 <a href="#sCT4" style="color:#0969da">sCT4</a>。</div></li>
+              <li><span class="pin">2</span><div><b>重试</b>（错误态）：重新拉取，成功 → 恢复正常树；失败 → 停留错误态可再次重试。</div></li>
+              <li><span class="pin">3</span><div><b>重连</b>（离线提示条）：触发主机重连（同 <a href="#sCT5" style="color:#0969da">sCT5</a> 离线行重连语义）；成功后提示条消失、树恢复可写。</div></li>
+              <li><span class="pin">4</span><div><b>离线态下点已展开树行</b>：仍可点开查看<b>历史</b>内容（只读浏览不禁止），仅<b>改写类操作</b>（新建/重命名/拖拽/右键写操作）禁用。</div></li>
+            </ol>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">布局 + 状态</div>
+            <div class="states">
+              <dl>
+                <dt>布局</dt>
+                <dd><b>桌面 only</b>；离线提示条挂左栏顶部（主机切换器上方），不改变容器宽度。</dd>
+                <dt>空（两种真实路径）</dt>
+                <dd><b>整棵树空</b>：「项目」段仅标题、「对话」段下挂「暂无对话」。<b>项目展开无对话</b>：紧跟该项目行、缩进一级挂「暂无对话」。二者<b>不是同一态</b>，不可合并处理。</dd>
+                <dt>加载</dt>
+                <dd>骨架行 + 底部「加载对话树…」；<b>不整屏遮罩</b>，主机切换器等仍可交互（若已有旧数据则先陈旧后覆盖，避免整屏空白跳变）。</dd>
+                <dt>错误</dt>
+                <dd>树区域内错误卡（图标+短句+重试），<b>不连累</b>主机切换器 / 新对话 / 搜索三个常驻入口。</dd>
+                <dt>离线</dt>
+                <dd>整树<b>半透明 + 只读</b>；顶部橙色提示条「主机离线 · 重连」；新对话/搜索禁用；主机切换器仍可用（切到其它在线主机）。</dd>
+                <dt>深色</dt>
+                <dd>错误图标底 <code>color-mix(destructive 12%)</code>；离线提示条底 <code>color-mix(warning 12%)</code>，深浅通用同一 token 表达式。</dd>
+              </dl>
+            </div>
+          </div>
+          <div class="anno-card span2">
+            <div class="ac-h">右键菜单</div>
+            <div class="menulist">
+              <div class="ml-p">空 / 加载 / 错误态<b>无右键菜单</b>。离线态下已有节点<b>仍可右键</b>，但改写类菜单项（重命名/归档/移除/派生等）呈禁用（与 <a href="#sCT3" style="color:#0969da">sCT3</a> 的 <code style="font-family:var(--mono)">.dis</code> 视觉一致），只读类项（复制会话 ID、在 Finder 中显示）保留可用。</div>
+              <div class="ml-note"><b>能力门（forward 提示，非本轮画面）</b>：连旧主机（无「原生深层 subagent 树」能力）时，树只显直接子层 + 「升级主机以查看更深层 subagent」提示，见 <a href="../2026-06-27-subagent-native-tree/ui.html#s3" style="color:#0969da">subagent-native-tree S3</a>（评审中）；该态不在本轮 sCT1–sCT7 画面枚举内，仅作衔接说明，避免与本模块「离线/错误」态混淆。</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </body>
+</html>
