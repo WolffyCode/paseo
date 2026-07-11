@@ -35,6 +35,10 @@ export default defineConfig({
               find: /^lucide-react-native$/,
               replacement: path.resolve(__dirname, "test-stubs/lucide-react-native.browser.tsx"),
             },
+            {
+              find: /^@\/runtime\/host-runtime$/,
+              replacement: path.resolve(__dirname, "test-stubs/host-runtime.browser.ts"),
+            },
           ],
         },
         test: {
