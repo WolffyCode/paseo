@@ -1,4 +1,5 @@
 import { Check, ChevronDown, Plus } from "lucide-react-native";
+import { observer } from "mobx-react-lite";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Pressable,
@@ -23,7 +24,7 @@ export interface HostSwitcherProps {
 }
 
 /** Render the active-host capsule and route each dropdown row by its live connection tone. */
-export function HostSwitcher({
+export const HostSwitcher = observer(function HostSwitcher({
   activeServerId,
   onSwitchHost,
   onReconnect,
@@ -118,7 +119,7 @@ export function HostSwitcher({
         style={pillStyle}
         testID="host-switcher-pill"
       >
-        <ConnectionDot tone={activeTone} testID="host-switcher-pill-status" />
+        <ConnectionDot tone={activeTone} tokens={tk} testID="host-switcher-pill-status" />
         <Text numberOfLines={1} style={labelStyle}>
           {activeLabel}
         </Text>
@@ -137,6 +138,7 @@ export function HostSwitcher({
                 isCurrent={host.serverId === activeServerId}
                 onSwitchHost={handleSwitch}
                 onReconnect={onReconnect}
+                tokens={tk}
               />
             ))}
           </ScrollView>
@@ -156,7 +158,7 @@ export function HostSwitcher({
       ) : null}
     </View>
   );
-}
+});
 
 function HostSwitcherRow({
   serverId,
@@ -164,16 +166,18 @@ function HostSwitcherRow({
   isCurrent,
   onSwitchHost,
   onReconnect,
+  tokens,
 }: {
   serverId: string;
   label: string;
   isCurrent: boolean;
   onSwitchHost: (serverId: string) => void;
   onReconnect: (serverId: string) => void;
+  tokens: ShellTokens;
 }) {
   const status = useHostRuntimeConnectionStatus(serverId);
   const tone = selectHostConnectionTone(status);
-  const tk = themeModel.tokens;
+  const tk = tokens;
   const handlePress = useCallback(() => {
     if (tone === "offline") {
       onReconnect(serverId);
@@ -205,7 +209,7 @@ function HostSwitcherRow({
       style={rowStyle}
       testID={`host-switcher-row-${serverId}`}
     >
-      <ConnectionDot tone={tone} testID={`host-switcher-status-${serverId}`} />
+      <ConnectionDot tone={tone} tokens={tk} testID={`host-switcher-status-${serverId}`} />
       <Text numberOfLines={1} style={nameStyle}>
         {label}
       </Text>
@@ -218,10 +222,20 @@ function HostSwitcherRow({
   );
 }
 
-function ConnectionDot({ tone, testID }: { tone: HostConnectionTone; testID: string }) {
-  const tk = themeModel.tokens;
+function ConnectionDot({
+  tone,
+  tokens,
+  testID,
+}: {
+  tone: HostConnectionTone;
+  tokens: ShellTokens;
+  testID: string;
+}) {
   const dataSet = useMemo(() => ({ connectionTone: tone }), [tone]);
-  const style = useMemo(() => [styles.dot, { backgroundColor: toneColor(tone, tk) }], [tk, tone]);
+  const style = useMemo(
+    () => [styles.dot, { backgroundColor: toneColor(tone, tokens) }],
+    [tokens, tone],
+  );
   return <View dataSet={dataSet} style={style} testID={testID} />;
 }
 

@@ -11,6 +11,7 @@ import { type ShellContext, shellModel } from "../model/shell-model";
 import { WINDOW_PADDING } from "../theme/shell-tokens";
 import { resolveThemeScheme, themeModel } from "../theme/theme-model";
 import { FileTreeRegion } from "./file-tree-region";
+import { LeftRegion } from "./left-region";
 import { RightPanelRegion } from "./right-panel-region";
 import { RegionFrame } from "./region-frame";
 import { RegionGutter } from "./region-gutter";
@@ -46,8 +47,8 @@ function useShellBridge(ctx: ShellContext): void {
 
 // The shell's route-level assembly. It feeds the models the route context + theme/locale,
 // then lays out the window-wide top bar over the row of floating cards. Card order is fixed
-// left → center → right → file tree, gutters between. Every region is an empty placeholder
-// this milestone; open/close/drag/page-switch all work on top of it. Pure composition over
+// left → center → right → file tree, gutters between. Content milestones mount through their
+// region components while deferred surfaces retain placeholders. Pure composition over
 // the model — it reads computeds and renders, holding no layout state itself. `observer` so
 // every model change repaints it.
 export const ShellRoot = observer(function ShellRoot({ ctx }: { ctx: ShellContext }) {
@@ -72,7 +73,7 @@ export const ShellRoot = observer(function ShellRoot({ ctx }: { ctx: ShellContex
         {visible.left != null ? (
           <Fragment>
             <RegionFrame kind="sidebar" width={visible.left}>
-              <RegionPlaceholder variant={isSettings ? "settingsNav" : "left"} />
+              <LeftRegionContent isSettings={isSettings} serverId={ctx.serverId ?? null} />
               {isSettings ? null : <SettingsEntry />}
             </RegionFrame>
             <RegionGutter region="left" currentWidth={visible.left} />
@@ -131,6 +132,22 @@ export const ShellRoot = observer(function ShellRoot({ ctx }: { ctx: ShellContex
     </View>
   );
 });
+
+function LeftRegionContent({
+  isSettings,
+  serverId,
+}: {
+  isSettings: boolean;
+  serverId: string | null;
+}) {
+  if (isSettings) {
+    return <RegionPlaceholder variant="settingsNav" />;
+  }
+  if (serverId !== null) {
+    return <LeftRegion serverId={serverId} />;
+  }
+  return <RegionPlaceholder variant="left" />;
+}
 
 const styles = StyleSheet.create({
   root: {
