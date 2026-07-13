@@ -1,6 +1,6 @@
 # 需求 · 左侧对话树(项目 → 对话 → subagent 无限嵌套 · 主机切换器 · 桌面 only)
 
-> 日期:2026-07-11 · 状态:草拟(闸 1 待审)· 配套 UI:[ui.html](./ui.html) · canonical:docs/helm/product.md
+> 日期:2026-07-11 · 状态:闸 1 已通过(2026-07-11,六项开放问题按推荐值采纳)· 闸 3 验收中 · 配套 UI:[ui.html](./ui.html) · canonical:docs/helm/product.md
 > **只写 WHAT**(见 [standards.md](../../standards.md) §7)——全文不含组件名 / 函数名 / 文件名 / store 名 / 路由名 / 协议名 / RPC 名 / 代码片段 / 实现路子。
 > **锚点约定**:与 UI 设计师并行,本文 §4 定义的屏用 `sCT1`…`sCTn`(Conversation Tree)前缀,requirement 每状态 ↔ ui.html 每屏 1:1。
 > **定位**:本需求填的是壳子 `2026-06-28-shell` 里「左侧边栏」这个空容器的**内部内容**——兑现该需求 §7.b 第 7–18 条(host 切换器 / 新对话 / 搜索 / 对话树全部细节 / 右键 / 重命名 / 归档剥离 / 关页签语义),并落实 `2026-06-27-codepilot-layout` §5「左栏外壳 vs 内部」硬边界里「内部 = Helm 现有对话树那套」的判决。**不重定义**壳行为(左栏开关 / 默认 240px / 拖 180–300 / 记忆宽度 / 设置入口位置)——那些一概沿用壳子与 codepilot-layout,本需求只管左栏内部装什么内容。
