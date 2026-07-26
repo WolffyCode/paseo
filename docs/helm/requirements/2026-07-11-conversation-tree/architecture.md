@@ -1,6 +1,6 @@
 # 架构 · 左侧对话树（项目 → 对话 → subagent 无限嵌套 · 主机切换器 · 桌面 only）
 
-> 日期：2026-07-11 · 状态：草拟（评审中 → 董事长闸 2）· 关联：[requirement.md](./requirement.md)（已批 · 闸 1）· [ui.html](./ui.html)
+> 日期：2026-07-11 · 状态：闸 2 已过（P2）；**2026-07-23 增补 §8「信息架构三轮修正 · 架构结论」（闸 2 增补材料，对应 requirement §8 开放问题 7/8/11/12 + 混合行高评估）** · 关联：[requirement.md](./requirement.md)（闸 1 + 2026-07-23 两轮修正）· [ui.html](./ui.html)
 > 写 **HOW 的边界**，不写逐行实现（实现交 Codex / helm-developer）。遵循 [standards.md](../../standards.md) + [coding-standards.md](../../../coding-standards.md)。
 > 本文接进的既有底座（已 Read 核对，非臆造）：`packages/app/src/conversation-tree/*`（旧树**行为底账**：`render.tsx`/`select.ts`/`use-conversation-row-actions.ts`/`use-project-row-actions.ts`/`project-action-availability.ts`，逐条右键菜单/分组排序/双击重命名/选中判定已读源码核对）、`shell/file-tree/*`（class+纯函数范式、`FileTreeStoreDeps` 注入范式、`file-tree-data.ts` 数据层范式、`file-tree-context.wiring.ts` 组合根范式、`FileTreeController` 收窄范式）、`shell/right-panel/*`（`WorkbenchModel`/`RightPanelController`/`TabContentFactory`/`OpenTabRequest` **现状真实实现**，非早期设计稿）、`shell/model/shell-model.ts` + `selectors/regions.ts`、`shell/components/shell-root.tsx`（左区当前 `RegionPlaceholder`，:75）、`@/runtime/host-runtime.ts`（`useHosts`/`useHostRuntimeConnectionStatus`/`useHostMutations`，**已有 shell/ 精度**：`file-tree-region.tsx`/`right-panel-region.tsx` 已直接 import）、`@/hooks/use-command-center.ts` + `@/components/command-center.tsx` + `@/stores/keyboard-shortcuts-store.ts`（⌘K 现状实现）、`@/components/sidebar/host-switcher-pill.tsx`（主机切换器现状 UI）、`@/utils/navigate-to-agent/{index,resolve}.ts`（点击联动现状真实机制，`surface` 字段已读源码验证真实存在）、`docs/helm/requirements/2026-06-30-file-tree/architecture.md`（§4/§9，新旧硬隔离三分类框架与「组合根读老 store 取 live client」先例的来源）、`docs/helm/requirements/2026-06-28-shell/architecture.md`（壳几何/`ShellContext`/组合方法 pattern 源）、`docs/agent-lifecycle.md` + `docs/terminal-activity.md` + `packages/protocol/src/{messages.ts,agent-state-bucket.ts,agent-labels.ts}`（协议侧数据/状态）。
 
@@ -44,7 +44,7 @@
 | `model/group-projects.ts`                  | **纯函数**：workspace 列表 + 空项目列表 → `ConversationTreeProject[]`，等价重写旧 `buildWorkspaceStructureProjects`                                                                                                                                      |
 | `model/apply-agent-update.ts`              | **纯函数**：当前 `agents`/`projects` + 一条 `agent_update` 事件 → 下一状态 + 悬空引用清理指令（**新增，回应闸 2 评审 ①I2/③#1/③#6**，见 §3.3/§3.8）                                                                                                       |
 | `model/apply-workspace-update.ts`          | **纯函数**：当前 `workspaceDetails` + 一条 `workspace_update` 事件（或初始快照的一条 `WorkspaceDescriptorPayload`）→ 下一 `workspaceDetails`（**新增，回应闸 2 评审 ③#1/#2**，见 §3.3）                                                                  |
-| `model/status-dot.ts`                      | **纯函数**：`{status, requiresAttention, pendingPermissionCount, attentionReason}` → 五态状态点（**全新设计，逐支对齐 `deriveAgentStateBucket`**，见 §3.2）                                                                                              |
+| `model/status-dot.ts`                      | **纯函数**：`{status, requiresAttention, pendingPermissionCount, attentionReason}` → 五态状态点（**全新设计，逐支对齐 `deriveAgentStateBucket`**，见 §3.2；**2026-07-23 更名 `run-status.ts` 并扩展文案派生，见 §8.6**）                                 |
 | `model/project-menu.ts`                    | **纯函数 selector**：项目行右键菜单派生（对位 file-tree 的 `context-menu-items.ts` 范式）                                                                                                                                                                |
 | `model/conversation-menu.ts`               | **纯函数 selector**：对话/subagent 行共用菜单派生                                                                                                                                                                                                        |
 | `model/pin-state.ts`                       | **纯函数**：置顶集合转移（`togglePin`/`isPinned`），对位 `clipboard-state.ts`                                                                                                                                                                            |
@@ -52,7 +52,7 @@
 | `model/types.ts`                           | 本模块自有类型（`ConversationTreeNode`/`ConversationTreeAgent`/`ConversationTreeProject`/`WorkspaceDetail`/…）                                                                                                                                           |
 | `data/conversation-tree-data.ts`           | 数据层：注入的 `ConversationTreeRpcClient` 结构接口 → 本模块词汇的 `ConversationTreeData`（对位 `file-tree-data.ts`）                                                                                                                                    |
 | `data/conversation-tree-context.wiring.ts` | 组合根：`createConversationTreeStoreForServer(serverId)`——读 live `DaemonClient` + 连接上下文注入 store（对位 `file-tree-context.wiring.ts`，是 §0 所述"第三类接触点"）                                                                                  |
-| `components/conversation-tree-panel.tsx`   | 根容器（observer）：顶部工具条 + 三段分组 + 全态切换，只渲染 + 派发；响应 `focusedRootId`/`activeNodeId` 变化滚动定位到该行（`FlatList.scrollToIndex`，对位 file-tree `scrollSelectedIntoView`，回应闸 2 评审 ③#10，覆盖需求 §3"搜索"流程与验收标准 21） |
+| `components/conversation-tree-panel.tsx`   | 根容器（observer）：顶部工具条 + 三段分组 + 全态切换，只渲染 + 派发；响应 `focusedRootId`/`activeNodeId` 变化滚动定位到该行（`FlatList.scrollToIndex`，对位 file-tree `scrollSelectedIntoView`，回应闸 2 评审 ③#10，覆盖需求 §3"搜索"流程与验收标准 33） |
 | `components/tree-toolbar.tsx`              | "新对话" + "搜索" 两个顶部入口行                                                                                                                                                                                                                         |
 | `components/tree-row.tsx`                  | 单行（observer）：按 `node.kind` 渲染图标/缩进/状态点/角标/hover 态                                                                                                                                                                                      |
 | `components/tree-context-menu.tsx`         | 菜单渲染壳：直连共享地基 `@/components/ui/context-menu.tsx`，喂 selector 产出的项列表                                                                                                                                                                    |
@@ -100,6 +100,8 @@
 ## 3. 数据流与接口契约
 
 ### 3.1 命名对象 shape（跨模块契约，不 inline）
+
+> **2026-07-23 增补**：本节 shape 是 P2 过闸基线；信息架构三轮修正带来的字段增量（`provider`/`updatedAt`/`projectId`/`workspaceKind`/project 节点 `branch`+`diffStat`）与 `statusDot → runStatus` 更名，以 §8.6/§8.7 的增量表为准，本节原文不重排。
 
 ```ts
 // model/types.ts —— 本模块自有类型，结构对齐协议 payload，但不 import 旧 conversation-tree/types.ts
@@ -226,6 +228,8 @@ function applyWorkspaceUpdate(
 
 ### 3.2 状态点五态派生（全新设计，逐支对齐 `deriveAgentStateBucket`）
 
+> **2026-07-23 增补**：五分支判定顺序不变；文件/类型/字段随「对话(根)行改文字标签、subagent 留圆点」的视觉分道**更名为语义词**（`run-status.ts`/`ConversationRunStatus`/`runStatus`），并新增 attention 拆因与状态标签文案两个纯派生，见 §8.6。
+
 ```ts
 // model/status-dot.ts
 function deriveConversationStatusDot(input: {
@@ -337,7 +341,7 @@ activateNode(node: SelectableNode): void
 
 调用方（`tree-row.tsx`）本就持有完整节点，`kind === "project"` 的行在渲染层根本不会构造出 `SelectableNode`（那一支走独立的 `toggleProjectCollapse`），"传一个 project 节点进来"在类型层面就不可表达，不需要再讨论"运行时收到非法输入怎么办"。
 
-- `node.kind === "conversation"`（根）：`activeNodeId = node.id`；`focusedRootId = node.id`。**本轮不调用 `deps.navigate`**（回应闸 2 评审 ①B3：上一版这里写"调 `deps.navigate(...)`……no-op-safe"，但 §3.7 明确 `navigate` 生产环境绑定的是真实 `expo-router` `router.navigate`，而 §3.5 已证明此刻没有任何已知安全的路由字符串可传——"no-op-safe"是未经证明的断言，字面实现会在点击验收标准 22 的核心交互时对一个未定义目标发起真实导航，有导航到错误页面的回归风险。订正为**明确不调**，`focusedRootId` 字段本身已经是"中区应呈现哪个对话"的唯一真相源，不需要用一次导航去佐证它；`deps.navigate` 继续保留在 `ConversationTreeStoreDeps`（§3.7），但只服务"新建对话"/"创建工作树"两个**有具体、已核实路由字符串**的调用点（`buildHostOpenProjectRoute`/`buildHostNewWorkspaceRoute`，§3.4/§4.2），不服务 `activateNode`。
+- `node.kind === "conversation"`（根）：`activeNodeId = node.id`；`focusedRootId = node.id`。**本轮不调用 `deps.navigate`**（回应闸 2 评审 ①B3：上一版这里写"调 `deps.navigate(...)`……no-op-safe"，但 §3.7 明确 `navigate` 生产环境绑定的是真实 `expo-router` `router.navigate`，而 §3.5 已证明此刻没有任何已知安全的路由字符串可传——"no-op-safe"是未经证明的断言，字面实现会在点击验收标准 34 的核心交互时对一个未定义目标发起真实导航，有导航到错误页面的回归风险。订正为**明确不调**，`focusedRootId` 字段本身已经是"中区应呈现哪个对话"的唯一真相源，不需要用一次导航去佐证它；`deps.navigate` 继续保留在 `ConversationTreeStoreDeps`（§3.7），但只服务"新建对话"/"创建工作树"两个**有具体、已核实路由字符串**的调用点（`buildHostOpenProjectRoute`/`buildHostNewWorkspaceRoute`，§3.4/§4.2），不服务 `activateNode`。
 - `node.kind === "subagent"`：`activeNodeId = node.id`；`focusedRootId` **原样不变**；额外调 `deps.openRightPanel()`。
 
 `isRowSelected(node) = node.id === focusedRootId || node.id === activeNodeId` 是**纯派生**（不入 store），驱动两档灰阶。这精确满足需求 §2.G 的表述——点击某 subagent 时，其**所属根对话行**只要仍等于 `focusedRootId`（该 subagent 是当前聚焦对话下的子节点，这是树内点击的绝大多数场景）就保持原有选中标识；`activeNodeId` 另外让该 subagent 行自己也可视为"当前激活"。
@@ -547,7 +551,7 @@ interface HostSwitcherProps {
 - `ConversationTreeStore`：`agent_update`/`workspace_update` 增量正确反映到 `tree` computed（含对话标题因 `workspace_update` 实时刷新，回应③P0#1）；**§3.8 竞态清理规则按可达性而非精确 id**（回应③#6，用例见上）；`activateNode` 对 `conversation`/`subagent` 两种 kind 的分支行为（`focusedRootId` 在 subagent 分支保持不变、`openRightPanel` 恰好且仅在 subagent 分支被调用一次、**conversation 分支不调用 `deps.navigate`**，回应①B3）；重命名进行中收到同节点的 `agent_update`/`workspace_update` 不清空 `editing.draftName`；`dispose()` 调用后 `data.onAgentUpdate`/`onWorkspaceUpdate` 的 unsubscribe 各被调用一次（回应①B2，断言 dispose 后再触发一次假事件不会导致 store 状态变化或抛错）；写路径 RPC reject 时 `deps.reportError` 被调用、`editing`/项目行状态保留不回滚（回应①I3）。
 - `HostSwitcher`：`connection-tone.ts` 三态映射；`host-switcher.tsx` 的点击路由分支——离线态点击调 `onReconnect` 不调 `onSwitchHost`，在线态相反（组件测试，非"零渲染"纯函数测，因为路由判定内联在组件里，见 §3.10）；下拉展开态是组件本地态，不在此列（判据"selector 不读它"）。
 
-**端到端验证点（对应 requirement §6 验收标准）**：树结构与嵌套（1-6）、状态点五态与归档过滤（7-8）、行交互两档灰阶与内联重命名（9、12）、右键菜单两套（14-17）、新对话与搜索入口（18-21，含搜索选中后树滚动定位，回应③#10）、点击联动的树侧半场（22-24，中区/右栏承接内容由各自模块独立验收）、主机切换器完整闭环含离线重连（25-30，回应①B1）、全态（31-35）、写路径失败的用户可见反馈（回应①I3，非验收标准逐条点名但属"功能真生效"的应有之义）。不靠截图/文本 grep 判过，走 [[verify]] 端到端真生效。
+**端到端验证点（对应 requirement §6 验收标准；编号按 2026-07-23 信息架构修正后的 54 条版逐条重排——原 41 条版编号已整体错位，本段是唯一权威对照，不留旧编号）**：树结构与嵌套（1-6）、五态语义 · 视觉分道 · 两行结构 · 标签行 · 最近说话时间 · 项目行分支/diff · closed 过滤（7-18、20——其中 14/15 已按 §8.1/§8.2 结论由「暂不作为强制」转为**强制**；19 是文档披露项，不入端到端）、行交互两档灰阶与内联重命名（21、24，另含 hover 工作区卡片 22 与行尾浮出操作 23）、右键菜单两套（26-29）、新对话与搜索入口（30-33，含搜索选中后树滚动定位，回应③#10）、点击联动的树侧半场（34-36，中区/右栏承接内容由各自模块独立验收）、主机切换器完整闭环含离线重连（37-42，回应①B1）、全态（43-47）、写路径失败的用户可见反馈（回应①I3，非验收标准逐条点名但属"功能真生效"的应有之义）。不靠截图/文本 grep 判过，走 [[verify]] 端到端真生效。
 
 ---
 
@@ -555,7 +559,7 @@ interface HostSwitcherProps {
 
 **评审最可能挑战①：从零重建 agent 数据订阅层，是否是给一个"UI 内容填充"需求背了一个过大的新代码面？** 取舍：这与 file-tree 当初的取舍完全同构（§4.2 已引用其 §7"新 store vs 复用旧 explorer 态"的结论）——CLAUDE.md 的零旧依赖硬规则不留第二条路；新增的表面是**有界的**——`ConversationTreeRpcClient` 只是对已经存在、稳定的共享包能力（`fetchAgents`/`agent_update`/`fetchWorkspaces`/三个 RPC 方法）做一层结构类型包装，不是重新发明协议或重写 daemon 端逻辑，形状上就是把 `FileTreeStore.dirCache` 的模式换一套数据种类而已。
 
-**评审最可能挑战②：subagent 点击只展开右栏、不开出真正的对话内容，是否发起侧价值不足？** 取舍：读代码已确认 `shell/right-panel/model/tab-content.ts` 的 `OpenTabRequest.kind` 现在是单一字面量 `"file"`、`TAB_KIND_POLICY.conversation.enabled === false`——**任何模块**，无论是新树还是假设中的其它调用方，本轮都无法真正开出"对话"类型 tab。这不是本模块保守，是右侧栏模块自己的既有边界；requirement §2.G/验收标准 23 明确把这条线划在"发起侧完整可验、承接侧不在本需求验收范围"，本设计精确匹配这条线，没有多做也没有少做。
+**评审最可能挑战②：subagent 点击只展开右栏、不开出真正的对话内容，是否发起侧价值不足？** 取舍：读代码已确认 `shell/right-panel/model/tab-content.ts` 的 `OpenTabRequest.kind` 现在是单一字面量 `"file"`、`TAB_KIND_POLICY.conversation.enabled === false`——**任何模块**，无论是新树还是假设中的其它调用方，本轮都无法真正开出"对话"类型 tab。这不是本模块保守，是右侧栏模块自己的既有边界；requirement §2.G/验收标准 35 明确把这条线划在"发起侧完整可验、承接侧不在本需求验收范围"，本设计精确匹配这条线，没有多做也没有少做。
 
 **评审最可能挑战③：⌘K/添加主机的宿主注入点，一个走 Deps 字段一个走组件 prop，是否规则不一致？** 取舍：判据是"能不能用一个纯函数调用表达"——重命名/置顶/移除/展开右栏都能（一次 RPC 或一次方法调用），故走 §3.7 的 `ConversationTreeStoreDeps` 注入，`openSearch` 也在此列（§3.7 已订正——不再是脱离 store 的组件 prop）；**唯独**"挂起一整棵旧 React 组件树（弹层/全局面板）"这件事，本质是渲染而非调用，只有持有 `useState`/能 import 组件的 React 组件能做到——`*-bridge.ts` 是纯 TS 工厂文件，天然做不到这件事，这是"添加主机"停留在组件 prop（而非 Deps 字段）这一层的唯一原因（`host-switcher.tsx` 没有 store 可注入，只有组件本身）。"搜索"虽然最终也要挂起旧组件树，但它的**触发**是"翻一个全局态"（`setCommandCenterOpen(true)`），这一步能被 `ConversationTreeHostDeps` 这个函数值封装、再注入 store；"添加主机"的触发是"渲染一段 JSX"，函数值封装不了渲染，只能留在组件层。两者机制不同，处理方式因此不同，是诚实反映各自约束，不是规则打折。
 
@@ -571,4 +575,128 @@ interface HostSwitcherProps {
 
 **⌘K 现状范围的文本澄清**：requirement 原文描述现状搜索覆盖"标题+消息内容+目录"，读代码核实（`use-command-center.ts:30-36`）现状只匹配标题与工作目录，不含消息内容——不影响本架构的接入决策（§4.C 结论不变：接入口、不重造），仅记录供 PM 侧后续校正文本用词。
 
-**账本自查**：对 `shell/conversation-tree/**`、`shell/host-switcher/**` 两目录，除 §4.A 允许直连清单与 `left-region.tsx`（挂载点豁免）外，不应出现指向 `packages/app/src/`（`shell/` 以外）的 import；(C) 类接缝清单为空，无需登记切换点（若未来确有需要新增，须先在本节登记，否则视为违反硬隔离）。
+**账本自查**：对 `shell/conversation-tree/**`、`shell/host-switcher/**` 两目录，除 §4.A 允许直连清单与 `left-region.tsx`（挂载点豁免）外，不应出现指向 `packages/app/src/`（`shell/` 以外）的 import；(C) 类接缝清单为空，无需登记切换点（若未来确有需要新增，须先在本节登记，否则视为违反硬隔离）。**2026-07-23 增补**：§8.2 为 CLI 类型标签登记了五个纯 SVG 图标组件（`@/components/icons/{claude,codex,copilot,opencode,pi}-icon`）为 §4.A 同类直连，账本自查的 rg 模式需将 `@/components/icons/` 列入白名单；旧 `@/components/provider-icons.ts` 聚合层仍属禁引。
+
+---
+
+## 8. 信息架构三轮修正 · 架构结论（2026-07-23 · 闸 2 增补材料）
+
+> 对应 requirement 2026-07-23「信息架构三轮修正」（§2·A/§2·B）与 §8 开放问题 **7 / 8 / 11 / 12**，另含总监指派的混合行高评估。以下每条证据均为本轮**重新读源码核实**，标注到文件行号；不转述任何前轮或产品侧的初步判断。P2 已过闸正文不重排，受影响原节（§1.1/§3.1/§3.2/§6/§7）已就地落指针，shape 与派生的演进以本节为准。
+>
+> **四问结论先行**：
+>
+> | requirement §8           | 结论                                            | 一句话依据                                                                                                          |
+> | ------------------------ | ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+> | 7 最近说话时间（阻塞性） | **能接，本轮做**                                | 协议 `AgentSnapshotPayload.updatedAt` 必填字段、已在本模块既有 `agent_update` 订阅通道内，decode 补一行即得（§8.1） |
+> | 8 CLI 类型标签           | **能接，本轮做**                                | `AgentSnapshotPayload.provider` 必填字段；label 走协议包内置映射 + 原样 id 兜底，零新增订阅（§8.2）                 |
+> | 11 分支/diff 行内常显    | **无性能代价，不需要节流/缓存/可视区裁剪**      | 计算全在 daemon（watcher+debounce），订阅与重算全是 §3.3 既有形状，常显只新增可视行内两个文本节点（§8.3）           |
+> | 12 项目行分支取哪个目录  | **按「项目主目录自身分支」定稿，UI 稿假设成立** | `workspaceKind === "local_checkout"` 可精确识别主目录（server 判定源已核实）；主目录缺失 → 「暂无分支」兜底（§8.4） |
+
+### 8.1 问题 7：最近说话时间 —— 用 `updatedAt`，本轮接入，阻塞解除
+
+**协议证据（`packages/protocol/src/messages.ts:675` `AgentSnapshotPayloadSchema`，两个候选字段均为必填、无新旧版本兼容问题）**：
+
+- `updatedAt: z.string()`（:685）。server 侧语义已读 `packages/server/src/server/agent/agent-manager.ts` 核实：私有 `touchUpdatedAt`（:716）在**每一个 live 流事件**入口被调用（:3009-3011，注释原话 "Only update timestamp for live events, not history replay"——历史回放不污染时间戳），另覆盖全部生命周期转移、attention 变化、模式/配置变更等 20+ 调用点。语义 = **「该对话最近一次活动」，双向覆盖用户消息与 agent 输出**。
+- `lastUserMessageAt: z.string().nullable()`（:686）。server 侧仅在 timeline `user_message` 到达时写入（agent-manager.ts:3231-3234）。语义 = **仅用户侧最后一次发言**，agent 连续输出一小时该字段纹丝不动。
+
+**裁定：用 `updatedAt`，不用 `lastUserMessageAt`。** requirement §2·B 的措辞是「最近一次消息**往来**」——双向语义。`lastUserMessageAt` 在长任务场景（agent 跑数小时、用户零介入）会显示与同行「运行中」标签直接矛盾的陈旧时间，是字面错误；`updatedAt` 额外涵盖的少量非消息活动（改名、切模式）同属「这个对话有动静」的用户直觉，对「3 分钟前」粒度的展示无语义损害。
+
+**新鲜度边界（诚实声明，非风险遮掩）**：`updatedAt` 到达客户端靠 `agent_update` 推送（本模块 §3.3 既有订阅）；纯 timeline 输出走 `agent_stream` 通道、不必然伴随一条 `agent_update`——**运行中**的行，树上时间戳可能滞后于最后一条真实输出。这不构成产品问题：运行中的行第二行同时挂「运行中」标签，用户对"正在说话"的判断不靠时间戳；而真正依赖时间戳的两个读数——「空闲了多久」「等你回复多久了」——所处的状态转移（→idle、→needsAttention）必然伴随 `emitState` → `agent_update`，时间戳在这些时点是新鲜的。**明确不做**：不为把运行中行的时间戳做成实时而接入 `agent_stream` 全量流——为一个次要读数背一路高频通道，复杂度不成比例。
+
+**接入边界**：
+
+- `data/conversation-tree-data.ts` `decodeConversationTreeAgent`：补解 `updatedAt: snapshot.updatedAt`（一行，必填字段无 fallback 分支）。
+- `model/types.ts`：`ConversationTreeAgent` 与 `ConversationTreeConversationNode` 各加 `readonly updatedAt: string`（ISO 串——**模型层只存时间戳，不存格式化文案**）。subagent 节点不带（需求只给对话(根)行第一行行尾）。
+- `model/build-tree.ts`：conversation 节点透传。
+- **相对时间格式化是渲染层关注点**：`formatRelative(iso: string, nowMs: number): string` 纯函数（分档可单测）；`nowMs` 由组件层**一个共享的分钟级 tick** 提供（面板级单一 interval，**严禁每行一个 timer**）。`now` 不进 store、不进 `build-tree` 输入——进了就等于每分钟整树重算，拿一趟 O(n) 建树换一个文案刷新，层放错了。
+- **顺带收敛既有重复（重构不打补丁）**：`components/workspace-hover-card.tsx` 的私有 `formatLastChange`（:374-394）与本函数同一语义，收敛为 `model/relative-time.ts` 单一纯函数，卡片改用之、删私有副本。
+
+**requirement 联动**：验收标准 **15** 由「暂不作为强制验收项」转为**强制**；对话(根)行第一行行尾不留白，产品无需另定替代内容。
+
+### 8.2 问题 8：CLI 类型标签 —— `provider` 字段本轮接入，label 解析零新增订阅
+
+**协议证据**：`AgentSnapshotPayloadSchema.provider`（messages.ts:677）**必填**；`AgentProviderSchema = z.string()`（`provider-manifest.ts:260`）是**开放字符串**——内置 id（claude/codex/copilot/opencode/pi/omp，`AGENT_PROVIDER_DEFINITIONS`，provider-manifest.ts:165-223，每条带 `label`）之外还存在自定义 provider（`provider-config.ts:132-136` 强制自定义 provider 声明自己的 label，但该 label 活在 daemon 配置里）。requirement §8 开放问题 8 的核实结论**属实**：`decodeConversationTreeAgent` 现未解此字段，协议层数据完备，补一行即得。
+
+**label 解析两条路，裁定走 (a)**：
+
+- **(a) 协议包静态映射 + 原样 id 兜底（采用）**：内置 6 个 id → label 直接查 `AGENT_PROVIDER_DEFINITIONS`（§4.A 共享包直连）；查不到（自定义 provider）**显示原始 id**。零新 RPC、零新订阅、零新状态。注意**不得**使用同文件的 `getAgentProviderDefinition`——它对未知 id 直接 `throw`（provider-manifest.ts:252），展示路径必须是 lookup-with-fallback。先例对齐：旧 app `resolveProviderLabel`（`utils/provider-definitions.ts:36-41`）正是同一 `?? provider` 兜底形状。
+- **(b) `DaemonClient.getProvidersSnapshot()` + `providers_snapshot_update` 订阅（否决）**：能解析出自定义 provider 的用户自定义 label，但代价是给 store 再开一路数据订阅 + 一块快照状态，只服务「自定义 provider 标签从 id 变成好听的名字」这一处措辞升级；自定义 provider 的 id 本就是用户自己起的（custom-providers 配置键），原样展示可读。**将来若确要精确 label，升级点收敛在 `model/provider-label.ts` 一个纯函数的输入端，渲染不动。**
+
+**图标（ui.html v3 注解要求内置 provider 标签带图标）**：图标组件 `@/components/icons/{claude,codex,copilot,opencode,pi}-icon` 是**纯 SVG 视觉资产**（零业务态、零旧 store 触碰），按 §4.A「设计系统原语」同一精神**登记直连**（登记已同步进上方「账本自查」段；拷贝 SVG path 进本模块会造成图标资产双源、日后改版两处不同步——比一次跨目录 import 更坏的重复）。**不得 import** 旧 `@/components/provider-icons.ts` 聚合层——它拖着 ACP catalog、SvgXml 动态构造、Bot 兜底等一整套业务策略，属 (B) 类禁引；树内自建 `model/provider-label.ts` 查表纯函数：`resolveProviderBadge(providerId): { label: string; icon: ProviderIconKey | null }`——内置 6 个命中 label（图标 5 个，omp 无树内图标按 null 处理），未知 id 落 `{ label: providerId, icon: null }`，无图标时标签只渲染文字。
+
+**shape**：conversation 节点加 `readonly providerId: string`（查表输入）；label/icon 由查表纯函数派生，不冗余进节点。
+
+**requirement 联动**：验收标准 **14** 转为**强制**；requirement §8 开放问题 8 预留的「先只显示状态标签、CLI 延后」备选方案**不需要启用**。
+
+### 8.3 问题 11：分支/diff 行内常显 —— 无需新机制，三层成本逐层归零
+
+**结论先行：不需要节流、不需要缓存、不需要仅可视区域计算——这三样各自对应的成本在现有架构里已不存在。** 逐层核实：
+
+1. **计算层（git 命令）——零新增。** 分支/diffStat 全部由 daemon 计算：`packages/server/src/server/workspace-git-service.ts` 的文件系统 watcher（1s debounce，:43）+ working-tree watch 失效时的 5s fallback 刷新（:46）+ facts 复用 TTL 1s（:55）+ shell-out 最小间隔 2s 护栏（:50）。客户端从不发起 git 操作；**显示与否不改变 daemon 行为**——hover 卡片时代它也在算、在推，常显不会让 daemon 多跑一条命令。
+2. **传输/状态层（订阅与重算）——零新增。** `workspace_update` 订阅是 §3.3 已为「重命名保鲜」建立的既有通道，`store.workspaceDetails` 已承接同一份 `gitRuntime.currentBranch`/`diffStat`（`apply-workspace-update.ts:9-21` 已折入）；常显不增加一条推送、不增加一次重算。每条 `workspace_update` 触发的整树 computed 重算量级已在 §7「高频 `agent_update` 下的重算量级」按同一形状论证（几百节点 O(n) 单趟，现代设备毫秒级），同一结论覆盖本路。
+3. **渲染层——新增量 = 每个可视项目行两个 Text + 一个 GitBranch 图标。** FlatList 虚拟化（§7「大树虚拟化」）只渲染可视行，几十个项目也只有可视子集在画；没有任何按行的 timer/订阅/异步。分支/diff 是静态文本渲染，不参与 §8.1 的分钟级 tick。
+
+**唯一的禁令（防实现走样）**：分支/diff 数据**一律经 `store.workspaceDetails` 单源读取**（project 节点字段由 `build-tree.ts` 派生，见 §8.4），禁止行组件自行发起任何拉取/订阅/轮询。**后手（与 §7 既有后手同一条，不新发明）**：若 helm-developer 实测高频 `workspace_update`（多 workspace 同时被 agent 写文件，最坏每 workspace 每 1-2s 一条）下有可感知卡顿，在 handler 上加 §7 已为 `agent_update` 预留的同一层 100ms 合并窗口，两路共用一个方案；本轮不预先引入（YAGNI，判据同 §7）。
+
+### 8.4 问题 12：项目行「当前分支」= 项目主目录自身分支 —— 技术侧支持 UI 稿假设，附兜底口径
+
+**数据可得性（已读源码）**：`WorkspaceDescriptorPayload.workspaceKind`（messages.ts:2865）枚举 `"directory" | "local_checkout" | "checkout" | "worktree"`；server 侧判定源 `workspace-registry-model.ts:162`：`checkout.mainRepoRoot ? "worktree" : "local_checkout"`——**「项目主目录」在既有数据里可精确识别**：该项目（`projectId === projectKey`）下 `workspaceKind === "local_checkout"`（或 legacy `"directory"`，非 git 目录场景）的 workspace 即主目录，取其 `gitRuntime.currentBranch` + `diffStat` 即为项目行第二行。
+
+**裁定：按 UI 稿假设定稿——项目行第二行 = 主目录分支 + 主目录 diff；各工作树自己的分支由其对话行 hover 工作区卡片单独展示（现状已具备，§2·C）。** 备选「多个工作树时显示分支数量而非具体分支名」**否决**，理由：① worktree 分支已有 hover 卡片这个既有出口，项目行再聚合一遍是重复信息；② diff 统计无法"数量化"——若分支显数量、diff 显主目录，第二行两个信息取自不同口径，语义分裂；③ 聚合去重计数是纯新增逻辑，无当下收益。
+
+**兜底口径（回答 requirement §8 开放问题 12 的两个追问，供产品回写 §2·B 收口）**：主目录不存在（项目仅剩 worktree、或空项目）→ 该行显示「暂无分支」，与「主目录存在但 `currentBranch` 为 null」共用同一兜底文案，**不新造第三种态**；多工作树分支不一致不做任何行内提示（上段已论证）。
+
+**接入边界**：
+
+- `model/types.ts`：`WorkspaceDetail` 加 `readonly projectId: string` + `readonly workspaceKind`（payload 同名枚举）；`ConversationTreeProjectNode` 加 `readonly branch: string | null` + `readonly diffStat: WorkspaceDiffStat | null`。
+- `model/apply-workspace-update.ts`：折入两字段（两行改动）。
+- `model/build-tree.ts`：建一次 `projectId → 主目录 WorkspaceDetail` 索引（O(n) 单趟，与既有 `projectKeyByWorkspaceId` 分桶同一循环风格），project 节点派生 `branch`/`diffStat`。**主目录选取是模型层策略**（判据「不渲染就能测」），渲染层零判定。
+- 数据来路单源的顺带说明：`applyAgentUpdate` 经 `ProjectPlacementPayload` 增量新建的 project 条目不带 workspace 明细——主目录索引只依赖 `workspaceDetails`（单源 `workspace_update` + 初始快照），不依赖 project 条目的来路，两路增量不会分叉出两套"主目录"判定。
+
+### 8.5 混合行高与虚拟化 —— 现有固定行高假设是字面已错的真实问题，前缀和查表解决
+
+**现状实锤**：`components/conversation-tree-panel.tsx:21` `ITEM_HEIGHT = 30` + `getItemLayout`（:287-289）向 FlatList 报告**全列表等高 30px** 的偏移；`components/tree-row.tsx` styles `height: 30`（:444）。三种行高（subagent 单行 30 / 对话(根)两行 ≈48 / 项目两行 ≈48，精确值以 UI 定稿为准）落地后，等高假设**字面失效**——`scrollToIndex`（搜索定位与选中滚动的既有机制，§1.1）会按错误偏移滚动，FlatList 可视区估算错位造成滚动跳动。不是"可能有问题"，是必然出错。
+
+**裁定：保留 `getItemLayout`，改为前缀和查表；不退化为动态测量。**
+
+- `PanelItem` 的高度由 `kind`（section 头 / empty 提示 / row）+ row 的 `node.kind` **静态完全决定**，没有任何一行需要运行时测量——这正是 `getItemLayout` 的适用前提；放弃它转投动态测量 + `onScrollToIndexFailed` 的两段式滚动，是无谓的体验退化。
+- `buildPanelItems`（已是 O(n)）同步产出 `offsets: number[]` 前缀和；`getItemLayout` 查表 O(1)。总成本一次 O(n) 加法，几百行量级可忽略。
+- **高度单源**：新建 `components/row-metrics.ts` 承载每类 item 的高度常量与 `itemHeight(item): number` 纯函数，行样式与 `getItemLayout` **共用同一份**——"报告高度 ≠ 渲染高度"是这类 bug 的唯一来源，单源钉死。`ITEM_HEIGHT` 常量**删除**，不留旧值、不留兼容读法。
+- `scrollToIndex` 的 `viewPosition: 0.5` 与 `onScrollToIndexFailed` 兜底保留（后者降级为护栏，不再是主路径）。
+
+### 8.6 `statusDot` 更名为语义词 —— 视觉分道后的一次改对
+
+对话(根)行改文字标签、subagent 行留圆点后，「五态语义」不再等于「点」——模型层继续叫 `statusDot`/`ConversationStatusDot`/`status-dot.ts` 就成了绑定过时视觉的错名。**裁定：模型层全量更名为语义词**——`model/run-status.ts`（改名自 `status-dot.ts`）、`ConversationRunStatus`（改名自 `ConversationStatusDot`）、节点字段 `runStatus`（改名自 `statusDot`）；§3.2 的五分支判定顺序**一字不动**。同文件内新增两个纯派生（与五态判定变化原因相同，不拆文件）：
+
+- `deriveAttentionKind(input): "permission" | "reply" | null`——needsAttention 内部按 `pendingPermissionCount > 0 || attentionReason === "permission"` 二分（判据与 §3.2 首支同源，不另造条件）；
+- `conversationStatusLabelText(runStatus, attentionKind): string`——产出验收标准 13 的全部文案（「运行中」「等待权限确认」「等待你的回复」「空闲」「出错」「初始化中…」），文案落模型层可单测。
+
+**渲染分道**：subagent 行按 `runStatus` 渲染小号纯色实心点（呼吸动效规则不变）；对话(根)行按 `runStatus`（配色 + 标签内嵌小点的呼吸）+ label 文案渲染状态标签（视觉沿 ui.html `.stag` 图例与既有 StatusBadge 规范）。conversation 节点带 `runStatus` + `attentionKind` 两个语义字段，标签文案由纯函数在渲染前派生。**更名是全量替换：不留 `statusDot` 别名、不留兼容导出、既有测试随迁改名。**
+
+### 8.7 改动面与测试补充（增量清单，§1.1/§6 原文不重排）
+
+| 文件                                          | 边界级改动                                                                                                                                                                                                                                               |
+| --------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `model/types.ts`                              | `ConversationTreeAgent` + `provider`/`updatedAt`；`WorkspaceDetail` + `projectId`/`workspaceKind`；conversation 节点 + `updatedAt`/`providerId`/`attentionKind`，`statusDot → runStatus` 更名；project 节点 + `branch`/`diffStat`；subagent 节点仅随更名 |
+| `data/conversation-tree-data.ts`              | `decodeConversationTreeAgent` 补解 `provider`/`updatedAt` 两字段                                                                                                                                                                                         |
+| `model/run-status.ts`（改名自 status-dot.ts） | 判定顺序不动；新增 `deriveAttentionKind`/`conversationStatusLabelText` 两纯函数（§8.6）                                                                                                                                                                  |
+| `model/relative-time.ts`（新）                | `formatRelative` 纯函数；hover 卡片 `formatLastChange` 收敛于此（§8.1）                                                                                                                                                                                  |
+| `model/provider-label.ts`（新）               | `resolveProviderBadge` 查表纯函数（§8.2）                                                                                                                                                                                                                |
+| `model/build-tree.ts`                         | conversation 节点透传 `updatedAt`/`providerId`/`attentionKind`；project 主目录索引 + `branch`/`diffStat` 派生（§8.4）                                                                                                                                    |
+| `model/apply-workspace-update.ts`             | 折入 `projectId`/`workspaceKind`（§8.4）                                                                                                                                                                                                                 |
+| `components/tree-row.tsx`                     | conversation/project 分支改两行渲染（第一行标题+相对时间 / 标签行；第一行图标+标题 / 分支+diff）；subagent 分支不动；对话(根)分支去除残留的 `Bot` 图标与状态点渲染、去除 subagent 计数角标（requirement §2·B 拍板，角标仅 subagent 行保留）              |
+| `components/row-metrics.ts`（新）             | 每类 item 高度常量 + `itemHeight` 纯函数，样式与 `getItemLayout` 单源（§8.5）                                                                                                                                                                            |
+| `components/conversation-tree-panel.tsx`      | 删 `ITEM_HEIGHT`；`buildPanelItems` 同步产出 offsets 前缀和；`getItemLayout` 查表（§8.5）                                                                                                                                                                |
+| `components/workspace-hover-card.tsx`         | 删私有 `formatLastChange`，改用 `model/relative-time.ts`（§8.1）                                                                                                                                                                                         |
+
+**测试补充（并入 §6「必单测」清单执行）**：
+
+- `run-status.ts`：既有五态全分支测试随更名迁移；`deriveAttentionKind` 二分（permission 触发 vs 其余 needsAttention）；`conversationStatusLabelText` 覆盖验收标准 13 的全部文案（含 closed → 「空闲」，经 §4.1 既有的 closed 保留显示路径）。
+- `relative-time.ts`：刚刚 / 分钟 / 小时 / 天四档边界。
+- `provider-label.ts`：内置 6 id 命中 label；未知 id 兜底 `{label: id, icon: null}`；无图标内置（omp）label 命中 + icon null。
+- `build-tree.ts`：conversation 节点 `updatedAt`/`providerId` 透传；project 主目录选取四态——`local_checkout` 命中、legacy `directory` 命中、仅 worktree → branch/diff 均 null、空项目 → 均 null；主目录有 branch 无 diff / 有 branch 有 diff 两种派生。
+- `apply-workspace-update.ts`：`projectId`/`workspaceKind` 正确折入。
+- `row-metrics` + offsets：各 item 类型高度与前缀和一致、offsets 严格单调递增（`scrollToIndex` 定位正确性的模型侧验证）。
+- 组件层：对话(根)行两行后 hover/选中/双击仍覆盖整行为单一交互单元（验收 11）；subagent 行不受两行化影响（验收 17）；共享分钟 tick 全面板仅存在一个 interval。
+
+**requirement 验收标准状态更新（供 PM/测试同步）**：14、15 由「暂不作为强制」转为**强制**（§8.1/§8.2 结论落地）；18 的「当前分支」口径按 §8.4 裁定执行，其中「主目录缺失 → 暂无分支」兜底两句待产品回写 requirement §2·B 后，requirement §8 开放问题 12 可关闭。requirement §8 开放问题 9（角标去留）、10（subagent 视觉不统一）是产品/董事长取舍，不在本节裁定，本节改动面按当前拍板（角标去除、subagent 不动）执行。
