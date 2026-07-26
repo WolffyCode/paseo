@@ -20,7 +20,7 @@ function subagent(
     id,
     title: id,
     workspaceId: null,
-    statusDot: "idle",
+    runStatus: "idle",
     subagentCount,
     children,
   };
@@ -40,7 +40,10 @@ function conversation(
     id,
     title: id,
     workspaceId: `workspace-${id}`,
-    statusDot: "idle",
+    runStatus: "idle",
+    updatedAt: "2026-07-12T00:00:00.000Z",
+    providerId: "claude",
+    attentionKind: null,
     subagentCount,
     children,
   };
@@ -56,8 +59,10 @@ function project(
     id,
     title: id,
     workspaceId: null,
-    statusDot: null,
+    runStatus: null,
     subagentCount: 0,
+    branch: null,
+    diffStat: null,
     children,
   };
 }

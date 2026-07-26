@@ -12,6 +12,8 @@ export function applyWorkspaceUpdate(
     : null;
   const next = new Map(details);
   next.set(workspace.id, {
+    projectId: workspace.projectId,
+    workspaceKind: workspace.workspaceKind,
     title: title.length > 0 ? title : null,
     directory: workspace.workspaceDirectory,
     branch: workspace.gitRuntime?.currentBranch ?? null,

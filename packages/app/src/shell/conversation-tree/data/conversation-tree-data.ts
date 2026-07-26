@@ -200,6 +200,7 @@ function decodeConversationTreeAgent(snapshot: AgentSnapshotPayload): Conversati
   const persistedSessionId = snapshot.persistence?.sessionId ?? null;
   return {
     id: snapshot.id,
+    provider: snapshot.provider,
     title: snapshot.title,
     workspaceId: normalizeWorkspaceId(snapshot.workspaceId),
     parentAgentId: getParentAgentIdFromLabels(snapshot.labels),
@@ -209,6 +210,7 @@ function decodeConversationTreeAgent(snapshot: AgentSnapshotPayload): Conversati
     pendingPermissionCount: snapshot.pendingPermissions.length,
     archivedAt: snapshot.archivedAt ?? null,
     createdAt: snapshot.createdAt,
+    updatedAt: snapshot.updatedAt,
     sessionId: runtimeSessionId ?? persistedSessionId,
   };
 }

@@ -1,11 +1,17 @@
 import { describe, expect, test } from "vitest";
 import { buildConversationTree } from "./build-tree";
-import type { ConversationTreeAgent, ConversationTreeProject, WorkspaceDetail } from "./types";
+import type {
+  ConversationTreeAgent,
+  ConversationTreeProject,
+  ConversationTreeProjectNode,
+  WorkspaceDetail,
+} from "./types";
 
 /** Build a complete agent fixture while keeping each test focused on its changed fields. */
 function agent(id: string, overrides: Partial<ConversationTreeAgent> = {}): ConversationTreeAgent {
   return {
     id,
+    provider: "claude",
     title: `Agent ${id}`,
     workspaceId: null,
     parentAgentId: null,
@@ -15,6 +21,7 @@ function agent(id: string, overrides: Partial<ConversationTreeAgent> = {}): Conv
     pendingPermissionCount: 0,
     archivedAt: null,
     createdAt: "2026-07-12T00:00:00.000Z",
+    updatedAt: "2026-07-12T00:00:00.000Z",
     sessionId: null,
     ...overrides,
   };
@@ -23,6 +30,8 @@ function agent(id: string, overrides: Partial<ConversationTreeAgent> = {}): Conv
 /** Build the hover/title detail shape used by root-conversation title resolution. */
 function workspaceDetail(title: string | null): WorkspaceDetail {
   return {
+    projectId: "/repo/project",
+    workspaceKind: "local_checkout",
     title,
     directory: "/repo",
     branch: "main",
@@ -37,6 +46,89 @@ const PROJECTS: readonly ConversationTreeProject[] = [
 ];
 
 describe("buildConversationTree", () => {
+  test("transfers recent activity, provider identity, and attention cause to root conversations", () => {
+    const nodes = buildConversationTree({
+      agents: [
+        agent("root", {
+          workspaceId: "w1",
+          provider: "codex",
+          updatedAt: "2026-07-24T01:02:03.000Z",
+          requiresAttention: true,
+          attentionReason: "permission",
+        }),
+      ],
+      projects: PROJECTS,
+      workspaceDetails: new Map(),
+    });
+
+    expect(nodes[0]?.children[0]).toMatchObject({
+      updatedAt: "2026-07-24T01:02:03.000Z",
+      providerId: "codex",
+      attentionKind: "permission",
+      runStatus: "needsAttention",
+    });
+  });
+
+  test("derives project metadata from the main checkout and falls back for other project shapes", () => {
+    const nodes = buildConversationTree({
+      agents: [],
+      projects: [
+        { projectKey: "local", name: "Local", workspaceIds: ["local-main"] },
+        { projectKey: "legacy", name: "Legacy", workspaceIds: ["legacy-main"] },
+        { projectKey: "worktree-only", name: "Worktree", workspaceIds: ["worktree"] },
+        { projectKey: "empty", name: "Empty", workspaceIds: [] },
+      ],
+      workspaceDetails: new Map([
+        [
+          "local-main",
+          {
+            projectId: "local",
+            workspaceKind: "local_checkout",
+            title: null,
+            directory: "/repo/local",
+            branch: "develop",
+            lastChangeAt: null,
+            diffStat: { added: 8, removed: 2 },
+          },
+        ],
+        [
+          "legacy-main",
+          {
+            projectId: "legacy",
+            workspaceKind: "directory",
+            title: null,
+            directory: "/repo/legacy",
+            branch: "main",
+            lastChangeAt: null,
+            diffStat: null,
+          },
+        ],
+        [
+          "worktree",
+          {
+            projectId: "worktree-only",
+            workspaceKind: "worktree",
+            title: null,
+            directory: "/repo/worktree",
+            branch: "feature/worktree",
+            lastChangeAt: null,
+            diffStat: { added: 1, removed: 1 },
+          },
+        ],
+      ]),
+    });
+
+    const projectNodes = nodes.filter(
+      (node): node is ConversationTreeProjectNode => node.kind === "project",
+    );
+    expect(projectNodes.map((node) => [node.id, node.branch, node.diffStat])).toEqual([
+      ["local", "develop", { added: 8, removed: 2 }],
+      ["legacy", "main", null],
+      ["worktree-only", null, null],
+      ["empty", null, null],
+    ]);
+  });
+
   test("buckets roots by project identity and leaves unmapped roots loose", () => {
     const nodes = buildConversationTree({
       agents: [
@@ -119,7 +211,7 @@ describe("buildConversationTree", () => {
 
     expect(nodes[0]?.children.map((node) => node.id)).toEqual(["closed-root", "kept"]);
     const closedRoot = nodes[0]?.children[0];
-    expect(closedRoot?.statusDot).toBe("idle");
+    expect(closedRoot?.runStatus).toBe("idle");
     expect(closedRoot?.children.map((node) => node.id)).toEqual(["closed-root-child"]);
   });
 
@@ -201,7 +293,7 @@ describe("buildConversationTree", () => {
     expect(nodes[0]?.children[0]).toMatchObject({
       id: "same",
       title: "latest",
-      statusDot: "running",
+      runStatus: "running",
     });
   });
 

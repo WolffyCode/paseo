@@ -9,6 +9,7 @@ import {
 } from "@/components/ui/floating-panel-portal";
 import { themeModel } from "../../theme/theme-model";
 import type { WorkspaceDetail } from "../model/types";
+import { formatRelative } from "../model/relative-time";
 
 const CARD_WIDTH = 236;
 const CARD_GAP = 8;
@@ -292,7 +293,7 @@ export function WorkspaceHoverCard({
         />
         <MetadataRow
           icon={Clock3}
-          value={formatLastChange(detail.lastChangeAt)}
+          value={formatRelative(detail.lastChangeAt, Date.now())}
           color={tk.foregroundMuted}
         />
         {detail.diffStat === null ? null : (
@@ -368,29 +369,6 @@ function MetadataRow({
       </Text>
     </Pressable>
   );
-}
-
-/** Format a workspace's last-change timestamp as a short relative-time label. */
-function formatLastChange(value: string | null): string {
-  if (value === null) {
-    return "暂无最近变更";
-  }
-  const time = Date.parse(value);
-  if (!Number.isFinite(time)) {
-    return value;
-  }
-  const minutes = Math.max(0, Math.round((Date.now() - time) / 60_000));
-  if (minutes < 1) {
-    return "刚刚";
-  }
-  if (minutes < 60) {
-    return `${minutes} 分钟前`;
-  }
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) {
-    return `${hours} 小时前`;
-  }
-  return `${Math.round(hours / 24)} 天前`;
 }
 
 const styles = StyleSheet.create({

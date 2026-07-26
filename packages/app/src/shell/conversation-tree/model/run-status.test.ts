@@ -1,10 +1,14 @@
 import { describe, expect, test } from "vitest";
-import { deriveConversationStatusDot } from "./status-dot";
+import {
+  conversationStatusLabelText,
+  deriveAttentionKind,
+  deriveConversationRunStatus,
+} from "./run-status";
 
-describe("deriveConversationStatusDot", () => {
+describe("deriveConversationRunStatus", () => {
   test("maps every lifecycle branch into the tree's five visible states", () => {
     expect(
-      deriveConversationStatusDot({
+      deriveConversationRunStatus({
         status: "running",
         requiresAttention: false,
         attentionReason: null,
@@ -12,7 +16,7 @@ describe("deriveConversationStatusDot", () => {
       }),
     ).toBe("running");
     expect(
-      deriveConversationStatusDot({
+      deriveConversationRunStatus({
         status: "idle",
         requiresAttention: true,
         attentionReason: "finished",
@@ -20,7 +24,7 @@ describe("deriveConversationStatusDot", () => {
       }),
     ).toBe("needsAttention");
     expect(
-      deriveConversationStatusDot({
+      deriveConversationRunStatus({
         status: "idle",
         requiresAttention: false,
         attentionReason: null,
@@ -28,7 +32,7 @@ describe("deriveConversationStatusDot", () => {
       }),
     ).toBe("idle");
     expect(
-      deriveConversationStatusDot({
+      deriveConversationRunStatus({
         status: "error",
         requiresAttention: false,
         attentionReason: null,
@@ -36,7 +40,7 @@ describe("deriveConversationStatusDot", () => {
       }),
     ).toBe("error");
     expect(
-      deriveConversationStatusDot({
+      deriveConversationRunStatus({
         status: "initializing",
         requiresAttention: false,
         attentionReason: null,
@@ -47,7 +51,7 @@ describe("deriveConversationStatusDot", () => {
 
   test("maps closed straight to idle even when stale attention flags are still set", () => {
     expect(
-      deriveConversationStatusDot({
+      deriveConversationRunStatus({
         status: "closed",
         requiresAttention: true,
         attentionReason: "finished",
@@ -58,7 +62,7 @@ describe("deriveConversationStatusDot", () => {
 
   test("keeps permission above errors and errors above finished attention", () => {
     expect(
-      deriveConversationStatusDot({
+      deriveConversationRunStatus({
         status: "error",
         requiresAttention: true,
         attentionReason: "error",
@@ -66,7 +70,7 @@ describe("deriveConversationStatusDot", () => {
       }),
     ).toBe("error");
     expect(
-      deriveConversationStatusDot({
+      deriveConversationRunStatus({
         status: "error",
         requiresAttention: true,
         attentionReason: "permission",
@@ -74,12 +78,52 @@ describe("deriveConversationStatusDot", () => {
       }),
     ).toBe("needsAttention");
     expect(
-      deriveConversationStatusDot({
+      deriveConversationRunStatus({
         status: "running",
         requiresAttention: false,
         attentionReason: null,
         pendingPermissionCount: 2,
       }),
     ).toBe("needsAttention");
+  });
+});
+
+describe("deriveAttentionKind", () => {
+  test("distinguishes permission attention from a requested reply", () => {
+    expect(
+      deriveAttentionKind({
+        status: "idle",
+        requiresAttention: true,
+        attentionReason: "permission",
+        pendingPermissionCount: 0,
+      }),
+    ).toBe("permission");
+    expect(
+      deriveAttentionKind({
+        status: "idle",
+        requiresAttention: true,
+        attentionReason: "finished",
+        pendingPermissionCount: 0,
+      }),
+    ).toBe("reply");
+    expect(
+      deriveAttentionKind({
+        status: "idle",
+        requiresAttention: false,
+        attentionReason: null,
+        pendingPermissionCount: 0,
+      }),
+    ).toBeNull();
+  });
+});
+
+describe("conversationStatusLabelText", () => {
+  test("covers every user-visible status label", () => {
+    expect(conversationStatusLabelText("running", null)).toBe("运行中");
+    expect(conversationStatusLabelText("needsAttention", "permission")).toBe("等待权限确认");
+    expect(conversationStatusLabelText("needsAttention", "reply")).toBe("等待你的回复");
+    expect(conversationStatusLabelText("idle", null)).toBe("空闲");
+    expect(conversationStatusLabelText("error", null)).toBe("出错");
+    expect(conversationStatusLabelText("initializing", null)).toBe("初始化中…");
   });
 });

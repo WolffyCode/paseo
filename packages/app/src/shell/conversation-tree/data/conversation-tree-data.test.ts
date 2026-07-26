@@ -235,6 +235,7 @@ describe("createConversationTreeData", () => {
     expect(agents).toEqual([
       {
         id: "root",
+        provider: "claude",
         title: "Agent root",
         workspaceId: "workspace-root",
         parentAgentId: "parent",
@@ -244,10 +245,12 @@ describe("createConversationTreeData", () => {
         pendingPermissionCount: 0,
         archivedAt: null,
         createdAt: "2026-07-12T00:00:00.000Z",
+        updatedAt: "2026-07-12T00:00:00.000Z",
         sessionId: "session-root",
       },
       {
         id: "second",
+        provider: "claude",
         title: "Agent second",
         workspaceId: "workspace-second",
         parentAgentId: null,
@@ -257,6 +260,7 @@ describe("createConversationTreeData", () => {
         pendingPermissionCount: 1,
         archivedAt: null,
         createdAt: "2026-07-12T00:00:00.000Z",
+        updatedAt: "2026-07-12T00:00:00.000Z",
         sessionId: "persisted-second",
       },
     ]);
@@ -328,6 +332,7 @@ describe("createConversationTreeData", () => {
         kind: "upsert",
         agent: {
           id: "pushed",
+          provider: "claude",
           title: "Agent pushed",
           workspaceId: "workspace-pushed",
           parentAgentId: null,
@@ -337,6 +342,7 @@ describe("createConversationTreeData", () => {
           pendingPermissionCount: 0,
           archivedAt: null,
           createdAt: "2026-07-12T00:00:00.000Z",
+          updatedAt: "2026-07-12T00:00:00.000Z",
           sessionId: "session-pushed",
         },
         project: { projectKey: "pushed-project", projectName: "Project pushed-project" },

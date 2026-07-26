@@ -1,4 +1,4 @@
-import { deriveConversationStatusDot } from "./status-dot";
+import { deriveAttentionKind, deriveConversationRunStatus } from "./run-status";
 import type {
   ConversationTreeAgent,
   ConversationTreeConversationNode,
@@ -26,7 +26,7 @@ interface BuildAgentBranchInput {
 interface AgentBranch {
   readonly title: string;
   readonly workspaceId: string | null;
-  readonly statusDot: ConversationTreeConversationNode["statusDot"];
+  readonly runStatus: ConversationTreeConversationNode["runStatus"];
   readonly subagentCount: number;
   readonly children: readonly ConversationTreeSubagentNode[];
 }
@@ -38,8 +38,8 @@ export function buildConversationTree(input: BuildConversationTreeInput): Conver
     agentsById.set(candidate.id, candidate);
   }
   // Archive is the only state that hides a conversation from the tree; closed conversations stay
-  // visible (mapped into the idle status dot by status-dot.ts) since their history isn't lost and
-  // a new message revives them.
+  // visible (mapped into the idle run status) since their history isn't lost and a new message
+  // revives them.
   const liveAgents = Array.from(agentsById.values()).filter(
     (candidate) => candidate.archivedAt === null,
   );
@@ -55,6 +55,16 @@ export function buildConversationTree(input: BuildConversationTreeInput): Conver
   }
   for (const children of childrenByParent.values()) {
     children.sort(compareAgents);
+  }
+
+  const mainWorkspaceByProjectId = new Map<string, WorkspaceDetail>();
+  for (const detail of input.workspaceDetails.values()) {
+    if (detail.workspaceKind !== "local_checkout" && detail.workspaceKind !== "directory") {
+      continue;
+    }
+    if (!mainWorkspaceByProjectId.has(detail.projectId)) {
+      mainWorkspaceByProjectId.set(detail.projectId, detail);
+    }
   }
 
   const projectKeyByWorkspaceId = new Map<string, string>();
@@ -98,8 +108,10 @@ export function buildConversationTree(input: BuildConversationTreeInput): Conver
       id: project.projectKey,
       title: project.name,
       workspaceId: null,
-      statusDot: null,
+      runStatus: null,
       subagentCount: 0,
+      branch: mainWorkspaceByProjectId.get(project.projectKey)?.branch ?? null,
+      diffStat: mainWorkspaceByProjectId.get(project.projectKey)?.diffStat ?? null,
       children: roots.map((root) =>
         buildConversationNode(root, childrenByParent, input.workspaceDetails),
       ),
@@ -132,7 +144,14 @@ function buildConversationNode(
     workspaceDetails,
     ancestors: new Set(),
   });
-  return { kind: "conversation", id: agent.id, ...branch };
+  return {
+    kind: "conversation",
+    id: agent.id,
+    ...branch,
+    updatedAt: agent.updatedAt,
+    providerId: agent.provider,
+    attentionKind: deriveAttentionKind(agent),
+  };
 }
 
 /** Build a recursive subagent branch while cutting any repeated identity on the current path. */
@@ -168,7 +187,7 @@ function buildAgentBranch(input: BuildAgentBranchInput): AgentBranch {
   return {
     title: resolveAgentTitle(input.agent, input.kind, input.workspaceDetails),
     workspaceId: normalizeWorkspaceId(input.agent.workspaceId),
-    statusDot: deriveConversationStatusDot(input.agent),
+    runStatus: deriveConversationRunStatus(input.agent),
     subagentCount,
     children,
   };

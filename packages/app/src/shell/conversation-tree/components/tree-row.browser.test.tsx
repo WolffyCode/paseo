@@ -15,7 +15,10 @@ import {
   type ConversationTreeStoreDeps,
 } from "../model/conversation-tree-store";
 import type {
+  ConversationAttentionKind,
+  ConversationRunStatus,
   ConversationTreeAgent,
+  ConversationTreeConversationNode,
   ConversationTreeNode,
   ConversationTreeRow as ConversationTreeRowModel,
 } from "../model/types";
@@ -26,6 +29,7 @@ const NOOP_OPEN_MENU = () => {};
 function agent(id: string, overrides: Partial<ConversationTreeAgent> = {}): ConversationTreeAgent {
   return {
     id,
+    provider: "claude",
     title: `Agent ${id}`,
     workspaceId: null,
     parentAgentId: null,
@@ -35,12 +39,18 @@ function agent(id: string, overrides: Partial<ConversationTreeAgent> = {}): Conv
     pendingPermissionCount: 0,
     archivedAt: null,
     createdAt: "2026-07-12T00:00:00.000Z",
+    updatedAt: "2026-07-12T00:00:00.000Z",
     sessionId: null,
     ...overrides,
   };
 }
 
-function workspace(id: string): WorkspaceDescriptorPayload {
+function workspace(
+  id: string,
+  workspaceKind: WorkspaceDescriptorPayload["workspaceKind"] = "worktree",
+  branch: string | null = "feat/conversation-tree-design",
+  diffStat: WorkspaceDescriptorPayload["diffStat"] = { additions: 12, deletions: 4 },
+): WorkspaceDescriptorPayload {
   return {
     id,
     projectId: "project",
@@ -48,17 +58,17 @@ function workspace(id: string): WorkspaceDescriptorPayload {
     projectRootPath: "/repo/project",
     workspaceDirectory: `/repo/project/${id}`,
     projectKind: "git",
-    workspaceKind: "worktree",
+    workspaceKind,
     name: "Root conversation",
     title: null,
     archivingAt: null,
     status: "done",
     statusEnteredAt: null,
     activityAt: "2026-07-12T01:00:00.000Z",
-    diffStat: { additions: 12, deletions: 4 },
+    diffStat,
     scripts: [],
     gitRuntime: {
-      currentBranch: "feat/conversation-tree-design",
+      currentBranch: branch,
       remoteUrl: null,
       isPaseoOwnedWorktree: true,
       isDirty: true,
@@ -76,7 +86,13 @@ class BrowserTreeData implements ConversationTreeData {
     agent("child", { parentAgentId: "root", status: "idle" }),
   ];
   readonly workspaceSnapshot: ConversationTreeWorkspaceSnapshot = {
-    workspaces: [workspace("workspace-root")],
+    workspaces: [
+      workspace("workspace-root"),
+      workspace("workspace-main", "local_checkout", "develop", {
+        additions: 8,
+        deletions: 2,
+      }),
+    ],
     emptyProjects: [],
   };
 
@@ -155,6 +171,26 @@ function row(node: ConversationTreeNode, depth: number): ConversationTreeRowMode
   };
 }
 
+/** Build an isolated root node so browser rendering covers every visible status label. */
+function conversationNode(
+  id: string,
+  runStatus: ConversationRunStatus,
+  attentionKind: ConversationAttentionKind = null,
+): ConversationTreeConversationNode {
+  return {
+    kind: "conversation",
+    id,
+    title: id,
+    workspaceId: null,
+    runStatus,
+    updatedAt: "2026-07-12T00:00:00.000Z",
+    providerId: "codex",
+    attentionKind,
+    subagentCount: 0,
+    children: [],
+  };
+}
+
 async function nextFrame(): Promise<void> {
   await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
 }
@@ -198,6 +234,7 @@ describe("ConversationTreeRow", () => {
             isOffline={false}
             isContextTarget={false}
             onOpenMenu={NOOP_OPEN_MENU}
+            nowMs={Date.parse("2026-07-12T02:00:00.000Z")}
           />
           <ConversationTreeRow
             row={row(nodes.root, 1)}
@@ -205,6 +242,7 @@ describe("ConversationTreeRow", () => {
             isOffline={false}
             isContextTarget={false}
             onOpenMenu={NOOP_OPEN_MENU}
+            nowMs={Date.parse("2026-07-12T02:00:00.000Z")}
           />
           <ConversationTreeRow
             row={row(nodes.child, 2)}
@@ -212,15 +250,42 @@ describe("ConversationTreeRow", () => {
             isOffline={false}
             isContextTarget={false}
             onOpenMenu={NOOP_OPEN_MENU}
+            nowMs={Date.parse("2026-07-12T02:00:00.000Z")}
           />
         </View>,
       ),
     );
     await nextFrame();
 
-    requireElement(host, "conv-tree-row-project-project");
+    const projectRow = requireElement(host, "conv-tree-row-project-project");
     const rootRow = requireElement(host, "conv-tree-row-conversation-root");
     const childRow = requireElement(host, "conv-tree-row-subagent-child");
+    const projectChevron = requireElement(host, "conv-tree-chevron-project");
+    const rootChevron = requireElement(host, "conv-tree-chevron-root");
+
+    expect(projectRow.textContent).toContain("develop");
+    expect(projectRow.textContent).toContain("+8");
+    expect(projectRow.textContent).toContain("-2");
+    expect(rootRow.textContent).toContain("2 小时前");
+    expect(rootRow.textContent).toContain("运行中");
+    expect(rootRow.textContent).toContain("Claude");
+    expect(rootRow.querySelector('[data-testid="conv-tree-status-root"]')).toBeNull();
+    expect(rootRow.querySelector('[data-testid="conv-tree-badge-root"]')).toBeNull();
+    expect(projectRow.getBoundingClientRect().height).toBe(48);
+    expect(rootRow.getBoundingClientRect().height).toBe(48);
+    expect(childRow.getBoundingClientRect().height).toBe(30);
+    expect(getComputedStyle(projectRow).alignItems).toBe("flex-start");
+    expect(getComputedStyle(rootRow).alignItems).toBe("flex-start");
+    expect(getComputedStyle(childRow).alignItems).toBe("center");
+    expect(
+      Math.round(
+        projectChevron.getBoundingClientRect().top - projectRow.getBoundingClientRect().top,
+      ),
+    ).toBe(6);
+    expect(
+      Math.round(rootChevron.getBoundingClientRect().top - rootRow.getBoundingClientRect().top),
+    ).toBe(6);
+    requireElement(host, "conv-tree-status-child");
 
     React.act(() => rootRow.dispatchEvent(new MouseEvent("click", { bubbles: true })));
     expect(store.focusedRootId).toBe("root");
@@ -235,5 +300,48 @@ describe("ConversationTreeRow", () => {
     await nextFrame();
     expect(store.editing).toMatchObject({ kind: "conversation", targetId: "root" });
     requireElement(host, "conv-tree-rename-input-root");
+  });
+
+  it("renders the five status labels through the root-row visual branch", async () => {
+    await page.viewport(800, 700);
+    vi.stubGlobal("React", React);
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    store = createBrowserStore(() => {});
+    await store.load();
+
+    const cases: readonly [string, ConversationRunStatus, ConversationAttentionKind, string][] = [
+      ["running", "running", null, "运行中"],
+      ["permission", "needsAttention", "permission", "等待权限确认"],
+      ["reply", "needsAttention", "reply", "等待你的回复"],
+      ["idle", "idle", null, "空闲"],
+      ["error", "error", null, "出错"],
+      ["initializing", "initializing", null, "初始化中…"],
+    ];
+    host = document.createElement("div");
+    document.body.appendChild(host);
+    root = createRoot(host);
+    const renderedRows = cases.map(([id, runStatus, attentionKind]) => (
+      <ConversationTreeRow
+        key={id}
+        row={row(conversationNode(id, runStatus, attentionKind), 0)}
+        store={store!}
+        isOffline={false}
+        isContextTarget={false}
+        onOpenMenu={NOOP_OPEN_MENU}
+        nowMs={Date.parse("2026-07-12T02:00:00.000Z")}
+      />
+    ));
+    React.act(() => root?.render(<View>{renderedRows}</View>));
+    await nextFrame();
+
+    for (const [id, _runStatus, _attentionKind, label] of cases) {
+      const statusTag = requireElement(host, `conv-tree-status-tag-${id}`);
+      expect(statusTag.textContent).toContain(label);
+      expect(
+        requireElement(host, `conv-tree-row-conversation-${id}`).querySelector(
+          `[data-testid="conv-tree-status-${id}"]`,
+        ),
+      ).toBeNull();
+    }
   });
 });

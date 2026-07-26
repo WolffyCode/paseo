@@ -7,7 +7,10 @@ const NODE: ConversationTreeConversationNode = {
   id: "root",
   title: "Root",
   workspaceId: "workspace",
-  statusDot: "idle",
+  runStatus: "idle",
+  updatedAt: "2026-07-12T00:00:00.000Z",
+  providerId: "claude",
+  attentionKind: null,
   subagentCount: 0,
   children: [],
 };

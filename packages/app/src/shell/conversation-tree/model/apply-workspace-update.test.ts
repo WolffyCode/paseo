@@ -40,10 +40,12 @@ function workspace(
 
 describe("applyWorkspaceUpdate", () => {
   test("folds one protocol descriptor into the tree's title and hover-card detail shape", () => {
-    const previous = new Map([
+    const previous = new Map<string, WorkspaceDetail>([
       [
         "kept",
         {
+          projectId: "kept-project",
+          workspaceKind: "local_checkout",
           title: "Kept",
           directory: "/kept",
           branch: null,
@@ -58,6 +60,8 @@ describe("applyWorkspaceUpdate", () => {
     );
 
     expect(next.get("workspace-1")).toEqual({
+      projectId: "/repo/project",
+      workspaceKind: "worktree",
       title: "Renamed conversation",
       directory: "/repo/project/workspace-1",
       branch: "feature/workspace-1",
@@ -79,6 +83,8 @@ describe("applyWorkspaceUpdate", () => {
     );
 
     expect(next.get("workspace-1")).toEqual({
+      projectId: "/repo/project",
+      workspaceKind: "worktree",
       title: null,
       directory: "/repo/project/workspace-1",
       branch: null,

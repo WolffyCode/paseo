@@ -20,6 +20,7 @@ import { ConversationSearchOverlay } from "./conversation-search-overlay";
 function agent(id: string, overrides: Partial<ConversationTreeAgent> = {}): ConversationTreeAgent {
   return {
     id,
+    provider: "claude",
     title: `Agent ${id}`,
     workspaceId: null,
     parentAgentId: null,
@@ -29,6 +30,7 @@ function agent(id: string, overrides: Partial<ConversationTreeAgent> = {}): Conv
     pendingPermissionCount: 0,
     archivedAt: null,
     createdAt: "2026-07-12T00:00:00.000Z",
+    updatedAt: "2026-07-12T00:00:00.000Z",
     sessionId: null,
     ...overrides,
   };

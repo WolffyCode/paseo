@@ -1,13 +1,21 @@
 import { observer } from "mobx-react-lite";
 import {
-  Bot,
   ChevronDown,
   ChevronRight,
   Folder,
+  GitBranch,
   MoreHorizontal,
   PenLine,
 } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+} from "react";
 import {
   type GestureResponderEvent,
   type NativeSyntheticEvent,
@@ -19,15 +27,28 @@ import {
   View,
 } from "react-native";
 import { isNative, isWeb } from "@/constants/platform";
+import { ClaudeIcon } from "@/components/icons/claude-icon";
+import { CodexIcon } from "@/components/icons/codex-icon";
+import { CopilotIcon } from "@/components/icons/copilot-icon";
+import { OpenCodeIcon } from "@/components/icons/opencode-icon";
+import { PiIcon } from "@/components/icons/pi-icon";
 import { themeModel } from "../../theme/theme-model";
 import type { ConversationTreeStore } from "../model/conversation-tree-store";
 import type {
-  ConversationStatusDot,
+  ConversationAttentionKind,
+  ConversationRunStatus,
   ConversationTreeNode,
+  ConversationTreeProjectNode,
+  ConversationTreeConversationNode,
   ConversationTreeRow as ConversationTreeRowModel,
+  ConversationTreeSubagentNode,
   Editing,
 } from "../model/types";
+import { conversationStatusLabelText } from "../model/run-status";
+import { formatRelative } from "../model/relative-time";
+import { resolveProviderBadge, type ProviderIconKey } from "../model/provider-label";
 import { resolveNodeWorkspace } from "./project-workspace";
+import { ROW_HEIGHTS } from "./row-metrics";
 import {
   CONVERSATION_ACTION_DATASET,
   CONVERSATION_BADGE_DATASET,
@@ -51,12 +72,14 @@ export const ConversationTreeRow = observer(function ConversationTreeRow({
   isOffline,
   isContextTarget,
   onOpenMenu,
+  nowMs,
 }: {
   row: ConversationTreeRowModel;
   store: ConversationTreeStore;
   isOffline: boolean;
   isContextTarget: boolean;
   onOpenMenu: (target: ConversationTreeMenuTarget) => void;
+  nowMs: number;
 }) {
   const { node } = row;
   const tk = themeModel.tokens;
@@ -98,11 +121,14 @@ export const ConversationTreeRow = observer(function ConversationTreeRow({
     () => [
       styles.row,
       {
+        alignItems: node.kind === "subagent" ? ("center" as const) : ("flex-start" as const),
+        height: ROW_HEIGHTS[node.kind],
         paddingLeft: 8 + Math.min(row.depth, MAX_VISUAL_DEPTH) * INDENT_PER_DEPTH,
+        paddingVertical: node.kind === "subagent" ? 0 : 6,
         backgroundColor: highlighted ? tk.toggleActive : "transparent",
       },
     ],
-    [highlighted, row.depth, tk.toggleActive],
+    [highlighted, node.kind, row.depth, tk.toggleActive],
   );
   const titleStyle = useMemo(() => [styles.title, { color: tk.foreground }], [tk.foreground]);
   const badgeStyle = useMemo(
@@ -110,8 +136,11 @@ export const ConversationTreeRow = observer(function ConversationTreeRow({
     [tk.foregroundMuted, tk.toggleActive],
   );
   const trailingActionStyle = useMemo(
-    () => [styles.trailingAction, { opacity: isNative ? 1 : 0 }],
-    [],
+    () => [
+      styles.trailingAction,
+      { opacity: isNative ? 1 : 0, top: ROW_HEIGHTS[node.kind] / 2 - 11 },
+    ],
+    [node.kind],
   );
   const rowAccessibilityState = useMemo(
     () => ({ selected, expanded: row.canExpand ? row.isExpanded : undefined }),
@@ -121,6 +150,21 @@ export const ConversationTreeRow = observer(function ConversationTreeRow({
     () => ({ disabled: node.kind === "project" && isOffline }),
     [isOffline, node.kind],
   );
+  let rowContent: ReactNode;
+  if (inlineEditing) {
+    rowContent = (
+      <>
+        {node.kind === "project" ? <Folder size={14} color={tk.foregroundMuted} /> : null}
+        <InlineRenameInput store={store} node={node} />
+      </>
+    );
+  } else if (node.kind === "project") {
+    rowContent = <ProjectRowContent node={node} titleStyle={titleStyle} />;
+  } else if (node.kind === "conversation") {
+    rowContent = <ConversationRowContent node={node} nowMs={nowMs} titleStyle={titleStyle} />;
+  } else {
+    rowContent = <SubagentRowContent node={node} badgeStyle={badgeStyle} />;
+  }
 
   const activate = useCallback(() => {
     if (inlineEditing) return;
@@ -227,28 +271,7 @@ export const ConversationTreeRow = observer(function ConversationTreeRow({
           testID={`conv-tree-row-${node.kind}-${node.id}`}
         >
           <TreeChevron row={row} onPress={toggleExpand} />
-          <NodeIcon node={node} />
-          {inlineEditing ? (
-            <InlineRenameInput store={store} node={node} />
-          ) : (
-            <>
-              {node.kind === "project" ? null : (
-                <StatusDot status={node.statusDot} nodeId={node.id} />
-              )}
-              <Text numberOfLines={1} style={titleStyle}>
-                {node.title}
-              </Text>
-              {node.kind === "project" || node.subagentCount === 0 ? null : (
-                <Text
-                  dataSet={CONVERSATION_BADGE_DATASET}
-                  style={badgeStyle}
-                  testID={`conv-tree-badge-${node.id}`}
-                >
-                  {node.subagentCount}
-                </Text>
-              )}
-            </>
-          )}
+          {rowContent}
           {inlineEditing ? null : (
             <Pressable
               accessibilityRole="button"
@@ -313,26 +336,188 @@ function TreeChevron({
   );
 }
 
-/** Pick the folder/bot glyph for the node's kind. */
-function NodeIcon({ node }: { node: ConversationTreeNode }) {
+/** Render a project row's folder title and main-checkout branch metadata as one interaction unit. */
+function ProjectRowContent({
+  node,
+  titleStyle,
+}: {
+  node: ConversationTreeProjectNode;
+  titleStyle: object;
+}) {
   const tk = themeModel.tokens;
-  const Icon = node.kind === "project" ? Folder : Bot;
-  const size = node.kind === "subagent" ? 14 : 16;
+  const branchStyle = useMemo(
+    () => [styles.metaText, { color: tk.foregroundMuted }],
+    [tk.foregroundMuted],
+  );
+  const addedStyle = useMemo(
+    () => [styles.diffText, { color: tk.statusSuccess }],
+    [tk.statusSuccess],
+  );
+  const removedStyle = useMemo(
+    () => [styles.diffText, { color: tk.statusDanger }],
+    [tk.statusDanger],
+  );
+  const hasDiff =
+    node.branch !== null &&
+    node.diffStat !== null &&
+    (node.diffStat.added !== 0 || node.diffStat.removed !== 0);
   return (
-    <View style={styles.icon}>
-      <Icon size={size} color={tk.foregroundMuted} />
+    <View style={styles.twoLineBody}>
+      <View style={styles.firstLine}>
+        <Folder size={14} color={tk.foregroundMuted} />
+        <Text numberOfLines={1} style={titleStyle}>
+          {node.title}
+        </Text>
+      </View>
+      <View style={styles.metaLine}>
+        <GitBranch size={12} color={tk.foregroundMuted} />
+        <Text numberOfLines={1} style={branchStyle}>
+          {node.branch ?? "暂无分支"}
+        </Text>
+        {hasDiff ? (
+          <View style={styles.diffStat}>
+            <Text style={addedStyle}>+{node.diffStat?.added}</Text>
+            <Text style={removedStyle}>-{node.diffStat?.removed}</Text>
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
 
-/** Render the node's status dot in its status-specific fill/glow. */
-function StatusDot({ status, nodeId }: { status: ConversationStatusDot; nodeId: string }) {
+/** Render a root conversation's title, recent activity, status label, and provider label. */
+function ConversationRowContent({
+  node,
+  nowMs,
+  titleStyle,
+}: {
+  node: ConversationTreeConversationNode;
+  nowMs: number;
+  titleStyle: object;
+}) {
   const tk = themeModel.tokens;
-  const palette = STATUS_PALETTE[status](tk);
-  const dataSet = useMemo(() => ({ status }), [status]);
+  const timeStyle = useMemo(
+    () => [styles.relativeTime, { color: tk.foregroundMuted }],
+    [tk.foregroundMuted],
+  );
+  return (
+    <View style={styles.twoLineBody}>
+      <View style={styles.firstLine}>
+        <Text numberOfLines={1} style={titleStyle}>
+          {node.title}
+        </Text>
+        <Text numberOfLines={1} style={timeStyle} testID={`conv-tree-time-${node.id}`}>
+          {formatRelative(node.updatedAt, nowMs)}
+        </Text>
+      </View>
+      <View style={styles.tagLine}>
+        <RunStatusTag
+          nodeId={node.id}
+          runStatus={node.runStatus}
+          attentionKind={node.attentionKind}
+        />
+        <ProviderTag providerId={node.providerId} />
+      </View>
+    </View>
+  );
+}
+
+/** Render a dense subagent row with its small status dot and descendant count. */
+function SubagentRowContent({
+  node,
+  badgeStyle,
+}: {
+  node: ConversationTreeSubagentNode;
+  badgeStyle: object;
+}) {
+  return (
+    <View style={styles.singleLineBody}>
+      <RunStatusDot runStatus={node.runStatus} nodeId={node.id} size={6} />
+      <Text numberOfLines={1} style={styles.subagentTitle}>
+        {node.title}
+      </Text>
+      {node.subagentCount === 0 ? null : (
+        <Text
+          dataSet={CONVERSATION_BADGE_DATASET}
+          style={badgeStyle}
+          testID={`conv-tree-badge-${node.id}`}
+        >
+          {node.subagentCount}
+        </Text>
+      )}
+    </View>
+  );
+}
+
+/** Render the provider-independent status label with the run-state color and breathing marker. */
+function RunStatusTag({
+  nodeId,
+  runStatus,
+  attentionKind,
+}: {
+  nodeId: string;
+  runStatus: ConversationRunStatus;
+  attentionKind: ConversationAttentionKind;
+}) {
+  const tk = themeModel.tokens;
+  const palette = RUN_STATUS_PALETTE[runStatus](tk);
+  const tagStyle = useMemo(
+    () => [styles.statusTag, { backgroundColor: palette.background }],
+    [palette.background],
+  );
+  const textStyle = useMemo(
+    () => [styles.statusTagText, { color: palette.foreground }],
+    [palette.foreground],
+  );
+  return (
+    <View style={tagStyle} testID={`conv-tree-status-tag-${nodeId}`}>
+      <RunStatusDot runStatus={runStatus} nodeId={`${nodeId}-tag`} size={5} />
+      <Text numberOfLines={1} style={textStyle}>
+        {conversationStatusLabelText(runStatus, attentionKind)}
+      </Text>
+    </View>
+  );
+}
+
+/** Render one provider badge using the protocol catalog and the tree's shared icon components. */
+function ProviderTag({ providerId }: { providerId: string }) {
+  const tk = themeModel.tokens;
+  const badge = resolveProviderBadge(providerId);
+  const Icon = badge.icon === null ? null : PROVIDER_ICONS[badge.icon];
+  const tagStyle = useMemo(
+    () => [styles.providerTag, { backgroundColor: tk.toggleActive }],
+    [tk.toggleActive],
+  );
+  const textStyle = useMemo(
+    () => [styles.providerTagText, { color: tk.foregroundMuted }],
+    [tk.foregroundMuted],
+  );
+  return (
+    <View style={tagStyle} testID={`conv-tree-provider-${providerId}`}>
+      {Icon === null ? null : <Icon size={10} color={tk.foregroundMuted} />}
+      <Text numberOfLines={1} style={textStyle}>
+        {badge.label}
+      </Text>
+    </View>
+  );
+}
+
+/** Render a status dot with no halo; CSS applies the desktop breathing animation to active states. */
+function RunStatusDot({
+  runStatus,
+  nodeId,
+  size,
+}: {
+  runStatus: ConversationRunStatus;
+  nodeId: string;
+  size: number;
+}) {
+  const tk = themeModel.tokens;
+  const palette = RUN_STATUS_PALETTE[runStatus](tk);
+  const dataSet = useMemo(() => ({ status: runStatus }), [runStatus]);
   const dotStyle = useMemo(
-    () => [styles.statusDot, { backgroundColor: palette.fill }, palette.ring],
-    [palette.fill, palette.ring],
+    () => [styles.runStatus, { width: size, height: size, backgroundColor: palette.foreground }],
+    [palette.foreground, size],
   );
   return <View dataSet={dataSet} style={dotStyle} testID={`conv-tree-status-${nodeId}`} />;
 }
@@ -419,29 +604,30 @@ function isEditingRow(node: ConversationTreeNode, editing: Editing): boolean {
 }
 
 type ShellPalette = (typeof themeModel)["tokens"];
-const STATUS_PALETTE: Record<
-  ConversationStatusDot,
-  (tokens: ShellPalette) => { fill: string; ring: object | null }
+const RUN_STATUS_PALETTE: Record<
+  ConversationRunStatus,
+  (tokens: ShellPalette) => { foreground: string; background: string }
 > = {
-  running: (tokens) => ({
-    fill: tokens.statusSuccess,
-    ring: { shadowColor: tokens.statusSuccess, shadowOpacity: 0.4, shadowRadius: 3 },
-  }),
+  running: (tokens) => ({ foreground: tokens.statusSuccess, background: tokens.statusSuccessSoft }),
   needsAttention: (tokens) => ({
-    fill: tokens.statusWarning,
-    ring: { shadowColor: tokens.statusWarning, shadowOpacity: 0.45, shadowRadius: 3 },
+    foreground: tokens.statusWarning,
+    background: tokens.statusWarningSoft,
   }),
-  idle: (tokens) => ({ fill: tokens.foregroundMuted, ring: null }),
-  error: (tokens) => ({ fill: tokens.statusDanger, ring: null }),
-  initializing: (tokens) => ({
-    fill: tokens.accent,
-    ring: { shadowColor: tokens.accent, shadowOpacity: 0.4, shadowRadius: 3 },
-  }),
+  idle: (tokens) => ({ foreground: tokens.foregroundMuted, background: tokens.toggleActive }),
+  error: (tokens) => ({ foreground: tokens.statusDanger, background: tokens.statusDangerSoft }),
+  initializing: (tokens) => ({ foreground: tokens.accent, background: tokens.accentSoft }),
+};
+
+const PROVIDER_ICONS: Record<ProviderIconKey, ComponentType<{ size?: number; color?: string }>> = {
+  claude: ClaudeIcon,
+  codex: CodexIcon,
+  copilot: CopilotIcon,
+  opencode: OpenCodeIcon,
+  pi: PiIcon,
 };
 
 const styles = StyleSheet.create({
   row: {
-    height: 30,
     paddingRight: 8,
     borderRadius: 6,
     flexDirection: "row",
@@ -450,9 +636,39 @@ const styles = StyleSheet.create({
     position: "relative",
   },
   chevron: { width: 14, height: 20, alignItems: "center", justifyContent: "center" },
-  icon: { width: 16, height: 16, alignItems: "center", justifyContent: "center" },
-  title: { flex: 1, minWidth: 0, fontSize: 13.5 },
-  statusDot: { width: 7, height: 7, borderRadius: 9999, flexShrink: 0 },
+  title: { flex: 1, minWidth: 0, fontSize: 13.5, lineHeight: 18 },
+  twoLineBody: { flex: 1, minWidth: 0, height: 36, gap: 2 },
+  firstLine: { height: 18, flexDirection: "row", alignItems: "center", minWidth: 0, gap: 6 },
+  metaLine: { height: 16, flexDirection: "row", alignItems: "center", minWidth: 0, gap: 5 },
+  tagLine: { height: 16, flexDirection: "row", alignItems: "center", minWidth: 0, gap: 5 },
+  singleLineBody: { flex: 1, minWidth: 0, flexDirection: "row", alignItems: "center", gap: 6 },
+  subagentTitle: { flex: 1, minWidth: 0, fontSize: 13.5 },
+  metaText: { flex: 1, minWidth: 0, fontSize: 11 },
+  relativeTime: { flexShrink: 0, fontSize: 10, lineHeight: 15, fontVariant: ["tabular-nums"] },
+  diffStat: { flexShrink: 0, flexDirection: "row", gap: 5 },
+  diffText: { fontFamily: "monospace", fontSize: 11 },
+  statusTag: {
+    height: 16,
+    paddingHorizontal: 6,
+    borderRadius: 9999,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 0,
+  },
+  statusTagText: { fontSize: 10, fontWeight: "500", lineHeight: 16 },
+  providerTag: {
+    height: 16,
+    maxWidth: 96,
+    paddingHorizontal: 6,
+    borderRadius: 9999,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    flexShrink: 1,
+  },
+  providerTagText: { flexShrink: 1, fontSize: 10, fontWeight: "500", lineHeight: 16 },
+  runStatus: { borderRadius: 9999, flexShrink: 0 },
   badge: {
     flexShrink: 0,
     minWidth: 18,

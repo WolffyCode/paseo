@@ -9,7 +9,10 @@ function conversation(id: string, workspaceId: string): ConversationTreeConversa
     id,
     title: id,
     workspaceId,
-    statusDot: "idle",
+    runStatus: "idle",
+    updatedAt: "2026-07-12T00:00:00.000Z",
+    providerId: "claude",
+    attentionKind: null,
     subagentCount: 0,
     children: [],
   };
@@ -25,8 +28,10 @@ function project(
     id,
     title: id,
     workspaceId: null,
-    statusDot: null,
+    runStatus: null,
     subagentCount: 0,
+    branch: null,
+    diffStat: null,
     children,
   };
 }

@@ -17,24 +17,13 @@ import { TreeToolbar } from "./tree-toolbar";
 import { TreeSectionHeader, type ConversationTreeSectionId } from "./tree-section-header";
 import { TreeContextMenu, type ConversationTreeMenuTarget } from "./tree-context-menu";
 import { ensureConversationTreeHoverCss } from "./row-hover-css";
-
-const ITEM_HEIGHT = 30;
+import {
+  buildItemOffsets,
+  getPanelItemLayout,
+  type ConversationTreePanelItem,
+} from "./row-metrics";
 
 type PanelState = ConversationTreePanelState | "offline";
-type PanelItem =
-  | {
-      readonly kind: "section";
-      readonly key: string;
-      readonly section: ConversationTreeSectionId;
-      readonly actionAlwaysVisible: boolean;
-    }
-  | { readonly kind: "row"; readonly key: string; readonly row: ConversationTreeRowModel }
-  | {
-      readonly kind: "empty";
-      readonly key: string;
-      readonly indented: boolean;
-      readonly testID: string;
-    };
 
 /** Compose the toolbar, virtualized groups, panel states, and transient row menu. */
 export const ConversationTreePanel = observer(function ConversationTreePanel({
@@ -45,6 +34,7 @@ export const ConversationTreePanel = observer(function ConversationTreePanel({
   isOffline: boolean;
 }) {
   const tk = themeModel.tokens;
+  const nowMs = useMinuteTick();
   const [menuTarget, setMenuTarget] = useState<ConversationTreeMenuTarget | null>(null);
   const panelState: PanelState = isOffline ? "offline" : store.panelState;
   const canRenderTree =
@@ -64,6 +54,7 @@ export const ConversationTreePanel = observer(function ConversationTreePanel({
         isOffline={isOffline}
         contextTarget={effectiveMenuTarget?.node ?? null}
         onOpenMenu={openMenu}
+        nowMs={nowMs}
       />
       <TreeContextMenu
         store={store}
@@ -82,12 +73,14 @@ const PanelBody = observer(function PanelBody({
   isOffline,
   contextTarget,
   onOpenMenu,
+  nowMs,
 }: {
   store: ConversationTreeStore;
   panelState: PanelState;
   isOffline: boolean;
   contextTarget: ConversationTreeMenuTarget["node"] | null;
   onOpenMenu: (target: ConversationTreeMenuTarget) => void;
+  nowMs: number;
 }) {
   if (panelState === "loading") {
     return <ConversationTreeLoadingState />;
@@ -102,6 +95,7 @@ const PanelBody = observer(function PanelBody({
       isEmpty={panelState === "empty"}
       contextTarget={contextTarget}
       onOpenMenu={onOpenMenu}
+      nowMs={nowMs}
     />
   );
 });
@@ -113,21 +107,24 @@ const TreeList = observer(function TreeList({
   isEmpty,
   contextTarget,
   onOpenMenu,
+  nowMs,
 }: {
   store: ConversationTreeStore;
   isOffline: boolean;
   isEmpty: boolean;
   contextTarget: ConversationTreeMenuTarget["node"] | null;
   onOpenMenu: (target: ConversationTreeMenuTarget) => void;
+  nowMs: number;
 }) {
-  const listRef = useRef<FlatList<PanelItem> | null>(null);
-  const items = buildPanelItems(store);
+  const listRef = useRef<FlatList<ConversationTreePanelItem> | null>(null);
+  const panelItems = buildPanelItems(store);
+  const { items, offsets } = panelItems;
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const revealId = store.activeNodeId ?? store.focusedRootId;
   const openProjectPicker = useCallback(() => store.openProjectPicker(), [store]);
   const renderItem = useCallback(
-    ({ item }: ListRenderItemInfo<PanelItem>) => {
+    ({ item }: ListRenderItemInfo<ConversationTreePanelItem>) => {
       switch (item.kind) {
         case "section":
           return (
@@ -151,11 +148,17 @@ const TreeList = observer(function TreeList({
                 contextTarget?.kind === item.row.node.kind && contextTarget.id === item.row.node.id
               }
               onOpenMenu={onOpenMenu}
+              nowMs={nowMs}
             />
           );
       }
     },
-    [contextTarget, isOffline, onOpenMenu, openProjectPicker, store],
+    [contextTarget, isOffline, nowMs, onOpenMenu, openProjectPicker, store],
+  );
+  const getItemLayout = useCallback(
+    (_data: ArrayLike<ConversationTreePanelItem> | null | undefined, index: number) =>
+      getPanelItemLayout(items, offsets, index),
+    [items, offsets],
   );
 
   useEffect(() => {
@@ -200,7 +203,13 @@ const TreeList = observer(function TreeList({
 });
 
 /** Interleave section headers and empty-state placeholders between each group's flattened rows for the FlatList. */
-function buildPanelItems(store: ConversationTreeStore): PanelItem[] {
+interface ConversationTreePanelItems {
+  readonly items: ConversationTreePanelItem[];
+  readonly offsets: number[];
+}
+
+/** Build the rendered panel sequence and its mixed-height prefix sums in one model pass. */
+export function buildPanelItems(store: ConversationTreeStore): ConversationTreePanelItems {
   const rootSection = new Map<string, ConversationTreeSectionId>();
   for (const node of store.partitionedNodes.pinned) {
     rootSection.set(nodeKey(node.kind, node.id), "pinned");
@@ -225,16 +234,16 @@ function buildPanelItems(store: ConversationTreeStore): PanelItem[] {
     groups[section].push(row);
   }
 
-  const items: PanelItem[] = [];
+  const items: ConversationTreePanelItem[] = [];
   appendSection(items, "pinned", groups.pinned, false);
   appendSection(items, "projects", groups.projects, groups.projects.length === 0);
   appendSection(items, "conversations", groups.conversations, false);
-  return items;
+  return { items, offsets: buildItemOffsets(items) };
 }
 
 /** Push one section's header, rows, and optional empty-state placeholder onto the flat item list. */
 function appendSection(
-  items: PanelItem[],
+  items: ConversationTreePanelItem[],
   section: ConversationTreeSectionId,
   rows: readonly ConversationTreeRowModel[],
   actionAlwaysVisible: boolean,
@@ -272,7 +281,7 @@ function nodeKey(kind: string, id: string): string {
 }
 
 /** FlatList key extractor — items already carry a stable key. */
-function keyExtractor(item: PanelItem): string {
+function keyExtractor(item: ConversationTreePanelItem): string {
   return item.key;
 }
 
@@ -283,9 +292,14 @@ function treeStateTestId(isEmpty: boolean, isOffline: boolean): string | undefin
   return undefined;
 }
 
-/** Report each row's fixed height so FlatList can scroll to an index without measuring. */
-function getItemLayout(_data: ArrayLike<PanelItem> | null | undefined, index: number) {
-  return { length: ITEM_HEIGHT, offset: ITEM_HEIGHT * index, index };
+/** Advance the shared clock once per minute so every visible conversation time updates together. */
+function useMinuteTick(): number {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+  return nowMs;
 }
 
 const styles = StyleSheet.create({

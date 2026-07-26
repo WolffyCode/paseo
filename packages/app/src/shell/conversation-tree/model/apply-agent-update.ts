@@ -34,7 +34,7 @@ export function applyAgentUpdate(
   if (event.kind === "remove") {
     agents.delete(event.agentId);
   } else if (event.agent.archivedAt === null) {
-    // Closed stays in the snapshot (status-dot.ts maps it to idle); archive is the only
+    // Closed stays in the snapshot (run-status.ts maps it to idle); archive is the only
     // transition that removes an agent from the active tree, matching build-tree.ts.
     agents.set(event.agent.id, event.agent);
     updateProjectMembership(projects, event.agent.workspaceId, event.project);

@@ -101,6 +101,10 @@ export default defineConfig({
       // react alias below (the CJS build uses require('react') which bypasses
       // Vite alias resolution).
       {
+        find: /^react-native-svg$/,
+        replacement: path.resolve(__dirname, "test-stubs/react-native-svg.browser.tsx"),
+      },
+      {
         find: "react-native",
         replacement: path.resolve(rootNodeModules, "react-native-web/dist/index.js"),
       },

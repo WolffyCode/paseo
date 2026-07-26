@@ -26,7 +26,7 @@ export function ensureConversationTreeHoverCss(hoverColor: string, actionHoverCo
     `[data-convsection]:hover [data-convsectionaction] { opacity: 1 !important; }`,
     `[data-convsectionaction]:hover { background-color: ${hoverColor} !important; }`,
     `@keyframes conversation-tree-dot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }`,
-    `[data-status="running"], [data-status="needsAttention"] { animation: conversation-tree-dot-pulse 1.8s ease-in-out infinite; }`,
+    `[data-status="running"], [data-status="needsAttention"], [data-status="initializing"] { animation: conversation-tree-dot-pulse 1.8s ease-in-out infinite; }`,
   ].join("\n");
   appliedPalette = palette;
 }
