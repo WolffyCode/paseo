@@ -95,6 +95,8 @@ describe("SHELL_TOKENS", () => {
     expect(SHELL_TOKENS.dark.tabHover).toBe("#1c2128");
     expect(SHELL_TOKENS.light.tabHover).not.toBe(SHELL_TOKENS.light.accent);
     expect(SHELL_TOKENS.dark.tabHover).not.toBe(SHELL_TOKENS.dark.accent);
+    expect(SHELL_TOKENS.light.rowSelected).not.toBe(SHELL_TOKENS.light.rowHover);
+    expect(SHELL_TOKENS.dark.rowSelected).not.toBe(SHELL_TOKENS.dark.rowHover);
   });
 });
 

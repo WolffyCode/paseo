@@ -12,7 +12,15 @@ import { PanelControls } from "./panel-controls";
 // kinds as disabled "后续" rows; file is deliberately absent because it opens only from tree/conversation.
 // Offline keeps the same roadmap rows and adds the host-offline note.
 
-export const Launcher = observer(function Launcher({ isOffline }: { isOffline: boolean }) {
+export const Launcher = observer(function Launcher({
+  isOffline,
+  canCreateConversation,
+  onCreateConversation,
+}: {
+  isOffline: boolean;
+  canCreateConversation: boolean;
+  onCreateConversation: () => void;
+}) {
   const tk = themeModel.tokens;
   const topBar = useMemo(() => [styles.top, { borderColor: tk.border }], [tk.border]);
   return (
@@ -28,8 +36,11 @@ export const Launcher = observer(function Launcher({ isOffline }: { isOffline: b
               key={item.kind}
               icon={item.icon}
               label={item.label}
-              enabled={item.policy.enabled}
+              enabled={
+                item.policy.enabled && (item.kind !== "conversation" || canCreateConversation)
+              }
               comingSoon={item.policy.comingSoon}
+              onPress={item.kind === "conversation" ? onCreateConversation : undefined}
             />
           ))}
         </View>
@@ -45,11 +56,13 @@ function LaunchRow({
   label,
   enabled,
   comingSoon,
+  onPress,
 }: {
   icon: PanelIcon;
   label: string;
   enabled: boolean;
   comingSoon: boolean;
+  onPress?: () => void;
 }) {
   const tk = themeModel.tokens;
   const rowStyle = useMemo(
@@ -58,7 +71,7 @@ function LaunchRow({
   );
   const labelStyle = useMemo(() => [styles.rowLabel, { color: tk.foreground }], [tk.foreground]);
   return (
-    <Pressable style={rowStyle} disabled={!enabled} accessibilityRole="button">
+    <Pressable style={rowStyle} disabled={!enabled} onPress={onPress} accessibilityRole="button">
       <Icon size={16} color={tk.foregroundMuted} />
       <Text style={labelStyle}>{label}</Text>
       {comingSoon ? <ComingSoonBadge /> : null}

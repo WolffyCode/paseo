@@ -105,13 +105,17 @@ describe("resolveTabInstancing · single-instance (review)", () => {
   });
 });
 
-describe("resolveTabInstancing · multi-instance (conversation/browser/terminal)", () => {
-  // Non-file multi types never dedup: each open appends, even with a same-kind tab already present.
-  it("always appends even when a same-kind tab exists", () => {
+describe("resolveTabInstancing · multi-instance", () => {
+  it("deduplicates a conversation by its agent or draft identity", () => {
     const existing: Existing[] = [{ id: "c1", kind: "conversation", path: "a" }];
     expect(resolveTabInstancing(existing, { kind: "conversation", path: "a" })).toEqual({
-      action: "append",
+      action: "focus",
+      id: "c1",
     });
+  });
+
+  it("always appends browser and terminal instances", () => {
+    const existing: Existing[] = [{ id: "c1", kind: "conversation", path: "a" }];
     expect(resolveTabInstancing(existing, { kind: "terminal", path: "b" })).toEqual({
       action: "append",
     });

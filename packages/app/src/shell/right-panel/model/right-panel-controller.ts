@@ -5,10 +5,12 @@
 // address, output local link) funnels through here.
 
 import type { FileLocation } from "./file-location";
+import type { ConversationTabRequest } from "./tab-content";
 import type { WorkbenchModel } from "./workbench-model";
 
 export interface RightPanelController {
   openFile(location: FileLocation): void;
+  openConversation(request: ConversationTabRequest): void;
 }
 
 // What the controller composes: the workbench (tab set) and the shell's "ensure right open" action. The
@@ -25,6 +27,11 @@ export function createRightPanelController(deps: RightPanelControllerDeps): Righ
     openFile(location: FileLocation): void {
       deps.openRight();
       deps.workbench.openTab({ kind: "file", location });
+    },
+    /** Expand the right column before opening or focusing a conversation target. */
+    openConversation(request: ConversationTabRequest): void {
+      deps.openRight();
+      deps.workbench.openTab(request);
     },
   };
 }

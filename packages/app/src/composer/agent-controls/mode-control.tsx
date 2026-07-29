@@ -115,11 +115,6 @@ function AgentModeControlView({
     return modeOptions.find((m) => m.id === selectedModeId) ?? modeOptions[0];
   }, [modeOptions, selectedModeId]);
 
-  const visuals = selectedMode
-    ? getModeVisuals(provider, selectedMode.id, providerDefinitions)
-    : undefined;
-  const Icon = visuals?.icon ? MODE_ICONS[visuals.icon] : undefined;
-  const iconColor = theme.colors.foregroundMuted;
   const selectedModeLabel = selectedMode ? formatAgentModeLabel(selectedMode) : "";
 
   const allOptions = useMemo<ComboboxOption[]>(
@@ -206,7 +201,6 @@ function AgentModeControlView({
         })}
         testID="mode-control"
       >
-        {Icon ? <Icon size={theme.iconSize.md} color={iconColor} /> : null}
         <Text style={labelStyle}>{selectedModeLabel}</Text>
       </ComboboxTrigger>
       <Combobox
@@ -351,13 +345,15 @@ export function DraftAgentModeControl({
 
 const styles = StyleSheet.create((theme) => ({
   chip: {
-    height: 28,
+    height: 32,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "transparent",
-    gap: theme.spacing[1],
+    backgroundColor: theme.colors.surface1,
+    gap: 6,
     paddingHorizontal: theme.spacing[2],
-    borderRadius: theme.borderRadius["2xl"],
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   chipHovered: {
     backgroundColor: theme.colors.surface2,

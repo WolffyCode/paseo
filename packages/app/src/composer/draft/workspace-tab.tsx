@@ -8,8 +8,11 @@ import { useKeyboardShiftStyle } from "@/hooks/use-keyboard-shift-style";
 import { useContainerWidthBelow } from "@/hooks/use-container-width";
 import invariant from "tiny-invariant";
 import { Composer } from "@/composer";
-import { DraftAgentModeControl } from "@/composer/agent-controls/mode-control";
 import { ComposerImportPill } from "@/composer/draft/import-pill";
+import {
+  DraftWorkspacePicker,
+  type DraftWorkspacePickerLabels,
+} from "@/composer/draft/workspace-picker";
 import { FileDropZone } from "@/components/file-drop-zone";
 import { AgentStreamView } from "@/agent-stream/view";
 import { composerWorkspaceAttachment } from "@/composer/attachments/workspace";
@@ -33,14 +36,14 @@ import { navigateToPreparedWorkspaceTab } from "@/utils/workspace-navigation";
 import { shouldAutoFocusWorkspaceDraftComposer } from "@/screens/workspace/workspace-draft-pane-focus";
 import { validateDraftSubmission } from "@/composer/draft/workspace-tab-core";
 import type { AgentCapabilityFlags } from "@getpaseo/protocol/agent-types";
-import type { AgentSnapshotPayload } from "@getpaseo/protocol/messages";
+import type { AgentSnapshotPayload, WorkspaceDescriptorPayload } from "@getpaseo/protocol/messages";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
 import type { WorkspaceComposerAttachment } from "@/attachments/types";
 import {
   useWorkspaceAttachments,
   useWorkspaceAttachmentScopeKey,
 } from "@/attachments/workspace-attachments-store";
-import type { UserMessageImageAttachment } from "@/types/stream";
+import type { StreamItem, UserMessageImageAttachment } from "@/types/stream";
 import {
   COMPACT_FORM_FACTOR_WIDTH,
   MAX_CONTENT_WIDTH,
@@ -285,7 +288,7 @@ function resolveOnlineServerIds(input: { isConnected: boolean; serverId: string 
 
 interface WorkspaceDraftAgentTabProps {
   serverId: string;
-  workspaceId: string;
+  workspaceId: string | null;
   tabId: string;
   draftId: string;
   initialSetup?: WorkspaceDraftTabSetup;
@@ -293,6 +296,11 @@ interface WorkspaceDraftAgentTabProps {
   onCreated: (snapshot: AgentSnapshotPayload) => void;
   onOpenWorkspaceFile: (request: WorkspaceFileOpenRequest) => void;
   onOpenImportSheet?: () => void;
+  emptyLayout?: "centered" | "docked";
+  workspacePicker?: {
+    readonly labels: DraftWorkspacePickerLabels;
+    readonly onSelected: (workspace: WorkspaceDescriptorPayload) => void;
+  };
 }
 
 function resolveImportPillPress(
@@ -305,6 +313,61 @@ function resolveImportPillPress(
   return onOpenImportSheet ?? null;
 }
 
+function WorkspaceDraftContent({
+  isSubmitting,
+  draftAgent,
+  optimisticStreamItems,
+  serverId,
+  tabId,
+  onOpenWorkspaceFile,
+  emptyLayout,
+  emptyTitle,
+  formErrorMessage,
+}: {
+  isSubmitting: boolean;
+  draftAgent: Agent | null;
+  optimisticStreamItems: StreamItem[];
+  serverId: string;
+  tabId: string;
+  onOpenWorkspaceFile: (request: WorkspaceFileOpenRequest) => void;
+  emptyLayout: "centered" | "docked";
+  emptyTitle: string;
+  formErrorMessage: string | null;
+}) {
+  if (isSubmitting && draftAgent) {
+    return (
+      <View style={styles.streamContainer}>
+        <AgentStreamView
+          agentId={tabId}
+          serverId={serverId}
+          agent={draftAgent}
+          streamItems={optimisticStreamItems}
+          pendingPermissions={EMPTY_PENDING_PERMISSIONS}
+          onOpenWorkspaceFile={onOpenWorkspaceFile}
+        />
+      </View>
+    );
+  }
+  if (emptyLayout === "centered") {
+    return (
+      <View style={styles.emptyHero}>
+        <Text style={styles.emptyTitle}>{emptyTitle}</Text>
+        {formErrorMessage ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{formErrorMessage}</Text>
+          </View>
+        ) : null}
+      </View>
+    );
+  }
+  if (!formErrorMessage) return null;
+  return (
+    <View style={styles.dockedErrorContainer}>
+      <Text style={styles.errorText}>{formErrorMessage}</Text>
+    </View>
+  );
+}
+
 export function WorkspaceDraftAgentTab({
   serverId,
   workspaceId,
@@ -315,6 +378,8 @@ export function WorkspaceDraftAgentTab({
   onCreated,
   onOpenWorkspaceFile,
   onOpenImportSheet,
+  emptyLayout = "centered",
+  workspacePicker,
 }: WorkspaceDraftAgentTabProps) {
   const { t } = useTranslation();
   const insets = useSafeAreaInsets();
@@ -365,7 +430,11 @@ export function WorkspaceDraftAgentTab({
   const setDraftAttachments = draftInput.setAttachments;
   const pendingAutoSubmit = useWorkspaceDraftSubmissionStore((state) => {
     const pending = state.pendingByDraftId[draftId] ?? null;
-    return pending?.serverId === serverId && pending.workspaceId === workspaceId ? pending : null;
+    return workspaceId !== null &&
+      pending?.serverId === serverId &&
+      pending.workspaceId === workspaceId
+      ? pending
+      : null;
   });
   const pendingCreateAttempt = useCreateFlowStore((state) => {
     const pending = state.pendingByDraftId[draftId] ?? null;
@@ -408,7 +477,7 @@ export function WorkspaceDraftAgentTab({
   const workspaceAttachments = useWorkspaceAttachments(workspaceAttachmentScopeKey);
   const handleOpenWorkspaceAttachment = useCallback(
     (attachment: WorkspaceComposerAttachment) => {
-      if (attachment.kind !== "review") {
+      if (attachment.kind !== "review" || workspaceId === null) {
         return;
       }
       navigateToPreparedWorkspaceTab({
@@ -427,20 +496,25 @@ export function WorkspaceDraftAgentTab({
     draftAgent,
     handleCreateFromInput,
     continueCreateFromAttempt,
+    clearFormError,
   } = useDraftAgentCreateFlow<Agent, AgentSnapshotPayload>({
     draftId,
     getPendingServerId: () => serverId,
     initialAttempt: initialCreateAttempt,
     allowEmptyText: allowsEmptyAutoSubmit,
-    validateBeforeSubmit: ({ text }) =>
-      validateDraftSubmission({
+    validateBeforeSubmit: ({ text }) => {
+      const validation = validateDraftSubmission({
         text,
         allowsEmptyAutoSubmit,
         composerState,
         autoSubmitConfig,
         workspaceDirectory: draftWorkingDirectory,
         hasClient: Boolean(client),
-      }),
+      });
+      return !draftWorkingDirectory && validation !== null
+        ? (workspacePicker?.labels.selectDirectory ?? validation)
+        : validation;
+    },
     onBeforeSubmit: async () => {
       await composerState.persistFormPreferences();
       if (isWeb) {
@@ -480,6 +554,7 @@ export function WorkspaceDraftAgentTab({
 
   const isReadyForPendingAutoSubmit = Boolean(
     pendingAutoSubmit &&
+    workspaceId &&
     draftInput.isHydrated &&
     draftWorkingDirectory &&
     client &&
@@ -490,6 +565,7 @@ export function WorkspaceDraftAgentTab({
     if (!isReadyForPendingAutoSubmit) {
       return;
     }
+    if (workspaceId === null) return;
     const submitKey = `${serverId}:${workspaceId}:${draftId}`;
     if (autoSubmitKeyRef.current === submitKey) {
       return;
@@ -536,6 +612,13 @@ export function WorkspaceDraftAgentTab({
   const handleFilesDropped = useCallback((files: ImageAttachment[]) => {
     addImagesRef.current?.(files);
   }, []);
+  const handleWorkspaceSelected = useCallback(
+    (workspace: WorkspaceDescriptorPayload) => {
+      clearFormError();
+      workspacePicker?.onSelected(workspace);
+    },
+    [clearFormError, workspacePicker],
+  );
 
   const handleAddImagesCallback = useCallback((addImages: (images: ImageAttachment[]) => void) => {
     addImagesRef.current = addImages;
@@ -602,28 +685,28 @@ export function WorkspaceDraftAgentTab({
     mode: "translate",
   });
 
-  // s1 empty state: before the first send, the draft canvas centers a hero title + composer.
-  // Once submitting (optimistic stream), it reverts to the stream-fills-top / composer-docks-bottom layout.
+  // Workspace pages center empty drafts; Shell opts into a stable bottom Composer from frame one.
   const isEmptyDraft = !(isSubmitting && draftAgent);
+  const centerEmptyDraft = isEmptyDraft && emptyLayout === "centered";
   const containerStyle = useMemo(
-    () => (isEmptyDraft ? [styles.container, styles.containerEmpty] : styles.container),
-    [isEmptyDraft],
+    () => (centerEmptyDraft ? [styles.container, styles.containerEmpty] : styles.container),
+    [centerEmptyDraft],
   );
   const contentContainerStyle = useMemo(
     () =>
-      isEmptyDraft
+      centerEmptyDraft
         ? [styles.contentContainer, styles.contentContainerEmpty]
         : styles.contentContainer,
-    [isEmptyDraft],
+    [centerEmptyDraft],
   );
   const inputAreaWrapperStyle = useMemo(
     () => [
       styles.inputAreaWrapper,
       { paddingBottom: insets.bottom },
       composerKeyboardStyle,
-      isEmptyDraft && styles.inputAreaEmpty,
+      centerEmptyDraft && styles.inputAreaEmpty,
     ],
-    [insets.bottom, composerKeyboardStyle, isEmptyDraft],
+    [insets.bottom, composerKeyboardStyle, centerEmptyDraft],
   );
 
   const handleDropdownCloseFocus = useCallback(() => {
@@ -654,43 +737,35 @@ export function WorkspaceDraftAgentTab({
       isSubmitting,
     ],
   );
-  const composerFooter = useMemo(
+  const composerContextSlot = useMemo(
     () =>
-      isCompactComposerLayout ? (
-        <DraftAgentModeControl
-          placement="footer"
-          {...composerAgentControls}
-          isCompactLayout={isCompactComposerLayout}
+      workspacePicker ? (
+        <DraftWorkspacePicker
+          serverId={serverId}
+          directory={draftWorkingDirectory}
+          disabled={isSubmitting}
+          labels={workspacePicker.labels}
+          onSelected={handleWorkspaceSelected}
         />
       ) : undefined,
-    [isCompactComposerLayout, composerAgentControls],
+    [draftWorkingDirectory, handleWorkspaceSelected, isSubmitting, serverId, workspacePicker],
   );
 
   return (
     <FileDropZone onFilesDropped={handleFilesDropped}>
       <View style={containerStyle}>
         <View style={contentContainerStyle}>
-          {isSubmitting && draftAgent ? (
-            <View style={styles.streamContainer}>
-              <AgentStreamView
-                agentId={tabId}
-                serverId={serverId}
-                agent={draftAgent}
-                streamItems={optimisticStreamItems}
-                pendingPermissions={EMPTY_PENDING_PERMISSIONS}
-                onOpenWorkspaceFile={onOpenWorkspaceFile}
-              />
-            </View>
-          ) : (
-            <View style={styles.emptyHero}>
-              <Text style={styles.emptyTitle}>{t("panels.draft.emptyTitle")}</Text>
-              {formErrorMessage ? (
-                <View style={styles.errorContainer}>
-                  <Text style={styles.errorText}>{formErrorMessage}</Text>
-                </View>
-              ) : null}
-            </View>
-          )}
+          <WorkspaceDraftContent
+            isSubmitting={isSubmitting}
+            draftAgent={draftAgent}
+            optimisticStreamItems={optimisticStreamItems}
+            serverId={serverId}
+            tabId={tabId}
+            onOpenWorkspaceFile={onOpenWorkspaceFile}
+            emptyLayout={emptyLayout}
+            emptyTitle={t("panels.draft.emptyTitle")}
+            formErrorMessage={formErrorMessage}
+          />
         </View>
 
         <ReanimatedAnimated.View style={inputAreaWrapperStyle} onLayout={onInputAreaLayout}>
@@ -722,7 +797,7 @@ export function WorkspaceDraftAgentTab({
             onFocusInput={handleFocusInputCallback}
             commandDraftConfig={composerState.commandDraftConfig}
             agentControls={composerAgentControls}
-            footer={composerFooter}
+            contextSlot={composerContextSlot}
             isCompactLayout={isCompactComposerLayout}
           />
         </ReanimatedAnimated.View>
@@ -791,6 +866,13 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.surface2,
     borderWidth: 1,
     borderColor: theme.colors.destructive,
+  },
+  dockedErrorContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingHorizontal: theme.spacing[4],
+    paddingBottom: theme.spacing[4],
   },
   errorText: {
     color: theme.colors.destructive,

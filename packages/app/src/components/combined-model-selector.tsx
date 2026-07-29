@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   View,
   Text,
+  TextInput,
   Pressable,
   ActivityIndicator,
   type GestureResponderEvent,
@@ -12,7 +13,15 @@ import { BottomSheetFlatList } from "@gorhom/bottom-sheet";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import { isNative, isWeb as platformIsWeb } from "@/constants/platform";
-import { AlertTriangle, ChevronRight, Search, Settings, Star } from "lucide-react-native";
+import {
+  AlertTriangle,
+  ChevronDown,
+  ChevronRight,
+  Lock,
+  Search,
+  Settings,
+  Star,
+} from "lucide-react-native";
 import { ComboboxTrigger } from "@/components/ui/combobox-trigger";
 import type { AgentProvider } from "@getpaseo/protocol/agent-types";
 import type { SheetHeader } from "@/components/adaptive-modal-sheet";
@@ -57,21 +66,24 @@ import {
   type ProviderSelectionModelRow,
   type ProviderSelectorProvider,
 } from "@/provider-selection/provider-selection";
+import {
+  commitProviderDrillDown,
+  type CombinedModelSelectorView,
+} from "./combined-model-selector-model";
 
 const DESKTOP_PROVIDER_VIEW_MIN_HEIGHT = 220;
 const DESKTOP_PROVIDER_VIEW_MAX_HEIGHT = 400;
 const DESKTOP_PROVIDER_VIEW_BASE_HEIGHT = 80;
 const DESKTOP_MODEL_ROW_HEIGHT = 40;
 
-type SelectorView =
-  | { kind: "all" }
-  | { kind: "provider"; providerId: string; providerLabel: string };
+type SelectorView = CombinedModelSelectorView;
 
 interface CombinedModelSelectorProps {
   providers: ProviderSelectorProvider[];
   selectedProvider: string;
   selectedModel: string;
   onSelect: (provider: AgentProvider, modelId: string) => void;
+  onSelectProvider?: (provider: AgentProvider) => void;
   isLoading: boolean;
   favoriteKeys?: Set<string>;
   onToggleFavorite?: (provider: string, modelId: string) => void;
@@ -87,6 +99,8 @@ interface CombinedModelSelectorProps {
   isRetryingProvider?: boolean;
   disabled?: boolean;
   serverId?: string | null;
+  providerLocked?: boolean;
+  routeLabel?: string;
 }
 
 interface SelectorContentProps {
@@ -101,6 +115,82 @@ interface SelectorContentProps {
   onDrillDown: (providerId: string, providerLabel: string) => void;
   onRetryProvider?: (provider: AgentProvider) => void;
   isRetryingProvider: boolean;
+}
+
+interface SelectorContextControlsProps {
+  providerLabel: string;
+  providerLocked: boolean;
+  routeLabel: string;
+  searchQuery: string;
+  onChooseProvider: () => void;
+  onSearchQueryChange: (value: string) => void;
+}
+
+/** Keep provider identity, runtime route, and model search visible in the anchored selector. */
+function SelectorContextControls({
+  providerLabel,
+  providerLocked,
+  routeLabel,
+  searchQuery,
+  onChooseProvider,
+  onSearchQueryChange,
+}: SelectorContextControlsProps) {
+  const { theme } = useUnistyles();
+  const { t } = useTranslation();
+  return (
+    <View style={styles.selectorContextControls}>
+      <View style={styles.selectorContextFields}>
+        <Pressable
+          disabled={providerLocked}
+          onPress={onChooseProvider}
+          style={styles.selectorContextField}
+          accessibilityRole="button"
+          testID="model-provider-field"
+          accessibilityLabel={
+            providerLocked
+              ? t("modelSelector.providerLocked", { provider: providerLabel })
+              : t("agentControls.provider.select")
+          }
+        >
+          <Text style={styles.selectorContextLabel}>
+            {providerLocked
+              ? t("modelSelector.providerLockedLabel")
+              : t("modelSelector.providerLabel")}
+          </Text>
+          <View style={styles.selectorContextValue}>
+            {providerLocked ? <Lock size={13} color={theme.colors.foregroundMuted} /> : null}
+            <Text style={styles.selectorContextValueText} numberOfLines={1}>
+              {providerLabel}
+            </Text>
+            {!providerLocked ? (
+              <ChevronDown size={13} color={theme.colors.foregroundMuted} />
+            ) : null}
+          </View>
+        </Pressable>
+        <View style={styles.selectorContextField}>
+          <Text style={styles.selectorContextLabel}>{t("modelSelector.routeLabel")}</Text>
+          <View style={styles.selectorContextValue}>
+            <View style={styles.routeHealthDot} />
+            <Text style={styles.selectorContextValueText} numberOfLines={1}>
+              {routeLabel}
+            </Text>
+          </View>
+        </View>
+      </View>
+      <View style={styles.inlineSearch}>
+        <Search size={15} color={theme.colors.foregroundMuted} />
+        <TextInput
+          value={searchQuery}
+          onChangeText={onSearchQueryChange}
+          placeholder={t("modelSelector.searchCurrentRoute")}
+          placeholderTextColor={theme.colors.foregroundMuted}
+          style={styles.inlineSearchInput}
+          accessibilityLabel={t("modelSelector.searchPlaceholder")}
+          testID="model-search-input"
+        />
+      </View>
+    </View>
+  );
 }
 
 function normalizeSearchQuery(value: string): string {
@@ -334,7 +424,13 @@ function GroupProviderButton({ provider, onDrillDown }: GroupProviderButtonProps
   }
 
   return (
-    <Pressable onPress={handlePress} style={drillDownRowStyle}>
+    <Pressable
+      onPress={handlePress}
+      style={drillDownRowStyle}
+      accessibilityRole="button"
+      accessibilityLabel={provider.label}
+      testID={`model-provider-option-${provider.id}`}
+    >
       <ProvIcon size={theme.iconSize.sm} color={theme.colors.foregroundMuted} />
       <Text style={styles.drillDownText}>{provider.label}</Text>
       <View style={styles.drillDownTrailing}>
@@ -564,6 +660,7 @@ export function CombinedModelSelector({
   selectedProvider,
   selectedModel,
   onSelect,
+  onSelectProvider,
   isLoading,
   favoriteKeys = new Set<string>(),
   onToggleFavorite,
@@ -574,6 +671,8 @@ export function CombinedModelSelector({
   isRetryingProvider = false,
   disabled = false,
   serverId = null,
+  providerLocked = false,
+  routeLabel,
 }: CombinedModelSelectorProps) {
   const { theme } = useUnistyles();
   const { t } = useTranslation();
@@ -582,7 +681,14 @@ export function CombinedModelSelector({
   const [isContentReady, setIsContentReady] = useState(platformIsWeb);
   const [view, setView] = useState<SelectorView>({ kind: "all" });
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResetKey, bumpSearchResetKey] = useReducer((key: number) => key + 1, 0);
+  const selectedProviderLabel = useMemo(
+    () =>
+      providers.find((provider) => provider.id === selectedProvider)?.label ??
+      selectedProvider ??
+      t("agentControls.provider.fallback"),
+    [providers, selectedProvider, t],
+  );
+  const resolvedRouteLabel = routeLabel ?? t("modelSelector.officialDirect");
 
   // Single-provider mode: only one provider → skip Level 1 entirely
   const singleProviderView = useMemo<SelectorView | null>(() => {
@@ -613,7 +719,6 @@ export function CombinedModelSelector({
         onOpen?.();
       } else {
         setSearchQuery("");
-        bumpSearchResetKey();
         onClose?.();
       }
     },
@@ -625,13 +730,9 @@ export function CombinedModelSelector({
       onSelect(provider, modelId);
       setIsOpen(false);
       setSearchQuery("");
-      bumpSearchResetKey();
     },
     [onSelect],
   );
-
-  const hasSelectedProvider = selectedProvider.trim().length > 0;
-  const ProviderIcon = hasSelectedProvider ? getProviderIcon(selectedProvider) : null;
 
   const selectedModelLabel = useMemo(() => {
     return resolveSelectedModelLabel({
@@ -703,19 +804,23 @@ export function CombinedModelSelector({
     [disabled, isOpen, renderTrigger],
   );
 
-  const handleBackToAll = useCallback(() => {
-    setView({ kind: "all" });
-    setSearchQuery("");
-    bumpSearchResetKey();
-  }, []);
-
-  const handleDrillDown = useCallback((providerId: string, providerLabel: string) => {
-    setView({ kind: "provider", providerId, providerLabel });
-  }, []);
+  const handleDrillDown = useCallback(
+    (providerId: string, providerLabel: string) => {
+      setView(commitProviderDrillDown(providerId, providerLabel, onSelectProvider));
+      setSearchQuery("");
+    },
+    [onSelectProvider],
+  );
 
   const handleSearchQueryChange = useCallback((value: string) => {
     setSearchQuery(value);
   }, []);
+
+  const handleChooseProvider = useCallback(() => {
+    if (providerLocked) return;
+    setView({ kind: "all" });
+    setSearchQuery("");
+  }, [providerLocked]);
 
   const openProviderSettings = useCallback(() => {
     if (!serverId || view.kind !== "provider") return;
@@ -723,57 +828,38 @@ export function CombinedModelSelector({
   }, [serverId, view]);
 
   const sheetHeader = useMemo<SheetHeader>(() => {
-    if (view.kind === "all") {
-      return { title: t("modelSelector.title") };
-    }
-    const ProviderIconForView = getProviderIcon(view.providerId);
-    const headerActions = (
-      <Pressable
-        onPress={openProviderSettings}
-        disabled={!serverId}
-        hitSlop={8}
-        style={iconButtonStyle}
-        accessibilityRole="button"
-        accessibilityLabel={t("modelSelector.openProviderSettings", {
-          provider: view.providerLabel,
-        })}
-        testID={`selector-header-settings-${view.providerId}`}
-      >
-        <Settings
-          size={theme.iconSize.sm}
-          color={!serverId ? theme.colors.border : theme.colors.foregroundMuted}
-        />
-      </Pressable>
-    );
+    const headerActions =
+      view.kind === "provider" ? (
+        <Pressable
+          onPress={openProviderSettings}
+          disabled={!serverId}
+          hitSlop={8}
+          style={iconButtonStyle}
+          accessibilityRole="button"
+          accessibilityLabel={t("modelSelector.openProviderSettings", {
+            provider: view.providerLabel,
+          })}
+          testID={`selector-header-settings-${view.providerId}`}
+        >
+          <Settings
+            size={theme.iconSize.sm}
+            color={!serverId ? theme.colors.border : theme.colors.foregroundMuted}
+          />
+        </Pressable>
+      ) : undefined;
     return {
-      title: view.providerLabel,
-      leading: ProviderIconForView ? (
-        <ProviderIconForView size={theme.iconSize.md} color={theme.colors.foreground} />
-      ) : undefined,
-      back: singleProviderView ? undefined : { onPress: handleBackToAll },
+      title: providerLocked ? t("modelSelector.nextMessageTitle") : t("modelSelector.runtimeTitle"),
       actions: headerActions,
-      search: {
-        onChange: handleSearchQueryChange,
-        resetKey: `${view.providerId}:${searchResetKey}`,
-        placeholder: t("modelSelector.searchPlaceholder"),
-        autoFocus: platformIsWeb,
-        testID: "model-search-input",
-      },
     };
   }, [
     view,
-    singleProviderView,
     serverId,
     openProviderSettings,
     theme.colors.border,
     theme.colors.foregroundMuted,
-    handleBackToAll,
-    handleSearchQueryChange,
-    searchResetKey,
+    providerLocked,
     t,
-    theme.iconSize.md,
     theme.iconSize.sm,
-    theme.colors.foreground,
   ]);
 
   return (
@@ -807,9 +893,6 @@ export function CombinedModelSelector({
           accessibilityLabel={t("modelSelector.selectedModel", { model: selectedModelLabel })}
           testID="combined-model-selector"
         >
-          {ProviderIcon ? (
-            <ProviderIcon size={theme.iconSize.md} color={theme.colors.foregroundMuted} />
-          ) : null}
           <Text style={styles.triggerText} numberOfLines={1} ellipsizeMode="tail">
             {triggerLabel}
           </Text>
@@ -829,19 +912,29 @@ export function CombinedModelSelector({
         mobileChildrenScrollEnabled={view.kind !== "provider" || !isNative}
       >
         {isContentReady ? (
-          <SelectorContent
-            view={view}
-            providers={providers}
-            selectedProvider={selectedProvider}
-            selectedModel={selectedModel}
-            searchQuery={searchQuery}
-            favoriteKeys={favoriteKeys}
-            onSelect={handleSelect}
-            onToggleFavorite={onToggleFavorite}
-            onDrillDown={handleDrillDown}
-            onRetryProvider={onRetryProvider}
-            isRetryingProvider={isRetryingProvider}
-          />
+          <>
+            <SelectorContextControls
+              providerLabel={selectedProviderLabel}
+              providerLocked={providerLocked}
+              routeLabel={resolvedRouteLabel}
+              searchQuery={searchQuery}
+              onChooseProvider={handleChooseProvider}
+              onSearchQueryChange={handleSearchQueryChange}
+            />
+            <SelectorContent
+              view={view}
+              providers={providers}
+              selectedProvider={selectedProvider}
+              selectedModel={selectedModel}
+              searchQuery={searchQuery}
+              favoriteKeys={favoriteKeys}
+              onSelect={handleSelect}
+              onToggleFavorite={onToggleFavorite}
+              onDrillDown={handleDrillDown}
+              onRetryProvider={onRetryProvider}
+              isRetryingProvider={isRetryingProvider}
+            />
+          </>
         ) : (
           <View style={styles.sheetLoadingState}>
             <ActivityIndicator size="small" color={theme.colors.foregroundMuted} />
@@ -855,15 +948,17 @@ export function CombinedModelSelector({
 
 const styles = StyleSheet.create((theme) => ({
   trigger: {
-    height: 28,
+    height: 32,
     minWidth: 0,
     flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "transparent",
-    gap: theme.spacing[1],
+    backgroundColor: theme.colors.surface1,
+    gap: 6,
     paddingHorizontal: theme.spacing[2],
-    borderRadius: theme.borderRadius["2xl"],
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
   },
   triggerHovered: {
     backgroundColor: theme.colors.surface2,
@@ -882,9 +977,78 @@ const styles = StyleSheet.create((theme) => ({
     fontWeight: theme.fontWeight.normal,
   },
   customTriggerWrapper: {
+    minWidth: 0,
+    flexShrink: 1,
+    overflow: "hidden",
     paddingHorizontal: 0,
     paddingVertical: 0,
-    height: "auto",
+    height: 32,
+  },
+  selectorContextControls: {
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 6,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  selectorContextFields: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  selectorContextField: {
+    minWidth: 0,
+    flex: 1,
+    minHeight: 48,
+    paddingHorizontal: 9,
+    paddingVertical: 7,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 6,
+    backgroundColor: theme.colors.surface1,
+  },
+  selectorContextLabel: {
+    color: theme.colors.foregroundMuted,
+    fontSize: 10,
+  },
+  selectorContextValue: {
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginTop: 3,
+  },
+  selectorContextValueText: {
+    minWidth: 0,
+    flex: 1,
+    color: theme.colors.foreground,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium,
+  },
+  routeHealthDot: {
+    width: 7,
+    height: 7,
+    flexShrink: 0,
+    borderRadius: 4,
+    backgroundColor: theme.colors.accent,
+  },
+  inlineSearch: {
+    height: 34,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 6,
+    backgroundColor: theme.colors.surface1,
+  },
+  inlineSearchInput: {
+    minWidth: 0,
+    flex: 1,
+    color: theme.colors.foreground,
+    fontSize: theme.fontSize.sm,
+    ...(IS_WEB ? ({ outlineStyle: "none" } as object) : {}),
   },
   favoritesContainer: {
     backgroundColor: theme.colors.surface1,

@@ -29,7 +29,7 @@ docs/helm/
 
 ## 每个需求的工作流（铁律）
 
-> 完整研发流水线（角色 · 性格 · 3 个董事长闸 · Codex/内部 agent）见 [workflow.md](./workflow.md)；实现层代码规范见 [standards.md](./standards.md)。下面是**文档同步**铁律。
+> 完整研发流水线（当前编码客户端端到端负责 · 3 个董事长闸）见 [workflow.md](./workflow.md)；实现层代码规范见 [standards.md](./standards.md)。下面是**文档同步**铁律。
 
 1. **读现状** — 先读 `product.md` + 打开 `ui.html`，确认当前设计/UI 现状，站在现状上做增量，不重复造。
 2. **出本地一对** — 在 `requirements/<YYYY-MM-DD>-<topic>/` 下写 `requirement.md` + `ui.html`，描述这个需求要做什么、UI 全态长什么样。

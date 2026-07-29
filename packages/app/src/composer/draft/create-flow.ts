@@ -312,6 +312,9 @@ export function useDraftAgentCreateFlow<TDraftAgent, TCreateResult>({
     },
     [isSubmitting, runCreateAttempt],
   );
+  const clearFormError = useCallback(() => {
+    dispatch({ type: "DRAFT_SET_ERROR", message: "" });
+  }, []);
 
   return {
     machine,
@@ -321,6 +324,7 @@ export function useDraftAgentCreateFlow<TDraftAgent, TCreateResult>({
     draftAgent,
     handleCreateFromInput,
     continueCreateFromAttempt,
+    clearFormError,
   };
 }
 

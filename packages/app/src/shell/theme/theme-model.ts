@@ -57,6 +57,7 @@ export interface ShellTokens {
   // Hover overlays: top-bar toggle wash / sidebar row / tab pill / ghost (back button).
   toggleHover: string;
   rowHover: string;
+  rowSelected: string;
   tabHover: string;
   ghostHover: string;
   // Resize-gutter center line, by state.
@@ -94,6 +95,7 @@ export const SHELL_TOKENS: Record<ThemeScheme, ShellTokens> = {
     accentSoft: "rgba(9, 105, 218, 0.14)",
     toggleHover: "rgba(31, 35, 40, 0.07)",
     rowHover: "#eaeef2",
+    rowSelected: "#d8dee4",
     tabHover: "#f6f8fa",
     ghostHover: "#f6f8fa",
     gutterIdle: "rgba(31, 35, 40, 0.13)",
@@ -124,6 +126,7 @@ export const SHELL_TOKENS: Record<ThemeScheme, ShellTokens> = {
     accentSoft: "rgba(68, 147, 248, 0.18)",
     toggleHover: "rgba(230, 237, 243, 0.09)",
     rowHover: "#21262d",
+    rowSelected: "#30363d",
     tabHover: "#1c2128",
     ghostHover: "#161b22",
     gutterIdle: "rgba(230, 237, 243, 0.13)",

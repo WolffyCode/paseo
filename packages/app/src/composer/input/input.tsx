@@ -24,7 +24,7 @@ import {
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
 import { ICON_SIZE, type Theme } from "@/styles/theme";
-import { ArrowUp, Mic, MicOff, CornerDownLeft, Plus, Square } from "lucide-react-native";
+import { ArrowUp, Mic, CornerDownLeft, Plus } from "lucide-react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming } from "react-native-reanimated";
 import { useDictation } from "@/hooks/use-dictation";
 import { DictationOverlay } from "@/components/dictation-controls";
@@ -65,7 +65,6 @@ import {
   resolveSendTooltipLabel,
   resolveSubmitAccessibilityLabel,
   resolveVoiceAccessibilityLabel,
-  resolveVoiceTooltipText,
 } from "./labels";
 import { computeCanStartDictation, runAlternateSendAction, runDefaultSendAction } from "./state";
 
@@ -99,6 +98,8 @@ export interface MessageInputProps {
   attachments: ComposerAttachment[];
   cwd: string;
   attachmentMenuItems: AttachmentMenuItem[];
+  /** Runtime controls moved under + when the compact toolbar cannot hold them. */
+  attachmentMenuContent?: React.ReactNode;
   onAttachButtonRef?: (node: View | null) => void;
   onAddImages?: (images: ImageAttachment[]) => void;
   client: DaemonClient | null;
@@ -137,6 +138,8 @@ export interface MessageInputProps {
   inputWrapperStyle?: import("react-native").ViewStyle;
   /** Content rendered inside the bordered input surface, above the text input (e.g. attachment pills). */
   attachmentSlot?: React.ReactNode;
+  /** Stable context row rendered at the top of the Composer surface. */
+  contextSlot?: React.ReactNode;
 }
 
 export interface MessageInputRef {
@@ -271,6 +274,7 @@ function AttachmentDropdown({
   attachButtonStyle,
   renderAttachButtonIcon,
   attachmentMenuItems,
+  attachmentMenuContent,
   addAttachmentLabel,
 }: {
   isConnected: boolean;
@@ -278,6 +282,7 @@ function AttachmentDropdown({
   attachButtonStyle: React.ComponentProps<typeof DropdownMenuTrigger>["style"];
   renderAttachButtonIcon: (input: { hovered?: boolean }) => React.ReactElement;
   attachmentMenuItems: AttachmentMenuItem[];
+  attachmentMenuContent: React.ReactNode;
   addAttachmentLabel: string;
 }) {
   const isCompact = useIsCompactFormFactor();
@@ -340,6 +345,9 @@ function AttachmentDropdown({
           testID="message-input-attachment-menu"
         >
           <AttachmentSheetList items={attachmentMenuItems} onSelect={handleSheetItemSelect} />
+          {attachmentMenuContent ? (
+            <View style={styles.attachmentMenuContent}>{attachmentMenuContent}</View>
+          ) : null}
         </AdaptiveModalSheet>
       </>
     );
@@ -371,48 +379,15 @@ function AttachmentDropdown({
         testID="message-input-attachment-menu"
       >
         <AttachmentMenuList items={attachmentMenuItems} />
+        {attachmentMenuContent ? (
+          <View style={styles.attachmentMenuContent}>{attachmentMenuContent}</View>
+        ) : null}
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-function VoiceButtonIcon({
-  hovered,
-  isDictating,
-  isMutedRealtime,
-  buttonIconSize,
-}: {
-  hovered: boolean;
-  isDictating: boolean;
-  isMutedRealtime: boolean;
-  buttonIconSize: number;
-}) {
-  if (isDictating) {
-    return <Square size={buttonIconSize} color="white" fill="white" />;
-  }
-  const colorMapping = hovered ? iconForegroundMapping : iconForegroundMutedMapping;
-  if (isMutedRealtime) {
-    return <ThemedMicOff size={buttonIconSize} uniProps={colorMapping} />;
-  }
-  return <ThemedMic size={buttonIconSize} uniProps={colorMapping} />;
-}
-
 type ShortcutChord = NonNullable<React.ComponentProps<typeof Shortcut>["chord"]>;
-
-function VoiceTooltipBody({
-  voiceTooltipText,
-  shortcut,
-}: {
-  voiceTooltipText: string;
-  shortcut: ShortcutChord | null | undefined;
-}) {
-  return (
-    <View style={styles.tooltipRow}>
-      <Text style={styles.tooltipText}>{voiceTooltipText}</Text>
-      {shortcut ? <Shortcut chord={shortcut} /> : null}
-    </View>
-  );
-}
 
 function SendTooltipBody({
   label,
@@ -431,20 +406,23 @@ function SendTooltipBody({
 
 function SendButtonContent({
   isSubmitLoading,
+  isDisabled,
   submitIcon,
   buttonIconSize,
 }: {
   isSubmitLoading: boolean;
+  isDisabled: boolean;
   submitIcon: "arrow" | "return";
   buttonIconSize: number;
 }) {
   if (isSubmitLoading) {
     return <ThemedActivityIndicator size="small" uniProps={iconAccentForegroundMapping} />;
   }
+  const iconMapping = isDisabled ? iconForegroundMutedMapping : iconAccentForegroundMapping;
   if (submitIcon === "return") {
-    return <ThemedCornerDownLeft size={buttonIconSize} uniProps={iconAccentForegroundMapping} />;
+    return <ThemedCornerDownLeft size={buttonIconSize} uniProps={iconMapping} />;
   }
-  return <ThemedArrowUp size={buttonIconSize} uniProps={iconAccentForegroundMapping} />;
+  return <ThemedArrowUp size={buttonIconSize} uniProps={iconMapping} />;
 }
 
 interface DesktopKeyPressContext {
@@ -738,46 +716,6 @@ function FocusHint({
   );
 }
 
-function VoiceButtonTooltip({
-  onVoicePress,
-  isDictationStartEnabled,
-  voiceButtonAccessibilityLabel,
-  voiceButtonStyle,
-  renderVoiceButtonIcon,
-  voiceTooltipText,
-  isRealtimeVoiceForCurrentAgent,
-  voiceMuteToggleKeys,
-  dictationToggleKeys,
-}: {
-  onVoicePress: () => void;
-  isDictationStartEnabled: boolean;
-  voiceButtonAccessibilityLabel: string;
-  voiceButtonStyle: React.ComponentProps<typeof TooltipTrigger>["style"];
-  renderVoiceButtonIcon: (input: { hovered?: boolean }) => React.ReactElement;
-  voiceTooltipText: string;
-  isRealtimeVoiceForCurrentAgent: boolean;
-  voiceMuteToggleKeys: ShortcutChord | null | undefined;
-  dictationToggleKeys: ShortcutChord | null | undefined;
-}) {
-  const shortcut = isRealtimeVoiceForCurrentAgent ? voiceMuteToggleKeys : dictationToggleKeys;
-  return (
-    <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile={false}>
-      <TooltipTrigger
-        onPress={onVoicePress}
-        disabled={!isDictationStartEnabled}
-        accessibilityRole="button"
-        accessibilityLabel={voiceButtonAccessibilityLabel}
-        style={voiceButtonStyle}
-      >
-        {renderVoiceButtonIcon}
-      </TooltipTrigger>
-      <TooltipContent side="top" align="center" offset={8}>
-        <VoiceTooltipBody voiceTooltipText={voiceTooltipText} shortcut={shortcut} />
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
 function SendButtonTooltip({
   shouldShow,
   canPressLoadingButton,
@@ -820,6 +758,7 @@ function SendButtonTooltip({
       >
         <SendButtonContent
           isSubmitLoading={isSubmitLoading}
+          isDisabled={isSendButtonDisabled}
           submitIcon={submitIcon}
           buttonIconSize={buttonIconSize}
         />
@@ -1064,8 +1003,8 @@ function computeSendableContent(input: SendableContentInput): SendableContentOut
   const hasAttachments = input.attachments.length > 0;
   const hasRealContent = input.value.trim().length > 0 || hasAttachments;
   const hasSendableContent = hasRealContent || input.hasExternalContent;
-  const shouldShowSendButton =
-    hasSendableContent || input.allowEmptySubmit || input.isSubmitLoading;
+  // The Composer keeps a stable send slot so the toolbar does not reflow while typing.
+  const shouldShowSendButton = true;
   return { hasAttachments, hasRealContent, hasSendableContent, shouldShowSendButton };
 }
 
@@ -1137,6 +1076,60 @@ function computeSendButtonState(input: SendButtonStateInput): SendButtonStateOut
   return { canPressLoadingButton, isSendButtonDisabled, defaultActionQueues };
 }
 
+function shouldDisableEmptyComposer(
+  isSubmitDisabled: boolean,
+  hasSendableContent: boolean,
+  allowEmptySubmit: boolean,
+): boolean {
+  return isSubmitDisabled || (!hasSendableContent && !allowEmptySubmit);
+}
+
+function shouldShowStableSendButton(
+  isAgentRunning: boolean,
+  hasSendableContent: boolean,
+  isSubmitLoading: boolean,
+): boolean {
+  return !isAgentRunning || hasSendableContent || isSubmitLoading;
+}
+
+function renderAttachmentSlot(slot: React.ReactNode): React.ReactElement | null {
+  if (!slot) return null;
+  return <View style={styles.attachmentSlot}>{slot}</View>;
+}
+
+function buildInputWrapperStyle(
+  isFocused: boolean,
+  inputWrapperStyle: import("react-native").ViewStyle | undefined,
+  inputAnimatedStyle: object,
+) {
+  return [
+    styles.inputWrapper,
+    isFocused ? styles.inputWrapperFocused : undefined,
+    inputWrapperStyle,
+    inputAnimatedStyle,
+  ];
+}
+
+function buildSendButtonStyle(isDisabled: boolean) {
+  return [styles.sendButton, isDisabled ? styles.sendButtonDisabled : undefined];
+}
+
+/** Show the desktop focus shortcut only while the empty Composer is idle. */
+function shouldShowComposerFocusHint(input: {
+  isCompact: boolean;
+  isPaneFocused: boolean;
+  isInputFocused: boolean;
+  value: string;
+}): boolean {
+  return (
+    isWeb &&
+    !input.isCompact &&
+    input.isPaneFocused &&
+    !input.isInputFocused &&
+    input.value.length === 0
+  );
+}
+
 interface ResolvedMessageInputProps {
   value: string;
   onChangeText: (text: string) => void;
@@ -1152,6 +1145,7 @@ interface ResolvedMessageInputProps {
   attachments: ComposerAttachment[];
   cwd: string;
   attachmentMenuItems: AttachmentMenuItem[];
+  attachmentMenuContent: React.ReactNode;
   onAttachButtonRef: ((node: View | null) => void) | undefined;
   onAddImages: ((images: ImageAttachment[]) => void) | undefined;
   client: DaemonClient | null;
@@ -1176,6 +1170,7 @@ interface ResolvedMessageInputProps {
   onHeightChange: ((height: number) => void) | undefined;
   inputWrapperStyle: import("react-native").ViewStyle | undefined;
   attachmentSlot: React.ReactNode;
+  contextSlot: React.ReactNode;
 }
 
 function resolveMessageInputProps(props: MessageInputProps): ResolvedMessageInputProps {
@@ -1194,6 +1189,7 @@ function resolveMessageInputProps(props: MessageInputProps): ResolvedMessageInpu
     attachments: props.attachments,
     cwd: props.cwd,
     attachmentMenuItems: props.attachmentMenuItems,
+    attachmentMenuContent: props.attachmentMenuContent,
     onAttachButtonRef: props.onAttachButtonRef,
     onAddImages: props.onAddImages,
     client: props.client,
@@ -1218,6 +1214,7 @@ function resolveMessageInputProps(props: MessageInputProps): ResolvedMessageInpu
     onHeightChange: props.onHeightChange,
     inputWrapperStyle: props.inputWrapperStyle,
     attachmentSlot: props.attachmentSlot,
+    contextSlot: props.contextSlot,
   };
 }
 
@@ -1244,6 +1241,7 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
       attachments,
       cwd,
       attachmentMenuItems,
+      attachmentMenuContent,
       onAttachButtonRef,
       onAddImages,
       client,
@@ -1268,6 +1266,7 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
       onHeightChange,
       inputWrapperStyle,
       attachmentSlot,
+      contextSlot,
     } = resolveMessageInputProps(props);
     const { t } = useTranslation();
     const isCompact = useIsCompactFormFactor();
@@ -1276,8 +1275,6 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
     const buttonIconSize = isWeb ? ICON_SIZE.md : ICON_SIZE.lg;
     const toast = useToast();
     const voice = useVoiceOptional();
-    const voiceMuteToggleKeys = useShortcutKeys("voice-mute-toggle");
-    const dictationToggleKeys = useShortcutKeys("dictation-toggle");
     const focusInputKeys = useShortcutKeys("focus-message-input");
     const [inputHeight, setInputHeight] = useState(MIN_INPUT_HEIGHT);
     const [isInputFocused, setIsInputFocused] = useState(false);
@@ -1687,7 +1684,7 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
       });
     }
 
-    const { shouldShowSendButton } = computeSendableContent({
+    const { hasSendableContent, shouldShowSendButton } = computeSendableContent({
       value,
       attachments,
       hasExternalContent,
@@ -1697,12 +1694,25 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
     const { canPressLoadingButton, isSendButtonDisabled, defaultActionQueues } =
       computeSendButtonState({
         disabled,
-        isSubmitDisabled,
+        isSubmitDisabled: shouldDisableEmptyComposer(
+          isSubmitDisabled,
+          hasSendableContent,
+          allowEmptySubmit,
+        ),
         isSubmitLoading,
         onSubmitLoadingPress,
         defaultSendBehavior,
         isAgentRunning,
       });
+    const showStableSendButton =
+      shouldShowSendButton &&
+      shouldShowStableSendButton(isAgentRunning, hasSendableContent, isSubmitLoading);
+    const showFocusHint = shouldShowComposerFocusHint({
+      isCompact,
+      isPaneFocused,
+      isInputFocused,
+      value,
+    });
     useIosHardwareKeyboardSubmit({
       isEnabled: isInputFocused && !isSendButtonDisabled,
       onSubmit: handleDefaultSendAction,
@@ -1722,12 +1732,6 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
       t,
     });
 
-    const voiceTooltipText = resolveVoiceTooltipText({
-      isRealtimeVoiceForCurrentAgent,
-      isMuted: Boolean(voice?.isMuted),
-      t,
-    });
-
     const sendTooltipLabel = resolveSendTooltipLabel({
       submitButtonAccessibilityLabel,
       defaultActionQueues,
@@ -1740,6 +1744,28 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
         onChangeText(nextValue);
       },
       [onChangeText],
+    );
+
+    const effectiveAttachmentMenuItems = useMemo<AttachmentMenuItem[]>(
+      () => [
+        ...attachmentMenuItems,
+        {
+          id: "voice",
+          label: voiceButtonAccessibilityLabel,
+          icon: <ThemedMic size={ICON_SIZE.md} uniProps={iconForegroundMutedMapping} />,
+          disabled: !isDictationStartEnabled && !isRealtimeVoiceForCurrentAgent,
+          onSelect: () => {
+            void handleVoicePress();
+          },
+        },
+      ],
+      [
+        attachmentMenuItems,
+        handleVoicePress,
+        isDictationStartEnabled,
+        isRealtimeVoiceForCurrentAgent,
+        voiceButtonAccessibilityLabel,
+      ],
     );
 
     const handleInputFocus = useCallback(() => {
@@ -1763,30 +1789,20 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
       [isConnected, disabled],
     );
 
-    const voiceButtonStyle = useCallback(
-      ({ hovered }: { hovered?: boolean }) => [
-        styles.voiceButton,
-        Boolean(hovered) && !isDictating && styles.iconButtonHovered,
-        !isDictationStartEnabled && styles.buttonDisabled,
-        isDictating && styles.voiceButtonRecording,
-      ],
-      [isDictating, isDictationStartEnabled],
-    );
-
     const handleRealtimeVoiceStop = useCallback(() => {
       void handleStopRealtimeVoice();
     }, [handleStopRealtimeVoice]);
 
     const inputWrapperCombinedStyle = useMemo(
-      () => [styles.inputWrapper, inputWrapperStyle, inputAnimatedStyle],
-      [inputWrapperStyle, inputAnimatedStyle],
+      () => buildInputWrapperStyle(isInputFocused, inputWrapperStyle, inputAnimatedStyle),
+      [inputWrapperStyle, inputAnimatedStyle, isInputFocused],
     );
     const textInputStyle = useMemo(
       () => [styles.textInput, computeTextInputHeightStyle(inputHeight, maxInputHeight)],
       [inputHeight, maxInputHeight],
     );
     const sendButtonCombinedStyle = useMemo(
-      () => [styles.sendButton, isSendButtonDisabled && styles.buttonDisabled],
+      () => buildSendButtonStyle(isSendButtonDisabled),
       [isSendButtonDisabled],
     );
     const overlayContainerStyle = useMemo(
@@ -1805,23 +1821,12 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
       [onAttachButtonRef, buttonIconSize],
     );
 
-    const renderVoiceButtonIcon = useCallback(
-      ({ hovered }: { hovered?: boolean }) => (
-        <VoiceButtonIcon
-          hovered={Boolean(hovered)}
-          isDictating={isDictating}
-          isMutedRealtime={Boolean(isRealtimeVoiceForCurrentAgent && voice?.isMuted)}
-          buttonIconSize={buttonIconSize}
-        />
-      ),
-      [isDictating, isRealtimeVoiceForCurrentAgent, voice?.isMuted, buttonIconSize],
-    );
-
     return (
       <View ref={rootRef} style={styles.container} testID="message-input-root">
         {/* Regular input */}
         <Animated.View ref={inputWrapperRef} style={inputWrapperCombinedStyle}>
-          {attachmentSlot}
+          {contextSlot ? <View style={styles.contextSlot}>{contextSlot}</View> : null}
+          {renderAttachmentSlot(attachmentSlot)}
           {/* Text input */}
           <View style={styles.textInputScrollWrapper}>
             <ThemedTextInput
@@ -1844,7 +1849,7 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
             />
             {inputScrollbar}
             <FocusHint
-              visible={isWeb && isPaneFocused && !isInputFocused && !value}
+              visible={showFocusHint}
               focusInputKeys={focusInputKeys}
               label={t("composer.input.focusHint", {
                 shortcut: focusInputKeys ? formatShortcut(focusInputKeys[0], getShortcutOs()) : "",
@@ -1861,7 +1866,8 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
                 disabled={disabled}
                 attachButtonStyle={attachButtonStyle}
                 renderAttachButtonIcon={renderAttachButtonIcon}
-                attachmentMenuItems={attachmentMenuItems}
+                attachmentMenuItems={effectiveAttachmentMenuItems}
+                attachmentMenuContent={attachmentMenuContent}
                 addAttachmentLabel={t("composer.input.addAttachment")}
               />
               {leftContent}
@@ -1870,20 +1876,9 @@ export const MessageInput = forwardRef<MessageInputRef, MessageInputProps>(
             {/* Right: voice button, contextual button (realtime/send/cancel) */}
             <View style={styles.rightButtonGroup}>
               {beforeVoiceContent}
-              <VoiceButtonTooltip
-                onVoicePress={handleVoicePress}
-                isDictationStartEnabled={isDictationStartEnabled}
-                voiceButtonAccessibilityLabel={voiceButtonAccessibilityLabel}
-                voiceButtonStyle={voiceButtonStyle}
-                renderVoiceButtonIcon={renderVoiceButtonIcon}
-                voiceTooltipText={voiceTooltipText}
-                isRealtimeVoiceForCurrentAgent={isRealtimeVoiceForCurrentAgent}
-                voiceMuteToggleKeys={voiceMuteToggleKeys}
-                dictationToggleKeys={dictationToggleKeys}
-              />
               {rightContent}
               <SendButtonTooltip
-                shouldShow={shouldShowSendButton}
+                shouldShow={showStableSendButton}
                 canPressLoadingButton={canPressLoadingButton}
                 onSubmitLoadingPress={onSubmitLoadingPress}
                 onDefaultSendAction={handleDefaultSendAction}
@@ -1931,29 +1926,30 @@ const styles = StyleSheet.create((theme: Theme) => ({
   },
   inputWrapper: {
     flexDirection: "column",
-    gap: theme.spacing[3],
-    backgroundColor: theme.colors.surface1,
+    overflow: "hidden",
+    backgroundColor: theme.colors.surface0,
     borderWidth: theme.borderWidth[1],
-    borderColor: theme.colors.borderAccent,
-    borderRadius: theme.borderRadius["2xl"],
-    paddingVertical: {
-      xs: theme.spacing[2],
-      md: theme.spacing[4],
-    },
-    paddingHorizontal: {
-      xs: theme.spacing[3],
-      md: theme.spacing[4],
-    },
+    borderColor: theme.colors.surface4,
+    borderRadius: 8,
+    ...theme.shadow.sm,
     ...(isWeb
       ? {
-          transitionProperty: "border-color",
+          transitionProperty: "border-color, box-shadow",
           transitionDuration: "200ms",
           transitionTimingFunction: "ease-in-out",
         }
       : {}),
   },
+  inputWrapperFocused: {
+    borderColor: theme.colors.accent,
+  },
   textInputScrollWrapper: {
     position: "relative",
+    minHeight: 76,
+    justifyContent: "flex-start",
+    paddingTop: 14,
+    paddingHorizontal: 14,
+    paddingBottom: 8,
   },
   focusHintText: {
     position: "absolute",
@@ -1978,56 +1974,56 @@ const styles = StyleSheet.create((theme: Theme) => ({
       : {}),
   },
   buttonRow: {
+    minHeight: 46,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     justifyContent: "space-between",
-    marginHorizontal: -6,
+    gap: 6,
+    paddingTop: 6,
+    paddingHorizontal: 8,
+    paddingBottom: 8,
   },
   leftButtonGroup: {
     minWidth: 0,
     flexShrink: 1,
     flexGrow: 1,
     flexDirection: "row",
-    alignItems: "flex-end",
-    gap: theme.spacing[0],
+    alignItems: "center",
+    gap: 6,
   },
   rightButtonGroup: {
     flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[1],
+    gap: 6,
   },
   attachButton: {
-    width: 28,
-    height: 28,
-    borderRadius: theme.borderRadius.full,
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface1,
     alignItems: "center",
     justifyContent: "center",
   },
   attachButtonAnchor: {
-    width: 28,
-    height: 28,
+    width: 32,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
-  },
-  voiceButton: {
-    width: 28,
-    height: 28,
-    borderRadius: theme.borderRadius.full,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  voiceButtonRecording: {
-    backgroundColor: theme.colors.destructive,
   },
   sendButton: {
-    width: 28,
-    height: 28,
-    borderRadius: theme.borderRadius.full,
+    width: 32,
+    height: 32,
+    borderRadius: 6,
     backgroundColor: theme.colors.accent,
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: theme.spacing[1],
+    marginLeft: 0,
+  },
+  sendButtonDisabled: {
+    backgroundColor: theme.colors.surface3,
   },
   iconButtonHovered: {
     backgroundColor: theme.colors.surface2,
@@ -2046,6 +2042,20 @@ const styles = StyleSheet.create((theme: Theme) => ({
   },
   attachmentSheetList: {
     gap: theme.spacing[1],
+  },
+  attachmentMenuContent: {
+    borderTopWidth: 1,
+    borderTopColor: theme.colors.border,
+    marginTop: theme.spacing[1],
+    paddingTop: theme.spacing[1],
+  },
+  contextSlot: {
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  attachmentSlot: {
+    paddingTop: theme.spacing[3],
+    paddingHorizontal: 14,
   },
   attachmentSheetItem: {
     minHeight: 44,
@@ -2085,7 +2095,6 @@ const styles = StyleSheet.create((theme: Theme) => ({
 
 const ThemedPlus = withUnistyles(Plus);
 const ThemedMic = withUnistyles(Mic);
-const ThemedMicOff = withUnistyles(MicOff);
 const ThemedArrowUp = withUnistyles(ArrowUp);
 const ThemedCornerDownLeft = withUnistyles(CornerDownLeft);
 const ThemedActivityIndicator = withUnistyles(ActivityIndicator);

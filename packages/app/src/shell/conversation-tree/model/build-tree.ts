@@ -18,6 +18,7 @@ export interface BuildConversationTreeInput {
 interface BuildAgentBranchInput {
   readonly agent: ConversationTreeAgent;
   readonly kind: "conversation" | "subagent";
+  readonly contextWorkspaceId: string | null;
   readonly childrenByParent: ReadonlyMap<string, readonly ConversationTreeAgent[]>;
   readonly workspaceDetails: ReadonlyMap<string, WorkspaceDetail>;
   readonly ancestors: ReadonlySet<string>;
@@ -140,6 +141,7 @@ function buildConversationNode(
   const branch = buildAgentBranch({
     agent,
     kind: "conversation",
+    contextWorkspaceId: normalizeWorkspaceId(agent.workspaceId),
     childrenByParent,
     workspaceDetails,
     ancestors: new Set(),
@@ -157,13 +159,22 @@ function buildConversationNode(
 /** Build a recursive subagent branch while cutting any repeated identity on the current path. */
 function buildSubagentNode(input: BuildAgentBranchInput): ConversationTreeSubagentNode {
   const branch = buildAgentBranch({ ...input, kind: "subagent" });
-  return { kind: "subagent", id: input.agent.id, ...branch };
+  return {
+    kind: "subagent",
+    id: input.agent.id,
+    ...branch,
+    contextWorkspaceId: normalizeWorkspaceId(input.agent.workspaceId) ?? input.contextWorkspaceId,
+    updatedAt: input.agent.updatedAt,
+    providerId: input.agent.provider,
+  };
 }
 
 /** Derive the shared agent-node fields and aggregate descendant count for one branch. */
 function buildAgentBranch(input: BuildAgentBranchInput): AgentBranch {
   const ancestors = new Set(input.ancestors);
   ancestors.add(input.agent.id);
+  const contextWorkspaceId =
+    normalizeWorkspaceId(input.agent.workspaceId) ?? input.contextWorkspaceId;
   const childAgents = input.childrenByParent.get(input.agent.id) ?? [];
   const children: ConversationTreeSubagentNode[] = [];
   for (const child of childAgents) {
@@ -174,6 +185,7 @@ function buildAgentBranch(input: BuildAgentBranchInput): AgentBranch {
       buildSubagentNode({
         agent: child,
         kind: "subagent",
+        contextWorkspaceId,
         childrenByParent: input.childrenByParent,
         workspaceDetails: input.workspaceDetails,
         ancestors,
@@ -193,12 +205,14 @@ function buildAgentBranch(input: BuildAgentBranchInput): AgentBranch {
   };
 }
 
-/** Resolve a nonblank row title without allowing workspace names to overwrite subagent labels. */
+/** Prefer each agent's own title so multiple conversations in one workspace remain distinguishable. */
 function resolveAgentTitle(
   agent: ConversationTreeAgent,
   kind: "conversation" | "subagent",
   workspaceDetails: ReadonlyMap<string, WorkspaceDetail>,
 ): string {
+  const agentTitle = agent.title?.trim() ?? "";
+  if (agentTitle.length > 0) return agentTitle;
   const workspaceId = normalizeWorkspaceId(agent.workspaceId);
   if (kind === "conversation" && workspaceId !== null) {
     const workspaceTitle = workspaceDetails.get(workspaceId)?.title?.trim() ?? "";
@@ -206,6 +220,5 @@ function resolveAgentTitle(
       return workspaceTitle;
     }
   }
-  const agentTitle = agent.title?.trim() ?? "";
-  return agentTitle.length > 0 ? agentTitle : agent.id;
+  return agent.id;
 }

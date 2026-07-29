@@ -15,8 +15,8 @@ class FakeContent implements TabContent {
   onActivated = vi.fn();
   onClosing = vi.fn();
   retarget = vi.fn();
-  constructor(path: string) {
-    this.title = path.split("/").pop() ?? path;
+  constructor(title: string) {
+    this.title = title;
   }
 }
 
@@ -25,7 +25,11 @@ class FakeFactory implements TabContentFactory {
   readonly created: FakeContent[] = [];
   readonly requests: OpenTabRequest[] = [];
   create(request: OpenTabRequest): TabContent {
-    const content = new FakeContent(request.location.path);
+    const content = new FakeContent(
+      request.kind === "file"
+        ? (request.location.path.split("/").pop() ?? request.location.path)
+        : request.title,
+    );
     this.created.push(content);
     this.requests.push(request);
     return content;
@@ -45,6 +49,55 @@ describe("WorkbenchModel · mode", () => {
     expect(wb.mode).toBe("launcher");
     wb.openTab({ kind: "file", location: { path: "a.ts" } });
     expect(wb.mode).toBe("tabs");
+  });
+});
+
+describe("WorkbenchModel · conversation tabs", () => {
+  const agentRequest = (agentId: string) =>
+    ({
+      kind: "conversation",
+      target: { kind: "agent", agentId },
+      workspaceId: "workspace-a",
+      title: `Agent ${agentId}`,
+      readOnly: false,
+    }) as const;
+
+  it("focuses an existing agent conversation instead of opening a duplicate", () => {
+    const { wb } = makeWorkbench();
+    wb.openTab(agentRequest("agent-1"));
+    wb.openTab(agentRequest("agent-1"));
+    expect(wb.tabs).toHaveLength(1);
+    expect(wb.tabs[0].path).toBe("agent:agent-1");
+  });
+
+  it("keeps distinct draft conversations as independent tabs", () => {
+    const { wb } = makeWorkbench();
+    for (const draftId of ["draft-1", "draft-2"]) {
+      wb.openTab({
+        kind: "conversation",
+        target: { kind: "draft", draftId },
+        workspaceId: "workspace-a",
+        title: "新对话",
+        readOnly: false,
+      });
+    }
+    expect(wb.tabs.map((tab) => tab.path)).toEqual(["draft:draft-1", "draft:draft-2"]);
+  });
+
+  it("retargets a draft to its created agent without moving the tab", () => {
+    const { wb } = makeWorkbench();
+    wb.openTab({
+      kind: "conversation",
+      target: { kind: "draft", draftId: "draft-1" },
+      workspaceId: "workspace-a",
+      title: "新对话",
+      readOnly: false,
+    });
+    const draftId = wb.tabs[0].id;
+    wb.retargetConversationTab(draftId, agentRequest("agent-1"));
+    expect(wb.tabs).toHaveLength(1);
+    expect(wb.tabs[0].id).toBe("conversation:agent:agent-1");
+    expect(wb.focusedTabId).toBe("conversation:agent:agent-1");
   });
 });
 

@@ -25,3 +25,24 @@ describe("createRightPanelController · openFile", () => {
     expect(openRight.mock.invocationCallOrder[0]).toBeLessThan(openTab.mock.invocationCallOrder[0]);
   });
 });
+
+describe("createRightPanelController · openConversation", () => {
+  it("ensures the right panel is open before opening the conversation tab", () => {
+    const openTab = vi.fn();
+    const openRight = vi.fn();
+    const workbench = { openTab } as unknown as WorkbenchModel;
+    const controller = createRightPanelController({ workbench, openRight });
+    const request = {
+      kind: "conversation",
+      target: { kind: "agent", agentId: "agent-1" },
+      workspaceId: "workspace-1",
+      title: "Agent 1",
+      readOnly: true,
+    } as const;
+
+    controller.openConversation(request);
+
+    expect(openTab).toHaveBeenCalledWith(request);
+    expect(openRight.mock.invocationCallOrder[0]).toBeLessThan(openTab.mock.invocationCallOrder[0]);
+  });
+});

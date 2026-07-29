@@ -11,6 +11,7 @@ import {
   cancelComposerAgent,
   dispatchComposerAgentMessage,
   editQueuedComposerMessage,
+  deleteQueuedComposerMessage,
   findGithubItemByOption,
   isAttachmentSelectedForGithubItem,
   openComposerAttachment,
@@ -525,6 +526,36 @@ describe("editQueuedComposerMessage", () => {
       attachments: [{ kind: "image", metadata: image }],
     });
     expect(queue.state.get("agent")).toEqual([]);
+  });
+});
+
+describe("deleteQueuedComposerMessage", () => {
+  it("returns false and preserves the queue when the target no longer exists", () => {
+    const queue = createFakeQueue(
+      new Map([["agent", [{ id: "other", text: "other", attachments: [] }]]]),
+    );
+
+    expect(deleteQueuedComposerMessage({ agentId: "agent", messageId: "missing", queue })).toBe(
+      false,
+    );
+    expect(queue.state.get("agent")?.map((item) => item.id)).toEqual(["other"]);
+  });
+
+  it("removes only the selected queued message and leaves the Composer draft untouched", () => {
+    const queue = createFakeQueue(
+      new Map([
+        [
+          "agent",
+          [
+            { id: "first", text: "first", attachments: [] },
+            { id: "second", text: "second", attachments: [] },
+          ],
+        ],
+      ]),
+    );
+
+    expect(deleteQueuedComposerMessage({ agentId: "agent", messageId: "first", queue })).toBe(true);
+    expect(queue.state.get("agent")?.map((item) => item.id)).toEqual(["second"]);
   });
 });
 

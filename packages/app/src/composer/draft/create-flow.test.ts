@@ -87,4 +87,31 @@ describe("useDraftAgentCreateFlow", () => {
     });
     expect(onCreateSuccess).toHaveBeenCalledTimes(1);
   });
+
+  it("clears a draft validation error after its missing prerequisite is resolved", async () => {
+    const { result } = renderHook(() =>
+      useDraftAgentCreateFlow({
+        draftId: "draft-validation",
+        getPendingServerId: () => "server-1",
+        validateBeforeSubmit: () => "Select working directory",
+        buildDraftAgent: () => ({ id: "optimistic" }),
+        createRequest: async () => ({ agentId: "agent-1", result: { id: "agent-1" } }),
+        onCreateSuccess: () => {},
+      }),
+    );
+
+    await act(async () => {
+      await expect(
+        result.current.handleCreateFromInput({
+          text: "keep this draft",
+          attachments: [],
+          cwd: "",
+        }),
+      ).rejects.toThrow("Select working directory");
+    });
+    expect(result.current.formErrorMessage).toBe("Select working directory");
+
+    act(() => result.current.clearFormError());
+    expect(result.current.formErrorMessage).toBe("");
+  });
 });

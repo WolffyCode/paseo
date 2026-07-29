@@ -1,0 +1,29 @@
+import { describe, expect, it } from "vitest";
+import {
+  draftWorkspaceDirectoryName,
+  shouldUseNativeDirectoryPicker,
+} from "./workspace-picker-model";
+
+describe("draftWorkspaceDirectoryName", () => {
+  it("uses the last directory segment across host path formats", () => {
+    expect(draftWorkspaceDirectoryName("/Volumes/Aether/coding/person/helm")).toBe("helm");
+    expect(draftWorkspaceDirectoryName("C:\\work\\helm\\")).toBe("helm");
+    expect(draftWorkspaceDirectoryName("~/coding/helm/")).toBe("helm");
+  });
+
+  it("keeps a root path recognizable when it has no directory segment", () => {
+    expect(draftWorkspaceDirectoryName("/")).toBe("/");
+    expect(draftWorkspaceDirectoryName("  ")).toBe("");
+  });
+});
+
+describe("shouldUseNativeDirectoryPicker", () => {
+  it("uses the operating-system directory dialog for a local Electron host", () => {
+    expect(shouldUseNativeDirectoryPicker({ isLocalDaemon: true, isElectron: true })).toBe(true);
+  });
+
+  it("keeps remote hosts and plain browsers on the host-backed path picker", () => {
+    expect(shouldUseNativeDirectoryPicker({ isLocalDaemon: false, isElectron: true })).toBe(false);
+    expect(shouldUseNativeDirectoryPicker({ isLocalDaemon: true, isElectron: false })).toBe(false);
+  });
+});

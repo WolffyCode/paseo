@@ -49,6 +49,16 @@ export interface WorkspaceDetail {
   readonly diffStat: WorkspaceDiffStat | null;
 }
 
+export interface ConversationTreeDraftTarget {
+  readonly draftId: string;
+  readonly workspaceId: string | null;
+}
+
+export interface ConversationTreePendingAgentTarget {
+  readonly agentId: string;
+  readonly workspaceId: string;
+}
+
 interface ConversationTreeNodeBase {
   readonly id: string;
   readonly title: string;
@@ -80,6 +90,9 @@ export interface ConversationTreeConversationNode extends ConversationTreeNodeBa
 export interface ConversationTreeSubagentNode extends ConversationTreeNodeBase {
   readonly kind: "subagent";
   readonly runStatus: ConversationRunStatus;
+  readonly contextWorkspaceId: string | null;
+  readonly updatedAt: string;
+  readonly providerId: string;
   readonly children: readonly ConversationTreeSubagentNode[];
 }
 

@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Helm · 对话视图状态记忆</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, system-ui, sans-serif;
+        color: #17211b;
+        background: #eef3ef;
+      }
+      body {
+        margin: 0;
+        padding: 28px;
+      }
+      main {
+        max-width: 1080px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 24px;
+        letter-spacing: 0;
+      }
+      h2 {
+        font-size: 16px;
+        letter-spacing: 0;
+        margin: 0 0 12px;
+      }
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .screen {
+        border: 1px solid #c9d4cc;
+        background: #fff;
+        border-radius: 8px;
+        padding: 14px;
+      }
+      .shell {
+        height: 220px;
+        display: grid;
+        grid-template-columns: 72px 1fr;
+        gap: 6px;
+        background: #dfe8e1;
+        padding: 6px;
+        border-radius: 6px;
+      }
+      .rail,
+      .canvas,
+      .tool,
+      .tree {
+        background: #fff;
+        border: 1px solid #d6ded8;
+        border-radius: 5px;
+      }
+      .canvas {
+        display: flex;
+        align-items: flex-end;
+        padding: 10px;
+        color: #78847c;
+      }
+      .open {
+        grid-template-columns: 72px 1fr 110px 74px;
+      }
+      .tool,
+      .tree {
+        padding: 8px;
+        font-size: 11px;
+      }
+      .tabs {
+        display: flex;
+        gap: 3px;
+        margin-bottom: 8px;
+      }
+      .tab {
+        padding: 3px 5px;
+        background: #e5efe8;
+        border-radius: 3px;
+      }
+      .active {
+        background: #cfe6d7;
+        color: #145b36;
+      }
+      .note {
+        margin-top: 12px;
+        font-size: 13px;
+        line-height: 1.6;
+        color: #48544c;
+      }
+      .states {
+        margin-top: 18px;
+        background: #fff;
+        border: 1px solid #c9d4cc;
+        border-radius: 8px;
+        padding: 16px;
+      }
+      dt {
+        font-weight: 600;
+        margin-top: 10px;
+      }
+      dd {
+        margin: 3px 0 0;
+        color: #4d5a52;
+      }
+      @media (max-width: 760px) {
+        .flow {
+          grid-template-columns: 1fr;
+        }
+        body {
+          padding: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="sVM1">
+      <h1>对话视图状态记忆</h1>
+      <div class="flow">
+        <section class="screen">
+          <h2>1 · 对话 A 的工作现场</h2>
+          <div class="shell open">
+            <div class="rail"></div>
+            <div class="canvas">对话 A</div>
+            <div class="tool">
+              <div class="tabs">
+                <span class="tab active">文件</span><span class="tab">对话</span>
+              </div>
+              右侧工作区
+            </div>
+            <div class="tree">目录树<br />src<br />docs</div>
+          </div>
+        </section>
+        <section class="screen">
+          <h2>2 · 首次进入对话 B</h2>
+          <div class="shell">
+            <div class="rail"></div>
+            <div class="canvas">对话 B · 两侧默认关闭</div>
+          </div>
+        </section>
+        <section class="screen">
+          <h2>3 · 返回对话 A</h2>
+          <div class="shell open">
+            <div class="rail"></div>
+            <div class="canvas">对话 A</div>
+            <div class="tool">
+              <div class="tabs">
+                <span class="tab active">文件</span><span class="tab">对话</span>
+              </div>
+              顺序与焦点恢复
+            </div>
+            <div class="tree">目录树<br />src<br />docs</div>
+          </div>
+        </section>
+      </div>
+      <p class="note">
+        新对话草稿与首次访问的旧对话使用同一默认态；草稿创建成功后沿用原视图，不发生关闭、清空或页签跳变。
+      </p>
+      <section class="states">
+        <h2>交互注解</h2>
+        <dl>
+          <dt>布局</dt>
+          <dd>
+            桌面三栏壳不变；文件目录树和右侧工作区按当前中区对话独立显示。紧凑/手机沿用现有单面板导航，本轮不新增并排布局。
+          </dd>
+          <dt>状态</dt>
+          <dd>
+            默认：首次视图两侧关闭。active：已访问视图恢复离开前的开关、最大化、页签、顺序与焦点。加载、错误、离线沿用各内容表面现有状态。
+          </dd>
+          <dt>hover</dt>
+          <dd>无新增 hover；顶部区域开关和页签沿用现有反馈。</dd>
+          <dt>右键菜单</dt>
+          <dd>不新增菜单；右侧页签继续提供关闭、关闭其它和关闭全部。</dd>
+          <dt>点击效果</dt>
+          <dd>
+            点击根对话或新对话先保存当前现场，再恢复目标现场；首次目标使用关闭/空默认态；返回旧目标恢复；subagent
+            只打开当前目标的右侧页签，不切换中区视图。
+          </dd>
+          <dt>禁用/空/运行</dt>
+          <dd>
+            无 workspace 时两侧工具保持不可用；空 Workbench 沿用
+            launcher；运行中的对话切换不销毁后台 agent 状态。
+          </dd>
+        </dl>
+      </section>
+    </main>
+  </body>
+</html>

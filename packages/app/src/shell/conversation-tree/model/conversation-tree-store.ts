@@ -8,6 +8,7 @@ import {
 } from "./apply-agent-update";
 import { applyWorkspaceUpdate } from "./apply-workspace-update";
 import { buildConversationTree } from "./build-tree";
+import { resolveDefaultConversationWorkspace } from "./draft-workspace";
 import { flattenTreeRows } from "./flatten-rows";
 import { groupWorkspacesIntoProjects } from "./group-projects";
 import { isPinned, togglePin } from "./pin-state";
@@ -20,7 +21,6 @@ import {
   validateRenameName,
 } from "./rename-state";
 import {
-  buildNewConversationRoute,
   buildOpenProjectRoute,
   buildProjectConversationRoute,
   type ProjectConversationRouteInput,
@@ -28,7 +28,9 @@ import {
 import { isConversationTreeRowSelected } from "./selection-state";
 import type {
   ConversationTreeAgent,
+  ConversationTreeDraftTarget,
   ConversationTreeNode,
+  ConversationTreePendingAgentTarget,
   ConversationTreePinTarget,
   ConversationTreeProject,
   ConversationTreeRow,
@@ -47,7 +49,12 @@ export interface ConversationTreeContext {
 
 export interface ConversationTreeStoreDeps {
   readonly data: ConversationTreeData;
-  readonly openRightPanel: () => void;
+  readonly openConversationInRightPanel: (input: {
+    readonly agentId: string;
+    readonly workspaceId: string;
+    readonly title: string;
+    readonly readOnly: boolean;
+  }) => void;
   readonly navigate: (route: string) => void;
   readonly openInFinder: (absolutePath: string) => Promise<void>;
   readonly openInNewWindow: (absolutePath: string) => void;
@@ -55,6 +62,11 @@ export interface ConversationTreeStoreDeps {
   readonly confirmDestructive: (input: { title: string; body: string }) => Promise<boolean>;
   readonly reportError: (input: { action: "rename" | "remove" | "pin"; message: string }) => void;
   readonly openSearch: () => void;
+  readonly createDraftId: () => string;
+  readonly retargetConversationView: (input: {
+    readonly draftId: string;
+    readonly agentId: string;
+  }) => void;
   readonly getContext: () => ConversationTreeContext;
 }
 
@@ -74,6 +86,8 @@ export class ConversationTreeStore {
   expandedNodeIds: ReadonlySet<string> = new Set();
   focusedRootId: string | null = null;
   activeNodeId: string | null = null;
+  draftTarget: ConversationTreeDraftTarget | null = null;
+  pendingAgentTarget: ConversationTreePendingAgentTarget | null = null;
   editing: Editing = null;
   removingProjectKeys: ReadonlySet<string> = new Set();
   isCommittingRename = false;
@@ -100,6 +114,8 @@ export class ConversationTreeStore {
         pins: observable.ref,
         collapsedProjectKeys: observable.ref,
         expandedNodeIds: observable.ref,
+        draftTarget: observable.ref,
+        pendingAgentTarget: observable.ref,
         editing: observable.ref,
         removingProjectKeys: observable.ref,
         deps: false,
@@ -379,10 +395,31 @@ export class ConversationTreeStore {
   activateNode(node: SelectableConversationTreeNode): void {
     this.activeNodeId = node.id;
     if (node.kind === "conversation") {
+      this.draftTarget = null;
+      this.pendingAgentTarget = null;
       this.focusedRootId = node.id;
       return;
     }
-    this.deps.openRightPanel();
+    const workspaceId = node.workspaceId ?? node.contextWorkspaceId;
+    if (workspaceId !== null) {
+      this.openConversationInRightPanel({
+        agentId: node.id,
+        workspaceId,
+        title: node.title,
+        readOnly: true,
+      });
+    }
+  }
+
+  /** Open one known agent in the right workbench while keeping center focus unchanged. */
+  openConversationInRightPanel(input: {
+    readonly agentId: string;
+    readonly workspaceId: string;
+    readonly title: string;
+    readonly readOnly: boolean;
+  }): void {
+    if (this.deps.getContext().isOffline) return;
+    this.deps.openConversationInRightPanel(input);
   }
 
   /** Derive row selection from independent center focus and most-recent activation identities. */
@@ -421,20 +458,55 @@ export class ConversationTreeStore {
     }
   }
 
-  /** Open the existing global new-conversation flow without project preselection. */
+  /** Replace the center target with an unbound inline draft that cannot inherit stale project context. */
   openNewConversation(): void {
-    if (!this.deps.getContext().isOffline) {
-      this.deps.navigate(buildNewConversationRoute(this.deps.getContext().serverId));
-    }
+    if (this.deps.getContext().isOffline) return;
+    this.beginDraft(null);
   }
 
-  /** Open the existing new-conversation flow with one project directory preselected. */
-  openProjectConversation(input: Omit<ProjectConversationRouteInput, "serverId">): void {
-    if (!this.deps.getContext().isOffline) {
-      this.deps.navigate(
-        buildProjectConversationRoute({ ...input, serverId: this.deps.getContext().serverId }),
-      );
-    }
+  /** Resolve the current draft workspace first, then the legacy default for right-panel creation. */
+  resolveNewConversationWorkspaceId(): string | null {
+    if (this.draftTarget !== null) return this.draftTarget.workspaceId;
+    const workspace = resolveDefaultConversationWorkspace({
+      focusedRootId: this.focusedRootId,
+      agents: this.agents,
+      details: this.workspaceDetails,
+    });
+    return workspace?.workspaceId ?? null;
+  }
+
+  /** Replace the center target with an inline draft scoped to one resolved project workspace. */
+  openProjectConversation(workspaceId: string | null): void {
+    if (this.deps.getContext().isOffline) return;
+    if (workspaceId !== null && !this.workspaceDetails.has(workspaceId)) return;
+    this.beginDraft(workspaceId);
+  }
+
+  /** Bind the current draft to the daemon-confirmed workspace without changing its draft identity. */
+  bindDraftWorkspace(workspace: WorkspaceDescriptorPayload): void {
+    if (this.draftTarget === null) return;
+    this.workspaceDetails = applyWorkspaceUpdate(this.workspaceDetails, workspace);
+    this.draftTarget = { ...this.draftTarget, workspaceId: workspace.id };
+  }
+
+  /** Keep the existing worktree creation route separate from the inline conversation draft. */
+  openProjectWorktree(input: Omit<ProjectConversationRouteInput, "serverId">): void {
+    if (this.deps.getContext().isOffline) return;
+    this.deps.navigate(
+      buildProjectConversationRoute({ ...input, serverId: this.deps.getContext().serverId }),
+    );
+  }
+
+  /** Atomically retarget a successful draft before its daemon directory event arrives. */
+  completeDraft(agentId: string): void {
+    const workspaceId = this.draftTarget?.workspaceId ?? null;
+    const draftId = this.draftTarget?.draftId ?? null;
+    if (workspaceId === null || draftId === null) return;
+    this.draftTarget = null;
+    this.pendingAgentTarget = { agentId, workspaceId };
+    this.focusedRootId = agentId;
+    this.activeNodeId = agentId;
+    this.deps.retargetConversationView({ draftId, agentId });
   }
 
   /** Open the existing project picker when no project directory is known. */
@@ -474,6 +546,7 @@ export class ConversationTreeStore {
         this.projects = nextProjects;
         this.workspaceDetails = nextWorkspaceDetails;
         this.clearUnreachableReferences(unreachableIds);
+        this.initializeDefaultDraft();
         this.isLoading = false;
         this.loadError = null;
       });
@@ -497,6 +570,9 @@ export class ConversationTreeStore {
       this.agents = result.agents;
       this.projects = result.projects;
       this.clearUnreachableReferences(result.unreachableIds);
+      if (event.kind === "upsert" && this.pendingAgentTarget?.agentId === event.agent.id) {
+        this.pendingAgentTarget = null;
+      }
     });
   }
 
@@ -538,9 +614,33 @@ export class ConversationTreeStore {
     if (this.activeNodeId !== null && unreachableIds.has(this.activeNodeId)) {
       this.activeNodeId = null;
     }
-    if (this.focusedRootId !== null && unreachableIds.has(this.focusedRootId)) {
+    if (
+      this.focusedRootId !== null &&
+      this.pendingAgentTarget?.agentId !== this.focusedRootId &&
+      unreachableIds.has(this.focusedRootId)
+    ) {
       this.focusedRootId = null;
     }
+  }
+
+  /** Give a successfully loaded host a usable center without replacing an explicit target. */
+  private initializeDefaultDraft(): void {
+    if (
+      this.focusedRootId !== null ||
+      this.draftTarget !== null ||
+      this.pendingAgentTarget !== null
+    ) {
+      return;
+    }
+    this.beginDraft(null);
+  }
+
+  /** Start one new center draft and clear selection from the previously shown tree row. */
+  private beginDraft(workspaceId: string | null): void {
+    this.draftTarget = { draftId: this.deps.createDraftId(), workspaceId };
+    this.pendingAgentTarget = null;
+    this.focusedRootId = null;
+    this.activeNodeId = null;
   }
 }
 

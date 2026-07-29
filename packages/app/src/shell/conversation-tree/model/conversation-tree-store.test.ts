@@ -177,7 +177,14 @@ interface StoreHarness {
   readonly openedWindows: string[];
   readonly context: { serverId: string; isElectron: boolean; isOffline: boolean };
   readonly getRightOpenCount: () => number;
+  readonly rightPanelRequests: Array<{
+    agentId: string;
+    workspaceId: string;
+    title: string;
+    readOnly: boolean;
+  }>;
   readonly getSearchOpenCount: () => number;
+  readonly retargetedConversationViews: Array<{ draftId: string; agentId: string }>;
 }
 
 /** Wire the store over explicit side-effect ports and retain their observable call history. */
@@ -189,11 +196,15 @@ function createStoreHarness(data: FakeConversationTreeData): StoreHarness {
   const openedWindows: string[] = [];
   const context = { serverId: "server", isElectron: true, isOffline: false };
   let rightOpenCount = 0;
+  const rightPanelRequests: StoreHarness["rightPanelRequests"] = [];
   let searchOpenCount = 0;
+  let draftCount = 0;
+  const retargetedConversationViews: StoreHarness["retargetedConversationViews"] = [];
   const store = new ConversationTreeStore({
     data,
-    openRightPanel: () => {
+    openConversationInRightPanel: (input) => {
       rightOpenCount += 1;
+      rightPanelRequests.push(input);
     },
     navigate: (route) => navigated.push(route),
     openInFinder: async (path) => {
@@ -206,6 +217,8 @@ function createStoreHarness(data: FakeConversationTreeData): StoreHarness {
     openSearch: () => {
       searchOpenCount += 1;
     },
+    createDraftId: () => `draft-${++draftCount}`,
+    retargetConversationView: (input) => retargetedConversationViews.push(input),
     getContext: () => context,
   });
   return {
@@ -217,7 +230,9 @@ function createStoreHarness(data: FakeConversationTreeData): StoreHarness {
     openedWindows,
     context,
     getRightOpenCount: () => rightOpenCount,
+    rightPanelRequests,
     getSearchOpenCount: () => searchOpenCount,
+    retargetedConversationViews,
   };
 }
 
@@ -235,7 +250,7 @@ function firstConversation(store: ConversationTreeStore) {
 }
 
 describe("ConversationTreeStore", () => {
-  test("loads agents and workspaces in parallel and refreshes computed titles from workspace pushes", async () => {
+  test("loads agents and workspaces in parallel without letting workspace titles replace agent titles", async () => {
     const data = new FakeConversationTreeData();
     data.agents = [agent("root", { workspaceId: "workspace-root" })];
     data.workspaceSnapshot = { workspaces: [workspace("workspace-root")], emptyProjects: [] };
@@ -246,10 +261,63 @@ describe("ConversationTreeStore", () => {
     await loading;
 
     expect(store.panelState).toBe("ready");
-    expect(firstConversation(store).title).toBe("Workspace workspace-root");
+    expect(firstConversation(store).title).toBe("Agent root");
 
     data.emitWorkspace(workspace("workspace-root", { name: "Renamed live" }));
-    expect(firstConversation(store).title).toBe("Renamed live");
+    expect(firstConversation(store).title).toBe("Agent root");
+  });
+
+  test("opens a new conversation draft after the initial workspace load", async () => {
+    const data = new FakeConversationTreeData();
+    data.workspaceSnapshot = {
+      workspaces: [workspace("workspace-root", { workspaceKind: "directory" })],
+      emptyProjects: [],
+    };
+    const { store } = createStoreHarness(data);
+
+    await store.load();
+
+    expect(store.draftTarget).toEqual({
+      draftId: "draft-1",
+      workspaceId: null,
+    });
+    expect(store.focusedRootId).toBeNull();
+    expect(store.activeNodeId).toBeNull();
+  });
+
+  test("keeps every explicit center target across a later directory reload", async () => {
+    const data = new FakeConversationTreeData();
+    data.agents = [agent("root", { workspaceId: "workspace-root" })];
+    data.workspaceSnapshot = {
+      workspaces: [workspace("workspace-root", { workspaceKind: "directory" })],
+      emptyProjects: [],
+    };
+
+    const selected = createStoreHarness(data);
+    await selected.store.load();
+    selected.store.activateNode(firstConversation(selected.store));
+    await selected.store.load();
+    expect(selected.store.focusedRootId).toBe("root");
+    expect(selected.store.draftTarget).toBeNull();
+
+    const drafted = createStoreHarness(data);
+    await drafted.store.load();
+    drafted.store.openNewConversation();
+    const explicitDraft = drafted.store.draftTarget;
+    await drafted.store.load();
+    expect(drafted.store.draftTarget).toEqual(explicitDraft);
+
+    const pending = createStoreHarness(data);
+    await pending.store.load();
+    pending.store.bindDraftWorkspace(workspace("workspace-root", { workspaceKind: "directory" }));
+    pending.store.completeDraft("created-agent");
+    await pending.store.load();
+    expect(pending.store.pendingAgentTarget).toEqual({
+      agentId: "created-agent",
+      workspaceId: "workspace-root",
+    });
+    expect(pending.store.focusedRootId).toBe("created-agent");
+    expect(pending.store.draftTarget).toBeNull();
   });
 
   test("applies agent upserts and project placement without rebuilding subscriptions", async () => {
@@ -384,15 +452,67 @@ describe("ConversationTreeStore", () => {
     expect(harness.store.isRowSelected(root)).toBe(true);
     expect(harness.store.isRowSelected(child)).toBe(true);
     expect(harness.getRightOpenCount()).toBe(1);
+    expect(harness.rightPanelRequests).toEqual([
+      {
+        agentId: "child",
+        workspaceId: "workspace-root",
+        title: "Agent child",
+        readOnly: true,
+      },
+    ]);
     expect(harness.navigated).toEqual([]);
   });
 
-  test("owns both existing navigation destinations and blocks them while offline", () => {
+  test("opens global and project drafts inline while keeping worktree and picker navigation", async () => {
     const data = new FakeConversationTreeData();
+    data.agents = [agent("root", { workspaceId: "workspace-root" })];
+    data.workspaceSnapshot = {
+      workspaces: [
+        workspace("workspace-root", { workspaceKind: "directory" }),
+        workspace("workspace-other", {
+          projectId: "other",
+          workspaceKind: "directory",
+          workspaceDirectory: "/repo/other",
+        }),
+      ],
+      emptyProjects: [],
+    };
     const harness = createStoreHarness(data);
+    await harness.store.load();
 
+    harness.store.activateNode(firstConversation(harness.store));
+    expect(harness.store.resolveNewConversationWorkspaceId()).toBe("workspace-root");
     harness.store.openNewConversation();
-    harness.store.openProjectConversation({
+    expect(harness.store.draftTarget).toEqual({
+      draftId: "draft-2",
+      workspaceId: null,
+    });
+    expect(harness.store.resolveNewConversationWorkspaceId()).toBeNull();
+    expect(harness.store.focusedRootId).toBeNull();
+    expect(harness.store.activeNodeId).toBeNull();
+
+    harness.store.openProjectConversation("workspace-other");
+    expect(harness.store.draftTarget).toEqual({
+      draftId: "draft-3",
+      workspaceId: "workspace-other",
+    });
+
+    harness.store.openProjectConversation(null);
+    expect(harness.store.draftTarget).toEqual({ draftId: "draft-4", workspaceId: null });
+
+    const selectedWorkspace = workspace("workspace-other", {
+      projectId: "other",
+      workspaceKind: "directory",
+      workspaceDirectory: "/repo/other",
+    });
+    harness.store.bindDraftWorkspace(selectedWorkspace);
+    expect(harness.store.draftTarget).toEqual({
+      draftId: "draft-4",
+      workspaceId: "workspace-other",
+    });
+    expect(harness.store.workspaceDetails.get("workspace-other")?.directory).toBe("/repo/other");
+
+    harness.store.openProjectWorktree({
       sourceDirectory: "/repo/project",
       projectKey: "project",
       projectName: "Project",
@@ -400,14 +520,56 @@ describe("ConversationTreeStore", () => {
     harness.store.openProjectPicker();
 
     expect(harness.navigated).toEqual([
-      "/h/server/new",
       "/h/server/new?dir=%2Frepo%2Fproject&name=Project&projectId=project",
       "/h/server/open-project",
     ]);
 
     harness.context.isOffline = true;
     harness.store.openNewConversation();
-    expect(harness.navigated).toHaveLength(3);
+    expect(harness.store.draftTarget?.draftId).toBe("draft-4");
+    expect(harness.navigated).toHaveLength(2);
+  });
+
+  test("keeps an inline unavailable draft when no workspace exists", () => {
+    const harness = createStoreHarness(new FakeConversationTreeData());
+
+    expect(harness.store.resolveNewConversationWorkspaceId()).toBeNull();
+    harness.store.openNewConversation();
+
+    expect(harness.store.draftTarget).toEqual({ draftId: "draft-1", workspaceId: null });
+    expect(harness.navigated).toEqual([]);
+  });
+
+  test("retargets a completed draft before the daemon upsert and releases the bridge afterward", async () => {
+    const data = new FakeConversationTreeData();
+    data.workspaceSnapshot = {
+      workspaces: [workspace("workspace-root", { workspaceKind: "directory" })],
+      emptyProjects: [],
+    };
+    const harness = createStoreHarness(data);
+    await harness.store.load();
+    harness.store.openNewConversation();
+    harness.store.bindDraftWorkspace(workspace("workspace-root", { workspaceKind: "directory" }));
+
+    harness.store.completeDraft("created-agent");
+
+    expect(harness.store.draftTarget).toBeNull();
+    expect(harness.store.pendingAgentTarget).toEqual({
+      agentId: "created-agent",
+      workspaceId: "workspace-root",
+    });
+    expect(harness.store.focusedRootId).toBe("created-agent");
+    expect(harness.store.activeNodeId).toBe("created-agent");
+    expect(harness.retargetedConversationViews).toEqual([
+      { draftId: "draft-2", agentId: "created-agent" },
+    ]);
+
+    data.emitAgent({
+      kind: "upsert",
+      agent: agent("created-agent", { workspaceId: "workspace-root" }),
+      project: { projectKey: "project", projectName: "Project" },
+    });
+    expect(harness.store.pendingAgentTarget).toBeNull();
   });
 
   test("dispose unsubscribes both streams exactly once and blocks later fake events", () => {

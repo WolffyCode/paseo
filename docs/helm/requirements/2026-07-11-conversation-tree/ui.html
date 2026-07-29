@@ -91,6 +91,14 @@
           linear-gradient(152deg, #11151c 0%, #0b0e14 55%, #0d1117 100%);
         --win-shadow: 0 12px 30px -16px rgba(0, 0, 0, 0.6), 0 2px 6px -3px rgba(0, 0, 0, 0.5);
       }
+
+      /* v6 final override: conversation rows are title-only and expose actions through context menus. */
+      .tnode > .tdot,
+      .tnode > .tbadge,
+      .tnode > .tact,
+      .tnode > svg:has(> use[href="#bot"]) {
+        display: none !important;
+      }
       * {
         box-sizing: border-box;
         margin: 0;
@@ -714,7 +722,8 @@
         display: flex;
         align-items: center;
         gap: 6px;
-        padding: 8px 9px 4px;
+        height: 36px;
+        padding: 0 9px;
         font-size: 12.5px;
         font-weight: 500;
         color: var(--muted-fg);
@@ -740,7 +749,10 @@
         color: var(--fg);
       }
       .lsb-empty {
-        padding: 5px 9px 7px;
+        height: 36px;
+        padding: 0 9px;
+        display: flex;
+        align-items: center;
         font-size: 12.5px;
         color: var(--muted-fg);
       }
@@ -758,7 +770,7 @@
         display: flex;
         align-items: center;
         gap: 6px;
-        height: 30px;
+        height: 36px;
         padding: 0 8px 0 8px;
         border-radius: var(--r-sm);
         font-size: 13.5px;
@@ -1072,7 +1084,7 @@
         font-variant-numeric: tabular-nums;
       }
 
-      /* 项目(目录)行 · 两行结构（v3 新增）：第一行维持现状（chevron + 文件夹图标 +
+      /* 项目(目录)行 · 历史两行结构（v3 新增，v5 已由下方单行覆盖）：第一行维持现状（chevron + 文件夹图标 +
          标题），新增第二行 = 当前 git 分支 + diff 统计——无分支显”暂无分支”、无
          diff 数据则隐藏 diff 段（与 workspace-hover-card 里 branch/diffStat 各自
          独立可空的处理一致）。视觉与取数逻辑直接搬 workspace-hover-card 已在用
@@ -1083,8 +1095,8 @@
       .tnode.tproj {
         height: auto;
         align-items: flex-start;
-        padding-top: 6px;
-        padding-bottom: 6px;
+        padding-top: 8px;
+        padding-bottom: 8px;
       }
       .tnode.tproj .twedge {
         margin-top: 2px;
@@ -1124,16 +1136,16 @@
         color: var(--destructive);
       }
 
-      /* 对话(根)行 · 两行结构（v2 起两行 · v3 改第二行内容 + 去前置状态点）：
+      /* 对话(根)行 · 历史两行结构（v2 起两行，v5 已由下方单行覆盖）：
          第一行 = 标题 + 最近说话时间（v3 新增占位，见 .ttime）；第二行 = 标签行
          （v3 新增 .ttags，取代 v2 的纯文字状态文案）。前置图形位置 v3 起只剩展开
          箭头，.tconv 不再需要为状态点单独让位/对齐。行高实测见 sCT2（内容变了，
-         盒模型量法不变）。subagent 沿用 .tnode 原单行 30px，不套这组类，本轮不变。 */
+         盒模型量法不变）。subagent 沿用 .tnode 原单行 36px，不套这组类。 */
       .tnode.tconv {
         height: auto;
         align-items: flex-start;
-        padding-top: 6px;
-        padding-bottom: 6px;
+        padding-top: 8px;
+        padding-bottom: 8px;
       }
       .tnode.tconv .twedge {
         margin-top: 2px;
@@ -1143,7 +1155,7 @@
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 2px;
+        gap: 6px;
       }
       .tline1 {
         display: flex;
@@ -1162,6 +1174,29 @@
         overflow: hidden;
       }
 
+      /* v5 最终态：项目与根对话均回归 36px 单行；旧稿中的第二行仅作为历史记录保留。 */
+      .tnode.tproj,
+      .tnode.tconv {
+        height: 36px;
+        align-items: center;
+        padding-top: 0;
+        padding-bottom: 0;
+      }
+      .tnode.tproj .twedge,
+      .tnode.tproj .ti,
+      .tnode.tconv .twedge {
+        margin-top: 0;
+      }
+      .tnode.tproj .tline2,
+      .tnode.tconv .tline2,
+      .tnode.tconv .ttime {
+        display: none;
+      }
+      .tnode.tproj .tbody,
+      .tnode.tconv .tbody {
+        gap: 0;
+      }
+
       .lsb-foot {
         border-top: 1px solid var(--border);
         padding: 7px 1px 1px;
@@ -1178,14 +1213,14 @@
         opacity: 0.8;
       }
 
-      /* workspace hover 卡（真实 WorkspaceHoverCard 字段：标题/分支/目录/最后更改/diffstat/PR） */
+      /* v5 项目 / 根对话 hover 信息卡。 */
       .whc {
-        width: 236px;
+        width: 280px;
         background: var(--card);
         border: 1px solid var(--border);
-        border-radius: 10px;
+        border-radius: 8px;
         box-shadow: 0 10px 26px -8px rgba(31, 35, 40, 0.26);
-        padding: 9px 0 6px;
+        padding: 10px 0 8px;
       }
       .dark .whc {
         box-shadow: 0 10px 26px -8px rgba(0, 0, 0, 0.6);
@@ -1193,16 +1228,30 @@
       .whc-t {
         font-size: 13px;
         color: var(--fg);
-        padding: 0 12px 8px;
-        font-weight: 500;
+        padding: 0 12px 10px;
+      }
+      .whc-label {
+        padding: 0 12px 3px;
+        font-size: 10px;
+        color: var(--muted-fg);
       }
       .whc-row {
         display: flex;
-        align-items: center;
-        gap: 6px;
-        padding: 0 12px 8px;
+        align-items: flex-start;
+        gap: 8px;
+        padding: 5px 12px;
         font-size: 11px;
         color: var(--muted-fg);
+      }
+      .whc-field {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .whc-field b {
+        color: var(--fg);
+        font-weight: 400;
       }
       .whc-row .ic {
         flex: none;
@@ -2243,7 +2292,7 @@
         <span class="logo"
           ><svg class="i lg" style="color: #fff"><use href="#panel-l" /></svg
         ></span>
-        左侧对话树 · UI 设计稿 v2
+        左侧对话树 · UI 设计稿 v6
       </h1>
       <div class="sub">
         壳左侧边栏（空容器）的<b>内部内容</b>设计——「CodePilot 外壳 + Helm
@@ -2256,6 +2305,27 @@
         hover 卡）；<b>视觉令牌</b> 100% 复用右侧侧边栏 v8 的 codePilot 主题（浅+深）。壳（顶栏三
         toggle / 交通灯 / 240·180–300 拖拽 /
         设置页切换）已有，本稿不重画其交互，仅用简化壳示意落点。
+      </div>
+    </div>
+
+    <div class="rev-bar">
+      <span class="rb-tag">v6 · 2026-07-28 · 纯标题与操作右键化修正</span>
+      <div>
+        项目、根对话、subagent 统一为 <b>36px 单行</b>。项目行 = 文件夹图标 + 标题；根对话行 =
+        纯标题，不加图标，原分支/diff、时间、provider 与状态标签均移出行内。hover
+        项目行的右侧卡片显示标题、文件路径、Git 分支、Git diff；hover 根对话与 subagent
+        行都显示目标自身的对话名称、操作目录、最后一次使用时间、提供方。subagent
+        没有独立工作区时，操作目录仅为展示而继承父级目录上下文。审核中、报错、进行中等状态判断与视觉延后讨论。
+      </div>
+    </div>
+
+    <div class="rev-bar">
+      <span class="rb-tag">v4 · 2026-07-28 · 纵向密度修正</span>
+      <div>
+        两层目录结构、缩进、节点内容与交互保持不变，仅放松连续树行的纵向节奏：项目 / 对话(根)
+        两行行高由 48px 调整为 <b>56px</b>（上下 padding 8px、两行间距 6px），subagent
+        单行、分组标题与空提示统一为 <b>36px</b>。不新增分隔线或卡片，继续用缩进、chevron 和 hover /
+        选中背景表达层级。
       </div>
     </div>
 
@@ -2303,7 +2373,7 @@
 
     <div class="req-log">
       <div class="rl-h">
-        需求 · 2026-07-11-conversation-tree（v3 · 7 屏高保真设计稿 · 与 requirement.md sCT1–sCT7
+        需求 · 2026-07-11-conversation-tree（v6 · 7 屏高保真设计稿 · 与 requirement.md sCT1–sCT7
         1:1）
       </div>
       <table>
@@ -2316,29 +2386,25 @@
           <td>sCT1</td>
           <td>
             左栏默认态：主机切换器 + 新对话/搜索 + 对话树（置顶/项目/对话）+
-            设置入口上下文；浅深双出；<b
-              >v3
-              同步对话(根)行去状态点+标签行+最近说话时间占位、项目行两行(分支+diff)、简化壳容器高度再调整</b
-            >
+            设置入口上下文；浅深双出；项目 / 根对话 / subagent 统一 36px 单行
           </td>
-          <td><span class="pill rev">v3 改</span></td>
+          <td><span class="pill rev">v6 改</span></td>
         </tr>
         <tr>
           <td>sCT2</td>
           <td>
-            树结构拆解：缩进/chevron/CLI类型与状态标签(替代对话·subagent图标+状态点)/本地目录名/选中淡灰
-            + 状态标签图例(五态·前景+12%底色) + provider 图标图例 + 对话行两行(标签行版) +
-            项目行两行(分支/diff) + subagent 单行不变 + 只读子标记 + 深度封顶
+            树结构拆解：缩进 / chevron / 项目文件夹图标 / 根对话与 subagent 纯标题 /
+            三类节点统一单行 / 无状态点与后代数量 / 深度封顶
           </td>
-          <td><span class="pill rev">v3 改</span></td>
+          <td><span class="pill rev">v6 改</span></td>
         </tr>
         <tr>
           <td>sCT3</td>
           <td>
-            交互态：hover 更多浮出 / 选中 / 双击内联重命名 / hover 工作区卡片 / 拖拽排序 /
-            右键菜单（目录 6 项 · 对话行两种真实形态）/ 移除确认
+            交互态：hover / 选中 / 双击内联重命名 / hover 信息卡片 / 拖拽排序 / 无行尾动作 /
+            右键菜单（目录 7 项 · 对话行两种真实形态）/ 移除确认
           </td>
-          <td><span class="pill unch">未改 · 范围边界</span></td>
+          <td><span class="pill rev">v6 改</span></td>
         </tr>
         <tr>
           <td>sCT4</td>
@@ -2383,7 +2449,7 @@
         >：本稿只画左栏<b>内胆</b>——主机切换器 / 新对话 / 搜索会话 / 对话树 /
         设置入口的<b>上下文位置</b>；左栏容器本身（默认 240 · 拖拽 180–300 · 展开/收起 toggle ·
         交通灯 · 统一顶栏其余槽位）归<b>壳 + codepilot-layout</b
-        >，本稿用<b>简化壳</b>（浅透明、非本屏交互对象）示意落点、不重画其交互。<b>行为溯源</b>：状态点/右键菜单项/置顶分组/悬浮工作区卡片等取自<b>真实现有实现</b>（<code
+        >，本稿用<b>简化壳</b>（浅透明、非本屏交互对象）示意落点、不重画其交互。<b>行为溯源</b>：右键菜单项/置顶分组/悬浮信息卡片等取自<b>真实现有实现</b>（<code
           >conversation-tree/render.tsx</code
         >
         · <code>select.ts</code> · <code>use-*-row-actions.ts</code>），非凭空造；与视觉参照
@@ -2408,21 +2474,12 @@
           日常默认态：顶部<b>主机切换器</b>（当前主机 + 在线点）→
           <b>新对话 / 搜索会话</b>两个常驻入口 → <b>置顶</b>（仅有置顶项时出现）→
           <b>项目</b>（本地目录分组，展开/收起）→ <b>对话</b>（无项目归属的游离对话）三段树 →
-          最下方<b>设置入口</b>（壳级按钮，本稿画其上下文位置）。<b>v3 信息架构改动</b
-          >（董事长渲染实屏后第三轮反馈，非视觉微调，见头部 rev-bar）：
-          <b>对话（根）行前置图形只剩展开箭头</b>——v2 保留的状态点本轮也去掉；<b>第一行行尾</b>从
-          subagent 计数角标改为<b>最近说话时间</b>（相对时间，<span
-            style="border-bottom: 1px dashed var(--muted-fg)"
-            >虚线标记为占位</span
-          >，数据待架构确认）； <b>第二行</b>从一句状态文案改成<b>一排标签</b>——状态标签（配色复用
-          <code>--success</code
-          >/<code>--warning</code>/<code>--destructive</code>/<code>--primary</code>/<code>--muted-fg</code>，视觉延伸
-          <code>docs/design.md</code> §12 <code>&lt;StatusBadge&gt;</code>）+ CLI 类型标签（图标取自
-          <code>provider-icons.ts</code>）。
-          <b>项目行本轮起也改两行</b>——第一行不变（chevron+文件夹图标+标题），新增第二行 = 当前 git
-          分支 + diff 统计（无分支显「暂无分支」，视觉搬自
-          <code>workspace-hover-card.tsx</code>）。<b>subagent 行本轮不变</b
-          >，继续单行紧凑（30px）、保留（更小号）状态点。全六态标签文案 + 逐项像素见 sCT2。
+          最下方<b>设置入口</b>（壳级按钮，本稿画其上下文位置）。<b>v6 最终态</b>：项目、根对话与
+          subagent 均为 36px
+          单行。项目行保留文件夹图标并显示标题；根对话行只显示标题，不加图标，分支、diff、时间、provider
+          和状态均不在行内出现。subagent 同样只显示标题，不显示状态点、图标或后代数量。项目和所有
+          对话与 subagent 的补充信息都通过右侧 hover 卡片查看；subagent
+          卡片使用它自己的名称、时间与提供方。 所有行都没有尾部动作，管理操作统一使用右键菜单。
         </p>
       </div>
 
@@ -2879,23 +2936,18 @@
                 <dd>
                   主机切换器（闭合）+ 新对话/搜索 +
                   置顶（<b>仅有置顶项时出现</b>，无则该段整体不显）+ 项目 + 对话 三段树 +
-                  设置入口。<b>v3 起项目行与对话(根)行均为两行</b>，subagent 行仍单行，见下。
+                  设置入口。<b>v6 最终态三类节点均为 36px 单行</b>，见下。
                 </dd>
                 <dt>hover / 选中 / 重命名 / 右键 / 拖拽</dt>
                 <dd>
                   见
                   <a href="#sCT3" style="color: #0969da">sCT3</a
-                  >（本屏只画静态默认态，不叠加鼠标态，避免默认态失真；sCT3 尚未回填 v3 结构，见头部
-                  rev-bar「已知遗留」）。
+                  >（本屏只画静态默认态，不叠加鼠标态，避免默认态失真）。
                 </dd>
-                <dt>运行 / 状态标签（v3）</dt>
+                <dt>运行 / 状态</dt>
                 <dd>
-                  对话(根)行状态<b>不再用状态点</b>、改用第二行的标签表达，见
-                  <a href="#sCT2" style="color: #0969da">sCT2</a> 状态标签图例（运行 / 需关注 / 出错
-                  / 空闲 / 初始化中，配色 + 呼吸动效扎根真实 <code>status</code> +
-                  <code>requiresAttention</code> 字段，只是容器从独立圆点换成标签内嵌小圆点）；<b
-                    >subagent 行状态点本轮不变</b
-                  >，仍是行首独立小圆点。
+                  根对话与 subagent 行均不显示状态点或状态标签；审核中、报错、进行中等状态判断与视觉
+                  延后单独设计。
                 </dd>
                 <dt>禁用 / 离线</dt>
                 <dd>
@@ -2910,13 +2962,10 @@
                   注释已标「左栏(深)」，本稿是其消费方）；行 hover/选中同
                   <code>--accent</code>/<code>--secondary</code> 深色映射。
                 </dd>
-                <dt>待确认（v3 新增，未拍板）</dt>
+                <dt>最终覆盖（v6）</dt>
                 <dd>
-                  ① subagent 计数角标从对话(根)行去掉后是否需要挪去别处、是否为可用性倒退；②
-                  对话(根)行已去状态点、subagent 行仍留状态点，两者是否显得割裂；③ 项目行内分支/diff
-                  与 sCT3 hover 工作区卡片的分支/diff 是否重复展示；④ 项目行分支/diff
-                  对应"项目主目录"还是聚合口径（项目下常有多个工作树）——四项均<b>不在本轮自行拍板</b>，详细讨论见
-                  <a href="#sCT2" style="color: #0969da">sCT2</a> 注解。
+                  根对话与 subagent 都是纯标题；不显示状态点、数量或行尾按钮。项目、根对话、subagent
+                  均保留 hover，根对话与 subagent 点击后显示选中态，操作统一进入右键菜单。
                 </dd>
               </dl>
             </div>
@@ -2925,7 +2974,7 @@
             <div class="ac-h">右键菜单</div>
             <div class="menulist">
               <div class="ml-p">
-                本屏为默认态，不叠加右键浮层。<b>目录（项目）行 6 项</b> /
+                本屏为默认态，不叠加右键浮层。<b>目录（项目）行 7 项（含“新对话”）</b> /
                 <b>对话·subagent 行两种真实形态</b>（随
                 <code>hasWorkspace</code>/<code>canReveal</code>/<code>canOpenInNewWindow</code>
                 能力位增减，非按节点类型硬切）/ <b>双击内联重命名</b> / <b>拖拽排序</b> 全量清单 +
@@ -2941,30 +2990,20 @@
     <section class="screen" id="sCT2">
       <div class="screen-head">
         <span class="tag">sCT2</span>
-        <h2>树结构拆解 · 缩进 / chevron / 标签行 / 对话与项目两行结构</h2>
+        <h2>树结构拆解 · 缩进 / chevron / 统一单行结构</h2>
         <p>
           单支展开的测量与图例参照。缩进 / chevron
           尺寸取<b>真实实现</b>数值（<code>conversation-tree/render.tsx</code>）。
-          <b>v3 信息架构改动</b>（董事长渲染 v2 实屏后第三轮反馈，非视觉微调，详见头部 rev-bar）：①
-          <b>对话(根)行前置图形只剩展开箭头</b>——v2 保留的状态点本轮也去掉，chevron
-          是该行现在唯一的前置图形；② <b>第二行从一句状态文案改成一排标签</b>——CLI
-          类型标签（图标取自 <code>provider-icons.ts</code>）+ 当前状态标签（配色复用
-          <code>--success</code
-          >/<code>--warning</code>/<code>--destructive</code>/<code>--primary</code>/<code>--muted-fg</code>，视觉延伸
-          <code>docs/design.md</code> §12
-          <code>&lt;StatusBadge&gt;</code>，呼吸动效原样保留、只是从独立圆点搬进标签内嵌小圆点）；③
-          <b>第一行行尾从 subagent 计数角标改成最近说话时间</b
-          >（相对时间，<b>本项是视觉占位</b>，虚线边框标记，数据待架构确认）；④
-          <b>subagent 行本轮不变</b>，继续单行紧凑、保留（更小号）状态点；⑤
-          <b>项目(目录)行本轮起也改两行</b>——第一行不变（chevron + 文件夹图标 + 标题），新增第二行 =
-          当前 git 分支 + diff 统计（无分支显「暂无分支」），视觉搬自
-          <code>workspace-hover-card.tsx</code>。
+          <b>v6 最终态</b>统一三类节点的扫描节奏：项目行 36px 单行，保留文件夹图标 + 标题；根对话行
+          36px 单行，只显示标题、不加图标；subagent 36px 单行，同样只显示标题，不加状态点、图标或
+          后代数量。分支、diff、时间和 provider 从行内移到 hover
+          卡片。根对话状态判断与视觉不在本次定稿范围。
         </p>
       </div>
 
       <div class="stage">
         <div class="fcol">
-          <div class="fcap">缩进 · chevron（单支 5 层展开 · 项目/对话两行 · subagent 单行）</div>
+          <div class="fcap">缩进 · chevron（单支 5 层展开 · 全部 36px 单行）</div>
           <div class="lsb" style="width: 300px">
             <div class="lsb-scroll" style="padding-top: 10px">
               <div class="tree">
@@ -3046,16 +3085,16 @@
           </div>
         </div>
         <div class="fcol">
-          <div class="fcap">测量值（真实实现 + v3 改动）</div>
+          <div class="fcap">测量值（真实实现 + v4 密度修正）</div>
           <div class="legend-card" style="width: 292px">
             <div class="mline">
-              <span class="k">行高（subagent）</span><span class="v">30px</span>
+              <span class="k">行高（subagent）</span><span class="v">36px</span>
             </div>
             <div class="mline">
-              <span class="k">行高（项目·两行）</span><span class="v">48px</span>
+              <span class="k">行高（项目·两行）</span><span class="v">56px</span>
             </div>
             <div class="mline">
-              <span class="k">行高（对话·两行）</span><span class="v">48px</span>
+              <span class="k">行高（对话·两行）</span><span class="v">56px</span>
             </div>
             <div class="mline"><span class="k">基础缩进</span><span class="v">8px</span></div>
             <div class="mline"><span class="k">每层增量</span><span class="v">+14px</span></div>
@@ -3111,7 +3150,7 @@
 
       <div class="stage">
         <div class="fcol">
-          <div class="fcap">对话（根）行 · 两行结构实测 v3（30px 单行 → 48px 两行 · 标签行版）</div>
+          <div class="fcap">对话（根）行 · 两行结构实测 v4（36px 单行 → 56px 两行 · 标签行版）</div>
           <div class="lsb" style="width: 300px">
             <div class="lsb-scroll" style="padding-top: 10px">
               <div class="tree">
@@ -3140,31 +3179,31 @@
           </div>
         </div>
         <div class="fcol">
-          <div class="fcap">逐项像素（实测求和 = 48px）</div>
+          <div class="fcap">逐项像素（实测求和 = 56px）</div>
           <div class="legend-card" style="width: 262px">
-            <div class="mline"><span class="k">上 padding</span><span class="v">6px</span></div>
+            <div class="mline"><span class="k">上 padding</span><span class="v">8px</span></div>
             <div class="mline">
               <span class="k">第一行(标题+时间占位)</span><span class="v">13.5 / 行高18</span>
             </div>
-            <div class="mline"><span class="k">两行间距</span><span class="v">2px</span></div>
+            <div class="mline"><span class="k">两行间距</span><span class="v">6px</span></div>
             <div class="mline">
               <span class="k">第二行(标签行)</span><span class="v">标签高16</span>
             </div>
-            <div class="mline"><span class="k">下 padding</span><span class="v">6px</span></div>
+            <div class="mline"><span class="k">下 padding</span><span class="v">8px</span></div>
             <div class="mline">
-              <span class="k">合计</span><span class="v">6+18+2+16+6=48px</span>
+              <span class="k">合计</span><span class="v">8+18+6+16+8=56px</span>
             </div>
             <div class="mline">
-              <span class="k">对比单行</span><span class="v">30→48（+18·×1.6）</span>
+              <span class="k">对比单行</span><span class="v">36→56（+20·×1.56）</span>
             </div>
             <div class="mline">
-              <span class="k">对比 v2（47px）</span
-              ><span class="v">+1px（标签16 vs 文案行高15）</span>
+              <span class="k">对比 v3（48px）</span
+              ><span class="v">+8px（padding +4、行距 +4）</span>
             </div>
           </div>
         </div>
         <div class="fcol">
-          <div class="fcap">subagent 行 · 保持单行紧凑（本轮不变，高度不变）</div>
+          <div class="fcap">subagent 行 · 保持单行，放松纵向节奏</div>
           <div class="lsb" style="width: 240px">
             <div class="lsb-scroll" style="padding-top: 10px">
               <div class="tree">
@@ -3176,7 +3215,7 @@
             </div>
           </div>
           <div class="legend-card" style="width: 240px; margin-top: 8px">
-            <div class="mline"><span class="k">行高</span><span class="v">30px（不变）</span></div>
+            <div class="mline"><span class="k">行高</span><span class="v">36px</span></div>
             <div class="mline"><span class="k">对齐</span><span class="v">居中</span></div>
             <div class="mline">
               <span class="k">状态点</span><span class="v">6×6（本轮不变）</span>
@@ -3187,7 +3226,7 @@
 
       <div class="stage">
         <div class="fcol">
-          <div class="fcap">项目(目录)行 · 两行结构实测（v3 新增，30px 单行 → 48px 两行）</div>
+          <div class="fcap">项目(目录)行 · 两行结构实测（v4 密度修正，36px 单行 → 56px 两行）</div>
           <div class="lsb" style="width: 300px">
             <div class="lsb-scroll" style="padding-top: 10px">
               <div class="tree">
@@ -3214,19 +3253,19 @@
           </div>
         </div>
         <div class="fcol">
-          <div class="fcap">逐项像素（实测求和 = 48px，与对话(根)两行对齐同高）</div>
+          <div class="fcap">逐项像素（实测求和 = 56px，与对话(根)两行对齐同高）</div>
           <div class="legend-card" style="width: 262px">
-            <div class="mline"><span class="k">上 padding</span><span class="v">6px</span></div>
+            <div class="mline"><span class="k">上 padding</span><span class="v">8px</span></div>
             <div class="mline">
               <span class="k">第一行(标题)</span><span class="v">13.5 / 行高18</span>
             </div>
-            <div class="mline"><span class="k">两行间距</span><span class="v">2px</span></div>
+            <div class="mline"><span class="k">两行间距</span><span class="v">6px</span></div>
             <div class="mline">
               <span class="k">第二行(分支+diff)</span><span class="v">11 / 高16</span>
             </div>
-            <div class="mline"><span class="k">下 padding</span><span class="v">6px</span></div>
+            <div class="mline"><span class="k">下 padding</span><span class="v">8px</span></div>
             <div class="mline">
-              <span class="k">合计</span><span class="v">6+18+2+16+6=48px</span>
+              <span class="k">合计</span><span class="v">8+18+6+16+8=56px</span>
             </div>
           </div>
         </div>
@@ -3736,8 +3775,8 @@
                 </dd>
                 <dt>对话(根)行 · 两行（v2 起两行 · v3 改内容）</dt>
                 <dd>
-                  高度 30px → <b>48px</b>（6 上padding + 18 第一行 + 2 行距 + 16 第二行标签高 + 6
-                  下padding，逐项像素见上「两行结构实测 v3」）；第一行 = 标题（13.5px/行高18px）+
+                  高度 36px → <b>56px</b>（8 上padding + 18 第一行 + 6 行距 + 16 第二行标签高 + 8
+                  下padding，逐项像素见上「两行结构实测 v4」）；第一行 = 标题（13.5px/行高18px）+
                   <b>最近说话时间</b>（v3 新增，右侧，虚线边框，<b style="color: var(--warning)"
                     >占位</b
                   >）；第二行 = <b>标签行</b>（v3 新增，取代 v2
@@ -3766,8 +3805,8 @@
                 </dd>
                 <dt>项目行 · 两行（v3 新增）</dt>
                 <dd>
-                  高度 30px →
-                  <b>48px</b
+                  高度 36px →
+                  <b>56px</b
                   >（与对话(根)两行同高，逐项像素见上「项目两行结构实测」）；第一行不变（chevron+文件夹图标+标题），第二行
                   = <code>GitBranch</code> 图标 + 分支名（无分支显「暂无分支」，<b>不隐藏整行</b>）+
                   diff 统计（等宽字体，加绿减红，无数据时隐藏，视觉搬自
@@ -3779,9 +3818,9 @@
                   <code>#prov-*</code>），中性灰底 + 文字，最长 96px 超出省略号截断（「GitHub
                   Copilot」最易触发）；图例见上「provider 图标图例」。
                 </dd>
-                <dt>subagent 行 · 单行（本轮不变）</dt>
+                <dt>subagent 行 · 单行（v4 放松纵向节奏）</dt>
                 <dd>
-                  高度<b>不变（30px）</b>，居中对齐；行首保留 6×6 状态点（v2
+                  高度 <b>36px</b>，居中对齐；行首保留 6×6 状态点（v2
                   定义原样沿用，本轮未跟随对话(根)去点），标题紧随其后；后代计数角标逻辑不变（拥有后代时才显示，见
                   sCT1「Explore·扫描 server」示例）。
                 </dd>
@@ -3859,7 +3898,7 @@
     <section class="screen" id="sCT3">
       <div class="screen-head">
         <span class="tag">sCT3</span>
-        <h2>交互态 · hover / 选中 / 重命名 / hover 卡片 / 拖拽 / 右键菜单</h2>
+        <h2>交互态 · hover / 选中 / 重命名 / hover 卡片 / 右键菜单</h2>
         <p>
           全部取自<b>真实现有实现</b>（<code>use-project-row-actions.ts</code> /
           <code>use-conversation-row-actions.ts</code> / <code>workspace-hover-card.tsx</code>）。<b
@@ -3872,31 +3911,26 @@
 
       <div class="stage">
         <div class="fcol">
-          <div class="fcap">hover（项目行 · 尾部浮出「新对话」）</div>
+          <div class="fcap">hover（项目行 · 仅背景与信息卡，无尾部动作）</div>
           <div class="lsb" style="width: 232px">
             <div class="lsb-scroll" style="padding-top: 8px">
               <div class="tree">
-                <div class="tnode is-hover showact">
+                <div class="tnode is-hover">
                   <span class="twedge exp"
                     ><svg class="i xs"><use href="#chev-r" /></svg
                   ></span>
                   <svg class="i sm ti"><use href="#folder" /></svg
                   ><span class="tname">paseo-main</span>
-                  <span class="tact"
-                    ><span class="tbtn"
-                      ><svg class="i xs"><use href="#pen" /></svg></span
-                  ></span>
                 </div>
                 <div class="tnode tind1">
-                  <span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg
-                  ><span class="tdot idle"></span><span class="tname">重构 checkout 子系统</span>
+                  <span class="twedge"></span><span class="tname">重构 checkout 子系统</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
         <div class="fcol">
-          <div class="fcap">hover（对话/subagent 行 · 尾部浮出「更多」· 角标让位）</div>
+          <div class="fcap">hover（对话/subagent 行 · 纯标题，无三点与数量）</div>
           <div class="lsb" style="width: 232px">
             <div class="lsb-scroll" style="padding-top: 8px">
               <div class="tree">
@@ -3908,19 +3942,13 @@
                   <span class="twedge exp"
                     ><svg class="i xs"><use href="#chev-r" /></svg
                   ></span>
-                  <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span
-                  ><span class="tname">重构 checkout 子系统</span><span class="tbadge">5</span>
+                  <span class="tname">重构 checkout 子系统</span>
                 </div>
-                <div class="tnode is-hover showact tind1">
+                <div class="tnode is-hover tind1">
                   <span class="twedge exp"
                     ><svg class="i xs"><use href="#chev-r" /></svg
                   ></span>
-                  <svg class="i sm ti"><use href="#bot" /></svg><span class="tdot run"></span
-                  ><span class="tname">重构 checkout 子系统</span><span class="tbadge">5</span>
-                  <span class="tact"
-                    ><span class="tbtn"
-                      ><svg class="i xs"><use href="#more-h" /></svg></span
-                  ></span>
+                  <span class="tname">重构 checkout 子系统</span>
                 </div>
               </div>
             </div>
@@ -3934,9 +3962,7 @@
               line-height: 1.5;
             "
           >
-            同一行默认态（角标 5 可见）↕ hover 态（角标<b style="color: var(--fg)">淡出让位</b
-            >给「更多」）——二者共用行尾同一槽位，不挤占、不变宽（本稿在真实实现的绝对定位基础上补的让位处理，CSS
-            已生效非仅口头声明）。
+            默认态与 hover 态保持同一标题布局，只改变行背景并触发右侧信息卡，不在行尾增加任何控件。
           </div>
         </div>
         <div class="fcol">
@@ -3947,12 +3973,11 @@
             <div class="lsb-scroll" style="padding-top: 8px">
               <div class="tree">
                 <div class="tnode on">
-                  <span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg
-                  ><span class="tdot run"></span><span class="tname">重构 checkout 子系统</span>
+                  <span class="twedge"></span><span class="tname">重构 checkout 子系统</span>
                 </div>
                 <div class="tnode is-hover" style="margin-top: 2px">
                   <span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg
-                  ><span class="tdot idle"></span><span class="tname">另一行 hover 对照</span>
+                  ><span class="tname">另一行 hover 对照</span>
                 </div>
               </div>
             </div>
@@ -4047,36 +4072,63 @@
 
       <div class="stage">
         <div class="fcol">
-          <div class="fcap">
-            hover 工作区卡片（对话行 · 桌面 web 专属，标题/分支/目录/最后更改/diff/PR）
-          </div>
-          <div style="display: flex; gap: 10px; align-items: flex-start">
-            <div class="lsb" style="width: 220px">
-              <div class="lsb-scroll" style="padding-top: 8px">
-                <div class="tree">
-                  <div class="tnode on is-hover">
-                    <span class="twedge"></span><svg class="i sm ti"><use href="#bot" /></svg
-                    ><span class="tdot run"></span><span class="tname">重构 checkout 子系统</span>
-                  </div>
-                </div>
+          <div class="fcap">hover 信息卡片（项目行 / 根对话 / subagent · 桌面 web）</div>
+          <div style="display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap">
+            <div class="whc">
+              <div class="whc-label">标题</div>
+              <div class="whc-t">paseo-main</div>
+              <div class="whc-row">
+                <svg class="i xs ic"><use href="#folder" /></svg>
+                <span class="whc-field"><span>文件路径</span><b>~/paseo-main</b></span>
+              </div>
+              <div class="whc-row">
+                <svg class="i xs ic"><use href="#git-branch" /></svg>
+                <span class="whc-field"><span>Git 分支</span><b>develop</b></span>
+              </div>
+              <div class="whc-row">
+                <svg class="i xs ic"><use href="#git-branch" /></svg>
+                <span class="whc-field"
+                  ><span>Git diff</span
+                  ><span class="whc-diff"
+                    ><span class="add">+128</span><span class="del">-34</span></span
+                  ></span
+                >
               </div>
             </div>
             <div class="whc">
+              <div class="whc-label">对话名称</div>
               <div class="whc-t">重构 checkout 子系统</div>
               <div class="whc-row">
-                <svg class="i xs ic"><use href="#git-branch" /></svg> feat/checkout-refactor
-              </div>
-              <div class="whc-row">
-                <svg class="i xs ic"><use href="#folder" /></svg> ~/paseo-main
-              </div>
-              <div class="whc-row">
-                <svg class="i xs ic"><use href="#clock" /></svg> 12 分钟前
-              </div>
-              <div class="whc-meta">
-                <span class="whc-diff"
-                  ><span class="add">+128</span><span class="del">-34</span></span
+                <svg class="i xs ic"><use href="#folder" /></svg>
+                <span class="whc-field"
+                  ><span>操作目录</span><b>~/paseo-main/.worktrees/checkout</b></span
                 >
-                <span class="whc-pr">PR #482 · 检查中</span>
+              </div>
+              <div class="whc-row">
+                <svg class="i xs ic"><use href="#clock" /></svg>
+                <span class="whc-field"><span>最后一次使用</span><b>12 分钟前</b></span>
+              </div>
+              <div class="whc-row">
+                <svg class="i xs ic"><use href="#bot" /></svg>
+                <span class="whc-field"><span>提供方</span><b>Codex</b></span>
+              </div>
+            </div>
+            <div class="whc">
+              <div class="whc-label">对话名称</div>
+              <div class="whc-t">定位滚动容器</div>
+              <div class="whc-row">
+                <svg class="i xs ic"><use href="#folder" /></svg>
+                <span class="whc-field"
+                  ><span>操作目录</span><b>~/paseo-main/.worktrees/checkout</b></span
+                >
+              </div>
+              <div class="whc-row">
+                <svg class="i xs ic"><use href="#clock" /></svg>
+                <span class="whc-field"><span>最后一次使用</span><b>4 分钟前</b></span>
+              </div>
+              <div class="whc-row">
+                <svg class="i xs ic"><use href="#bot" /></svg>
+                <span class="whc-field"><span>提供方</span><b>Codex</b></span>
               </div>
             </div>
           </div>
@@ -4089,22 +4141,21 @@
               line-height: 1.5;
             "
           >
-            浮出于行右侧（左侧空间不足则自动翻到左侧）；<b style="color: var(--fg)"
-              >分支名 / 目录路径</b
-            >行可点复制（hover 变「复制」图标）。<b>关联 PR 有 CI 检查</b
-            >时卡片下方追加「检查」汇总行（通过/失败/进行中计数），本屏从略、行为归属 PR
-            状态展示模块。
-            <b style="color: var(--fg)">项目行 / subagent 行不出此卡</b>（仅根对话且有 workspace
-            时出现）。
+            浮出于行右侧（右侧空间不足则自动翻到左侧）。项目卡片的文件路径 / Git 分支、对话与
+            subagent 卡片的操作目录可点复制。subagent 的名称、时间和提供方取自身数据；
+            没有独立工作区时，目录仅为卡片展示继承父级上下文，不改变右键或重命名能力。
           </div>
         </div>
       </div>
 
       <div class="stage">
         <div class="fcol">
-          <div class="fcap">右键 · 目录（项目）行 · 6 项</div>
+          <div class="fcap">右键 · 目录（项目）行 · 7 项</div>
           <div class="ctxwrap">
             <div class="ctx narrow">
+              <div class="ctxi">
+                <svg class="i sm ic"><use href="#pen" /></svg> 新对话
+              </div>
               <div class="ctxi">
                 <svg class="i sm ic"><use href="#pin-ic" /></svg> 置顶
               </div>
@@ -4309,9 +4360,8 @@
               <li>
                 <span class="pin">1</span>
                 <div>
-                  <b>行尾「更多」/「新对话」</b>：hover 时淡出角标、浮出图标按钮；点击「更多」=
-                  打开该行右键菜单（与真正右键同一菜单，长按在触屏上同效）；点击项目行「新对话」=
-                  在该项目下创建新对话。
+                  <b>右键行</b>：项目、根对话与 subagent 都从右键菜单进入管理操作；项目菜单中的
+                  “新对话”在该项目下创建对话。行尾不显示“更多”“新对话”或其它动作按钮。
                 </div>
               </li>
               <li>
@@ -4355,13 +4405,10 @@
               <dl>
                 <dt>布局</dt>
                 <dd>
-                  <b>桌面 only</b>；hover 卡片 / hover 尾部动作<b>仅 web 桌面</b
-                  >（原生触屏用「常显」替代 hover，同 docs/hover.md 约定）。
+                  <b>桌面 only</b>；hover 背景与信息卡片仅 web 桌面显示，行尾没有 hover 动作。
                 </dd>
                 <dt>hover</dt>
-                <dd>
-                  行底色 <code>--accent</code>；尾部动作淡入、角标淡出（同一槽位互斥，不挤占宽度）。
-                </dd>
+                <dd>行底色 <code>--accent</code>；右侧信息卡按宽限延迟出现；标题布局不变。</dd>
                 <dt>选中</dt>
                 <dd>
                   <code>--secondary</code>（见头部 note
@@ -4391,14 +4438,14 @@
           <div class="anno-card span2">
             <div class="ac-h">右键菜单（逐项效果）</div>
             <div class="menulist">
-              <div class="ml-grp">目录（项目）行 · 6 项</div>
+              <div class="ml-grp">目录（项目）行 · 7 项</div>
               <div class="ml-i">
-                <b>置顶/取消置顶</b> → 整个项目子树移入/移出「置顶」段 ·
-                <b>在 Finder 中显示</b>（能力门：桌面 + 有效目录）→ 打开系统文件管理器定位到该目录 ·
-                <b>创建工作树…</b>（能力门：有效目录）→ 跳转新建工作区流程，预填该项目 ·
-                <b>重命名项目</b> → 进入内联重命名 · <b>归档</b>（禁用，语义待定）·
-                <b style="color: #b91c1c">移除</b>（红）→ 二次确认「不删磁盘文件」→ 确认后 pending →
-                从树移除
+                <b>新对话</b> → 进入新建流程并预选该项目目录 · <b>置顶/取消置顶</b> →
+                整个项目子树移入/移出「置顶」段 · <b>在 Finder 中显示</b>（能力门：桌面 +
+                有效目录）→ 打开系统文件管理器定位到该目录 · <b>创建工作树…</b>（能力门：有效目录）→
+                跳转新建工作区流程，预填该项目 · <b>重命名项目</b> → 进入内联重命名 ·
+                <b>归档</b>（禁用，语义待定）· <b style="color: #b91c1c">移除</b>（红）→
+                二次确认「不删磁盘文件」→ 确认后 pending → 从树移除
               </div>
               <div class="ml-grp">对话 / subagent 行 · 完整形态（11 项，含 3 条视觉分隔）</div>
               <div class="ml-i">

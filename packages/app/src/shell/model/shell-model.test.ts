@@ -51,6 +51,60 @@ describe("ShellModel · region toggles are additive and independent", () => {
   });
 });
 
+describe("ShellModel · conversation view memory", () => {
+  it("gives every first-visited conversation closed tools without changing the global left rail", () => {
+    model.openRight();
+    model.toggleFileTree();
+    model.activateConversationView("server:agent:a");
+    expect(model.rightOpen).toBe(false);
+    expect(model.fileTreeOpen).toBe(false);
+    expect(model.leftOpen).toBe(true);
+
+    model.openRight();
+    model.toggleFileTree();
+    model.toggleRightMaximized();
+    model.activateConversationView("server:agent:b");
+    expect(model.rightOpen).toBe(false);
+    expect(model.fileTreeOpen).toBe(false);
+    expect(model.rightMaximized).toBe(false);
+  });
+
+  it("restores each visited conversation's visibility and maximize state independently", () => {
+    model.activateConversationView("server:agent:a");
+    model.openRight();
+    model.toggleFileTree();
+    model.toggleRightMaximized();
+    model.activateConversationView("server:agent:b");
+    model.toggleFileTree();
+
+    model.activateConversationView("server:agent:a");
+    expect(model.rightOpen).toBe(true);
+    expect(model.fileTreeOpen).toBe(true);
+    expect(model.rightMaximized).toBe(true);
+
+    model.activateConversationView("server:agent:b");
+    expect(model.rightOpen).toBe(false);
+    expect(model.fileTreeOpen).toBe(true);
+    expect(model.rightMaximized).toBe(false);
+  });
+
+  it("retargets a live draft to its created agent without resetting the current layout", () => {
+    model.activateConversationView("server:draft:new");
+    model.openRight();
+    model.toggleFileTree();
+
+    model.retargetConversationView("server:draft:new", "server:agent:created");
+
+    expect(model.conversationViewKey).toBe("server:agent:created");
+    expect(model.rightOpen).toBe(true);
+    expect(model.fileTreeOpen).toBe(true);
+    model.activateConversationView("server:agent:other");
+    model.activateConversationView("server:agent:created");
+    expect(model.rightOpen).toBe(true);
+    expect(model.fileTreeOpen).toBe(true);
+  });
+});
+
 describe("ShellModel · openRight / closeRight are idempotent", () => {
   // The composition primitives "ensure open / ensure closed" must not flip on repeat —
   // calling twice lands the same as calling once.
@@ -229,8 +283,6 @@ describe("ShellModel · persistence excludes the page mode and the route context
     expect("workspaceKey" in persisted).toBe(false);
     expect(persisted).toEqual({
       leftOpen: true,
-      rightOpen: false,
-      fileTreeOpen: false,
       settingsLeftOpen: true,
       leftWidth: 240,
       widthByRegion: {},
@@ -242,15 +294,14 @@ describe("ShellModel · persistence excludes the page mode and the route context
   it("hydrate restores the layout slice and leaves the page mode on conversation", () => {
     model.hydrate({
       leftOpen: false,
-      rightOpen: true,
-      fileTreeOpen: false,
       settingsLeftOpen: false,
       leftWidth: 280,
       widthByRegion: { "ws-a": { right: 520 } },
     });
     expect(model.currentPage).toBe("conversation");
     expect(model.leftOpen).toBe(false);
-    expect(model.rightOpen).toBe(true);
+    expect(model.rightOpen).toBe(false);
+    expect(model.fileTreeOpen).toBe(false);
     expect(model.settingsLeftOpen).toBe(false);
     expect(model.leftWidth).toBe(280);
     expect(model.widthByRegion).toEqual({ "ws-a": { right: 520 } });
@@ -276,7 +327,12 @@ describe("parsePersistedShellState", () => {
       leftWidth: 280,
       widthByRegion: { "ws-a": { right: 520, fileTree: 300 } },
     };
-    expect(parsePersistedShellState(slice)).toEqual(slice);
+    expect(parsePersistedShellState(slice)).toEqual({
+      leftOpen: false,
+      settingsLeftOpen: false,
+      leftWidth: 280,
+      widthByRegion: { "ws-a": { right: 520, fileTree: 300 } },
+    });
   });
 
   // Missing / wrong-typed fields fall back to their landing defaults, and malformed
@@ -289,8 +345,6 @@ describe("parsePersistedShellState", () => {
     });
     expect(parsed).toEqual({
       leftOpen: true,
-      rightOpen: false,
-      fileTreeOpen: false,
       settingsLeftOpen: true,
       leftWidth: 240,
       widthByRegion: { "ws-b": { fileTree: 240 } },

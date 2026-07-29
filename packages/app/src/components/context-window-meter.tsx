@@ -240,19 +240,26 @@ export function ContextWindowMeter({
 
 const styles = StyleSheet.create((theme) => ({
   container: {
-    width: 28,
-    height: 28,
-    borderRadius: theme.borderRadius.full,
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface1,
     alignItems: "center",
     justifyContent: "center",
   },
   containerWithLabel: {
-    height: 28,
+    minWidth: 32,
+    height: 32,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: theme.spacing[1],
-    borderRadius: theme.borderRadius.full,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface1,
   },
   svg: {
     transform: [{ rotate: "-90deg" }],

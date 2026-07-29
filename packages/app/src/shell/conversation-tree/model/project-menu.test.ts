@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { deriveProjectMenuItems } from "./project-menu";
 
 describe("deriveProjectMenuItems", () => {
-  test("returns the complete six-item project menu when both conditional actions are available", () => {
+  test("returns the complete project menu when both conditional actions are available", () => {
     const items = deriveProjectMenuItems({
       isPinned: false,
       canReveal: true,
@@ -11,6 +11,7 @@ describe("deriveProjectMenuItems", () => {
     });
 
     expect(items.map((item) => item.id)).toEqual([
+      "new-conversation",
       "pin",
       "reveal-in-finder",
       "create-worktree",
@@ -34,7 +35,13 @@ describe("deriveProjectMenuItems", () => {
       isOffline: false,
     });
 
-    expect(items.map((item) => item.id)).toEqual(["unpin", "rename-project", "archive", "remove"]);
+    expect(items.map((item) => item.id)).toEqual([
+      "new-conversation",
+      "unpin",
+      "rename-project",
+      "archive",
+      "remove",
+    ]);
   });
 
   test("keeps read-only reveal available offline while disabling every write action", () => {
@@ -46,6 +53,7 @@ describe("deriveProjectMenuItems", () => {
     });
 
     expect(items.map((item) => [item.id, item.enabled])).toEqual([
+      ["new-conversation", false],
       ["pin", false],
       ["reveal-in-finder", true],
       ["create-worktree", false],

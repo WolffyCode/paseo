@@ -77,10 +77,9 @@ const SECTION_LABEL: Record<ConversationTreeSectionId, string> = {
 
 const styles = StyleSheet.create({
   header: {
-    height: 30,
+    height: 36,
     paddingHorizontal: 9,
-    paddingTop: 7,
-    paddingBottom: 3,
+    paddingVertical: 7,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,

@@ -4,6 +4,7 @@
 // concrete tab class — content is built through an injected TabContentFactory instead.
 
 import type { FileLocation } from "./file-location";
+import type { WorkspaceDraftTabSetup } from "@/stores/workspace-tabs-store";
 
 // The activity dot a tab head may show. This round the only driver is a file's dirty state; a tab with
 // no content-driven activity is "none".
@@ -27,10 +28,25 @@ export type TabKind = "file" | "conversation" | "browser" | "review" | "terminal
 // The request to open a tab. This round's only shape is `file` (kind is the discriminant); when a
 // second kind lands this becomes a `kind`-tagged union. The framework hands this to the factory, so it
 // stays agnostic of how each kind is constructed.
-export interface OpenTabRequest {
-  kind: "file";
-  location: FileLocation;
+export type ConversationTabTarget =
+  | { readonly kind: "agent"; readonly agentId: string }
+  | {
+      readonly kind: "draft";
+      readonly draftId: string;
+      readonly setup?: WorkspaceDraftTabSetup;
+    };
+
+export interface ConversationTabRequest {
+  readonly kind: "conversation";
+  readonly target: ConversationTabTarget;
+  readonly workspaceId: string;
+  readonly title: string;
+  readonly readOnly: boolean;
 }
+
+export type OpenTabRequest =
+  | { readonly kind: "file"; readonly location: FileLocation }
+  | ConversationTabRequest;
 
 // The construction seam: the framework builds tab content through this port instead of importing the
 // concrete class. `file` → FileDocumentModel is the sole registration this round.

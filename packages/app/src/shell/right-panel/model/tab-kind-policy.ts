@@ -22,8 +22,8 @@ export const TAB_KIND_POLICY: Record<TabKind, TabKindPolicy> = {
   },
   conversation: {
     instancing: "multi",
-    enabled: false,
-    comingSoon: true,
+    enabled: true,
+    comingSoon: false,
     showInLauncher: true,
     showInNewTab: true,
   },

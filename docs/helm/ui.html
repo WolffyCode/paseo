@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Helm · UI 设计稿（canonical · 首次启动 onboarding）</title>
+    <title>Helm · UI 设计稿（canonical）</title>
     <style>
       :root {
         --surface0: #ffffff;
@@ -191,6 +191,13 @@
       .nav-idx a:hover {
         color: var(--fg);
         background: var(--surface2);
+      }
+      .embedded-spec {
+        width: 100%;
+        height: 720px;
+        border: 1px solid var(--border);
+        border-radius: var(--r-lg);
+        background: var(--surfaceWorkspace);
       }
       .screen {
         max-width: 1180px;
@@ -764,12 +771,11 @@
         <span class="logo"
           ><svg class="i lg"><use href="#gauge" /></svg
         ></span>
-        Helm · UI 设计稿 · 首次启动 onboarding
+        Helm · UI 设计稿
       </h1>
       <p class="sub">
-        canonical 活文档。当前包含需求
-        <b>2026-06-24-onboarding</b
-        >（连主机部分）。每屏含完整交互注解（布局/默认/hover/活跃/运行/禁用/空/加载/错误/离线/右键/点击效果）。
+        canonical 活文档。当前包含首次启动 onboarding、左侧对话树、中区真实对话、Composer
+        运行配置、右侧对话页签与对话视图状态记忆。每屏含完整交互注解（布局/默认/hover/活跃/运行/禁用/空/加载/错误/离线/右键/点击效果）。
       </p>
     </div>
 
@@ -789,6 +795,56 @@
             <span class="pill p0">一次性品牌欢迎</span> 提供方配置延后到下个需求
           </td>
         </tr>
+        <tr>
+          <td>2026-07-28</td>
+          <td>并入左侧对话树，统一单行结构与右键操作入口</td>
+          <td>
+            <span class="pill p0">层级结构不变</span>
+            <span class="pill p0">全 36px 单行</span>
+            <span class="pill p0">操作统一右键</span>
+          </td>
+        </tr>
+        <tr>
+          <td>2026-07-28</td>
+          <td>并入中区真实对话，并让主页首次进入默认打开新对话草稿</td>
+          <td>
+            <span class="pill p0">首次默认草稿</span>
+            <span class="pill p0">固定 Composer</span>
+          </td>
+        </tr>
+        <tr>
+          <td>2026-07-28</td>
+          <td>并入右侧对话页签</td>
+          <td>
+            <span class="pill p0">subagent 只读</span>
+            <span class="pill p0">根对话可编辑</span>
+          </td>
+        </tr>
+        <tr>
+          <td>2026-07-28</td>
+          <td>按中区对话隔离并恢复右侧工作现场</td>
+          <td>
+            <span class="pill p0">首次两侧收起</span>
+            <span class="pill p0">返回恢复页签</span>
+          </td>
+        </tr>
+        <tr>
+          <td>2026-07-28</td>
+          <td>新对话先作为独立草稿，并支持选择真实工作目录</td>
+          <td>
+            <span class="pill p0">未选目录不绑定项目</span>
+            <span class="pill p0">选择后归入项目</span>
+          </td>
+        </tr>
+        <tr>
+          <td>2026-07-29</td>
+          <td>重做新对话与进行中对话的 Composer 运行配置体系</td>
+          <td>
+            <span class="pill p0">统一 Composer</span>
+            <span class="pill p0">锚定模型下拉</span>
+            <span class="pill p0">运行模式与额度</span>
+          </td>
+        </tr>
       </table>
     </div>
 
@@ -799,6 +855,11 @@
       <a href="#s3">S3 连接方式选择器</a>
       <a href="#s4">S4 错误态（桌面）</a>
       <a href="#s5">S5 平台变体（Web/手机）</a>
+      <a href="#conversation-tree">左侧对话树</a>
+      <a href="#conversation-content">中区真实对话</a>
+      <a href="#conversation-composer">对话 Composer</a>
+      <a href="#right-conversation-tabs">右侧对话页签</a>
+      <a href="#conversation-view-memory">对话视图状态记忆</a>
     </div>
 
     <!-- ============ S1 · WELCOME ============ -->
@@ -959,7 +1020,8 @@
         <p>
           点「开始使用」后短暂过场：连接<b>本机</b> daemon（桌面与本机浏览器同此）。<b
             >主文案「正在连接本机 daemon…」即写明当前主机+状态</b
-          >（不显端口）。连上 → 主页空态；连不上/超时 → S4（桌面）或 S3 兜底（浏览器/手机）。
+          >（不显端口）。连上 → 主页默认新对话态；连不上/超时 → S4（桌面）或 S3
+          兜底（浏览器/手机）。
         </p>
       </div>
       <div class="screen-body">
@@ -1002,7 +1064,7 @@
               <dt>运行</dt>
               <dd>握手中；典型 &lt;1s（本地 pipe）。</dd>
               <dt>成功</dt>
-              <dd>连上 → 自动进主页空态（不停留）。</dd>
+              <dd>连上 → 自动进主页默认新对话态（不停留）。</dd>
               <dt>错误</dt>
               <dd>失败/超时 → <b>S4</b>（桌面，带原因 + 重试）/ <b>S3</b> 兜底（浏览器·手机）。</dd>
               <dt>hover</dt>
@@ -1350,6 +1412,286 @@
       </div>
     </section>
 
-    <div class="note">Helm · canonical UI 设计稿 · 2026-06-24 · 浅色主题 · accent #20744A</div>
+    <section class="screen" id="conversation-tree">
+      <div class="screen-head">
+        <span class="tag">主页 · 左侧对话树</span>
+        <h2>项目 → 根对话 → subagent</h2>
+        <p>
+          完整视觉与全状态以嵌入的需求设计稿为准。项目、根对话、subagent、分组标题与空提示均为 36px
+          单行；项目显示文件夹图标 + 标题，根对话和 subagent
+          都只显示标题，不显示状态点、图标、数量或行尾操作。三类节点的补充信息都由右侧 hover
+          卡片承载；subagent
+          卡片显示它自己的名称、最后一次使用时间与提供方，操作目录在没有独立工作区时仅为展示而继承父级目录上下文。管理操作统一进入右键菜单。
+        </p>
+      </div>
+      <iframe
+        class="embedded-spec"
+        src="./requirements/2026-07-11-conversation-tree/ui.html#sCT1"
+        title="左侧对话树完整 UI 设计稿"
+      ></iframe>
+      <div class="anno" style="margin-top: 18px">
+        <div class="anno-h">交互注解</div>
+        <ol>
+          <li>
+            <span class="pin">L</span>
+            <div>
+              <b>布局</b
+              >：桌面左栏常驻；移动/紧凑态延后。项目、根对话、subagent、分组标题和空提示统一 36px
+              单行。
+            </div>
+          </li>
+          <li>
+            <span class="pin">S</span>
+            <div>
+              <b>状态</b>：项目、根对话与 subagent 均有清晰 hover 背景；点击根对话或 subagent
+              后显示持续选中背景。项目显示目录信息卡，根对话与 subagent 显示各自的对话信息卡；
+              审核中、报错、进行中等状态判断与视觉后续单独确认。
+            </div>
+          </li>
+          <li>
+            <span class="pin">R</span>
+            <div>
+              <b>右键菜单</b
+              >：行尾无三点、快捷新建或其它动作按钮。项目菜单新增“新对话”，并保留置顶、
+              Finder、工作树、重命名、归档与移除；根对话和 subagent 共用原对话菜单。
+            </div>
+          </li>
+          <li>
+            <span class="pin">C</span>
+            <div>
+              <b>点击效果</b>：项目切换展开；根对话进入中区；subagent 打开或聚焦右栏对话；chevron
+              只控制子级展开。
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="screen" id="conversation-content">
+      <div class="screen-head">
+        <span class="tag">主页 · 中区真实对话</span>
+        <h2>根对话消息流、内嵌草稿与固定 Composer</h2>
+        <p>
+          左侧点击根对话后，中区复用既有真实对话面板，展示 daemon timeline、工具调用、附件、
+          subagent 轨道与 Composer；点击“新对话”时保持主页 URL 与三栏布局，在中区原位显示底部
+          Composer，发送后内容从其上方出现。首次进入即默认显示未绑定项目的新对话草稿，不经过“选择一个对话”空态；选择真实工作目录后才绑定项目。完整画面与状态见本需求设计稿。
+        </p>
+      </div>
+      <iframe
+        class="embedded-spec"
+        src="./requirements/2026-07-28-conversation-content/ui.html"
+        title="中区真实对话完整 UI 设计稿"
+      ></iframe>
+      <div class="anno" style="margin-top: 18px">
+        <div class="anno-h">交互注解</div>
+        <ol>
+          <li>
+            <span class="pin">L</span>
+            <div>
+              <b>布局</b>：桌面自适应填满左栏与右侧工具之间的剩余宽度；工作目录固定在 Composer
+              顶部上下文条；新对话首帧、乐观发送和真实 agent 接管共用同一个底部 Composer
+              锚点；右栏最大化时按壳规则隐藏。
+            </div>
+          </li>
+          <li>
+            <span class="pin">S</span>
+            <div>
+              <b>状态</b
+              >：首次加载、未绑定草稿、目录选择中、目录选择失败、已绑定、新建中、新建失败、
+              正常、运行、错误、离线与归档均有出口；首次加载成功后直接进入未绑定草稿，切换 agent
+              不残留上一条消息，取消、选择失败与创建失败均保留草稿。
+            </div>
+          </li>
+          <li>
+            <span class="pin">R</span>
+            <div><b>右键菜单</b>：中区不新增右键菜单；左树管理菜单保持原定义。</div>
+          </li>
+          <li>
+            <span class="pin">C</span>
+            <div>
+              <b>点击效果</b>：顶部“新对话”创建未绑定草稿，项目菜单入口预选该项目；点击目录栏选择
+              host 真实目录，未选目录发送时提示先选择；首次发送后消息从 Composer
+              上方出现并原位接管真实 agent；根对话切换中区；subagent
+              保持中区并打开右栏；消息文件链接在当前 workspace 的右侧文件面板打开。
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="screen" id="new-conversation-directory">
+      <div class="screen-head">
+        <span class="tag">主页 · 新对话目录</span>
+        <h2>未选目录是独立草稿，选中目录后归入项目</h2>
+        <p>
+          全局新对话不继承旧对话或默认项目；Composer 顶部上下文条提供本机或 host 目录选择。只有 host
+          返回真实 workspace 后才能启动 agent，并在首次发送后归入对应项目。
+        </p>
+      </div>
+      <iframe
+        class="embedded-spec"
+        src="./requirements/2026-07-28-new-conversation-directory/ui.html#sND1"
+        title="新对话工作目录完整 UI 设计稿"
+      ></iframe>
+    </section>
+
+    <section class="screen" id="conversation-composer">
+      <div class="screen-head">
+        <span class="tag">主页 · Composer · 已实现，待 Gate 3 验收</span>
+        <h2>新对话、进行中对话与运行配置</h2>
+        <p>
+          Composer 改为单一连续输入表面：顶部工作目录上下文条、正文输入区、底部工具与运行配置。
+          底栏左侧只保留统一“+”，右侧以三个同规格且间隔 6px 的文字标签承载模型、英文推理强度和
+          provider
+          真实运行模式，再放上下文与发送；所有点击槽位统一高度、圆角和图标尺寸。模型选择使用贴着触发器的单列锚定下拉，顶部承载提供方与中转站。新对话与进行中对话、队列操作、模型下拉、强度/模式菜单、上下文/额度、紧凑态和关键异常状态见完整设计稿。
+        </p>
+      </div>
+      <iframe
+        class="embedded-spec"
+        src="./requirements/2026-07-29-conversation-composer/ui.html#new"
+        title="对话 Composer 与运行配置完整 UI 设计稿"
+      ></iframe>
+      <div class="anno" style="margin-top: 18px">
+        <div class="anno-h">交互注解</div>
+        <ol>
+          <li>
+            <span class="pin">L</span>
+            <div>
+              <b>布局</b>：目录、输入和底栏合为一个 Composer；宽度和底部锚点在新对话、运行、队列与
+              错误状态下保持稳定。底栏只有统一“+”、模型/强度/模式三个文字标签、上下文和发送；三个
+              标签之间固定留 6px，所有槽位统一 32px 高、6px 圆角和 16px
+              图标，只有发送/停止使用实色。桌面模型选择是最多 430px
+              且列表内部滚动的锚定下拉，紧凑态使用底部 sheet；780px 桌面与 320px
+              紧凑宽度均不换行、不裁切、不横向滚动。
+            </div>
+          </li>
+          <li>
+            <span class="pin">S</span>
+            <div>
+              <b>状态</b
+              >：工作目录、提供方、中转站、模型、推理强度、运行模式、上下文和账号额度均有默认、
+              加载、空、错误与离线状态；能力不支持的控件不渲染灰色占位。紧凑态把附件、`@`、语音、
+              强度、模式与 provider feature 收进“+”，入口移动但功能不丢失。
+            </div>
+          </li>
+          <li>
+            <span class="pin">C</span>
+            <div>
+              <b>点击效果</b>：新对话中目录、提供方、中转站、模型、强度和模式均可调整；创建后目录和
+              提供方锁定，其余运行配置按下一条消息生效；每条待发消息右侧可删除或强制发送；上下文入口
+              展开对话 token 占用与当前官方/中转站运行路由返回的 windows、balances 和 details；5h、7
+              天只是可能返回的窗口示例。
+            </div>
+          </li>
+          <li>
+            <span class="pin">B</span>
+            <div>
+              <b>边界</b>：中转站是 API 供应商，不是 host Relay；Plan / Build 等是运行模式而非模型，
+              推理档位保留英文，额度窗口不硬编码。深度配置仍进入设置；本需求不修改协议。
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="screen" id="right-conversation-tabs">
+      <div class="screen-head">
+        <span class="tag">主页 · 右侧 Workbench</span>
+        <h2>只读 subagent、可编辑根对话与右栏新对话</h2>
+        <p>
+          右栏以页签并行承载对话，不替换中区。subagent
+          强制只读；根对话拖入后可继续输入；当前中区已有真实 workspace 时，右栏“对话”沿用当前
+          workspace 直接打开右侧草稿，创建成功后归入左树对应项目；中区未选目录时入口禁用。
+        </p>
+      </div>
+      <iframe
+        class="embedded-spec"
+        src="./requirements/2026-07-28-right-conversation-tabs/ui.html"
+        title="右侧对话页签完整 UI 设计稿"
+      ></iframe>
+      <div class="anno" style="margin-top: 18px">
+        <div class="anno-h">交互注解</div>
+        <ol>
+          <li>
+            <span class="pin">L</span>
+            <div>
+              <b>布局</b>：右栏沿用 Workbench 页签栏；每个对话页签携带自己的
+              workspace。桌面可拖入，紧凑/原生端通过点击与新建进入。
+            </div>
+          </li>
+          <li>
+            <span class="pin">S</span>
+            <div>
+              <b>状态</b>：空、draft、创建中、正常、只读、加载、错误、离线均有出口；drop
+              目标仅在有效根对话悬停时高亮。
+            </div>
+          </li>
+          <li>
+            <span class="pin">R</span>
+            <div>
+              <b>右键菜单</b>：页签保留关闭、关闭其它和关闭全部；左树管理菜单不变；drop
+              与右栏新建不新增右键命令。
+            </div>
+          </li>
+          <li>
+            <span class="pin">C</span>
+            <div>
+              <b>点击效果</b>：subagent 打开只读页签；当前中区已有 workspace 时，空态“对话”和
+              “+”→“对话”沿用当前 workspace 创建右侧 draft；未选目录时入口禁用；页签点击聚焦、×
+              关闭、拖动排序；再次打开同一 agent 聚焦已有页签。
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="screen" id="conversation-view-memory">
+      <div class="screen-head">
+        <span class="tag">主页 · 对话视图周期</span>
+        <h2>首次两侧收起，返回恢复工作现场</h2>
+        <p>
+          每条中区根对话和每个新对话草稿独立记忆文件目录树、右侧工作区与 Workbench
+          页签。首次进入不继承上一条对话的工具状态；返回旧对话时恢复离开前现场。
+        </p>
+      </div>
+      <iframe
+        class="embedded-spec"
+        src="./requirements/2026-07-28-conversation-view-memory/ui.html#sVM1"
+        title="对话视图状态记忆完整 UI 设计稿"
+      ></iframe>
+      <div class="anno" style="margin-top: 18px">
+        <div class="anno-h">交互注解</div>
+        <ol>
+          <li>
+            <span class="pin">L</span>
+            <div>
+              <b>布局</b>：中区与左侧全局对话树保持；文件目录树和右侧工作区按当前中区对话独立显示。
+            </div>
+          </li>
+          <li>
+            <span class="pin">S</span>
+            <div>
+              <b>状态</b>：首次目标两侧关闭、Workbench
+              为空；已访问目标恢复开关、最大化、页签集合、顺序和焦点；draft 接管成 agent 时保持。
+            </div>
+          </li>
+          <li>
+            <span class="pin">R</span>
+            <div><b>右键菜单</b>：不新增；右侧页签仍为关闭、关闭其它和关闭全部。</div>
+          </li>
+          <li>
+            <span class="pin">C</span>
+            <div>
+              <b>点击效果</b>：点击根对话或新对话先保存当前现场再恢复目标；subagent
+              只加入当前右侧工作区，不建立新的中区视图周期。
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <div class="note">
+      Helm · canonical UI 设计稿 · 更新于 2026-07-29 · 浅色主题 · accent #20744A
+    </div>
   </body>
 </html>

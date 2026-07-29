@@ -143,7 +143,7 @@ CodePilot 由「作者 + Claude Code(实现) + Codex(计划/审查)」三方协�
 
 ## D. 不该照搬的
 
-1. **Codex vs Claude Code 的角色分工（Codex 计划/审查、Claude Code 实现、Codex 不许碰产品代码）** —— Helm 有硬规则「全层全员 `claude-opus-4-8`，不用 Codex/`gpt` 员工」（`workflow.md:26`、根 CLAUDE.md Model mandate）。Helm 的三层 org（总监→PM→产品/UI/架构/开发/测试）已经覆盖了「计划/执行/审查」的职责分离，**不要引入 Codex 角色边界**。借鉴的是「角色边界写死进文档」这个**做法**，不是 CodePilot 的**具体角色**。
+1. **按具体客户端或模型划分角色** —— Helm 的现行工作流要求当前编码客户端端到端负责，不绑定 provider、模型或推理配置。可以借鉴「计划 / 执行 / 审查职责清晰」这个做法，但不要把职责写死到某个工具或模型上。
 
 2. **handover/ + insights/ 「每功能两份互链文档」铁律** —— Helm 已把架构折进 `requirements/<日期>/architecture.md`、把产品价值折进 `requirement.md`，再起一套 `handover/`+`insights/` 双树是重复建设。**保留 Helm 的 per-requirement 契约三件套**；最多在 guardrail 的「关键文件+责任」里承接 handover 的「活架构地图」职责即可。
 

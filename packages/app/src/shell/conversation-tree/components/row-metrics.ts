@@ -2,13 +2,13 @@ import type { ConversationTreeSectionId } from "./tree-section-header";
 import type { ConversationTreeRow } from "../model/types";
 
 export const ROW_HEIGHTS = {
-  project: 48,
-  conversation: 48,
-  subagent: 30,
+  project: 36,
+  conversation: 36,
+  subagent: 36,
 } as const;
 
-export const SECTION_HEIGHT = 30;
-export const EMPTY_HINT_HEIGHT = 30;
+export const SECTION_HEIGHT = 36;
+export const EMPTY_HINT_HEIGHT = 36;
 
 export type ConversationTreePanelItem =
   | {

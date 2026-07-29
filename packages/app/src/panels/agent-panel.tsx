@@ -14,7 +14,6 @@ import { AgentStreamView, type AgentStreamViewHandle } from "@/agent-stream/view
 import { ArchivedAgentCallout } from "@/components/archived-agent-callout";
 import { ObservedAgentReadOnlyBar } from "@/components/observed-agent-read-only-bar";
 import { Composer } from "@/composer";
-import { AgentModeControl } from "@/composer/agent-controls/mode-control";
 import { FileDropZone } from "@/components/file-drop-zone";
 import { uploadFileAttachments } from "@/composer/actions";
 import {
@@ -334,7 +333,7 @@ function useAgentPanelDescriptor(
   };
 }
 
-function AgentPanel() {
+function AgentPanel({ forceReadOnly }: { forceReadOnly: boolean }) {
   const { serverId, target, openFileInWorkspace } = usePaneContext();
   const { isInteractive } = usePaneFocus();
   invariant(target.kind === "agent", "AgentPanel requires agent target");
@@ -345,11 +344,12 @@ function AgentPanel() {
       agentId={target.agentId}
       isPaneFocused={isInteractive}
       onOpenWorkspaceFile={openFileInWorkspace}
+      forceReadOnly={forceReadOnly}
     />
   );
 }
 
-function DraftPanel() {
+function DraftPanel({ emptyLayout }: { emptyLayout: "centered" | "docked" }) {
   const {
     serverId,
     workspaceId,
@@ -387,17 +387,24 @@ function DraftPanel() {
       onOpenWorkspaceFile={openFileInWorkspace}
       onCreated={handleCreated}
       onOpenImportSheet={openImportSheet}
+      emptyLayout={emptyLayout}
     />
   );
 }
 
-export function AgentConversationPanel() {
+export function AgentConversationPanel({
+  draftLayout = "centered",
+  forceReadOnly = false,
+}: {
+  draftLayout?: "centered" | "docked";
+  forceReadOnly?: boolean;
+} = {}) {
   const { target } = usePaneContext();
   if (target.kind === "draft") {
-    return <DraftPanel />;
+    return <DraftPanel emptyLayout={draftLayout} />;
   }
   if (target.kind === "agent") {
-    return <AgentPanel />;
+    return <AgentPanel forceReadOnly={forceReadOnly} />;
   }
   invariant(false, "AgentConversationPanel requires an agent or draft target");
 }
@@ -478,11 +485,13 @@ function AgentPanelContent({
   agentId,
   isPaneFocused,
   onOpenWorkspaceFile,
+  forceReadOnly,
 }: {
   serverId: string;
   agentId: string;
   isPaneFocused: boolean;
   onOpenWorkspaceFile?: (request: WorkspaceFileOpenRequest) => void;
+  forceReadOnly: boolean;
 }) {
   const { t } = useTranslation();
   const resolvedAgentId = agentId.trim() || undefined;
@@ -528,6 +537,7 @@ function AgentPanelContent({
       isConnected={runtimeIsConnected}
       connectionStatus={connectionStatus}
       onOpenWorkspaceFile={onOpenWorkspaceFile}
+      forceReadOnly={forceReadOnly}
     />
   );
 }
@@ -540,6 +550,7 @@ function AgentPanelBody({
   isConnected,
   connectionStatus,
   onOpenWorkspaceFile,
+  forceReadOnly,
 }: {
   serverId: string;
   agentId?: string;
@@ -548,6 +559,7 @@ function AgentPanelBody({
   isConnected: boolean;
   connectionStatus: HostRuntimeConnectionStatus;
   onOpenWorkspaceFile?: (request: WorkspaceFileOpenRequest) => void;
+  forceReadOnly: boolean;
 }) {
   const { t } = useTranslation();
   const { isArchivingAgent: _isArchivingAgent } = useArchiveAgent();
@@ -693,6 +705,7 @@ function AgentPanelBody({
       isConnected={isConnected}
       connectionStatus={connectionStatus}
       onOpenWorkspaceFile={onOpenWorkspaceFile}
+      forceReadOnly={forceReadOnly}
     />
   );
 }
@@ -705,6 +718,7 @@ function ChatAgentContent({
   isConnected,
   connectionStatus,
   onOpenWorkspaceFile,
+  forceReadOnly,
 }: {
   serverId: string;
   agentId?: string;
@@ -713,6 +727,7 @@ function ChatAgentContent({
   isConnected: boolean;
   connectionStatus: HostRuntimeConnectionStatus;
   onOpenWorkspaceFile?: (request: WorkspaceFileOpenRequest) => void;
+  forceReadOnly: boolean;
 }) {
   const { t } = useTranslation();
   const { api: toastApi, toast: toastState, dismiss: dismissToast } = useToastHost();
@@ -1148,6 +1163,7 @@ function ChatAgentContent({
       onAttentionInputFocus={attentionController.clearOnInputFocus}
       onAttentionPromptSend={attentionController.clearOnPromptSend}
       onOpenWorkspaceFile={onOpenWorkspaceFile}
+      forceReadOnly={forceReadOnly}
     />
   );
 }
@@ -1177,6 +1193,7 @@ const ChatAgentReadyContent = memo(function ChatAgentReadyContent({
   onAttentionInputFocus,
   onAttentionPromptSend,
   onOpenWorkspaceFile,
+  forceReadOnly,
 }: {
   serverId: string;
   agentId: string;
@@ -1202,6 +1219,7 @@ const ChatAgentReadyContent = memo(function ChatAgentReadyContent({
   onAttentionInputFocus: () => void;
   onAttentionPromptSend: () => void;
   onOpenWorkspaceFile?: (request: WorkspaceFileOpenRequest) => void;
+  forceReadOnly: boolean;
 }) {
   const { t } = useTranslation();
   const isComposerDock = useIsComposerDock();
@@ -1251,6 +1269,7 @@ const ChatAgentReadyContent = memo(function ChatAgentReadyContent({
         archivedAt={agentState.archivedAt}
         observed={agentState.observed}
         observedProvider={agentState.provider}
+        forceReadOnly={forceReadOnly}
         cwd={cwd}
         isSubmitLoading={false}
         agentInputDraft={agentInputDraft}
@@ -1285,7 +1304,7 @@ const ChatAgentReadyContent = memo(function ChatAgentReadyContent({
         <FileDropZone
           onFilesDropped={handleFilesDropped}
           onGenericFilesDropped={handleGenericFilesDropped}
-          disabled={isArchivingCurrentAgent}
+          disabled={isArchivingCurrentAgent || forceReadOnly}
         >
           <View style={styles.container}>
             {contentContainer}
@@ -1388,6 +1407,7 @@ const AgentComposerSection = memo(function AgentComposerSection({
   archivedAt,
   observed,
   observedProvider,
+  forceReadOnly,
   cwd,
   isSubmitLoading,
   agentInputDraft,
@@ -1405,6 +1425,7 @@ const AgentComposerSection = memo(function AgentComposerSection({
   archivedAt: Date | null;
   observed: boolean;
   observedProvider: Agent["provider"] | null;
+  forceReadOnly: boolean;
   cwd: string;
   isSubmitLoading: boolean;
   agentInputDraft: AgentInputDraft;
@@ -1423,7 +1444,7 @@ const AgentComposerSection = memo(function AgentComposerSection({
   }
   // Provider-internal subagents are observed read-only: swap the composer for a
   // banner so the user can read but never send or interrupt them.
-  if (observed) {
+  if (observed || forceReadOnly) {
     return <ObservedAgentReadOnlyBar provider={observedProvider} />;
   }
   if (isArchivingCurrentAgent) {
@@ -1573,19 +1594,6 @@ function ActiveAgentComposer({
     [insets.bottom, composerKeyboardStyle],
   );
 
-  const composerFooter = useMemo(
-    () =>
-      isCompactComposerLayout ? (
-        <AgentModeControl
-          serverId={serverId}
-          agentId={agentId}
-          placement="footer"
-          isCompactLayout={isCompactComposerLayout}
-        />
-      ) : undefined,
-    [isCompactComposerLayout, serverId, agentId],
-  );
-
   return (
     <ReanimatedAnimated.View style={inputAreaStyle} onLayout={onInputAreaLayout}>
       <SubagentsTrack
@@ -1606,6 +1614,7 @@ function ActiveAgentComposer({
         onOpenWorkspaceAttachment={handleOpenWorkspaceAttachment}
         onChangeAttachments={agentInputDraft.setAttachments}
         cwd={cwd}
+        showLockedWorkspaceContext
         clearDraft={agentInputDraft.clear}
         autoFocus={composerAutoFocus}
         isSubmitLoading={isSubmitLoading}
@@ -1616,7 +1625,6 @@ function ActiveAgentComposer({
         onComposerHeightChange={onComposerHeightChange}
         onMessageSent={onMessageSent}
         onClientSlashCommand={handleClientSlashCommand}
-        footer={composerFooter}
         isCompactLayout={isCompactComposerLayout}
       />
     </ReanimatedAnimated.View>

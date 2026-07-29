@@ -22,6 +22,7 @@ import type {
   ConversationTreeNode,
   ConversationTreeRow as ConversationTreeRowModel,
 } from "../model/types";
+import type { ConversationTreeMenuTarget } from "./tree-context-menu";
 import { ConversationTreeRow } from "./tree-row";
 
 const NOOP_OPEN_MENU = () => {};
@@ -84,6 +85,7 @@ class BrowserTreeData implements ConversationTreeData {
   readonly agents = [
     agent("root", { workspaceId: "workspace-root", status: "running" }),
     agent("child", { parentAgentId: "root", status: "idle" }),
+    agent("grandchild", { parentAgentId: "child", status: "running" }),
   ];
   readonly workspaceSnapshot: ConversationTreeWorkspaceSnapshot = {
     workspaces: [
@@ -127,7 +129,7 @@ function createBrowserStore(onOpenRightPanel: () => void): ConversationTreeStore
   const context = { serverId: "server", isElectron: false, isOffline: false };
   const deps: ConversationTreeStoreDeps = {
     data: new BrowserTreeData(),
-    openRightPanel: onOpenRightPanel,
+    openConversationInRightPanel: () => onOpenRightPanel(),
     navigate: () => {},
     openInFinder: async () => {},
     openInNewWindow: () => {},
@@ -135,6 +137,8 @@ function createBrowserStore(onOpenRightPanel: () => void): ConversationTreeStore
     confirmDestructive: async () => true,
     reportError: () => {},
     openSearch: () => {},
+    createDraftId: () => "draft-test",
+    retargetConversationView: () => {},
     getContext: () => context,
   };
   return new ConversationTreeStore(deps);
@@ -215,6 +219,7 @@ describe("ConversationTreeRow", () => {
     vi.stubGlobal("React", React);
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     let rightOpenCount = 0;
+    const handleOpenMenu = vi.fn<(target: ConversationTreeMenuTarget) => void>();
     store = createBrowserStore(() => {
       rightOpenCount += 1;
     });
@@ -233,24 +238,21 @@ describe("ConversationTreeRow", () => {
             store={store!}
             isOffline={false}
             isContextTarget={false}
-            onOpenMenu={NOOP_OPEN_MENU}
-            nowMs={Date.parse("2026-07-12T02:00:00.000Z")}
+            onOpenMenu={handleOpenMenu}
           />
           <ConversationTreeRow
             row={row(nodes.root, 1)}
             store={store!}
             isOffline={false}
             isContextTarget={false}
-            onOpenMenu={NOOP_OPEN_MENU}
-            nowMs={Date.parse("2026-07-12T02:00:00.000Z")}
+            onOpenMenu={handleOpenMenu}
           />
           <ConversationTreeRow
             row={row(nodes.child, 2)}
             store={store!}
             isOffline={false}
             isContextTarget={false}
-            onOpenMenu={NOOP_OPEN_MENU}
-            nowMs={Date.parse("2026-07-12T02:00:00.000Z")}
+            onOpenMenu={handleOpenMenu}
           />
         </View>,
       ),
@@ -263,38 +265,58 @@ describe("ConversationTreeRow", () => {
     const projectChevron = requireElement(host, "conv-tree-chevron-project");
     const rootChevron = requireElement(host, "conv-tree-chevron-root");
 
-    expect(projectRow.textContent).toContain("develop");
-    expect(projectRow.textContent).toContain("+8");
-    expect(projectRow.textContent).toContain("-2");
-    expect(rootRow.textContent).toContain("2 小时前");
-    expect(rootRow.textContent).toContain("运行中");
-    expect(rootRow.textContent).toContain("Claude");
+    expect(projectRow.textContent).toBe("Project");
+    expect(rootRow.textContent).toBe("Agent root");
+    expect(childRow.textContent).toBe("Agent child");
     expect(rootRow.querySelector('[data-testid="conv-tree-status-root"]')).toBeNull();
     expect(rootRow.querySelector('[data-testid="conv-tree-badge-root"]')).toBeNull();
-    expect(projectRow.getBoundingClientRect().height).toBe(48);
-    expect(rootRow.getBoundingClientRect().height).toBe(48);
-    expect(childRow.getBoundingClientRect().height).toBe(30);
-    expect(getComputedStyle(projectRow).alignItems).toBe("flex-start");
-    expect(getComputedStyle(rootRow).alignItems).toBe("flex-start");
+    expect(childRow.querySelector('[data-testid="conv-tree-status-child"]')).toBeNull();
+    expect(childRow.querySelector('[data-testid="conv-tree-badge-child"]')).toBeNull();
+    expect(host.querySelector('[data-testid^="conv-tree-more-"]')).toBeNull();
+    expect(host.querySelector('[data-testid^="conv-tree-project-new-"]')).toBeNull();
+    expect(projectRow.getAttribute("data-convhover")).toBe("1");
+    expect(rootRow.getAttribute("data-convhover")).toBe("1");
+    expect(childRow.getAttribute("data-convhover")).toBe("1");
+    expect(projectRow.getBoundingClientRect().height).toBe(36);
+    expect(rootRow.getBoundingClientRect().height).toBe(36);
+    expect(childRow.getBoundingClientRect().height).toBe(36);
+    expect(getComputedStyle(projectRow).alignItems).toBe("center");
+    expect(getComputedStyle(rootRow).alignItems).toBe("center");
     expect(getComputedStyle(childRow).alignItems).toBe("center");
     expect(
       Math.round(
         projectChevron.getBoundingClientRect().top - projectRow.getBoundingClientRect().top,
       ),
-    ).toBe(6);
+    ).toBe(8);
     expect(
       Math.round(rootChevron.getBoundingClientRect().top - rootRow.getBoundingClientRect().top),
-    ).toBe(6);
-    requireElement(host, "conv-tree-status-child");
-
+    ).toBe(8);
     React.act(() => rootRow.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await nextFrame();
     expect(store.focusedRootId).toBe("root");
     expect(store.activeNodeId).toBe("root");
+    expect(rootRow.getAttribute("data-convhover")).toBeNull();
 
     React.act(() => childRow.dispatchEvent(new MouseEvent("click", { bubbles: true })));
+    await nextFrame();
     expect(rightOpenCount).toBe(1);
     expect(store.focusedRootId).toBe("root");
     expect(store.activeNodeId).toBe("child");
+    expect(childRow.getAttribute("data-convhover")).toBeNull();
+
+    React.act(() =>
+      projectRow.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, clientX: 80, clientY: 40 }),
+      ),
+    );
+    React.act(() =>
+      childRow.dispatchEvent(
+        new MouseEvent("contextmenu", { bubbles: true, clientX: 90, clientY: 50 }),
+      ),
+    );
+    expect(handleOpenMenu).toHaveBeenCalledTimes(2);
+    expect(handleOpenMenu.mock.calls[0]?.[0].node.kind).toBe("project");
+    expect(handleOpenMenu.mock.calls[1]?.[0].node.kind).toBe("subagent");
 
     React.act(() => rootRow.dispatchEvent(new MouseEvent("dblclick", { bubbles: true })));
     await nextFrame();
@@ -302,7 +324,7 @@ describe("ConversationTreeRow", () => {
     requireElement(host, "conv-tree-rename-input-root");
   });
 
-  it("renders the five status labels through the root-row visual branch", async () => {
+  it("keeps root rows title-only while status presentation remains deferred", async () => {
     await page.viewport(800, 700);
     vi.stubGlobal("React", React);
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
@@ -328,20 +350,17 @@ describe("ConversationTreeRow", () => {
         isOffline={false}
         isContextTarget={false}
         onOpenMenu={NOOP_OPEN_MENU}
-        nowMs={Date.parse("2026-07-12T02:00:00.000Z")}
       />
     ));
     React.act(() => root?.render(<View>{renderedRows}</View>));
     await nextFrame();
 
     for (const [id, _runStatus, _attentionKind, label] of cases) {
-      const statusTag = requireElement(host, `conv-tree-status-tag-${id}`);
-      expect(statusTag.textContent).toContain(label);
-      expect(
-        requireElement(host, `conv-tree-row-conversation-${id}`).querySelector(
-          `[data-testid="conv-tree-status-${id}"]`,
-        ),
-      ).toBeNull();
+      const renderedRow = requireElement(host, `conv-tree-row-conversation-${id}`);
+      expect(renderedRow.textContent).toBe(id);
+      expect(renderedRow.textContent).not.toContain(label);
+      expect(renderedRow.querySelector(`[data-testid="conv-tree-status-${id}"]`)).toBeNull();
+      expect(renderedRow.querySelector(`[data-testid="conv-tree-status-tag-${id}"]`)).toBeNull();
     }
   });
 });

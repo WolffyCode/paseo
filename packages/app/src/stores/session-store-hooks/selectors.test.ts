@@ -36,6 +36,7 @@ function createWorkspace(
     projectKind: input.projectKind ?? "git",
     workspaceKind: input.workspaceKind ?? "local_checkout",
     name: input.name ?? "main",
+    title: input.title ?? null,
     status: input.status ?? "done",
     archivingAt: input.archivingAt ?? null,
     statusEnteredAt: null,

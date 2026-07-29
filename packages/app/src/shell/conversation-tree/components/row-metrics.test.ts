@@ -60,6 +60,9 @@ const ITEMS: readonly ConversationTreePanelItem[] = [
         title: "Subagent",
         workspaceId: null,
         runStatus: "running",
+        contextWorkspaceId: null,
+        updatedAt: "2026-07-24T00:00:00.000Z",
+        providerId: "claude",
         subagentCount: 0,
         children: [],
       },
@@ -73,16 +76,16 @@ const ITEMS: readonly ConversationTreePanelItem[] = [
 
 describe("row metrics", () => {
   test("uses the three static row heights and keeps non-row item heights explicit", () => {
-    expect(ROW_HEIGHTS).toEqual({ project: 48, conversation: 48, subagent: 30 });
-    expect(ITEMS.map(itemHeight)).toEqual([30, 48, 48, 30, 30]);
+    expect(ROW_HEIGHTS).toEqual({ project: 36, conversation: 36, subagent: 36 });
+    expect(ITEMS.map(itemHeight)).toEqual([36, 36, 36, 36, 36]);
   });
 
   test("builds strictly increasing offsets and matching FlatList layout tuples", () => {
     const offsets = buildItemOffsets(ITEMS);
-    expect(offsets).toEqual([0, 30, 78, 126, 156]);
+    expect(offsets).toEqual([0, 36, 72, 108, 144]);
     expect(offsets.every((offset, index) => index === 0 || offset > offsets[index - 1]!)).toBe(
       true,
     );
-    expect(getPanelItemLayout(ITEMS, offsets, 2)).toEqual({ length: 48, offset: 78, index: 2 });
+    expect(getPanelItemLayout(ITEMS, offsets, 2)).toEqual({ length: 36, offset: 72, index: 2 });
   });
 });

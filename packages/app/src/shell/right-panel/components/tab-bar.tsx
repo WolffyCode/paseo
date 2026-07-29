@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { isWeb } from "@/constants/platform";
 import type { PanelTab, WorkbenchModel } from "../model/workbench-model";
 import { themeModel } from "../../theme/theme-model";
-import { IconFile, IconPlus, IconX } from "./icons";
+import { IconConversation, IconFile, IconPlus, IconX } from "./icons";
 import { NewTabMenu } from "./new-tab-menu";
 import { PanelControls } from "./panel-controls";
 import { TabContextMenu } from "./tab-context-menu";
@@ -37,9 +37,13 @@ const NEW_TAB_MENU_CONTENT_CLEARANCE = 38;
 export const TabBar = observer(function TabBar({
   workbench,
   isOffline,
+  canCreateConversation,
+  onCreateConversation,
 }: {
   workbench: WorkbenchModel;
   isOffline: boolean;
+  canCreateConversation: boolean;
+  onCreateConversation: () => void;
 }) {
   const tk = themeModel.tokens;
   ensureTabHoverCss(tk.tabHover, tk.foreground);
@@ -140,7 +144,12 @@ export const TabBar = observer(function TabBar({
       }
       overlay={
         <>
-          <NewTabMenu anchor={newTabAnchor} onClose={closeMenus} />
+          <NewTabMenu
+            anchor={newTabAnchor}
+            onClose={closeMenus}
+            canCreateConversation={canCreateConversation}
+            onCreateConversation={onCreateConversation}
+          />
           {ctxMenu ? (
             <TabContextMenu
               workbench={workbench}
@@ -292,6 +301,7 @@ const TabPill = observer(function TabPill({
     [active, tk.foreground, tk.foregroundMuted, weight],
   );
   const iconColor = active ? tk.foreground : tk.foregroundMuted;
+  const TabIcon = tab.kind === "conversation" ? IconConversation : IconFile;
   const dirtyStyle = useMemo(
     () => [styles.dirty, { backgroundColor: tk.foregroundMuted }],
     [tk.foregroundMuted],
@@ -305,7 +315,7 @@ const TabPill = observer(function TabPill({
   return (
     <View ref={hostRef} style={pillStyle} dataSet={tabData}>
       <Pressable style={styles.tabPress} onPress={onFocus} accessibilityRole="tab">
-        <IconFile size={14} color={iconColor} />
+        <TabIcon size={14} color={iconColor} />
         <Text style={titleStyle} numberOfLines={1} dataSet={TAB_TITLE_DATASET}>
           {title}
         </Text>

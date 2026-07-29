@@ -165,7 +165,7 @@ export const ConversationTreeEmptyHint = observer(function ConversationTreeEmpty
 const styles = StyleSheet.create({
   loading: { flex: 1, minHeight: 0, paddingHorizontal: 8, paddingTop: 4 },
   skeletonRow: {
-    height: 24,
+    height: 30,
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
@@ -175,7 +175,7 @@ const styles = StyleSheet.create({
   skeletonIcon: { width: 14, height: 14, borderRadius: 4 },
   skeletonText: { height: 10, borderRadius: 4 },
   loadingLabel: {
-    height: 30,
+    height: 36,
     paddingHorizontal: 9,
     flexDirection: "row",
     alignItems: "center",
@@ -218,7 +218,7 @@ const styles = StyleSheet.create({
   },
   offlineText: { flex: 1, fontSize: 11 },
   reconnectText: { fontSize: 11, fontWeight: "500" },
-  emptyHint: { height: 30, justifyContent: "center", paddingHorizontal: 9 },
+  emptyHint: { height: 36, justifyContent: "center", paddingHorizontal: 9 },
   emptyIndented: { paddingLeft: 44 },
   mutedText: { fontSize: 12.5 },
 });

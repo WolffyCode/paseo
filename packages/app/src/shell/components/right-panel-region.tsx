@@ -1,13 +1,14 @@
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { useHostRuntimeConnectionStatus } from "@/runtime/host-runtime";
-import { createRightPanelForServer } from "../right-panel/data/right-panel-context.wiring";
+import { generateDraftId } from "@/stores/draft-keys";
+import type { RightPanel } from "../right-panel/data/right-panel-context.wiring";
+import { ConversationPanels } from "../right-panel/data/conversation-panels";
 import { registerRightPanelTarget } from "../right-panel/data/workspace-panels";
 import { Workbench } from "../right-panel/components/workbench";
 
 // The shell-layer mount for the right panel (NOT inside shell/right-panel/, so it may read the old
-// runtime reactively). It owns the workbench's lifecycle — one WorkbenchModel + controller + editor-handle
-// map per (serverId, workspaceId), rebuilt when the workspace changes (transient, per architecture §3.5) —
-// registers the controller so the file-tree bridge can open files into it (draining any queued opens),
+// runtime reactively). The host-level ConversationPanels collection owns Workbench lifecycle; this region
+// registers the currently visible controller so the file-tree bridge can open files into it (draining queued opens),
 // and feeds the live offline read so the observer workbench freezes on disconnect. This keeps the
 // right-panel components zero-touch on old modules; all old-facing reads live here or in the wiring seam.
 
@@ -20,15 +21,20 @@ function workspaceIdOf(workspaceKey: string, serverId: string): string {
 export function RightPanelRegion({
   serverId,
   workspaceKey,
+  newConversationWorkspaceId,
+  conversationPanels,
+  conversationViewKey,
 }: {
   serverId: string;
   workspaceKey: string;
+  newConversationWorkspaceId: string | null;
+  conversationPanels: ConversationPanels<RightPanel>;
+  conversationViewKey: string;
 }) {
   const workspaceId = workspaceIdOf(workspaceKey, serverId);
-  // One panel per (serverId, workspaceId); a new workspace rebuilds it (clears tabs — transient memory).
   const panel = useMemo(
-    () => createRightPanelForServer(serverId, workspaceId),
-    [serverId, workspaceId],
+    () => conversationPanels.resolve(conversationViewKey, workspaceId),
+    [conversationPanels, conversationViewKey, workspaceId],
   );
   // Register the controller as the workspace's right-panel target so the file-tree bridge reaches it (and
   // any file queued while the panel was collapsed opens now). Unregister on unmount / workspace change.
@@ -54,12 +60,27 @@ export function RightPanelRegion({
   //     out of this UI fix's scope; flagged rather than wired as a never-true (dead) gate.
   // Reactive offline read so the observer workbench repaints (banner + freeze) on connection change.
   const isOffline = useHostRuntimeConnectionStatus(serverId) !== "online";
+  const createConversation = useCallback(() => {
+    if (newConversationWorkspaceId === null || isOffline) return;
+    panel.controller.openConversation({
+      kind: "conversation",
+      target: { kind: "draft", draftId: generateDraftId() },
+      workspaceId: newConversationWorkspaceId,
+      title: "新对话",
+      readOnly: false,
+    });
+  }, [isOffline, newConversationWorkspaceId, panel]);
 
   return (
     <Workbench
       workbench={panel.workbench}
       resolveEditorHandle={panel.resolveEditorHandle}
       isOffline={isOffline}
+      serverId={serverId}
+      canCreateConversation={newConversationWorkspaceId !== null && !isOffline}
+      onCreateConversation={createConversation}
+      onOpenConversationFile={panel.openConversationFile}
+      resolveAgentTitle={panel.resolveAgentTitle}
     />
   );
 }

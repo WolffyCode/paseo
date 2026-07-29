@@ -263,6 +263,9 @@ function dispatchProjectItem(
   workspace: ReturnType<typeof resolveNodeWorkspace>,
 ): void {
   switch (id) {
+    case "new-conversation":
+      store.openProjectConversation(workspace?.workspaceId ?? null);
+      return;
     case "pin":
     case "unpin":
       store.togglePin({ kind: "project", projectKey: node.id });
@@ -272,7 +275,7 @@ function dispatchProjectItem(
       return;
     case "create-worktree":
       if (workspace !== null) {
-        store.openProjectConversation({
+        store.openProjectWorktree({
           sourceDirectory: workspace.detail.directory,
           projectKey: node.id,
           projectName: node.title,
@@ -327,6 +330,7 @@ function dispatchConversationItem(
 }
 
 const MENU_LABEL: Record<ProjectMenuItemId | ConversationMenuItemId, string> = {
+  "new-conversation": "新对话",
   pin: "置顶",
   unpin: "取消置顶",
   "reveal-in-finder": "在 Finder 中显示",
@@ -345,6 +349,7 @@ const MENU_LABEL: Record<ProjectMenuItemId | ConversationMenuItemId, string> = {
 };
 
 const MENU_ICON: Record<ProjectMenuItemId | ConversationMenuItemId, LucideIcon> = {
+  "new-conversation": PenLine,
   pin: Pin,
   unpin: PinOff,
   "reveal-in-finder": FolderOpen,

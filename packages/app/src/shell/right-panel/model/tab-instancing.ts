@@ -33,6 +33,10 @@ export function resolveTabInstancing(
     }
     return { action: "append" };
   }
+  if (request.kind === "conversation") {
+    const match = existing.find((tab) => tab.kind === "conversation" && tab.path === request.path);
+    return match ? { action: "focus", id: match.id } : { action: "append" };
+  }
   if (TAB_KIND_POLICY[request.kind].instancing === "single") {
     const match = existing.find((tab) => tab.kind === request.kind);
     return match ? { action: "focus", id: match.id } : { action: "append" };

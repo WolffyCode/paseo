@@ -46,7 +46,7 @@ const PROJECTS: readonly ConversationTreeProject[] = [
 ];
 
 describe("buildConversationTree", () => {
-  test("transfers recent activity, provider identity, and attention cause to root conversations", () => {
+  test("transfers each conversation's hover metadata and inherits subagent directory context", () => {
     const nodes = buildConversationTree({
       agents: [
         agent("root", {
@@ -55,6 +55,11 @@ describe("buildConversationTree", () => {
           updatedAt: "2026-07-24T01:02:03.000Z",
           requiresAttention: true,
           attentionReason: "permission",
+        }),
+        agent("child", {
+          parentAgentId: "root",
+          provider: "opencode",
+          updatedAt: "2026-07-24T02:03:04.000Z",
         }),
       ],
       projects: PROJECTS,
@@ -66,6 +71,14 @@ describe("buildConversationTree", () => {
       providerId: "codex",
       attentionKind: "permission",
       runStatus: "needsAttention",
+    });
+    expect(nodes[0]?.children[0]?.children[0]).toMatchObject({
+      id: "child",
+      title: "Agent child",
+      workspaceId: null,
+      contextWorkspaceId: "w1",
+      updatedAt: "2026-07-24T02:03:04.000Z",
+      providerId: "opencode",
     });
   });
 
@@ -255,7 +268,7 @@ describe("buildConversationTree", () => {
     expect(nodes[0]?.children).toEqual([]);
   });
 
-  test("uses live workspace titles only for root conversations and falls back to agent identity", () => {
+  test("prefers each agent title and uses a workspace title only when a root has no title", () => {
     const nodes = buildConversationTree({
       agents: [
         agent("root", { title: "Agent title", workspaceId: "w1" }),
@@ -270,13 +283,14 @@ describe("buildConversationTree", () => {
       workspaceDetails: new Map([
         ["w1", workspaceDetail("Live workspace title")],
         ["w2", workspaceDetail("Must not replace child title")],
+        ["loose", workspaceDetail("Untitled workspace fallback")],
       ]),
     });
 
     const root = nodes[0]?.children[0];
-    expect(root?.title).toBe("Live workspace title");
+    expect(root?.title).toBe("Agent title");
     expect(root?.children[0]?.title).toBe("Child title");
-    expect(nodes[2]?.title).toBe("untitled");
+    expect(nodes[2]?.title).toBe("Untitled workspace fallback");
   });
 
   test("deduplicates repeated agent identities on the single agent-id axis", () => {

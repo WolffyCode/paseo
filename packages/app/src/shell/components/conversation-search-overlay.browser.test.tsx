@@ -144,7 +144,7 @@ describe("ConversationSearchOverlay", () => {
     const navigateCalls: string[] = [];
     const deps: ConversationTreeStoreDeps = {
       data: new BrowserSearchData(),
-      openRightPanel: () => {},
+      openConversationInRightPanel: () => {},
       navigate: (route) => navigateCalls.push(route),
       openInFinder: async () => {},
       openInNewWindow: () => {},
@@ -152,6 +152,8 @@ describe("ConversationSearchOverlay", () => {
       confirmDestructive: async () => true,
       reportError: () => {},
       openSearch: () => {},
+      createDraftId: () => "draft-test",
+      retargetConversationView: () => {},
       getContext: () => context,
     };
     store = new ConversationTreeStore(deps);
@@ -184,7 +186,7 @@ describe("ConversationSearchOverlay", () => {
     const context = { serverId: "server", isElectron: false, isOffline: false };
     const deps: ConversationTreeStoreDeps = {
       data: new BrowserSearchData(),
-      openRightPanel: () => {},
+      openConversationInRightPanel: () => {},
       navigate: () => {},
       openInFinder: async () => {},
       openInNewWindow: () => {},
@@ -192,6 +194,8 @@ describe("ConversationSearchOverlay", () => {
       confirmDestructive: async () => true,
       reportError: () => {},
       openSearch: () => {},
+      createDraftId: () => "draft-test",
+      retargetConversationView: () => {},
       getContext: () => context,
     };
     store = new ConversationTreeStore(deps);

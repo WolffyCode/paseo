@@ -1,10 +1,4 @@
-import {
-  View,
-  Pressable,
-  Text,
-  ActivityIndicator,
-  type PressableStateCallbackType,
-} from "react-native";
+import { View, Pressable, Text, ActivityIndicator } from "react-native";
 import type { TFunction } from "i18next";
 import {
   useState,
@@ -23,7 +17,7 @@ import { useShallow } from "zustand/shallow";
 import {
   ArrowUp,
   Square,
-  Pencil,
+  Trash2,
   AudioLines,
   CircleDot,
   FileText,
@@ -31,6 +25,9 @@ import {
   Github,
   Image as ImageIcon,
   Paperclip,
+  Folder,
+  Lock,
+  Clock3,
 } from "lucide-react-native";
 import Animated from "react-native-reanimated";
 import { FOOTER_HEIGHT, MAX_CONTENT_WIDTH } from "@/constants/layout";
@@ -51,8 +48,8 @@ import { encodeImages } from "@/utils/encode-images";
 import { focusWithRetries } from "@/utils/web-focus";
 import {
   cancelComposerAgent,
+  deleteQueuedComposerMessage,
   dispatchComposerAgentMessage,
-  editQueuedComposerMessage,
   findGithubItemByOption,
   isAttachmentSelectedForGithubItem,
   openComposerAttachment,
@@ -109,6 +106,7 @@ import { useGithubSearchQuery } from "@/git/use-github-search-query";
 import { useCheckoutStatusQuery } from "@/git/use-status-query";
 import { useComposerGithubAutoAttach } from "./github/auto-attach";
 import { resolveClientSlashCommand, type ClientSlashCommand } from "@/client-slash-commands";
+import { shortenPath } from "@/utils/shorten-path";
 
 type QueuedMessage = QueuedComposerMessage;
 
@@ -175,19 +173,6 @@ function buildCancelButtonStyle(isConnected: boolean, isCancellingAgent: boolean
   return [styles.cancelButton, disabled].filter((value): value is object => Boolean(value));
 }
 
-function buildRealtimeVoiceButtonStyle(
-  hovered: boolean | undefined,
-  voiceButtonDisabled: boolean,
-  reserveLeadingSpace: boolean,
-): object[] {
-  const hoveredStyle = hovered ? styles.iconButtonHovered : undefined;
-  const disabledStyle = voiceButtonDisabled ? styles.buttonDisabled : undefined;
-  const reserveStyle = reserveLeadingSpace ? styles.realtimeVoiceButtonCompactReserve : undefined;
-  return [styles.realtimeVoiceButton, reserveStyle, hoveredStyle, disabledStyle].filter(
-    (value): value is object => Boolean(value),
-  );
-}
-
 function buildAgentStateSelector(serverId: string, agentId: string) {
   return (state: ReturnType<typeof useSessionStore.getState>) => {
     const agent = state.sessions[serverId]?.agents?.get(agentId) ?? null;
@@ -228,31 +213,61 @@ function renderContextWindowMeter(
   );
 }
 
-function resolveContextWindowPlacement(
-  meter: ReactElement | null,
-  isMobile: boolean,
-): { beforeVoiceContent: ReactNode; footerInlineContent: ReactNode } {
-  if (isMobile) {
-    return { beforeVoiceContent: null, footerInlineContent: meter };
-  }
-  return {
-    beforeVoiceContent: <View style={styles.contextWindowMeterSlot}>{meter}</View>,
-    footerInlineContent: null,
-  };
-}
-
 interface RenderLeftContentArgs {
   agentControls: DraftAgentControlsProps | undefined;
   agentId: string;
   serverId: string;
   focusInput: () => void;
   isCompactLayout: boolean;
+  compactPlacement?: "toolbar" | "overflow";
+}
+
+/** Show the immutable workspace identity inside an active conversation Composer. */
+const COMPOSER_MAX_WIDTH = 780;
+
+/** Return the final path segment for the Composer's project label. */
+function workspaceDirectoryName(cwd: string): string {
+  const trimmed = cwd.trim().replace(/[\\/]+$/, "");
+  const separator = Math.max(trimmed.lastIndexOf("/"), trimmed.lastIndexOf("\\"));
+  return trimmed.slice(separator + 1) || trimmed;
+}
+
+function LockedWorkspaceContext({ cwd }: { cwd: string }) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.workspaceContext} testID="composer-workspace-context">
+      <ThemedFolder size={ICON_SIZE.md} uniProps={iconForegroundMutedMapping} />
+      <Text style={styles.workspaceContextName} numberOfLines={1}>
+        {workspaceDirectoryName(cwd)}
+      </Text>
+      <Text style={styles.workspaceContextPath} numberOfLines={1} ellipsizeMode="middle">
+        {shortenPath(cwd)}
+      </Text>
+      <View style={styles.workspaceContextLock}>
+        <ThemedLock size={ICON_SIZE.sm} uniProps={iconForegroundMutedMapping} />
+        <Text style={styles.workspaceContextLockText}>{t("composer.workspace.locked")}</Text>
+      </View>
+    </View>
+  );
 }
 
 function renderLeftContent(args: RenderLeftContentArgs): ReactElement {
-  const { agentControls, agentId, serverId, focusInput, isCompactLayout } = args;
+  const {
+    agentControls,
+    agentId,
+    serverId,
+    focusInput,
+    isCompactLayout,
+    compactPlacement = "toolbar",
+  } = args;
   if (resolveAgentControlsMode(agentControls) === "draft" && agentControls) {
-    return <DraftAgentControls {...agentControls} isCompactLayout={isCompactLayout} />;
+    return (
+      <DraftAgentControls
+        {...agentControls}
+        isCompactLayout={isCompactLayout}
+        compactPlacement={compactPlacement}
+      />
+    );
   }
   return (
     <AgentControls
@@ -260,6 +275,7 @@ function renderLeftContent(args: RenderLeftContentArgs): ReactElement {
       serverId={serverId}
       onDropdownClose={focusInput}
       isCompactLayout={isCompactLayout}
+      compactPlacement={compactPlacement}
     />
   );
 }
@@ -278,18 +294,13 @@ interface RenderAttachmentTrayArgs {
   };
 }
 
-function renderComposerFooter(
-  footer: ReactNode,
-  footerInlineContent: ReactNode,
-): ReactElement | null {
-  if (!footer && !footerInlineContent) return null;
+/** Render optional consumer-owned controls below the Composer surface. */
+function renderComposerFooter(footer: ReactNode): ReactElement | null {
+  if (!footer) return null;
   return (
     <View style={styles.footer}>
       <View style={styles.footerContent}>
-        <View style={styles.footerLeft}>
-          {footer}
-          {footerInlineContent}
-        </View>
+        <View style={styles.footerLeft}>{footer}</View>
       </View>
     </View>
   );
@@ -322,15 +333,26 @@ function renderAttachmentTray(args: RenderAttachmentTrayArgs): ReactElement | nu
 
 interface RenderQueueTrackArgs {
   queuedMessages: readonly QueuedMessage[];
-  handleEditQueuedMessage: (id: string) => void;
+  handleDeleteQueuedMessage: (id: string) => void;
   handleSendQueuedNow: (id: string) => Promise<void>;
-  editLabel: string;
+  queueLabel: string;
+  deleteLabel: string;
   sendNowLabel: string;
+  deleteActionLabel: string;
+  sendNowActionLabel: string;
 }
 
 function renderQueueTrack(args: RenderQueueTrackArgs): ReactElement | null {
-  const { queuedMessages, handleEditQueuedMessage, handleSendQueuedNow, editLabel, sendNowLabel } =
-    args;
+  const {
+    queuedMessages,
+    handleDeleteQueuedMessage,
+    handleSendQueuedNow,
+    queueLabel,
+    deleteLabel,
+    sendNowLabel,
+    deleteActionLabel,
+    sendNowActionLabel,
+  } = args;
   if (queuedMessages.length === 0) return null;
   return (
     <View style={styles.queueTrack}>
@@ -338,10 +360,13 @@ function renderQueueTrack(args: RenderQueueTrackArgs): ReactElement | null {
         <QueuedMessageRow
           key={item.id}
           item={item}
-          onEdit={handleEditQueuedMessage}
+          onDelete={handleDeleteQueuedMessage}
           onSendNow={handleSendQueuedNow}
-          editLabel={editLabel}
+          queueLabel={queueLabel}
+          deleteLabel={deleteLabel}
           sendNowLabel={sendNowLabel}
+          deleteActionLabel={deleteActionLabel}
+          sendNowActionLabel={sendNowActionLabel}
         />
       ))}
     </View>
@@ -522,38 +547,49 @@ function resolveMessageInputPassthroughAction(
 
 interface QueuedMessageRowProps {
   item: QueuedMessage;
-  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
   onSendNow: (id: string) => void;
-  editLabel: string;
+  queueLabel: string;
+  deleteLabel: string;
   sendNowLabel: string;
+  deleteActionLabel: string;
+  sendNowActionLabel: string;
 }
 
 function QueuedMessageRow({
   item,
-  onEdit,
+  onDelete,
   onSendNow,
-  editLabel,
+  queueLabel,
+  deleteLabel,
   sendNowLabel,
+  deleteActionLabel,
+  sendNowActionLabel,
 }: QueuedMessageRowProps) {
-  const handleEdit = useCallback(() => {
-    onEdit(item.id);
-  }, [onEdit, item.id]);
+  const handleDelete = useCallback(() => {
+    onDelete(item.id);
+  }, [onDelete, item.id]);
   const handleSendNow = useCallback(() => {
     onSendNow(item.id);
   }, [onSendNow, item.id]);
   return (
     <View style={styles.queueItem}>
-      <Text style={styles.queueText} numberOfLines={2} ellipsizeMode="tail">
+      <View style={styles.queueStatus}>
+        <ThemedClock3 size={ICON_SIZE.sm} uniProps={iconForegroundMutedMapping} />
+        <Text style={styles.queueStatusText}>{queueLabel}</Text>
+      </View>
+      <Text style={styles.queueText} numberOfLines={1} ellipsizeMode="tail">
         {item.text}
       </Text>
       <View style={styles.queueActions}>
         <Pressable
-          onPress={handleEdit}
+          onPress={handleDelete}
           style={styles.queueActionButton}
-          accessibilityLabel={editLabel}
+          accessibilityLabel={deleteLabel}
           accessibilityRole="button"
         >
-          <ThemedPencil size={ICON_SIZE.sm} uniProps={iconForegroundMapping} />
+          <ThemedTrash size={ICON_SIZE.sm} uniProps={iconForegroundMapping} />
+          <Text style={styles.queueActionText}>{deleteActionLabel}</Text>
         </Pressable>
         <Pressable
           onPress={handleSendNow}
@@ -561,7 +597,8 @@ function QueuedMessageRow({
           accessibilityLabel={sendNowLabel}
           accessibilityRole="button"
         >
-          <ThemedArrowUp size={ICON_SIZE.sm} uniProps={iconAccentForegroundMapping} />
+          <ThemedArrowUp size={ICON_SIZE.sm} uniProps={iconAccentMapping} />
+          <Text style={styles.queueSendActionText}>{sendNowActionLabel}</Text>
         </Pressable>
       </View>
     </View>
@@ -778,6 +815,10 @@ interface ComposerProps {
   agentControls?: DraftAgentControlsProps;
   /** Extra styles merged onto the message input wrapper (e.g. elevated background). */
   inputWrapperStyle?: import("react-native").ViewStyle;
+  /** Context row rendered inside the Composer surface above the text input. */
+  contextSlot?: ReactNode;
+  /** Show the active conversation workspace as an immutable context row. */
+  showLockedWorkspaceContext?: boolean;
   /** Rendered below the input, inside the keyboard-shifted container. */
   footer?: ReactNode;
   /** When true, a parent wrapper owns the keyboard shift, so the composer skips its own. */
@@ -866,90 +907,21 @@ function ComposerCancelButtonSlot({
   return <ComposerCancelButton {...rest} />;
 }
 
-interface ComposerVoiceModeButtonProps {
-  buttonIconSize: number;
-  handleToggleRealtimeVoice: () => void;
-  isConnected: boolean;
-  isVoiceSwitching: boolean;
-  realtimeVoiceButtonStyle: (
-    state: PressableStateCallbackType & { hovered?: boolean },
-  ) => (object | undefined)[];
-  voiceToggleKeys: ReturnType<typeof useShortcutKeys>;
-  t: TFunction;
-}
-
-interface ComposerRightControlsSlotProps extends ComposerVoiceModeButtonProps {
-  isVoiceModeForAgent: boolean;
-  hasAgent: boolean;
+interface ComposerRightControlsSlotProps {
   isAgentRunning: boolean;
   hasSendableContent: boolean;
   isProcessing: boolean;
-  isCompact: boolean;
   cancelButton: ReactElement;
 }
 
 function ComposerRightControlsSlot({
-  isVoiceModeForAgent,
-  hasAgent,
   isAgentRunning,
   hasSendableContent,
   isProcessing,
-  isCompact,
   cancelButton,
-  ...voiceProps
 }: ComposerRightControlsSlotProps) {
-  const hideVoiceForCompactInput = isCompact && hasSendableContent;
-  const showVoiceModeButton =
-    !isVoiceModeForAgent && hasAgent && !isAgentRunning && !hideVoiceForCompactInput;
   const shouldShowCancelButton = isAgentRunning && !hasSendableContent && !isProcessing;
-  if (!showVoiceModeButton && !shouldShowCancelButton) return null;
-  return (
-    <View style={styles.rightControls}>
-      {showVoiceModeButton ? <ComposerVoiceModeButton {...voiceProps} /> : null}
-      {cancelButton}
-    </View>
-  );
-}
-
-function ComposerVoiceModeButton({
-  buttonIconSize,
-  handleToggleRealtimeVoice,
-  isConnected,
-  isVoiceSwitching,
-  realtimeVoiceButtonStyle,
-  voiceToggleKeys,
-  t,
-}: ComposerVoiceModeButtonProps) {
-  const shortcutNode = voiceToggleKeys ? <Shortcut chord={voiceToggleKeys} /> : null;
-  const renderTriggerContent = useCallback(
-    ({ hovered }: PressableStateCallbackType & { hovered?: boolean }) => {
-      if (isVoiceSwitching) {
-        return <ActivityIndicator size="small" color="white" />;
-      }
-      const colorMapping = hovered ? iconForegroundMapping : iconForegroundMutedMapping;
-      return <ThemedAudioLines size={buttonIconSize} uniProps={colorMapping} />;
-    },
-    [buttonIconSize, isVoiceSwitching],
-  );
-  return (
-    <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile={false}>
-      <TooltipTrigger
-        onPress={handleToggleRealtimeVoice}
-        disabled={!isConnected || isVoiceSwitching}
-        accessibilityLabel={t("composer.voice.enableVoiceMode")}
-        accessibilityRole="button"
-        style={realtimeVoiceButtonStyle}
-      >
-        {renderTriggerContent}
-      </TooltipTrigger>
-      <TooltipContent side="top" align="center" offset={8}>
-        <View style={styles.tooltipRow}>
-          <Text style={styles.tooltipText}>{t("composer.voice.voiceMode")}</Text>
-          {shortcutNode}
-        </View>
-      </TooltipContent>
-    </Tooltip>
-  );
+  return shouldShowCancelButton ? <View style={styles.rightControls}>{cancelButton}</View> : null;
 }
 
 // oxlint-disable-next-line complexity
@@ -986,6 +958,8 @@ export function Composer({
   onAttentionPromptSend,
   agentControls,
   inputWrapperStyle,
+  contextSlot,
+  showLockedWorkspaceContext = false,
   footer,
   externalKeyboardShift,
   isCompactLayout: isCompactLayoutOverride,
@@ -999,7 +973,6 @@ export function Composer({
   const toastErrorRef = useRef(toast.error);
   toastErrorRef.current = toast.error;
   const voice = useVoiceOptional();
-  const voiceToggleKeys = useShortcutKeys("voice-toggle");
   const agentInterruptKeys = useShortcutKeys("agent-interrupt");
   const isDictationReady = useIsDictationReady({
     serverId,
@@ -1504,18 +1477,15 @@ export function Composer({
     });
   }, [agentId, hasAgent, isConnected, serverId, voice]);
 
-  const handleEditQueuedMessage = useCallback(
+  const handleDeleteQueuedMessage = useCallback(
     (id: string) => {
-      const result = editQueuedComposerMessage({
+      deleteQueuedComposerMessage({
         agentId,
         messageId: id,
         queue: queueWriter,
       });
-      if (!result) return;
-      setUserInput(result.text);
-      setSelectedAttachments(result.attachments);
     },
-    [agentId, queueWriter, setSelectedAttachments, setUserInput],
+    [agentId, queueWriter],
   );
 
   const handleSendQueuedNow = useCallback(
@@ -1567,12 +1537,6 @@ export function Composer({
   );
 
   const isVoiceSwitching = voice?.isVoiceSwitching ?? false;
-  const voiceButtonDisabled = !isConnected || isVoiceSwitching;
-  const realtimeVoiceButtonStyle = useCallback(
-    (state: PressableStateCallbackType & { hovered?: boolean }) =>
-      buildRealtimeVoiceButtonStyle(state.hovered, voiceButtonDisabled, isCompactLayout),
-    [isCompactLayout, voiceButtonDisabled],
-  );
 
   const cancelButton = useMemo(
     () => (
@@ -1606,38 +1570,13 @@ export function Composer({
   const rightContent = useMemo(
     () => (
       <ComposerRightControlsSlot
-        isVoiceModeForAgent={isVoiceModeForAgent}
-        hasAgent={hasAgent}
         isAgentRunning={isAgentRunning}
         hasSendableContent={hasSendableContent}
         isProcessing={isProcessing}
-        isCompact={isCompactLayout}
-        buttonIconSize={buttonIconSize}
-        handleToggleRealtimeVoice={handleToggleRealtimeVoice}
-        isConnected={isConnected}
-        isVoiceSwitching={isVoiceSwitching}
-        realtimeVoiceButtonStyle={realtimeVoiceButtonStyle}
-        voiceToggleKeys={voiceToggleKeys}
-        t={t}
         cancelButton={cancelButton}
       />
     ),
-    [
-      buttonIconSize,
-      cancelButton,
-      handleToggleRealtimeVoice,
-      hasAgent,
-      hasSendableContent,
-      isAgentRunning,
-      isConnected,
-      isCompactLayout,
-      isProcessing,
-      isVoiceModeForAgent,
-      isVoiceSwitching,
-      realtimeVoiceButtonStyle,
-      t,
-      voiceToggleKeys,
-    ],
+    [cancelButton, hasSendableContent, isAgentRunning, isProcessing],
   );
 
   const { contextWindowMaxTokens, contextWindowUsedTokens } = resolveContextWindowValues(
@@ -1654,7 +1593,7 @@ export function Composer({
         contextWindowMaxTokens,
         contextWindowUsedTokens,
         agentState.totalCostUsd,
-        isCompactLayout,
+        !isCompactLayout,
         serverId,
         agentState.provider,
         contextWindowPending,
@@ -1669,9 +1608,9 @@ export function Composer({
       contextWindowPending,
     ],
   );
-  const { beforeVoiceContent, footerInlineContent } = useMemo(
-    () => resolveContextWindowPlacement(contextWindowMeter, isCompactLayout),
-    [contextWindowMeter, isCompactLayout],
+  const beforeVoiceContent = useMemo(
+    () => <View style={styles.contextWindowMeterSlot}>{contextWindowMeter}</View>,
+    [contextWindowMeter],
   );
 
   const githubSearchQueryTrimmed = githubSearchQuery.trim();
@@ -1721,8 +1660,29 @@ export function Composer({
           void handlePickFile();
         },
       },
+      ...(hasAgent && !isVoiceModeForAgent
+        ? [
+            {
+              id: "realtime-voice",
+              label: t("composer.voice.enableVoiceMode"),
+              icon: <ThemedAudioLines size={ICON_SIZE.md} uniProps={iconForegroundMutedMapping} />,
+              disabled: !isConnected || isVoiceSwitching || isAgentRunning,
+              onSelect: handleToggleRealtimeVoice,
+            },
+          ]
+        : []),
     ],
-    [handlePickImage, handlePickFile, t],
+    [
+      handlePickImage,
+      handlePickFile,
+      handleToggleRealtimeVoice,
+      hasAgent,
+      isAgentRunning,
+      isConnected,
+      isVoiceModeForAgent,
+      isVoiceSwitching,
+      t,
+    ],
   );
 
   const handleToggleGithubItem = useCallback(
@@ -1748,6 +1708,18 @@ export function Composer({
   const leftContent = useMemo(
     () => renderLeftContent({ agentControls, agentId, serverId, focusInput, isCompactLayout }),
     [agentId, focusInput, serverId, agentControls, isCompactLayout],
+  );
+  const compactMenuContent = useMemo(
+    () =>
+      renderLeftContent({
+        agentControls,
+        agentId,
+        serverId,
+        focusInput,
+        isCompactLayout: true,
+        compactPlacement: "overflow",
+      }),
+    [agentControls, agentId, focusInput, serverId],
   );
 
   const handleAttachButtonRef = useCallback((node: View | null) => {
@@ -1837,13 +1809,22 @@ export function Composer({
     () =>
       renderQueueTrack({
         queuedMessages,
-        handleEditQueuedMessage,
+        handleDeleteQueuedMessage,
         handleSendQueuedNow,
-        editLabel: t("composer.attachments.editQueuedMessage"),
+        queueLabel: t("composer.attachments.queued"),
+        deleteLabel: t("composer.attachments.deleteQueuedMessage"),
         sendNowLabel: t("composer.attachments.sendQueuedMessageNow"),
+        deleteActionLabel: t("composer.attachments.deleteQueuedAction"),
+        sendNowActionLabel: t("composer.attachments.forceSendQueuedAction"),
       }),
-    [handleEditQueuedMessage, handleSendQueuedNow, queuedMessages, t],
+    [handleDeleteQueuedMessage, handleSendQueuedNow, queuedMessages, t],
   );
+
+  const workspaceContextSlot = useMemo(() => {
+    if (contextSlot) return contextSlot;
+    if (!showLockedWorkspaceContext || !cwd.trim()) return null;
+    return <LockedWorkspaceContext cwd={cwd} />;
+  }, [contextSlot, cwd, showLockedWorkspaceContext]);
 
   const messageInputContainerRef = useRef<View>(null);
 
@@ -1898,6 +1879,7 @@ export function Composer({
               attachments={selectedAttachments}
               cwd={cwd}
               attachmentMenuItems={attachmentMenuItems}
+              attachmentMenuContent={compactMenuContent}
               onAttachButtonRef={handleAttachButtonRef}
               onAddImages={addImages}
               client={client}
@@ -1922,6 +1904,7 @@ export function Composer({
               onHeightChange={onComposerHeightChange}
               inputWrapperStyle={inputWrapperStyle}
               attachmentSlot={attachmentTray}
+              contextSlot={workspaceContextSlot}
             />
             <Combobox
               options={githubSearchOptions}
@@ -1942,7 +1925,7 @@ export function Composer({
           </View>
         </View>
       </View>
-      {renderComposerFooter(footer, footerInlineContent)}
+      {renderComposerFooter(footer)}
     </Animated.View>
   );
 }
@@ -1963,15 +1946,21 @@ const styles = StyleSheet.create((theme: Theme) => ({
     alignItems: "center",
     width: "100%",
     overflow: "visible",
-    paddingHorizontal: theme.spacing[4],
-    paddingBottom: theme.spacing[4],
+    paddingHorizontal: {
+      xs: 8,
+      md: 20,
+    },
+    paddingBottom: {
+      xs: 8,
+      md: 22,
+    },
   },
   inputAreaLocked: {
     opacity: 0.6,
   },
   inputAreaContent: {
     width: "100%",
-    maxWidth: MAX_CONTENT_WIDTH,
+    maxWidth: COMPOSER_MAX_WIDTH,
     gap: theme.spacing[3],
   },
   footer: {
@@ -2024,9 +2013,9 @@ const styles = StyleSheet.create((theme: Theme) => ({
     gap: theme.spacing[3],
   },
   cancelButton: {
-    width: 28,
-    height: 28,
-    borderRadius: theme.borderRadius.full,
+    width: 32,
+    height: 32,
+    borderRadius: 6,
     backgroundColor: theme.colors.palette.red[600],
     alignItems: "center",
     justifyContent: "center",
@@ -2035,27 +2024,13 @@ const styles = StyleSheet.create((theme: Theme) => ({
   rightControls: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[1],
+    gap: 6,
   },
   contextWindowMeterSlot: {
-    width: 28,
-    height: 28,
+    minWidth: 32,
+    height: 32,
     alignItems: "center",
     justifyContent: "center",
-  },
-  realtimeVoiceButton: {
-    width: 28,
-    height: 28,
-    borderRadius: theme.borderRadius.full,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  realtimeVoiceButtonCompactReserve: {
-    marginLeft: theme.spacing[1],
-  },
-  realtimeVoiceButtonActive: {
-    backgroundColor: theme.colors.palette.green[600],
-    borderColor: theme.colors.palette.green[800],
   },
   iconButtonHovered: {
     backgroundColor: theme.colors.surface2,
@@ -2085,48 +2060,107 @@ const styles = StyleSheet.create((theme: Theme) => ({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: theme.spacing[3],
-    paddingVertical: theme.spacing[2],
+    minHeight: 42,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     backgroundColor: theme.colors.surface1,
-    borderRadius: theme.borderRadius.lg,
+    borderRadius: 6,
     borderWidth: theme.borderWidth[1],
     borderColor: theme.colors.border,
-    gap: theme.spacing[2],
+    gap: 7,
+  },
+  queueStatus: {
+    flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  queueStatusText: {
+    color: theme.colors.foreground,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium,
   },
   queueText: {
     flex: 1,
-    color: theme.colors.foreground,
-    fontSize: theme.fontSize.base,
+    minWidth: 0,
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.sm,
   },
   queueActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[2],
+    gap: 5,
   },
   queueActionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: theme.borderRadius.full,
+    height: 26,
+    flexDirection: "row",
+    gap: 4,
+    paddingHorizontal: 8,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.colors.surface2,
+    backgroundColor: theme.colors.surface0,
   },
   queueSendButton: {
-    backgroundColor: theme.colors.accent,
+    borderColor: theme.colors.accent,
+  },
+  queueActionText: {
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.xs,
+  },
+  queueSendActionText: {
+    color: theme.colors.accent,
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.medium,
   },
   sendErrorText: {
     color: theme.colors.palette.red[500],
     fontSize: theme.fontSize.sm,
   },
+  workspaceContext: {
+    minHeight: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: theme.spacing[2],
+    paddingHorizontal: theme.spacing[4],
+    backgroundColor: theme.colors.surface1,
+  },
+  workspaceContextName: {
+    flexShrink: 0,
+    color: theme.colors.foreground,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium,
+  },
+  workspaceContextPath: {
+    flex: 1,
+    minWidth: 0,
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.xs,
+  },
+  workspaceContextLock: {
+    flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  workspaceContextLockText: {
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.xs,
+  },
 })) as unknown as Record<string, object>;
 
 const QUEUE_SEND_BUTTON_STYLE = [styles.queueActionButton, styles.queueSendButton];
 
-const ThemedPencil = withUnistyles(Pencil);
+const ThemedTrash = withUnistyles(Trash2);
+const ThemedFolder = withUnistyles(Folder);
+const ThemedLock = withUnistyles(Lock);
 const ThemedArrowUp = withUnistyles(ArrowUp);
 const ThemedGitPullRequest = withUnistyles(GitPullRequest);
 const ThemedCircleDot = withUnistyles(CircleDot);
 const ThemedAudioLines = withUnistyles(AudioLines);
+const ThemedClock3 = withUnistyles(Clock3);
 const ThemedPaperclip = withUnistyles(Paperclip);
 const ThemedImageIcon = withUnistyles(ImageIcon);
 const ThemedFileText = withUnistyles(FileText);
@@ -2134,7 +2168,7 @@ const ThemedGithub = withUnistyles(Github);
 
 const iconForegroundMapping = (theme: Theme) => ({ color: theme.colors.foreground });
 const iconForegroundMutedMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
-const iconAccentForegroundMapping = (theme: Theme) => ({ color: theme.colors.accentForeground });
+const iconAccentMapping = (theme: Theme) => ({ color: theme.colors.accent });
 
 const githubPrPillIcon = (
   <ThemedGitPullRequest size={ICON_SIZE.sm} uniProps={iconForegroundMutedMapping} />

@@ -25,12 +25,16 @@ export type { ShellContext, ShellPage, ShellRegion, TopBarModel, VisibleRegions,
 // The four open flags, named so the visibility primitive can stay data-driven.
 type OpenField = "leftOpen" | "rightOpen" | "fileTreeOpen" | "settingsLeftOpen";
 
+export interface ConversationViewRegionState {
+  readonly rightOpen: boolean;
+  readonly fileTreeOpen: boolean;
+  readonly rightMaximized: boolean;
+}
+
 // The fields that survive a reload. currentPage and the route context are excluded on
 // purpose (a reload always lands on the conversation page; the context is route-derived).
 export interface ShellPersistedState {
   leftOpen: boolean;
-  rightOpen: boolean;
-  fileTreeOpen: boolean;
   settingsLeftOpen: boolean;
   leftWidth: number;
   widthByRegion: Record<string, Partial<Record<WorkspaceRegion, number>>>;
@@ -43,8 +47,6 @@ export const SHELL_STATE_STORAGE_KEY = "helm-shell-state";
 // per-field fallback when a persisted value is missing/corrupt.
 const LANDING_DEFAULTS: ShellPersistedState = {
   leftOpen: true,
-  rightOpen: false,
-  fileTreeOpen: false,
   settingsLeftOpen: true,
   leftWidth: REGION_CONSTRAINTS.left.default,
   widthByRegion: {},
@@ -56,8 +58,6 @@ const LANDING_DEFAULTS: ShellPersistedState = {
 export function partializeShellState(model: ShellModel): ShellPersistedState {
   return {
     leftOpen: model.leftOpen,
-    rightOpen: model.rightOpen,
-    fileTreeOpen: model.fileTreeOpen,
     settingsLeftOpen: model.settingsLeftOpen,
     leftWidth: model.leftWidth,
     widthByRegion: toJS(model.widthByRegion),
@@ -78,8 +78,6 @@ export function parsePersistedShellState(raw: unknown): ShellPersistedState | nu
     typeof v === "number" && Number.isFinite(v) ? v : fallback;
   return {
     leftOpen: bool(r.leftOpen, LANDING_DEFAULTS.leftOpen),
-    rightOpen: bool(r.rightOpen, LANDING_DEFAULTS.rightOpen),
-    fileTreeOpen: bool(r.fileTreeOpen, LANDING_DEFAULTS.fileTreeOpen),
     settingsLeftOpen: bool(r.settingsLeftOpen, LANDING_DEFAULTS.settingsLeftOpen),
     leftWidth: num(r.leftWidth, LANDING_DEFAULTS.leftWidth),
     widthByRegion: parseWidthByRegion(r.widthByRegion),
@@ -127,11 +125,15 @@ export class ShellModel {
   // independence is what lets "return to conversation" restore the prior layout for free.
   settingsLeftOpen = true;
 
-  // Whether the right panel is maximized (eats the conversation area; left rail + file tree stay).
-  // Global TRANSIENT: never persisted (not in ShellPersistedState), and reset when the active workspace
-  // changes — maximize does not survive a reload or a workspace switch. Geometry owner = ShellModel, so
-  // the right panel just dispatches toggleRightMaximized() and the UI reads visibleRegions.rightMaximized.
+  // Whether the active conversation's right panel is maximized (eats the center; other rails stay).
+  // Session-only: activateConversationView snapshots/restores it with that conversation's open flags.
+  // Geometry owner = ShellModel, so the right panel only dispatches toggleRightMaximized().
   rightMaximized = false;
+
+  // Session-only auxiliary layout per center conversation. A fresh agent/draft receives the
+  // closed landing state; switching away snapshots the live flags and switching back restores them.
+  conversationViewKey: string | null = null;
+  conversationViewStateByKey: Record<string, ConversationViewRegionState> = {};
 
   // The left rail's single app-wide width (px). Global on purpose — not keyed by workspace.
   leftWidth = REGION_CONSTRAINTS.left.default;
@@ -185,14 +187,50 @@ export class ShellModel {
   }
 
   // Feed the route context. Entering/leaving a workspace or connecting a host updates this;
-  // the computeds re-derive and observer components repaint. A workspace change resets the transient
-  // maximize (it is per-workspace and must not leak across a switch).
+  // the computeds re-derive and observer components repaint. Reset maximize before the conversation
+  // bridge restores the target's own snapshot, so no live geometry leaks between workspace keys.
   setContext(ctx: ShellContext): void {
     if (ctx.workspaceKey !== this.workspaceKey) {
       this.rightMaximized = false;
     }
     this.showsShell = ctx.showsShell;
     this.workspaceKey = ctx.workspaceKey;
+  }
+
+  /** Save the previous conversation's tools and restore the target's state or fresh closed defaults. */
+  activateConversationView(viewKey: string | null): void {
+    if (viewKey === this.conversationViewKey) return;
+    if (this.conversationViewKey !== null) {
+      this.conversationViewStateByKey = {
+        ...this.conversationViewStateByKey,
+        [this.conversationViewKey]: {
+          rightOpen: this.rightOpen,
+          fileTreeOpen: this.fileTreeOpen,
+          rightMaximized: this.rightMaximized,
+        },
+      };
+    }
+    this.conversationViewKey = viewKey;
+    const restored = viewKey === null ? undefined : this.conversationViewStateByKey[viewKey];
+    this.rightOpen = restored?.rightOpen ?? false;
+    this.fileTreeOpen = restored?.fileTreeOpen ?? false;
+    this.rightMaximized = restored?.rightMaximized ?? false;
+  }
+
+  /** Move a draft view identity onto its created agent without changing the visible layout. */
+  retargetConversationView(fromViewKey: string, toViewKey: string): void {
+    if (fromViewKey === toViewKey) return;
+    const moved = this.conversationViewStateByKey[fromViewKey];
+    if (moved !== undefined && this.conversationViewStateByKey[toViewKey] === undefined) {
+      const { [fromViewKey]: _removed, ...remaining } = this.conversationViewStateByKey;
+      this.conversationViewStateByKey = { ...remaining, [toViewKey]: moved };
+    } else if (moved !== undefined) {
+      const { [fromViewKey]: _removed, ...remaining } = this.conversationViewStateByKey;
+      this.conversationViewStateByKey = remaining;
+    }
+    if (this.conversationViewKey === fromViewKey) {
+      this.conversationViewKey = toViewKey;
+    }
   }
 
   // Page navigation. Entering settings must not touch any conversation flag/width — that
@@ -259,8 +297,6 @@ export class ShellModel {
   // the route context untouched (both are runtime-only / route-derived).
   hydrate(slice: ShellPersistedState): void {
     this.leftOpen = slice.leftOpen;
-    this.rightOpen = slice.rightOpen;
-    this.fileTreeOpen = slice.fileTreeOpen;
     this.settingsLeftOpen = slice.settingsLeftOpen;
     this.leftWidth = slice.leftWidth;
     this.widthByRegion = slice.widthByRegion;

@@ -21,6 +21,9 @@ function subagent(
     title: id,
     workspaceId: null,
     runStatus: "idle",
+    contextWorkspaceId: null,
+    updatedAt: "2026-07-12T00:00:00.000Z",
+    providerId: "claude",
     subagentCount,
     children,
   };

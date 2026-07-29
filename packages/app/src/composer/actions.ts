@@ -269,6 +269,27 @@ export function editQueuedComposerMessage(
   };
 }
 
+export interface DeleteQueuedComposerMessageInput {
+  agentId: string;
+  messageId: string;
+  queue: QueueWriter;
+}
+
+/** Remove exactly one queued message without changing the current Composer draft. */
+export function deleteQueuedComposerMessage(input: DeleteQueuedComposerMessageInput): boolean {
+  const current = input.queue.read(input.agentId);
+  if (!current.some((item) => item.id === input.messageId)) return false;
+  input.queue.write((prev) => {
+    const next = new Map(prev);
+    next.set(
+      input.agentId,
+      (prev.get(input.agentId) ?? []).filter((item) => item.id !== input.messageId),
+    );
+    return next;
+  });
+  return true;
+}
+
 export interface SendQueuedComposerMessageNowInput {
   agentId: string;
   messageId: string;

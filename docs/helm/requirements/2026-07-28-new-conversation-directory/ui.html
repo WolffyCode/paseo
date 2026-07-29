@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Helm · 新对话工作目录</title>
+    <style>
+      :root {
+        font-family: Inter, system-ui, sans-serif;
+        color: #1f2328;
+        background: #eef3f5;
+      }
+      body {
+        margin: 0;
+        padding: 24px;
+      }
+      main {
+        max-width: 1080px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 24px;
+        letter-spacing: 0;
+      }
+      .superseded {
+        margin: 0 0 14px;
+        padding: 9px 11px;
+        border-left: 3px solid #20744a;
+        background: #e8f2ec;
+        color: #315c43;
+        font-size: 12px;
+      }
+      h2 {
+        font-size: 15px;
+        letter-spacing: 0;
+        margin: 0 0 12px;
+      }
+      .flow {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+      .screen {
+        background: white;
+        border: 1px solid #c9d4dc;
+        border-radius: 8px;
+        padding: 14px;
+      }
+      .canvas {
+        height: 220px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        gap: 8px;
+        background: #f8fafb;
+        border: 1px solid #d8e0e6;
+        border-radius: 6px;
+        padding: 12px;
+      }
+      .context {
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #c8d2da;
+        border-radius: 6px;
+        padding: 0 10px;
+        background: #fff;
+        font-size: 12px;
+      }
+      .context strong {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .context span {
+        color: #66717c;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .composer {
+        height: 76px;
+        border: 1px solid #b7c3cc;
+        border-radius: 8px;
+        background: white;
+        padding: 10px;
+        color: #77818a;
+      }
+      .error {
+        color: #cf222e;
+        font-size: 11px;
+        min-height: 16px;
+      }
+      .selected {
+        background: #d8dee4;
+        border-color: #aeb8c2;
+      }
+      dl {
+        font-size: 13px;
+        line-height: 1.5;
+      }
+      dt {
+        font-weight: 650;
+        margin-top: 10px;
+      }
+      dd {
+        margin: 2px 0 0;
+        color: #52606b;
+      }
+      @media (max-width: 760px) {
+        .flow {
+          grid-template-columns: 1fr;
+        }
+        body {
+          padding: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main id="sND1">
+      <h1>新对话工作目录</h1>
+      <div class="superseded">
+        目录栏已并入 Composer 顶部上下文条；完整输入框与运行配置视觉以 2026-07-29 Composer
+        设计稿为准。
+      </div>
+      <div class="flow">
+        <section class="screen">
+          <h2>1 · 未绑定项目</h2>
+          <div class="canvas">
+            <div class="context"><b>▣</b><strong>选择工作目录</strong></div>
+            <div class="error">未选择时发送提示先选择工作目录</div>
+            <div class="composer">询问任何问题</div>
+          </div>
+        </section>
+        <section class="screen">
+          <h2>2 · 已选择真实目录</h2>
+          <div class="canvas">
+            <div class="context selected">
+              <b>▣</b><strong>helm</strong><span>/Volumes/Aether/coding/person/helm</span>
+            </div>
+            <div class="error"></div>
+            <div class="composer">草稿输入保持不变</div>
+          </div>
+        </section>
+        <section class="screen">
+          <h2>3 · 首次发送后</h2>
+          <div class="canvas">
+            <div style="flex: 1; font-size: 12px; color: #52606b">
+              真实消息从 Composer 上方出现；左树归入 helm 项目。
+            </div>
+            <div class="context selected"><b>▣</b><strong>helm</strong><span>目录已锁定</span></div>
+            <div class="composer">继续对话</div>
+          </div>
+        </section>
+      </div>
+      <dl>
+        <dt>布局</dt>
+        <dd>目录作为 Composer 顶部上下文条，与正文和底栏共用单一边界及底部锚点。</dd>
+        <dt>默认</dt>
+        <dd>全局新对话未绑定项目；项目菜单新对话预选该项目。</dd>
+        <dt>hover / active</dt>
+        <dd>目录栏 hover 使用轻背景；已选目录和左树持续选中使用比 hover 更深的背景。</dd>
+        <dt>加载 / 错误 / 离线</dt>
+        <dd>选择中禁止重复提交；失败、取消和离线均保留草稿与输入，并提供重试出口。</dd>
+        <dt>点击效果</dt>
+        <dd>点击目录栏选择 host 真实目录；成功后绑定 workspace，首次发送后归入该项目。</dd>
+      </dl>
+    </main>
+  </body>
+</html>

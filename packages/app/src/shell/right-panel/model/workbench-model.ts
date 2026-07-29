@@ -49,27 +49,31 @@ export class WorkbenchModel {
   // Open a normalized target by focusing and retargeting its identity, replacing an empty file placeholder
   // in place, or appending. Line data is forwarded only after path dedup; it never enters identity policy.
   openTab(request: OpenTabRequest): void {
-    const location = normalizeFileLocation(request.location);
+    const normalizedRequest: OpenTabRequest =
+      request.kind === "file"
+        ? { kind: "file", location: normalizeFileLocation(request.location) }
+        : request;
+    const path = tabIdentity(normalizedRequest);
     const decision = resolveTabInstancing(
       this.tabs.map((tab) => ({ id: tab.id, kind: tab.kind, path: tab.path })),
-      { kind: request.kind, path: location.path },
+      { kind: normalizedRequest.kind, path },
     );
     if (decision.action === "focus") {
       const target = this.tabs.find((tab) => tab.id === decision.id);
       if (!target) {
         return;
       }
-      if (location.lineStart !== undefined) {
-        target.content.retarget(location);
+      if (normalizedRequest.kind === "file" && normalizedRequest.location.lineStart !== undefined) {
+        target.content.retarget(normalizedRequest.location);
       }
       this.focusTab(target.id);
       return;
     }
-    const content = this.factory.create({ kind: request.kind, location });
+    const content = this.factory.create(normalizedRequest);
     const tab: PanelTab = {
-      id: `${request.kind}:${location.path}`,
-      kind: request.kind,
-      path: location.path,
+      id: `${normalizedRequest.kind}:${path}`,
+      kind: normalizedRequest.kind,
+      path,
       content,
     };
     if (decision.action === "fill") {
@@ -80,6 +84,38 @@ export class WorkbenchModel {
     }
     this.tabs.push(tab);
     this.focusTab(tab.id);
+  }
+
+  /** Replace one conversation tab's target while preserving its position and focusing any duplicate. */
+  retargetConversationTab(
+    tabId: string,
+    request: Extract<OpenTabRequest, { kind: "conversation" }>,
+  ): void {
+    const index = this.tabs.findIndex((tab) => tab.id === tabId);
+    if (index === -1) return;
+    const path = tabIdentity(request);
+    const duplicate = this.tabs.find(
+      (tab) => tab.id !== tabId && tab.kind === "conversation" && tab.path === path,
+    );
+    if (duplicate) {
+      this.tabs[index].content.onClosing();
+      this.tabs = this.tabs.filter((tab) => tab.id !== tabId);
+      this.focusTab(duplicate.id);
+      return;
+    }
+    const previous = this.tabs[index];
+    previous.content.onClosing();
+    const replacement: PanelTab = {
+      id: `conversation:${path}`,
+      kind: "conversation",
+      path,
+      content: this.factory.create(request),
+    };
+    this.tabs[index] = replacement;
+    if (this.focusedTabId === tabId) {
+      this.focusedTabId = replacement.id;
+      replacement.content.onActivated();
+    }
   }
 
   // Focus a tab: blur the previously focused tab (onClosing = its autosave hook) and activate the new one
@@ -157,4 +193,12 @@ export class WorkbenchModel {
     this.focusedTabId = next.id;
     next.content.onActivated();
   }
+}
+
+/** Derive the stable identity axis used for tab de-duplication. */
+function tabIdentity(request: OpenTabRequest): string {
+  if (request.kind === "file") return request.location.path;
+  return request.target.kind === "agent"
+    ? `agent:${request.target.agentId}`
+    : `draft:${request.target.draftId}`;
 }

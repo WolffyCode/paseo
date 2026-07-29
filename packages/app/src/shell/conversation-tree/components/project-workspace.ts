@@ -5,6 +5,23 @@ export interface NodeWorkspace {
   readonly detail: WorkspaceDetail;
 }
 
+/** Resolve a project's main directory-backed workspace, falling back to any known workspace. */
+export function resolveProjectWorkspace(
+  projectId: string,
+  details: ReadonlyMap<string, WorkspaceDetail>,
+): NodeWorkspace | null {
+  let fallback: NodeWorkspace | null = null;
+  for (const [workspaceId, detail] of details) {
+    if (detail.projectId !== projectId) continue;
+    const workspace = { workspaceId, detail };
+    if (detail.workspaceKind === "local_checkout" || detail.workspaceKind === "directory") {
+      return workspace;
+    }
+    fallback ??= workspace;
+  }
+  return fallback;
+}
+
 /** Resolve the first directory-backed workspace represented by a rendered node branch. */
 export function resolveNodeWorkspace(
   node: ConversationTreeNode,

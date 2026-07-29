@@ -88,7 +88,12 @@ export const MenuItemRow = observer(function MenuItemRow({
   const hostRef = useWebDomClick({ onPress, disabled: false });
   const textStyle = useMemo(() => [styles.rowText, { color: tk.foreground }], [tk.foreground]);
   return (
-    <Pressable ref={hostRef} style={styles.row} onPress={onPress} accessibilityRole="menuitem">
+    <Pressable
+      ref={hostRef}
+      style={styles.row}
+      onPress={isWeb ? undefined : onPress}
+      accessibilityRole="menuitem"
+    >
       {Icon ? <Icon size={14} color={tk.foregroundMuted} /> : null}
       <Text style={textStyle}>{label}</Text>
     </Pressable>
@@ -121,6 +126,24 @@ export const DeferredMenuItemRow = observer(function DeferredMenuItemRow({
         <Text style={soonText}>后续</Text>
       </View>
     </Pressable>
+  );
+});
+
+/** Render a disabled explanatory row without presenting a roadmap badge. */
+export const DisabledMenuItemRow = observer(function DisabledMenuItemRow({
+  label,
+}: {
+  label: string;
+}) {
+  const tk = themeModel.tokens;
+  const textStyle = useMemo(
+    () => [styles.rowText, { color: tk.foregroundMuted }],
+    [tk.foregroundMuted],
+  );
+  return (
+    <View style={deferredRowStyle} accessibilityRole="menuitem">
+      <Text style={textStyle}>{label}</Text>
+    </View>
   );
 });
 

@@ -7,10 +7,12 @@
 // open requested before the right region mounts is drained onto the target the moment it registers.
 
 import type { FileLocation } from "../model/file-location";
+import type { ConversationTabRequest } from "../model/tab-content";
 
 // The right panel's inward face (satisfied by RightPanelController): open a file location in its tabs.
 export interface RightPanelTarget {
   openFile(location: FileLocation): void;
+  openConversation(request: ConversationTabRequest): void;
 }
 
 // The file tree's inward face (satisfied by FileTreeController): its current root (the cwd file paths are
@@ -27,6 +29,8 @@ interface Entry {
 }
 
 const registry = new Map<string, Entry>();
+const activeTargets = new Map<string, RightPanelTarget>();
+const pendingConversations = new Map<string, ConversationTabRequest[]>();
 
 function keyOf(serverId: string, workspaceId: string): string {
   return `${serverId}:${workspaceId}`;
@@ -64,6 +68,16 @@ export function openFileInPanel(
   }
 }
 
+/** Open a conversation in the server's mounted workbench or queue it until the right column mounts. */
+export function openConversationInPanel(serverId: string, request: ConversationTabRequest): void {
+  const target = activeTargets.get(serverId);
+  if (target) {
+    target.openConversation(request);
+    return;
+  }
+  pendingConversations.set(serverId, [...(pendingConversations.get(serverId) ?? []), request]);
+}
+
 // Register the right panel's controller for a workspace (on region mount), draining any queued opens onto
 // it. Returns an unregister to call on unmount.
 export function registerRightPanelTarget(
@@ -74,6 +88,7 @@ export function registerRightPanelTarget(
   const key = keyOf(serverId, workspaceId);
   const entry = entryOf(key);
   entry.target = target;
+  activeTargets.set(serverId, target);
   if (entry.pending.length > 0) {
     const queued = entry.pending;
     entry.pending = [];
@@ -81,11 +96,19 @@ export function registerRightPanelTarget(
       target.openFile(location);
     }
   }
+  const queuedConversations = pendingConversations.get(serverId) ?? [];
+  pendingConversations.delete(serverId);
+  for (const request of queuedConversations) {
+    target.openConversation(request);
+  }
   return () => {
     const current = registry.get(key);
     if (current?.target === target) {
       current.target = null;
       pruneIfEmpty(key, current);
+    }
+    if (activeTargets.get(serverId) === target) {
+      activeTargets.delete(serverId);
     }
   };
 }

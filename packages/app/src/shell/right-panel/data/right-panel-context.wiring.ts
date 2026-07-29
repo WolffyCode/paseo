@@ -13,6 +13,9 @@ import {
   type ConnectableEditorHandle,
   createConnectableEditorHandle,
 } from "../file-tab/components/editor-handle";
+import type { WorkspaceFileOpenRequest } from "@/workspace/file-open";
+import { absoluteHostPath } from "../../components/conversation-region-model";
+import { ConversationTabContent } from "../conversation-tab/model/conversation-tab-content";
 import { FileDocumentModel, type FileTabIo } from "../file-tab/model/file-document-model";
 import {
   createRightPanelController,
@@ -68,14 +71,15 @@ export interface RightPanel {
   workbench: WorkbenchModel;
   controller: RightPanelController;
   resolveEditorHandle: (content: TabContent) => ConnectableEditorHandle;
+  openConversationFile: (workspaceId: string, request: WorkspaceFileOpenRequest) => void;
+  resolveAgentTitle: (agentId: string) => string | null;
 }
 
 // A never-connected fallback handle for the unreachable case where a tab's content has no registered
 // handle (every file tab is built through the factory below, which registers one).
 const ORPHAN_HANDLE = createConnectableEditorHandle();
 
-// Build the right panel wired to a live server. One per (serverId, workspaceId); the region memoizes it
-// and rebuilds it when the workspace changes (architecture §3.5 lifecycle).
+// Build one right panel wired to a live server. ConversationPanels owns its conversation-scoped lifetime.
 export function createRightPanelForServer(serverId: string, workspaceId: string): RightPanel {
   const io = liveIo(serverId);
   // content → its live editor handle. Weak so a closed tab's model + handle are collectable together.
@@ -83,6 +87,9 @@ export function createRightPanelForServer(serverId: string, workspaceId: string)
 
   const factory: TabContentFactory = {
     create(request: OpenTabRequest): TabContent {
+      if (request.kind === "conversation") {
+        return new ConversationTabContent(request);
+      }
       // Capture the file tree's current root at open time — the base the model derives its root-relative
       // IO path from (location.path is the absolute identity). Fall back to the conversation root when no
       // tree is mounted, matching the root the store joined the absolute identity under.
@@ -118,5 +125,18 @@ export function createRightPanelForServer(serverId: string, workspaceId: string)
     workbench,
     controller,
     resolveEditorHandle: (content) => handles.get(content) ?? ORPHAN_HANDLE,
+    openConversationFile: (targetWorkspaceId, request) => {
+      const root = conversationRoot(serverId, targetWorkspaceId) ?? "";
+      controller.openFile({
+        ...request.location,
+        path: absoluteHostPath(root, request.location.path),
+      });
+    },
+    resolveAgentTitle: (agentId) => {
+      const session = useSessionStore.getState().getSession(serverId);
+      const agent = session?.agents.get(agentId) ?? session?.agentDetails.get(agentId);
+      const title = agent?.title?.trim() ?? "";
+      return title.length > 0 ? title : null;
+    },
   };
 }

@@ -1,6 +1,14 @@
 import { Portal } from "@gorhom/portal";
-import { Check, Clock3, Folder, GitBranch } from "lucide-react-native";
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { Check, Clock3, FileDiff, Folder, GitBranch, Package } from "lucide-react-native";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { isWeb } from "@/constants/platform";
 import {
@@ -8,10 +16,11 @@ import {
   useFloatingPanelPortalHostName,
 } from "@/components/ui/floating-panel-portal";
 import { themeModel } from "../../theme/theme-model";
-import type { WorkspaceDetail } from "../model/types";
+import type { WorkspaceDiffStat } from "../model/types";
+import { resolveProviderBadge } from "../model/provider-label";
 import { formatRelative } from "../model/relative-time";
 
-const CARD_WIDTH = 236;
+const CARD_WIDTH = 280;
 const CARD_GAP = 8;
 const SCREEN_GUTTER = 8;
 const HOVER_SAFE_ZONE_GRACE_MS = 100;
@@ -23,6 +32,24 @@ interface Rect {
   readonly width: number;
   readonly height: number;
 }
+
+export type WorkspaceHoverCardContent =
+  | {
+      readonly kind: "project";
+      readonly id: string;
+      readonly title: string;
+      readonly directory: string;
+      readonly branch: string | null;
+      readonly diffStat: WorkspaceDiffStat | null;
+    }
+  | {
+      readonly kind: "conversation";
+      readonly id: string;
+      readonly title: string;
+      readonly directory: string;
+      readonly updatedAt: string;
+      readonly providerId: string;
+    };
 
 export interface HoverRect {
   readonly left: number;
@@ -150,20 +177,16 @@ function useHoverSafeZone({
   }, [enabled, triggerRef, contentRef, onEnterSafeZone, onLeaveSafeZone]);
 }
 
-/** Render the directory-backed conversation summary in a portal beside its row. */
+/** Render project or conversation metadata in a portal beside its tree row. */
 export function WorkspaceHoverCard({
   visible,
   anchorRef,
-  workspaceId,
-  title,
-  detail,
+  content,
   onRequestClose,
 }: {
   visible: boolean;
   anchorRef: RefObject<View | null>;
-  workspaceId: string;
-  title: string;
-  detail: WorkspaceDetail;
+  content: WorkspaceHoverCardContent;
   onRequestClose: () => void;
 }) {
   const portalHostName = useFloatingPanelPortalHostName();
@@ -247,13 +270,9 @@ export function WorkspaceHoverCard({
   }, [anchor, cardHeight, host, tk.border, tk.surfaceCard, window.height, window.width]);
   const cardStyle = useMemo(() => [styles.card, frameStyle], [frameStyle]);
   const titleStyle = useMemo(() => [styles.title, { color: tk.foreground }], [tk.foreground]);
-  const addedStyle = useMemo(
-    () => [styles.diffText, { color: tk.statusSuccess }],
-    [tk.statusSuccess],
-  );
-  const removedStyle = useMemo(
-    () => [styles.diffText, { color: tk.statusDanger }],
-    [tk.statusDanger],
+  const fieldLabelStyle = useMemo(
+    () => [styles.fieldLabel, { color: tk.foregroundMuted }],
+    [tk.foregroundMuted],
   );
   const handleLayout = useCallback((event: { nativeEvent: { layout: { height: number } } }) => {
     setCardHeight(event.nativeEvent.layout.height);
@@ -268,39 +287,65 @@ export function WorkspaceHoverCard({
         ref={contentRef}
         onLayout={handleLayout}
         style={cardStyle}
-        testID={`conv-tree-workspace-hover-${workspaceId}`}
+        testID={`conv-tree-hover-${content.kind}-${content.id}`}
       >
+        <Text style={fieldLabelStyle}>{content.kind === "project" ? "标题" : "对话名称"}</Text>
         <Text numberOfLines={2} style={titleStyle}>
-          {title}
+          {content.title}
         </Text>
-        {detail.branch === null ? null : (
-          <MetadataRow
-            icon={GitBranch}
-            value={detail.branch}
-            color={tk.foregroundMuted}
-            copyValue={detail.branch}
-            copyLabel="复制分支名称"
-            testID={`conv-tree-hover-copy-branch-${workspaceId}`}
-          />
-        )}
-        <MetadataRow
-          icon={Folder}
-          value={detail.directory}
-          color={tk.foregroundMuted}
-          copyValue={detail.directory}
-          copyLabel="复制工作目录"
-          testID={`conv-tree-hover-copy-directory-${workspaceId}`}
-        />
-        <MetadataRow
-          icon={Clock3}
-          value={formatRelative(detail.lastChangeAt, Date.now())}
-          color={tk.foregroundMuted}
-        />
-        {detail.diffStat === null ? null : (
-          <View style={styles.diffRow}>
-            <Text style={addedStyle}>+{detail.diffStat.added}</Text>
-            <Text style={removedStyle}>-{detail.diffStat.removed}</Text>
-          </View>
+        {content.kind === "project" ? (
+          <>
+            <MetadataRow
+              icon={Folder}
+              label="文件路径"
+              value={content.directory}
+              color={tk.foregroundMuted}
+              valueColor={tk.foreground}
+              copyValue={content.directory}
+              copyLabel="复制文件路径"
+              testID={`conv-tree-hover-copy-directory-${content.id}`}
+              numberOfLines={2}
+            />
+            <MetadataRow
+              icon={GitBranch}
+              label="Git 分支"
+              value={content.branch ?? "暂无分支"}
+              color={tk.foregroundMuted}
+              valueColor={tk.foreground}
+              copyValue={content.branch ?? undefined}
+              copyLabel="复制 Git 分支"
+              testID={`conv-tree-hover-copy-branch-${content.id}`}
+            />
+            <DiffMetadataRow diffStat={content.diffStat} />
+          </>
+        ) : (
+          <>
+            <MetadataRow
+              icon={Folder}
+              label="操作目录"
+              value={content.directory}
+              color={tk.foregroundMuted}
+              valueColor={tk.foreground}
+              copyValue={content.directory}
+              copyLabel="复制操作目录"
+              testID={`conv-tree-hover-copy-directory-${content.id}`}
+              numberOfLines={2}
+            />
+            <MetadataRow
+              icon={Clock3}
+              label="最后一次使用"
+              value={formatRelative(content.updatedAt, Date.now())}
+              color={tk.foregroundMuted}
+              valueColor={tk.foreground}
+            />
+            <MetadataRow
+              icon={Package}
+              label="提供方"
+              value={resolveProviderBadge(content.providerId).label}
+              color={tk.foregroundMuted}
+              valueColor={tk.foreground}
+            />
+          </>
         )}
       </View>
     </Portal>
@@ -310,20 +355,27 @@ export function WorkspaceHoverCard({
 /** Render one icon+text metadata line; becomes a copy-to-clipboard button when copyValue is given. */
 function MetadataRow({
   icon: Icon,
+  label,
   value,
   color,
+  valueColor,
   copyValue,
   copyLabel,
   testID,
+  numberOfLines = 1,
 }: {
   icon: typeof Folder;
+  label: string;
   value: string;
   color: string;
+  valueColor: string;
   copyValue?: string;
   copyLabel?: string;
   testID?: string;
+  numberOfLines?: number;
 }) {
-  const textStyle = useMemo(() => [styles.metadataText, { color }], [color]);
+  const labelStyle = useMemo(() => [styles.metadataLabel, { color }], [color]);
+  const textStyle = useMemo(() => [styles.metadataText, { color: valueColor }], [valueColor]);
   const [copied, setCopied] = useState(false);
   const copyFeedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -348,9 +400,12 @@ function MetadataRow({
     return (
       <View style={styles.metadataRow}>
         <Icon size={12} color={color} />
-        <Text numberOfLines={1} style={textStyle}>
-          {value}
-        </Text>
+        <View style={styles.metadataBody}>
+          <Text style={labelStyle}>{label}</Text>
+          <Text numberOfLines={numberOfLines} style={textStyle}>
+            {value}
+          </Text>
+        </View>
       </View>
     );
   }
@@ -364,10 +419,56 @@ function MetadataRow({
       testID={testID}
     >
       {copied ? <Check size={12} color={color} /> : <Icon size={12} color={color} />}
-      <Text numberOfLines={1} style={textStyle}>
-        {value}
-      </Text>
+      <View style={styles.metadataBody}>
+        <Text style={labelStyle}>{label}</Text>
+        <Text numberOfLines={numberOfLines} style={textStyle}>
+          {value}
+        </Text>
+      </View>
     </Pressable>
+  );
+}
+
+/** Render a project's complete git diff summary, including its clean or unavailable state. */
+function DiffMetadataRow({ diffStat }: { diffStat: WorkspaceDiffStat | null }) {
+  const tk = themeModel.tokens;
+  const labelStyle = useMemo(
+    () => [styles.metadataLabel, { color: tk.foregroundMuted }],
+    [tk.foregroundMuted],
+  );
+  const valueStyle = useMemo(
+    () => [styles.metadataText, { color: tk.foreground }],
+    [tk.foreground],
+  );
+  const addedStyle = useMemo(
+    () => [styles.diffText, { color: tk.statusSuccess }],
+    [tk.statusSuccess],
+  );
+  const removedStyle = useMemo(
+    () => [styles.diffText, { color: tk.statusDanger }],
+    [tk.statusDanger],
+  );
+  let value: ReactNode;
+  if (diffStat === null) {
+    value = <Text style={valueStyle}>暂无数据</Text>;
+  } else if (diffStat.added === 0 && diffStat.removed === 0) {
+    value = <Text style={valueStyle}>无变更</Text>;
+  } else {
+    value = (
+      <View style={styles.diffRow}>
+        <Text style={addedStyle}>+{diffStat.added}</Text>
+        <Text style={removedStyle}>-{diffStat.removed}</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.metadataRow}>
+      <FileDiff size={12} color={tk.foregroundMuted} />
+      <View style={styles.metadataBody}>
+        <Text style={labelStyle}>Git diff</Text>
+        {value}
+      </View>
+    </View>
   );
 }
 
@@ -377,24 +478,27 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     borderWidth: 1,
     borderRadius: 8,
-    paddingTop: 9,
-    paddingBottom: 6,
+    paddingTop: 10,
+    paddingBottom: 8,
     shadowColor: "#000000",
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.2,
     shadowRadius: 18,
     elevation: 12,
   },
-  title: { paddingHorizontal: 12, paddingBottom: 8, fontSize: 13, fontWeight: "500" },
+  fieldLabel: { paddingHorizontal: 12, paddingBottom: 3, fontSize: 10, lineHeight: 13 },
+  title: { paddingHorizontal: 12, paddingBottom: 10, fontSize: 13, lineHeight: 18 },
   metadataRow: {
-    minHeight: 24,
+    minHeight: 38,
     paddingHorizontal: 12,
-    paddingBottom: 7,
+    paddingVertical: 5,
     flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
+    alignItems: "flex-start",
+    gap: 8,
   },
-  metadataText: { flex: 1, minWidth: 0, fontSize: 11 },
-  diffRow: { paddingHorizontal: 12, paddingBottom: 2, flexDirection: "row", gap: 6 },
+  metadataBody: { flex: 1, minWidth: 0, gap: 2 },
+  metadataLabel: { fontSize: 10, lineHeight: 13 },
+  metadataText: { fontSize: 11, lineHeight: 15 },
+  diffRow: { minHeight: 15, flexDirection: "row", alignItems: "center", gap: 6 },
   diffText: { fontFamily: "monospace", fontSize: 11 },
 });

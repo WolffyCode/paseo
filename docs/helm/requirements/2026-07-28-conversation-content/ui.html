@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · 中区真实对话与新对话草稿</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 32px;
+        background: #e8edf3;
+        color: #1f2328;
+        font:
+          14px system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 1100px;
+        margin: auto;
+      }
+      h1 {
+        font-size: 24px;
+        margin: 0 0 8px;
+      }
+      .sub {
+        color: #59636e;
+        margin-bottom: 20px;
+      }
+      .screen {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 330px;
+        gap: 18px;
+      }
+      .frame {
+        min-height: 560px;
+        display: grid;
+        grid-template-columns: 230px 1fr;
+        overflow: hidden;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 12px 34px rgba(31, 35, 40, 0.14);
+      }
+      .tree {
+        padding: 14px 10px;
+        background: #e4eef0;
+        border-right: 4px solid #d0dae5;
+      }
+      .host {
+        height: 36px;
+        padding: 8px;
+        font-weight: 600;
+      }
+      .row {
+        height: 36px;
+        padding: 8px 10px;
+        border-radius: 5px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .row.project {
+        padding-left: 6px;
+        font-weight: 600;
+      }
+      .row.child {
+        padding-left: 26px;
+      }
+      .row.active {
+        background: #d0d7de;
+      }
+      .conversation {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+      }
+      .stream {
+        flex: 1;
+        overflow: hidden;
+        padding: 28px clamp(20px, 7vw, 74px);
+      }
+      .turn {
+        margin-bottom: 22px;
+        line-height: 1.6;
+      }
+      .turn.user {
+        margin-left: auto;
+        max-width: 76%;
+        padding: 9px 12px;
+        border-radius: 8px;
+        background: #f0f2f4;
+      }
+      .tool {
+        margin: 10px 0;
+        padding: 9px 10px;
+        border-left: 2px solid #8c959f;
+        color: #59636e;
+        font:
+          12px ui-monospace,
+          monospace;
+      }
+      .composer {
+        margin: 0 clamp(20px, 7vw, 74px) 22px;
+        min-height: 82px;
+        padding: 13px;
+        border: 1px solid #d0d7de;
+        border-radius: 8px;
+        color: #8c959f;
+      }
+      .anno {
+        background: #fff;
+        border: 1px solid #d0d7de;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .anno h2 {
+        margin: 0;
+        padding: 12px 14px;
+        font-size: 13px;
+        background: #f6f8fa;
+      }
+      dl {
+        display: grid;
+        grid-template-columns: 62px 1fr;
+        gap: 0;
+        margin: 0;
+      }
+      dt,
+      dd {
+        margin: 0;
+        padding: 10px 12px;
+        border-top: 1px solid #d8dee4;
+      }
+      dt {
+        font-weight: 600;
+        color: #0969da;
+      }
+      dd {
+        color: #59636e;
+      }
+      @media (max-width: 820px) {
+        .screen {
+          grid-template-columns: 1fr;
+        }
+        .frame {
+          grid-template-columns: 190px 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>中区真实对话与新对话草稿</h1>
+      <div class="sub">新对话停留在主页；消息从固定 Composer 上方出现并原位接管真实 agent。</div>
+      <section class="screen">
+        <div class="frame">
+          <aside class="tree">
+            <div class="host">本机</div>
+            <div class="row project">▾ helm</div>
+            <div class="row child">中区接入真实会话</div>
+            <div class="row child">左侧目录树交互</div>
+          </aside>
+          <div class="conversation">
+            <div class="stream"></div>
+            <div style="margin: 0 clamp(20px, 7vw, 74px) 8px; color: #59636e; font-size: 12px">
+              helm · /Volumes/Aether/coding/person/helm · feat/conversation-tree-design
+            </div>
+            <div class="composer">发送消息…</div>
+          </div>
+        </div>
+        <aside class="anno">
+          <h2>交互注解</h2>
+          <dl>
+            <dt>布局</dt>
+            <dd>桌面三栏位置不变；草稿、乐观消息和真实对话使用同一底部 Composer 位置。</dd>
+            <dt>点击</dt>
+            <dd>“新对话”在当前中区打开草稿且 URL 不变；根对话切换中区；subagent 打开右栏。</dd>
+            <dt>首次进入</dt>
+            <dd>
+              加载期间只显示 loading 指示；工作目录加载完成后直接显示默认“新对话”草稿与本图
+              Composer，不出现“选择一个对话”。
+            </dd>
+            <dt>加载</dt>
+            <dd>首次发送后用户消息先在 Composer 上方出现；真实 agent 创建成功后原位接管。</dd>
+            <dt>运行</dt>
+            <dd>沿用流式输出、停止、权限与输入反馈；输出只在 Composer 上方增长。</dd>
+            <dt>离线</dt>
+            <dd>入口禁用；已有内容保留，连接恢复后继续同步。</dd>
+            <dt>失败</dt>
+            <dd>创建失败保留草稿与底部 Composer，可原位修改并重试。</dd>
+            <dt>无项目</dt>
+            <dd>中区显示“先打开项目”，不跳转旧新建页。</dd>
+            <dt>归档</dt>
+            <dd>显示只读归档提示，不提供可误发送的活跃 Composer。</dd>
+            <dt>右键</dt>
+            <dd>中区不新增右键菜单；左树管理菜单保持原定义。</dd>
+            <dt>文件</dt>
+            <dd>消息文件链接在右侧工作面板打开，相对路径以当前 workspace 为根。</dd>
+          </dl>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>

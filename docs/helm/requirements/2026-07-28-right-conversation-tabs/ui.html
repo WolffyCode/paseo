@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · 右侧对话页签</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 28px;
+        background: #e8edf3;
+        color: #1f2328;
+        font:
+          14px system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 1080px;
+        margin: auto;
+      }
+      h1 {
+        margin: 0 0 6px;
+        font-size: 24px;
+      }
+      .sub {
+        color: #59636e;
+        margin-bottom: 18px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 320px;
+        gap: 18px;
+      }
+      .frame {
+        min-height: 560px;
+        display: grid;
+        grid-template-columns: 210px 1fr 360px;
+        overflow: hidden;
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 12px 34px #1f232824;
+      }
+      .left {
+        padding: 14px 9px;
+        background: #eef2f4;
+      }
+      .row {
+        height: 36px;
+        padding: 8px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        border-radius: 5px;
+      }
+      .row.child {
+        padding-left: 28px;
+      }
+      .center {
+        padding: 28px;
+        border-left: 1px solid #d8dee4;
+        border-right: 1px solid #d8dee4;
+      }
+      .drop {
+        height: 100%;
+        display: grid;
+        place-items: center;
+        border: 1px solid #20744a;
+        border-radius: 6px;
+        background: #20744a12;
+        color: #20744a;
+      }
+      .right {
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .tabs {
+        height: 42px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px;
+        border-bottom: 1px solid #d8dee4;
+      }
+      .tab {
+        max-width: 150px;
+        padding: 6px 9px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        border-radius: 6px;
+        background: #eef1f4;
+      }
+      .stream {
+        flex: 1;
+        padding: 20px;
+        line-height: 1.6;
+      }
+      .readonly {
+        margin: 0 16px 16px;
+        padding: 10px;
+        border: 1px solid #d8dee4;
+        border-radius: 6px;
+        color: #59636e;
+      }
+      .composer {
+        margin: 0 16px 16px;
+        padding: 13px;
+        border: 1px solid #8c959f;
+        border-radius: 7px;
+        color: #8c959f;
+      }
+      .anno {
+        border: 1px solid #d0d7de;
+        border-radius: 8px;
+        background: #fff;
+        overflow: hidden;
+      }
+      .anno h2 {
+        margin: 0;
+        padding: 11px 13px;
+        font-size: 13px;
+        background: #f6f8fa;
+      }
+      dl {
+        display: grid;
+        grid-template-columns: 62px 1fr;
+        margin: 0;
+      }
+      dt,
+      dd {
+        margin: 0;
+        padding: 9px 11px;
+        border-top: 1px solid #d8dee4;
+      }
+      dt {
+        color: #20744a;
+        font-weight: 600;
+      }
+      dd {
+        color: #59636e;
+      }
+      @media (max-width: 860px) {
+        .grid {
+          grid-template-columns: 1fr;
+        }
+        .frame {
+          grid-template-columns: 160px 1fr 300px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>右侧对话页签</h1>
+      <div class="sub">中区保持当前主对话；右栏并行打开只读 subagent 或可编辑根对话。</div>
+      <section class="grid" id="sRT1">
+        <div class="frame">
+          <aside class="left">
+            <div class="row">▾ helm</div>
+            <div class="row child">主页架子</div>
+            <div class="row child">　subagent 验证</div>
+          </aside>
+          <div class="center"><div class="drop">释放后在右栏打开对话</div></div>
+          <div class="right">
+            <div class="tabs"><span class="tab">对话 · subagent 验证</span><span>＋</span></div>
+            <div class="stream">已加载 subagent 的真实消息历史与运行输出。</div>
+            <div class="readonly">此 subagent 为只读对话</div>
+          </div>
+        </div>
+        <aside class="anno" id="sRT2">
+          <h2>交互注解</h2>
+          <dl>
+            <dt>布局</dt>
+            <dd>右栏沿用页签栏；对话内容填满页签下方，每个页签自带 workspace。</dd>
+            <dt>点击</dt>
+            <dd>subagent 打开只读页签；页签聚焦；× 关闭；“+”→“对话”直接打开右侧草稿。</dd>
+            <dt>拖拽</dt>
+            <dd>仅根对话可拖；有效悬停高亮中区；释放后右栏打开且中区不变；取消无副作用。</dd>
+            <dt>新建</dt>
+            <dd>沿用当前中区的真实 workspace；不显示目录选择；中区未选目录时禁用。</dd>
+            <dt>只读</dt>
+            <dd>subagent 无 Composer、不可文件拖入；历史、运行输出和文件链接仍可用。</dd>
+            <dt>运行</dt>
+            <dd>可编辑根对话与 draft 沿用 Composer、流式输出、创建中和失败重试。</dd>
+            <dt>离线</dt>
+            <dd>新建与发送禁用，已加载内容保留并显示重连反馈。</dd>
+            <dt>右键</dt>
+            <dd>页签菜单：关闭、关闭其它、关闭全部；无其它新增右键菜单。</dd>
+          </dl>
+        </aside>
+      </section>
+    </main>
+  </body>
+</html>

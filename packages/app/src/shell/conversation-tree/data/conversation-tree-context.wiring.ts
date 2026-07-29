@@ -6,8 +6,10 @@ import { reaction } from "mobx";
 import { z } from "zod";
 import { getIsElectron, isWeb } from "@/constants/platform";
 import { getHostRuntimeStore, isHostRuntimeConnected } from "@/runtime/host-runtime";
+import { generateDraftId } from "@/stores/draft-keys";
 import { confirmDialog } from "@/utils/confirm-dialog";
 import { shellModel } from "../../model/shell-model";
+import { openConversationInPanel } from "../../right-panel/data/workspace-panels";
 import {
   ConversationTreeStore,
   type ConversationTreeContext,
@@ -56,6 +58,10 @@ interface PersistedPreferenceSnapshot {
 
 export interface ConversationTreeHostDeps {
   readonly openSearch: () => void;
+  readonly retargetConversationView: (input: {
+    readonly draftId: string;
+    readonly agentId: string;
+  }) => void;
 }
 
 /** Identify a missing live daemon client without reducing the failure to an opaque string. */
@@ -93,7 +99,16 @@ export function createConversationTreeStoreForServer(
       client: liveRpcClient(serverId),
       subscriptionIdPrefix: `conversation-tree:${serverId}`,
     }),
-    openRightPanel: shellModel.openRight,
+    openConversationInRightPanel: (input) => {
+      shellModel.openRight();
+      openConversationInPanel(serverId, {
+        kind: "conversation",
+        target: { kind: "agent", agentId: input.agentId },
+        workspaceId: input.workspaceId,
+        title: input.title,
+        readOnly: input.readOnly,
+      });
+    },
     navigate: navigateConversationTreeRoute,
     openInFinder,
     openInNewWindow,
@@ -101,6 +116,8 @@ export function createConversationTreeStoreForServer(
     confirmDestructive: confirmProjectRemoval,
     reportError,
     openSearch: hostDeps.openSearch,
+    createDraftId: generateDraftId,
+    retargetConversationView: hostDeps.retargetConversationView,
     getContext: () => buildContext(serverId),
   });
   store.beginPreferenceHydration();

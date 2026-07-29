@@ -1,6 +1,7 @@
 import type { ConversationTreeMenuItem } from "./types";
 
 export type ProjectMenuItemId =
+  | "new-conversation"
   | "pin"
   | "unpin"
   | "reveal-in-finder"
@@ -23,6 +24,12 @@ export function deriveProjectMenuItems(input: ProjectMenuInput): ProjectMenuItem
   const writeEnabled = !input.isOffline;
   const pinId: ProjectMenuItemId = input.isPinned ? "unpin" : "pin";
   const items: ProjectMenuItem[] = [
+    {
+      id: "new-conversation",
+      enabled: writeEnabled,
+      destructive: false,
+      separatorBefore: false,
+    },
     {
       id: pinId,
       enabled: writeEnabled,

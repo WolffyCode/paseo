@@ -700,3 +700,31 @@ interface HostSwitcherProps {
 - 组件层：对话(根)行两行后 hover/选中/双击仍覆盖整行为单一交互单元（验收 11）；subagent 行不受两行化影响（验收 17）；共享分钟 tick 全面板仅存在一个 interval。
 
 **requirement 验收标准状态更新（供 PM/测试同步）**：14、15 由「暂不作为强制」转为**强制**（§8.1/§8.2 结论落地）；18 的「当前分支」口径按 §8.4 裁定执行，其中「主目录缺失 → 暂无分支」兜底两句待产品回写 requirement §2·B 后，requirement §8 开放问题 12 可关闭。requirement §8 开放问题 9（角标去留）、10（subagent 视觉不统一）是产品/董事长取舍，不在本节裁定，本节改动面按当前拍板（角标去除、subagent 不动）执行。
+
+### 8.8 2026-07-28 单行与悬浮信息修正（覆盖 §8.1–§8.7 的行内呈现）
+
+本次只调整渲染与悬浮信息编排，不回退已经接入的 `updatedAt`、`providerId`、`branch`、`diffStat` 数据，也不修改协议、订阅或五态派生。项目、根对话、subagent 的静态高度统一为 36px，`row-metrics.ts` 仍是 FlatList 偏移与真实行高的单源；项目和根对话由两行改为单行后，前缀和自然退化为等步长，但不另造第二套布局算法。
+
+- `tree-row.tsx`：项目行渲染文件夹图标 + 标题；根对话渲染纯标题；两类行都居中对齐。原行内 branch/diff、相对时间、provider 与状态标签删除；subagent 分支保持不变。面板级分钟 tick 随行内相对时间一并删除，hover 卡片在打开时按当前时间格式化，不再触发整面板每分钟刷新。根对话的审核中、报错、进行中等状态判断与视觉暂缓，底层 `runStatus` 数据继续保留供后续设计使用。
+- `project-workspace.ts`：项目 hover 优先按 `projectId` 解析 `local_checkout` / legacy `directory`，避免误取第一个对话 worktree；没有主目录时回退到该项目任一已知 workspace，仅用于提供可检查的目录路径。
+- `workspace-hover-card.tsx`：共享同一套 portal 定位、safe zone 与复制交互，内容改为判别联合。项目卡片显示标题、文件路径、Git 分支、Git diff；对话卡片显示对话名称、操作目录、最后一次使用时间、提供方。项目 branch/diff 使用项目节点已派生的主目录口径；对话时间使用节点 `updatedAt`，provider 继续经 `resolveProviderBadge` 解析。
+- 测试：行渲染断言三类节点均为 36px，项目 / 根对话行内只有标题；补项目主目录优先解析测试；浏览器测试继续覆盖 hover safe-zone，真实页面验收覆盖两类卡片字段与定位。
+
+### 8.9 2026-07-28 行内操作右键化修正（覆盖 §8.8 的 subagent 与尾部动作）
+
+本次不改树模型、状态派生、workspace 数据源或右键浮层基础设施，只收敛行级渲染与操作入口。
+
+- `tree-row.tsx`：subagent 与根对话统一为纯标题，删除状态点和后代数量渲染；删除项目尾部新建、对话 / subagent 尾部更多及其 hover disclosure。项目、根对话、subagent 仍共享整行点击、hover、双击与 `contextmenu` 分发；根对话和 subagent 点击继续写入选中状态。
+- `row-hover-css.ts`：只保留行背景与分组标题动作的 hover CSS，删除尾部动作、角标让位和状态点呼吸规则。
+- `project-menu.ts` / `tree-context-menu.tsx`：项目菜单增加 `new-conversation`。有 workspace 时直接按项目目录发起新对话；workspace 不可解析时退回项目选择流程。对话与 subagent 继续使用原菜单，不新增第三套菜单。
+- `workspace-hover-card.tsx` 的内容合同与触发范围不变：项目显示标题 / 文件路径 / Git 分支 / Git diff，根对话显示名称 / 操作目录 / 最后一次使用时间 / 提供方；subagent 本轮只有行 hover，不伪造信息卡字段。
+- 测试：模型测试断言项目菜单包含 `new-conversation`；浏览器组件测试断言三类行都无状态点、数量与尾部动作，根对话 / subagent 点击产生选中态，项目 / subagent 的 `contextmenu` 都分发正确目标。
+
+### 8.10 2026-07-28 subagent 信息卡修正
+
+subagent hover 卡沿用根对话的内容组件和定位 / safe-zone 交互，但元数据必须归属 subagent 自身。树模型为 subagent 保留自己的 `updatedAt` 与 `providerId`，并额外携带只供目录展示解析的 `contextWorkspaceId`。
+
+- `build-tree.ts`：根对话以自己的 `workspaceId` 建立目录上下文；递归构建时，subagent 有独立 workspace 则覆盖上下文，否则继承父级上下文。subagent 自己的 `workspaceId` 保持原值，不用继承值覆盖。
+- `tree-row.tsx`：项目仍解析项目卡；根对话按实际 workspace 解析对话卡；subagent 按 `contextWorkspaceId` 解析操作目录，并使用自己的标题、更新时间和 provider 生成对话卡。
+- 能力边界：`contextWorkspaceId` 只服务 hover 卡的目录展示。右键菜单、置顶、重命名、Finder 与其它能力判断继续读取节点真实 `workspaceId`，不得把继承目录解释成 subagent 拥有独立 workspace。
+- 测试：模型测试断言子节点保留自身时间与 provider，同时在无独立 workspace 时继承父级目录上下文；定向树模型测试覆盖新增字段，浏览器实测核对卡片标题、目录、时间与提供方。

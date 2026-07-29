@@ -34,13 +34,12 @@ export const ConversationTreePanel = observer(function ConversationTreePanel({
   isOffline: boolean;
 }) {
   const tk = themeModel.tokens;
-  const nowMs = useMinuteTick();
   const [menuTarget, setMenuTarget] = useState<ConversationTreeMenuTarget | null>(null);
   const panelState: PanelState = isOffline ? "offline" : store.panelState;
   const canRenderTree =
     panelState === "ready" || panelState === "empty" || panelState === "offline";
   const effectiveMenuTarget = canRenderTree ? menuTarget : null;
-  ensureConversationTreeHoverCss(tk.tabHover, tk.toggleActive);
+  ensureConversationTreeHoverCss(tk.tabHover);
 
   const openMenu = useCallback((target: ConversationTreeMenuTarget) => setMenuTarget(target), []);
   const closeMenu = useCallback(() => setMenuTarget(null), []);
@@ -54,7 +53,6 @@ export const ConversationTreePanel = observer(function ConversationTreePanel({
         isOffline={isOffline}
         contextTarget={effectiveMenuTarget?.node ?? null}
         onOpenMenu={openMenu}
-        nowMs={nowMs}
       />
       <TreeContextMenu
         store={store}
@@ -73,14 +71,12 @@ const PanelBody = observer(function PanelBody({
   isOffline,
   contextTarget,
   onOpenMenu,
-  nowMs,
 }: {
   store: ConversationTreeStore;
   panelState: PanelState;
   isOffline: boolean;
   contextTarget: ConversationTreeMenuTarget["node"] | null;
   onOpenMenu: (target: ConversationTreeMenuTarget) => void;
-  nowMs: number;
 }) {
   if (panelState === "loading") {
     return <ConversationTreeLoadingState />;
@@ -95,7 +91,6 @@ const PanelBody = observer(function PanelBody({
       isEmpty={panelState === "empty"}
       contextTarget={contextTarget}
       onOpenMenu={onOpenMenu}
-      nowMs={nowMs}
     />
   );
 });
@@ -107,14 +102,12 @@ const TreeList = observer(function TreeList({
   isEmpty,
   contextTarget,
   onOpenMenu,
-  nowMs,
 }: {
   store: ConversationTreeStore;
   isOffline: boolean;
   isEmpty: boolean;
   contextTarget: ConversationTreeMenuTarget["node"] | null;
   onOpenMenu: (target: ConversationTreeMenuTarget) => void;
-  nowMs: number;
 }) {
   const listRef = useRef<FlatList<ConversationTreePanelItem> | null>(null);
   const panelItems = buildPanelItems(store);
@@ -148,12 +141,11 @@ const TreeList = observer(function TreeList({
                 contextTarget?.kind === item.row.node.kind && contextTarget.id === item.row.node.id
               }
               onOpenMenu={onOpenMenu}
-              nowMs={nowMs}
             />
           );
       }
     },
-    [contextTarget, isOffline, nowMs, onOpenMenu, openProjectPicker, store],
+    [contextTarget, isOffline, onOpenMenu, openProjectPicker, store],
   );
   const getItemLayout = useCallback(
     (_data: ArrayLike<ConversationTreePanelItem> | null | undefined, index: number) =>
@@ -290,16 +282,6 @@ function treeStateTestId(isEmpty: boolean, isOffline: boolean): string | undefin
   if (isEmpty) return "conv-tree-empty";
   if (isOffline) return "conv-tree-offline-tree";
   return undefined;
-}
-
-/** Advance the shared clock once per minute so every visible conversation time updates together. */
-function useMinuteTick(): number {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNowMs(Date.now()), 60_000);
-    return () => clearInterval(timer);
-  }, []);
-  return nowMs;
 }
 
 const styles = StyleSheet.create({
