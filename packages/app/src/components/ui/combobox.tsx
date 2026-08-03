@@ -24,6 +24,7 @@ import {
   type ViewStyle,
 } from "react-native";
 import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useIsCompactFormFactor } from "@/constants/layout";
 import {
@@ -65,6 +66,29 @@ import { useDismissKeyboardOnOpen } from "@/components/ui/keyboard-dismiss";
 const IS_WEB = isWeb;
 
 export type ComboboxOption = ComboboxOptionModel;
+export type DesktopComboboxPlacement = "top-start" | "top-end" | "bottom-start" | "bottom-end";
+export type ComboboxItemPresentation = "default" | "compact" | "detailed";
+
+/** Composer popovers remain anchored desktop surfaces on Web at every viewport width. */
+function resolveComboboxIsMobile(
+  isCompactFormFactor: boolean,
+  surfaceVariant: "default" | "composer",
+): boolean {
+  return isCompactFormFactor && !(IS_WEB && surfaceVariant === "composer");
+}
+
+function resolveComboboxCopy(
+  input: Pick<ComboboxProps, "placeholder" | "searchPlaceholder" | "emptyText" | "title">,
+  t: TFunction,
+) {
+  const placeholder = input.placeholder ?? t("common.placeholders.search");
+  return {
+    placeholder,
+    searchPlaceholder: input.searchPlaceholder ?? placeholder,
+    emptyText: input.emptyText ?? t("common.empty.noOptionsMatchSearch"),
+    title: input.title ?? t("common.actions.select"),
+  };
+}
 
 export interface ComboboxProps {
   options: ComboboxOption[];
@@ -99,7 +123,13 @@ export interface ComboboxProps {
   presentation?: "push" | "replace";
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  desktopPlacement?: "top-start" | "bottom-start";
+  desktopPlacement?: DesktopComboboxPlacement;
+  /** Gap between the desktop trigger and popover. */
+  desktopOffset?: number;
+  /** Composer popovers use the approved larger radius and deeper shadow. */
+  desktopSurfaceVariant?: "default" | "composer";
+  /** Presentation for built-in desktop option rows. Custom renderers set this on ComboboxItem. */
+  desktopOptionPresentation?: ComboboxItemPresentation;
   /**
    * Prevents an initial frame at 0,0 by hiding desktop content until floating
    * coordinates resolve. This intentionally disables fade enter/exit animation
@@ -108,6 +138,8 @@ export interface ComboboxProps {
   desktopPreventInitialFlash?: boolean;
   /** Minimum width for the desktop popover (overrides trigger-based width). */
   desktopMinWidth?: number;
+  /** Exact desktop popover width, clamped to the available viewport width. */
+  desktopWidth?: number;
   /** Fixed height for the desktop popover (overrides default 400px max). */
   desktopFixedHeight?: number;
   /** Content rendered above the scroll area on desktop (sticky header). */
@@ -230,6 +262,7 @@ export interface ComboboxItemProps {
   disabled?: boolean;
   /** When true, bumps hover/pressed colors up one surface level (for items on elevated backgrounds). */
   elevated?: boolean;
+  presentation?: ComboboxItemPresentation;
   onPress: () => void;
   testID?: string;
 }
@@ -244,23 +277,31 @@ export function ComboboxItem({
   active,
   disabled,
   elevated,
+  presentation = "default",
   onPress,
   testID,
 }: ComboboxItemProps): ReactElement {
   const { theme } = useUnistyles();
+  const leadingSlotStyle = useMemo(
+    () => [
+      styles.comboboxItemLeadingSlot,
+      presentation === "detailed" ? styles.comboboxItemLeadingSlotDetailed : null,
+    ],
+    [presentation],
+  );
 
   let leadingContent: ReactElement | null = null;
   if (leadingSlot) {
-    leadingContent = <View style={styles.comboboxItemLeadingSlot}>{leadingSlot}</View>;
+    leadingContent = <View style={leadingSlotStyle}>{leadingSlot}</View>;
   } else if (kind === "directory") {
     leadingContent = (
-      <View style={styles.comboboxItemLeadingSlot}>
+      <View style={leadingSlotStyle}>
         <Folder size={16} color={theme.colors.foregroundMuted} />
       </View>
     );
   } else if (kind === "file") {
     leadingContent = (
-      <View style={styles.comboboxItemLeadingSlot}>
+      <View style={leadingSlotStyle}>
         <File size={16} color={theme.colors.foregroundMuted} />
       </View>
     );
@@ -269,17 +310,29 @@ export function ComboboxItem({
   const itemPressableStyle = useCallback(
     ({ pressed, hovered = false }: PressableStateCallbackType & { hovered?: boolean }) => [
       styles.comboboxItem,
-      hovered && (elevated ? styles.comboboxItemHoveredElevated : styles.comboboxItemHovered),
-      pressed && (elevated ? styles.comboboxItemPressedElevated : styles.comboboxItemPressed),
-      active && styles.comboboxItemActive,
+      presentation === "compact" ? styles.comboboxItemCompact : null,
+      presentation === "detailed" ? styles.comboboxItemDetailed : null,
+      hovered && presentation !== "default"
+        ? styles.comboboxItemPanelHovered
+        : hovered && (elevated ? styles.comboboxItemHoveredElevated : styles.comboboxItemHovered),
+      pressed && presentation !== "default"
+        ? styles.comboboxItemPanelPressed
+        : pressed && (elevated ? styles.comboboxItemPressedElevated : styles.comboboxItemPressed),
+      presentation !== "default" && (selected || active)
+        ? styles.comboboxItemPanelActive
+        : active && styles.comboboxItemActive,
       disabled && styles.comboboxItemDisabled,
     ],
-    [elevated, active, disabled],
+    [elevated, active, disabled, presentation, selected],
   );
 
   const itemContentStyle = useMemo(
-    () => [styles.comboboxItemContent, description && styles.comboboxItemContentInline],
-    [description],
+    () => [
+      styles.comboboxItemContent,
+      description && presentation !== "detailed" ? styles.comboboxItemContentInline : null,
+      presentation === "detailed" ? styles.comboboxItemContentDetailed : null,
+    ],
+    [description, presentation],
   );
 
   return (
@@ -323,9 +376,17 @@ interface OptionRowProps {
   active: boolean;
   onSelect: (id: string) => void;
   renderOption: RenderOptionFn | undefined;
+  presentation?: ComboboxItemPresentation;
 }
 
-function OptionRow({ option, selected, active, onSelect, renderOption }: OptionRowProps) {
+function OptionRow({
+  option,
+  selected,
+  active,
+  onSelect,
+  renderOption,
+  presentation,
+}: OptionRowProps) {
   const handlePress = useCallback(() => onSelect(option.id), [onSelect, option.id]);
   if (renderOption) {
     return <View>{renderOption({ option, selected, active, onPress: handlePress })}</View>;
@@ -338,6 +399,7 @@ function OptionRow({ option, selected, active, onSelect, renderOption }: OptionR
       selected={selected}
       active={active}
       onPress={handlePress}
+      presentation={presentation}
     />
   );
 }
@@ -349,6 +411,7 @@ interface OptionsListProps {
   emptyText: string;
   onSelect: (id: string) => void;
   renderOption: RenderOptionFn | undefined;
+  presentation?: ComboboxItemPresentation;
 }
 
 function OptionsList({
@@ -358,6 +421,7 @@ function OptionsList({
   emptyText,
   onSelect,
   renderOption,
+  presentation,
 }: OptionsListProps): ReactElement {
   if (options.length === 0) {
     return <ComboboxEmpty>{emptyText}</ComboboxEmpty>;
@@ -372,6 +436,7 @@ function OptionsList({
           active={index === activeIndex}
           onSelect={onSelect}
           renderOption={renderOption}
+          presentation={presentation}
         />
       ))}
     </>
@@ -381,7 +446,8 @@ function OptionsList({
 interface DesktopPositionInput {
   isDesktopAboveSearch: boolean;
   isMobile: boolean;
-  desktopPlacement: "top-start" | "bottom-start";
+  desktopPlacement: DesktopComboboxPlacement;
+  desktopOffset: number;
   referenceTop: number | null;
   referenceLeft: number | null;
   referenceAtOrigin: boolean;
@@ -465,7 +531,7 @@ function computeDesktopPosition(input: DesktopPositionInput): DesktopPositionRes
       : null;
   const measuredTopStartBottom =
     useMeasuredTopStartPosition && referenceTop !== null
-      ? Math.max(windowHeight - referenceTop + 5, collisionPadding)
+      ? Math.max(windowHeight - referenceTop + input.desktopOffset, collisionPadding)
       : null;
 
   const resolvedPositionReady = resolvePositionReady(
@@ -656,7 +722,7 @@ interface DesktopResetSetters {
 function useDesktopPositionReset(
   isOpen: boolean,
   isMobile: boolean,
-  desktopPlacement: "top-start" | "bottom-start",
+  desktopPlacement: DesktopComboboxPlacement,
   update: () => unknown,
   setters: DesktopResetSetters,
 ) {
@@ -830,14 +896,21 @@ function maybePinDesktopOptionsToBottom(
 interface FloatingMiddlewareInput {
   collisionPadding: number;
   isDesktopAboveSearch: boolean;
+  desktopOffset: number;
   setAvailableSize: FloatingSizeSetters["setAvailableSize"];
   setReferenceWidth: FloatingSizeSetters["setReferenceWidth"];
 }
 
 function buildFloatingMiddleware(input: FloatingMiddlewareInput) {
-  const { collisionPadding, isDesktopAboveSearch, setAvailableSize, setReferenceWidth } = input;
+  const {
+    collisionPadding,
+    isDesktopAboveSearch,
+    desktopOffset,
+    setAvailableSize,
+    setReferenceWidth,
+  } = input;
   return [
-    floatingOffset(isWeb ? 5 : 4),
+    floatingOffset(isWeb ? desktopOffset : 4),
     ...(isWeb ? [] : [flip({ padding: collisionPadding })]),
     ...(isDesktopAboveSearch ? [] : [shift({ padding: collisionPadding })]),
     floatingSize({
@@ -852,22 +925,39 @@ function buildFloatingMiddleware(input: FloatingMiddlewareInput) {
 
 interface DesktopContainerStyleInput {
   desktopMinWidth: number | undefined;
+  desktopWidth: number | undefined;
   referenceWidth: number | null;
   desktopFixedHeight: number | undefined;
   desktopPositionStyle: DesktopPositionResult["desktopPositionStyle"];
   shouldHideDesktopContent: boolean;
+  availableWidth: number | undefined;
   availableHeight: number | undefined;
 }
 
 function buildDesktopFrameStyle(input: DesktopContainerStyleInput): StyleProp<ViewStyle> {
   const {
     desktopMinWidth,
+    desktopWidth,
     referenceWidth,
     desktopFixedHeight,
     desktopPositionStyle,
     shouldHideDesktopContent,
+    availableWidth,
     availableHeight,
   } = input;
+  const resolvedExactWidth =
+    desktopWidth == null ? null : Math.min(desktopWidth, availableWidth ?? desktopWidth);
+  const widthStyle =
+    resolvedExactWidth == null
+      ? {
+          minWidth: desktopMinWidth ?? referenceWidth ?? 200,
+          maxWidth: Math.max(400, desktopMinWidth ?? 0),
+        }
+      : {
+          width: resolvedExactWidth,
+          minWidth: resolvedExactWidth,
+          maxWidth: resolvedExactWidth,
+        };
   const fixedHeightStyle =
     desktopFixedHeight != null
       ? { minHeight: desktopFixedHeight, maxHeight: desktopFixedHeight }
@@ -880,8 +970,7 @@ function buildDesktopFrameStyle(input: DesktopContainerStyleInput): StyleProp<Vi
   return [
     {
       position: "absolute" as const,
-      minWidth: desktopMinWidth ?? referenceWidth ?? 200,
-      maxWidth: Math.max(400, desktopMinWidth ?? 0),
+      ...widthStyle,
     },
     fixedHeightStyle,
     desktopPositionStyle,
@@ -1090,6 +1179,8 @@ interface DesktopBodyProps {
   emptyText: string;
   handleSelect: (id: string) => void;
   renderOption: RenderOptionFn | undefined;
+  surfaceVariant: "default" | "composer";
+  optionPresentation: ComboboxItemPresentation;
   hasChildren: boolean;
   children: ReactNode;
 }
@@ -1132,6 +1223,7 @@ function DesktopComboboxOptionsBody(props: {
   emptyText: string;
   handleSelect: (id: string) => void;
   renderOption: RenderOptionFn | undefined;
+  optionPresentation: ComboboxItemPresentation;
 }): ReactElement {
   const list = (
     <OptionsList
@@ -1141,6 +1233,7 @@ function DesktopComboboxOptionsBody(props: {
       emptyText={props.emptyText}
       onSelect={props.handleSelect}
       renderOption={props.renderOption}
+      presentation={props.optionPresentation}
     />
   );
 
@@ -1182,6 +1275,13 @@ function DesktopComboboxOptionsBody(props: {
 }
 
 function DesktopComboboxBody(props: DesktopBodyProps): ReactElement {
+  const containerStyle = useMemo(
+    () => [
+      styles.desktopContainer,
+      props.surfaceVariant === "composer" ? styles.desktopContainerComposer : null,
+    ],
+    [props.surfaceVariant],
+  );
   return (
     <Modal
       transparent
@@ -1195,7 +1295,7 @@ function DesktopComboboxBody(props: DesktopBodyProps): ReactElement {
           testID="combobox-desktop-container"
           entering={props.shouldUseDesktopFade ? FadeIn.duration(100) : undefined}
           exiting={props.shouldUseDesktopFade ? FadeOut.duration(100) : undefined}
-          style={styles.desktopContainer}
+          style={containerStyle}
           frameStyle={props.desktopFrameStyle}
           ref={props.refs.setFloating}
           collapsable={false}
@@ -1226,6 +1326,7 @@ function DesktopComboboxBody(props: DesktopBodyProps): ReactElement {
               emptyText={props.emptyText}
               handleSelect={props.handleSelect}
               renderOption={props.renderOption}
+              optionPresentation={props.optionPresentation}
             />
           )}
         </FloatingSurface>
@@ -1256,8 +1357,12 @@ export function Combobox({
   open,
   onOpenChange,
   desktopPlacement = "top-start",
+  desktopOffset = 5,
+  desktopSurfaceVariant = "default",
+  desktopOptionPresentation = "default",
   desktopPreventInitialFlash = true,
   desktopMinWidth,
+  desktopWidth,
   desktopFixedHeight,
   stickyHeader,
   keepOpenOnSelect = false,
@@ -1266,10 +1371,9 @@ export function Combobox({
 }: ComboboxProps): ReactElement | null {
   const { t } = useTranslation();
   const { theme } = useUnistyles();
-  const resolvedPlaceholder = placeholder ?? t("common.placeholders.search");
-  const resolvedEmptyText = emptyText ?? t("common.empty.noOptionsMatchSearch");
-  const resolvedTitle = title ?? t("common.actions.select");
-  const isMobile = useIsCompactFormFactor();
+  const resolvedCopy = resolveComboboxCopy({ placeholder, searchPlaceholder, emptyText, title }, t);
+  const isCompactFormFactor = useIsCompactFormFactor();
+  const isMobile = resolveComboboxIsMobile(isCompactFormFactor, desktopSurfaceVariant);
   const titleColor = theme.colors.foreground;
   const effectiveOptionsPosition = resolveEffectiveOptionsPosition(isMobile, optionsPosition);
   const isDesktopAboveSearch = resolveIsDesktopAboveSearch(isMobile, effectiveOptionsPosition);
@@ -1316,10 +1420,11 @@ export function Combobox({
       buildFloatingMiddleware({
         collisionPadding,
         isDesktopAboveSearch,
+        desktopOffset,
         setAvailableSize,
         setReferenceWidth,
       }),
-    [collisionPadding, isDesktopAboveSearch],
+    [collisionPadding, desktopOffset, isDesktopAboveSearch],
   );
 
   const { refs, floatingStyles, update } = useFloating({
@@ -1358,6 +1463,7 @@ export function Combobox({
     isDesktopAboveSearch,
     isMobile,
     desktopPlacement,
+    desktopOffset,
     referenceTop,
     referenceLeft,
     referenceAtOrigin,
@@ -1503,18 +1609,22 @@ export function Combobox({
     () =>
       buildDesktopFrameStyle({
         desktopMinWidth,
+        desktopWidth,
         referenceWidth,
         desktopFixedHeight,
         desktopPositionStyle,
         shouldHideDesktopContent,
+        availableWidth: availableSize?.width,
         availableHeight: availableSize?.height,
       }),
     [
       desktopMinWidth,
+      desktopWidth,
       referenceWidth,
       desktopFixedHeight,
       desktopPositionStyle,
       shouldHideDesktopContent,
+      availableSize?.width,
       availableSize?.height,
     ],
   );
@@ -1524,7 +1634,6 @@ export function Combobox({
     [],
   );
 
-  const effectiveSearchPlaceholder = searchPlaceholder ?? resolvedPlaceholder;
   const hasChildren = Boolean(children);
 
   if (isMobile) {
@@ -1536,7 +1645,7 @@ export function Combobox({
         handleSheetDismiss={handleSheetDismiss}
         handleIndicatorStyle={handleIndicatorStyle}
         titleColor={titleColor}
-        title={resolvedTitle}
+        title={resolvedCopy.title}
         header={header}
         onClose={handleClose}
         stickyHeader={stickyHeader}
@@ -1545,14 +1654,14 @@ export function Combobox({
         mobileChildrenScrollEnabled={mobileChildrenScrollEnabled}
         presentation={presentation}
         searchResetKey={searchResetKey}
-        searchPlaceholder={effectiveSearchPlaceholder}
+        searchPlaceholder={resolvedCopy.searchPlaceholder}
         searchQuery={searchQuery}
         setSearchQueryWithCallback={setSearchQueryWithCallback}
         handleSubmitSearch={handleSubmitSearch}
         orderedVisibleOptions={orderedVisibleOptions}
         value={value}
         activeIndex={activeIndex}
-        emptyText={resolvedEmptyText}
+        emptyText={resolvedCopy.emptyText}
         handleSelect={handleSelect}
         renderOption={renderOption}
       >
@@ -1574,7 +1683,7 @@ export function Combobox({
       header={header}
       stickyHeader={stickyHeader}
       searchable={searchable}
-      searchPlaceholder={effectiveSearchPlaceholder}
+      searchPlaceholder={resolvedCopy.searchPlaceholder}
       searchQuery={searchQuery}
       setSearchQueryWithCallback={setSearchQueryWithCallback}
       handleSubmitSearch={handleSubmitSearch}
@@ -1585,9 +1694,11 @@ export function Combobox({
       orderedVisibleOptions={orderedVisibleOptions}
       value={value}
       activeIndex={activeIndex}
-      emptyText={resolvedEmptyText}
+      emptyText={resolvedCopy.emptyText}
       handleSelect={handleSelect}
       renderOption={renderOption}
+      surfaceVariant={desktopSurfaceVariant}
+      optionPresentation={desktopOptionPresentation}
       hasChildren={hasChildren}
     >
       {children}
@@ -1627,11 +1738,36 @@ const styles = StyleSheet.create((theme) => ({
           marginBottom: theme.spacing[1],
         }),
   },
+  comboboxItemCompact: {
+    minHeight: 33,
+    marginHorizontal: 4,
+    marginVertical: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 9,
+  },
+  comboboxItemDetailed: {
+    minHeight: 38,
+    marginHorizontal: 4,
+    marginVertical: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
   comboboxItemHovered: {
     backgroundColor: theme.colors.surface1,
   },
   comboboxItemHoveredElevated: {
     backgroundColor: theme.colors.surface2,
+  },
+  comboboxItemPanelHovered: {
+    backgroundColor: theme.colorScheme === "dark" ? "#2B302C" : "#EBF0ED",
+  },
+  comboboxItemPanelPressed: {
+    backgroundColor: theme.colorScheme === "dark" ? "#333A35" : "#E4ECE7",
+  },
+  comboboxItemPanelActive: {
+    backgroundColor: theme.colorScheme === "dark" ? "#2B302C" : "#EBF0ED",
   },
   comboboxItemPressed: {
     backgroundColor: theme.colors.surface1,
@@ -1665,10 +1801,19 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "baseline",
     gap: theme.spacing[2],
   },
+  comboboxItemContentDetailed: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 1,
+  },
   comboboxItemLeadingSlot: {
     width: 16,
     alignItems: "center",
     justifyContent: "center",
+  },
+  comboboxItemLeadingSlotDetailed: {
+    width: 26,
+    height: 26,
   },
   comboboxItemLabel: {
     fontSize: theme.fontSize.sm,
@@ -1718,6 +1863,10 @@ const styles = StyleSheet.create((theme) => ({
     ...theme.shadow.md,
     maxHeight: 400,
     overflow: "hidden",
+  },
+  desktopContainerComposer: {
+    borderRadius: 14,
+    ...theme.shadow.lg,
   },
   desktopScroll: {
     flexShrink: 1,

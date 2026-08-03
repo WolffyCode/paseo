@@ -1186,6 +1186,8 @@ export class VoiceAssistantWebSocketServer {
         fsWrite: true,
         // COMPAT(fsWriteFile): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
         fsWriteFile: true,
+        // COMPAT(conversationOnlyAgents): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+        conversationOnlyAgents: true,
       },
     };
   }

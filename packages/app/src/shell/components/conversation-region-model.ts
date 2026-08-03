@@ -7,7 +7,7 @@ import type {
 
 export interface FocusedConversation {
   readonly agentId: string;
-  readonly workspaceId: string;
+  readonly workspaceId: string | null;
   readonly workspaceRoot: string;
 }
 
@@ -47,7 +47,9 @@ export function resolveConversationRegionTarget(input: {
       agentId: input.pendingAgentTarget.agentId,
       workspaceId: input.pendingAgentTarget.workspaceId,
       workspaceRoot:
-        input.workspaceDetails.get(input.pendingAgentTarget.workspaceId)?.directory ?? "",
+        input.pendingAgentTarget.workspaceId === null
+          ? ""
+          : (input.workspaceDetails.get(input.pendingAgentTarget.workspaceId)?.directory ?? ""),
     };
   }
   const focused = resolveFocusedConversation(input);
@@ -64,14 +66,16 @@ export function resolveFocusedConversation(input: {
   if (agentId === null) {
     return null;
   }
-  const workspaceId = input.agents.get(agentId)?.workspaceId ?? null;
-  if (workspaceId === null) {
+  const agent = input.agents.get(agentId);
+  if (agent === undefined) {
     return null;
   }
+  const workspaceId = agent.workspaceId;
   return {
     agentId,
     workspaceId,
-    workspaceRoot: input.workspaceDetails.get(workspaceId)?.directory ?? "",
+    workspaceRoot:
+      workspaceId === null ? "" : (input.workspaceDetails.get(workspaceId)?.directory ?? ""),
   };
 }
 

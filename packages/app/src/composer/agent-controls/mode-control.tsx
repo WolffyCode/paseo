@@ -12,7 +12,14 @@ import { Text, View, type PressableStateCallbackType } from "react-native";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { useShallow } from "zustand/shallow";
 import { useStoreWithEqualityFn } from "zustand/traditional";
-import { Bot, ShieldAlert, ShieldCheck, ShieldOff, ShieldQuestionMark } from "lucide-react-native";
+import {
+  Bot,
+  ChevronDown,
+  ShieldAlert,
+  ShieldCheck,
+  ShieldOff,
+  ShieldQuestionMark,
+} from "lucide-react-native";
 import { ComboboxTrigger } from "@/components/ui/combobox-trigger";
 import { type SheetHeader } from "@/components/adaptive-modal-sheet";
 import { Combobox, ComboboxItem, type ComboboxOption } from "@/components/ui/combobox";
@@ -25,10 +32,17 @@ import { useIsCompactFormFactor } from "@/constants/layout";
 import { toErrorMessage } from "@/utils/error-messages";
 import { showProviderNoticeToast } from "@/utils/provider-notice-toast";
 import { formatAgentModeLabel } from "@/composer/agent-controls/utils";
+import { getDesktopRuntimePopoverSpec } from "@/composer/desktop-composer-spec";
+import { isWeb } from "@/constants/platform";
 import type { AgentMode, AgentProvider } from "@getpaseo/protocol/agent-types";
-import { getModeVisuals, type AgentProviderDefinition } from "@getpaseo/protocol/provider-manifest";
+import {
+  getModeVisuals,
+  type AgentModeColorTier,
+  type AgentProviderDefinition,
+} from "@getpaseo/protocol/provider-manifest";
 
 export type AgentModeControlPlacement = "toolbar" | "footer";
+const MODE_POPOVER_SPEC = getDesktopRuntimePopoverSpec("mode");
 
 function shouldRenderForPlacement(placement: AgentModeControlPlacement, isCompact: boolean) {
   return placement === "footer" ? isCompact : !isCompact;
@@ -66,11 +80,12 @@ function ModeComboboxOption({
   providerDefinitions,
   iconColor,
 }: ModeComboboxOptionProps) {
+  const isCompact = useIsCompactFormFactor() && !isWeb;
   const visuals = getModeVisuals(provider, option.id, providerDefinitions);
   const IconComponent = visuals?.icon ? MODE_ICONS[visuals.icon] : undefined;
   const leadingSlot = useMemo(
-    () => (IconComponent ? <IconComponent size={16} color={iconColor} /> : null),
-    [IconComponent, iconColor],
+    () => (isCompact && IconComponent ? <IconComponent size={16} color={iconColor} /> : null),
+    [IconComponent, iconColor, isCompact],
   );
   return (
     <ComboboxItem
@@ -79,6 +94,7 @@ function ModeComboboxOption({
       active={active}
       onPress={onPress}
       leadingSlot={leadingSlot}
+      presentation={isCompact ? "default" : "compact"}
     />
   );
 }
@@ -88,6 +104,7 @@ interface AgentModeControlViewProps {
   providerDefinitions: AgentProviderDefinition[];
   modeOptions: AgentMode[];
   selectedModeId: string | null | undefined;
+  modelLabel?: string | null;
   onSelectMode: (modeId: string) => void;
   disabled?: boolean;
 }
@@ -96,17 +113,36 @@ function normalizeSearchQuery(value: string): string {
   return value.trim().toLowerCase();
 }
 
+/** Map a provider mode's semantic risk tier to the compact status-dot color. */
+function resolveModeToneColor(
+  colorTier: AgentModeColorTier | undefined,
+  colors: {
+    dangerous: string;
+    safe: string;
+    planning: string;
+    fallback: string;
+  },
+): string {
+  if (colorTier === "dangerous") return colors.dangerous;
+  if (colorTier === "safe") return colors.safe;
+  if (colorTier === "planning") return colors.planning;
+  return colors.fallback;
+}
+
+/** Render the active run mode as a localized, anchored desktop selector. */
 function AgentModeControlView({
   provider,
   providerDefinitions,
   modeOptions,
   selectedModeId,
+  modelLabel,
   onSelectMode,
   disabled = false,
 }: AgentModeControlViewProps) {
   const { theme } = useUnistyles();
   const { t } = useTranslation();
   const anchorRef = useRef<View>(null);
+  const isCompact = useIsCompactFormFactor() && !isWeb;
   const [open, setOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -116,12 +152,25 @@ function AgentModeControlView({
   }, [modeOptions, selectedModeId]);
 
   const selectedModeLabel = selectedMode ? formatAgentModeLabel(selectedMode) : "";
+  const selectedVisuals = selectedMode
+    ? getModeVisuals(provider, selectedMode.id, providerDefinitions)
+    : null;
+  const selectedToneColor = resolveModeToneColor(selectedVisuals?.colorTier, {
+    dangerous: theme.colors.palette.amber[500],
+    safe: theme.colors.palette.green[500],
+    planning: theme.colors.palette.blue[500],
+    fallback: theme.colors.foregroundMuted,
+  });
+  const modeDotStyle = useMemo(
+    () => [styles.modeDot, { backgroundColor: selectedToneColor }],
+    [selectedToneColor],
+  );
 
   const allOptions = useMemo<ComboboxOption[]>(
     () => modeOptions.map((m) => ({ id: m.id, label: formatAgentModeLabel(m) })),
     [modeOptions],
   );
-  const options = useMemo<ComboboxOption[]>(() => {
+  const filteredOptions = useMemo<ComboboxOption[]>(() => {
     const q = normalizeSearchQuery(searchQuery);
     if (!q) return allOptions;
     return allOptions.filter((o) => o.label.toLowerCase().includes(q));
@@ -184,6 +233,19 @@ function AgentModeControlView({
     }),
     [t],
   );
+  const popoverHeader = useMemo(
+    () => (
+      <View style={styles.popoverHeader}>
+        <Text style={styles.popoverTitle}>{t("agentControls.mode.title")}</Text>
+        {modelLabel ? (
+          <Text style={styles.popoverSubtitle} numberOfLines={1}>
+            {modelLabel}
+          </Text>
+        ) : null}
+      </View>
+    ),
+    [modelLabel, t],
+  );
 
   if (!selectedMode) return null;
 
@@ -201,17 +263,25 @@ function AgentModeControlView({
         })}
         testID="mode-control"
       >
-        <Text style={labelStyle}>{selectedModeLabel}</Text>
+        <View style={modeDotStyle} />
+        <Text style={labelStyle} numberOfLines={1}>
+          {selectedModeLabel}
+        </Text>
+        <ChevronDown size={13} color={theme.colors.foregroundMuted} />
       </ComboboxTrigger>
       <Combobox
-        options={options}
+        options={isCompact ? filteredOptions : allOptions}
         value={selectedMode.id}
         onSelect={handleSelect}
         open={open}
         onOpenChange={handleOpenChange}
         anchorRef={anchorRef}
-        desktopPlacement="top-start"
-        header={sheetHeader}
+        desktopPlacement={MODE_POPOVER_SPEC.placement}
+        desktopOffset={MODE_POPOVER_SPEC.offset}
+        desktopWidth={MODE_POPOVER_SPEC.width}
+        desktopSurfaceVariant="composer"
+        stickyHeader={popoverHeader}
+        header={isCompact ? sheetHeader : undefined}
         renderOption={renderOption}
       />
     </>
@@ -247,6 +317,7 @@ export const AgentModeControl = memo(function AgentModeControl({
         provider: agent.provider,
         cwd: agent.cwd,
         currentModeId: agent.currentModeId,
+        model: agent.model,
       };
     }),
   );
@@ -300,6 +371,7 @@ export const AgentModeControl = memo(function AgentModeControl({
       providerDefinitions={providerDefinitions}
       modeOptions={availableModes}
       selectedModeId={slice.currentModeId}
+      modelLabel={slice.model}
       onSelectMode={handleSelectMode}
       disabled={!client}
     />
@@ -311,6 +383,7 @@ export interface DraftAgentModeControlProps {
   providerDefinitions: AgentProviderDefinition[];
   modeOptions: AgentMode[];
   selectedMode: string;
+  selectedModel?: string;
   onSelectMode: (modeId: string) => void;
   disabled?: boolean;
   placement: AgentModeControlPlacement;
@@ -322,6 +395,7 @@ export function DraftAgentModeControl({
   providerDefinitions,
   modeOptions,
   selectedMode,
+  selectedModel,
   onSelectMode,
   disabled,
   placement,
@@ -337,6 +411,7 @@ export function DraftAgentModeControl({
       providerDefinitions={providerDefinitions}
       modeOptions={modeOptions}
       selectedModeId={selectedMode}
+      modelLabel={selectedModel}
       onSelectMode={onSelectMode}
       disabled={disabled}
     />
@@ -346,27 +421,62 @@ export function DraftAgentModeControl({
 const styles = StyleSheet.create((theme) => ({
   chip: {
     height: 32,
+    minWidth: 0,
+    maxWidth: 132,
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.colors.surface1,
+    backgroundColor: theme.colors.surface0,
     gap: 6,
     paddingHorizontal: theme.spacing[2],
-    borderRadius: 6,
+    borderRadius: theme.borderRadius.full,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   chipHovered: {
-    backgroundColor: theme.colors.surface2,
+    borderColor: theme.colorScheme === "dark" ? "#59635D" : "#BDC9C2",
+    backgroundColor: theme.colorScheme === "dark" ? "#2B302C" : "#EBF0ED",
   },
   chipPressed: {
-    backgroundColor: theme.colors.surface0,
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colorScheme === "dark" ? "#22382B" : "#E7F3EC",
   },
   chipDisabled: {
     opacity: 0.5,
   },
   chipLabel: {
-    color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.sm,
+    minWidth: 0,
+    flexShrink: 1,
+    color: theme.colors.foreground,
+    fontSize: theme.fontSize.xs,
     fontWeight: theme.fontWeight.normal,
+  },
+  modeDot: {
+    width: 6,
+    height: 6,
+    flexShrink: 0,
+    borderRadius: theme.borderRadius.full,
+  },
+  popoverHeader: {
+    minHeight: 35,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  popoverTitle: {
+    color: theme.colors.foreground,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
+  },
+  popoverSubtitle: {
+    minWidth: 0,
+    flexShrink: 1,
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.xs,
   },
 }));

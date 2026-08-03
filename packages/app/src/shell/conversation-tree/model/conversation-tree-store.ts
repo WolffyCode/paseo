@@ -501,7 +501,7 @@ export class ConversationTreeStore {
   completeDraft(agentId: string): void {
     const workspaceId = this.draftTarget?.workspaceId ?? null;
     const draftId = this.draftTarget?.draftId ?? null;
-    if (workspaceId === null || draftId === null) return;
+    if (draftId === null) return;
     this.draftTarget = null;
     this.pendingAgentTarget = { agentId, workspaceId };
     this.focusedRootId = agentId;

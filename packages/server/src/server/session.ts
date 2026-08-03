@@ -2,8 +2,8 @@ import equal from "fast-deep-equal";
 import { v4 as uuidv4 } from "uuid";
 import { realpathSync } from "node:fs";
 import type { FSWatcher } from "node:fs";
-import { stat } from "node:fs/promises";
-import { basename, normalize, resolve, sep } from "path";
+import { mkdir, stat } from "node:fs/promises";
+import { basename, join, normalize, resolve, sep } from "path";
 import { homedir } from "node:os";
 import { z } from "zod";
 import type { ToolSet } from "ai";
@@ -2986,12 +2986,12 @@ export class Session {
       clientMessageId,
       outputSchema,
       git,
-      worktree,
       autoArchive,
       images,
       attachments,
       labels,
       env,
+      conversationOnly,
     } = msg;
     this.sessionLogger.info(
       { cwd: config.cwd, provider: config.provider, worktreeName },
@@ -3014,22 +3014,13 @@ export class Session {
         ...(attachments && attachments.length > 0 ? { attachments } : {}),
       };
       const workspacePromptTitle = resolveFirstAgentPromptTitle(firstAgentContext);
-      const createdWorktree = await this.createAgentLifecycleDispatch.createWorktreeForRequest({
-        cwd: config.cwd,
-        target: worktree,
+      const prepared = await this.prepareCreateAgentRequest({
+        msg,
         firstAgentContext,
-        hasLegacyGitOptions: Boolean(git),
+        workspacePromptTitle,
       });
+      const { createdWorktree, createAgentConfig, workspaceId } = prepared;
       createdWorktreeForCleanup = createdWorktree;
-      const createAgentConfig: AgentSessionConfig = createdWorktree
-        ? { ...config, cwd: createdWorktree.worktree.worktreePath }
-        : config;
-      const workspaceId = await this.resolveOrCreateWorkspaceIdForCreateAgent({
-        createdWorktree,
-        requestedWorkspaceId: msg.workspaceId,
-        cwd: createAgentConfig.cwd,
-        initialTitle: workspacePromptTitle,
-      });
 
       const { snapshot, liveSnapshot } = await createAgentCommand(
         {
@@ -3060,11 +3051,11 @@ export class Session {
         },
       );
       createdAgentId = snapshot.id;
-      if (!createdWorktree && msg.workspaceId) {
+      if (!conversationOnly && !createdWorktree && msg.workspaceId && workspaceId) {
         await this.writeInitialWorkspaceTitleIfUntitled(workspaceId, workspacePromptTitle);
       }
       await this.forwardAgentUpdate(snapshot);
-      if (!createdWorktree && trimmedPrompt) {
+      if (!conversationOnly && !createdWorktree && trimmedPrompt && workspaceId) {
         await this.scheduleAutoNameLocalWorkspaceTitleForFirstAgent({
           workspaceId,
           cwd: createAgentConfig.cwd,
@@ -3121,6 +3112,47 @@ export class Session {
         },
       });
     }
+  }
+
+  private async prepareCreateAgentRequest(input: {
+    msg: Extract<SessionInboundMessage, { type: "create_agent_request" }>;
+    firstAgentContext: FirstAgentContext;
+    workspacePromptTitle: string | null;
+  }): Promise<{
+    createdWorktree: CreatePaseoWorktreeWorkflowResult | null;
+    createAgentConfig: AgentSessionConfig;
+    workspaceId: string | undefined;
+  }> {
+    const { msg, firstAgentContext, workspacePromptTitle } = input;
+    const { config, conversationOnly, git, worktree } = msg;
+    if (conversationOnly && (msg.workspaceId || msg.worktreeName || git || worktree)) {
+      throw new Error("Conversation-only agents cannot be attached to a workspace or worktree");
+    }
+    const createdWorktree = await this.createAgentLifecycleDispatch.createWorktreeForRequest({
+      cwd: config.cwd,
+      target: worktree,
+      firstAgentContext,
+      hasLegacyGitOptions: Boolean(git),
+    });
+    if (conversationOnly) {
+      const conversationRuntimeCwd = join(this.paseoHome, "conversations");
+      await mkdir(conversationRuntimeCwd, { recursive: true });
+      return {
+        createdWorktree,
+        createAgentConfig: { ...config, cwd: conversationRuntimeCwd },
+        workspaceId: undefined,
+      };
+    }
+    const createAgentConfig = createdWorktree
+      ? { ...config, cwd: createdWorktree.worktree.worktreePath }
+      : config;
+    const workspaceId = await this.resolveOrCreateWorkspaceIdForCreateAgent({
+      createdWorktree,
+      requestedWorkspaceId: msg.workspaceId,
+      cwd: createAgentConfig.cwd,
+      initialTitle: workspacePromptTitle,
+    });
+    return { createdWorktree, createAgentConfig, workspaceId };
   }
 
   private async handleResumeAgentRequest(

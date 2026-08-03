@@ -348,6 +348,31 @@ describe("shared messages stream parsing", () => {
     expect(responseParsed.success).toBe(true);
   });
 
+  it("parses conversation-only agent creation requests without workspace ownership", () => {
+    const parsed = SessionInboundMessageSchema.safeParse({
+      type: "create_agent_request",
+      config: { provider: "codex", cwd: "." },
+      conversationOnly: true,
+      requestId: "req-conversation-only",
+    });
+    expect(parsed.success).toBe(true);
+  });
+
+  it("parses the conversation-only capability from server info", () => {
+    const parsed = SessionOutboundMessageSchema.safeParse({
+      type: "status",
+      payload: {
+        status: "server_info",
+        serverId: "srv-conversation-only",
+        features: { conversationOnlyAgents: true },
+      },
+    });
+    expect(parsed.success).toBe(true);
+    if (parsed.success && parsed.data.type === "status") {
+      expect(parsed.data.payload.features?.conversationOnlyAgents).toBe(true);
+    }
+  });
+
   it("rejects websocket envelope for removed agent_stream_snapshot message type", () => {
     const fixture = {
       type: "agent_stream_snapshot",

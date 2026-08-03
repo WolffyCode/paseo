@@ -1,0 +1,1603 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Helm · 工作目录选择器</title>
+    <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+    <style>
+      :root {
+        color-scheme: light;
+        --canvas: #f2f4f2;
+        --surface: #ffffff;
+        --surface-soft: #f6f8f6;
+        --surface-hover: #eef2ef;
+        --ink: #202522;
+        --muted: #6d756f;
+        --faint: #969e98;
+        --line: #dfe4df;
+        --line-strong: #ccd3ce;
+        --accent: #20744a;
+        --accent-soft: #e7f2eb;
+        --danger: #b8473b;
+        --shadow: 0 22px 60px rgba(32, 37, 34, 0.16), 0 2px 9px rgba(32, 37, 34, 0.08);
+        font-family:
+          Inter,
+          ui-sans-serif,
+          -apple-system,
+          BlinkMacSystemFont,
+          "SF Pro Text",
+          "PingFang SC",
+          "Microsoft YaHei",
+          sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        min-width: 900px;
+        margin: 0;
+        color: var(--ink);
+        background: var(--canvas);
+        letter-spacing: 0;
+      }
+
+      button,
+      input,
+      textarea {
+        font: inherit;
+        letter-spacing: 0;
+      }
+
+      button {
+        color: inherit;
+      }
+
+      .demo {
+        display: grid;
+        min-height: 760px;
+        height: 100vh;
+        padding: 28px;
+        place-items: center;
+      }
+
+      .workspace {
+        position: relative;
+        width: min(1180px, calc(100vw - 56px));
+        height: min(720px, calc(100vh - 56px));
+        min-height: 650px;
+        overflow: hidden;
+        background: #fafbfa;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        box-shadow: 0 10px 30px rgba(31, 39, 34, 0.06);
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 46px;
+        padding: 0 14px 0 18px;
+        background: rgba(250, 251, 250, 0.95);
+        border-bottom: 1px solid #e7eae7;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 22px;
+        height: 22px;
+        color: #fff;
+        background: var(--ink);
+        border-radius: 6px;
+        font-size: 11px;
+        place-items: center;
+      }
+
+      .conversation {
+        position: relative;
+        height: calc(100% - 46px);
+      }
+
+      .empty-copy {
+        position: absolute;
+        top: 27%;
+        left: 50%;
+        text-align: center;
+        transform: translateX(-50%);
+        pointer-events: none;
+      }
+
+      .empty-copy span {
+        color: var(--accent);
+        font-size: 12px;
+        font-weight: 650;
+      }
+
+      .empty-copy h1 {
+        margin: 10px 0 0;
+        font-size: 25px;
+        line-height: 1.25;
+        font-weight: 600;
+      }
+
+      .composer-shell {
+        position: absolute;
+        bottom: 26px;
+        left: 50%;
+        width: min(720px, calc(100% - 96px));
+        transform: translateX(-50%);
+      }
+
+      .directory-anchor {
+        position: relative;
+        width: fit-content;
+        margin: 0 0 8px 8px;
+      }
+
+      .directory-trigger {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        max-width: 390px;
+        height: 32px;
+        padding: 0 10px;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        cursor: pointer;
+        transition:
+          background 140ms ease,
+          border-color 140ms ease;
+      }
+
+      .directory-trigger:hover,
+      .directory-trigger[aria-expanded="true"] {
+        background: var(--surface-hover);
+        border-color: var(--line);
+      }
+
+      .directory-trigger svg {
+        width: 15px;
+        height: 15px;
+        color: var(--muted);
+        flex: 0 0 auto;
+      }
+
+      .directory-copy {
+        display: flex;
+        align-items: baseline;
+        min-width: 0;
+        gap: 6px;
+      }
+
+      .directory-copy strong,
+      .directory-copy span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .directory-copy strong {
+        color: #404742;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .directory-copy span {
+        color: var(--faint);
+        font-size: 11px;
+      }
+
+      .picker {
+        position: absolute;
+        bottom: calc(100% + 8px);
+        left: 0;
+        z-index: 10;
+        width: 424px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.99);
+        border: 1px solid var(--line-strong);
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        transform-origin: left bottom;
+        animation: picker-in 150ms cubic-bezier(0.2, 0.8, 0.2, 1);
+      }
+
+      .picker.is-browser {
+        width: 704px;
+      }
+
+      .picker[hidden] {
+        display: none;
+      }
+
+      @keyframes picker-in {
+        from {
+          opacity: 0;
+          transform: translateY(5px) scale(0.985);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0) scale(1);
+        }
+      }
+
+      .picker-head {
+        padding: 12px 12px 9px;
+      }
+
+      .picker-title {
+        display: flex;
+        align-items: center;
+        padding: 0 2px 9px;
+      }
+
+      .picker-title strong {
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .search {
+        display: flex;
+        align-items: center;
+        height: 36px;
+        padding: 0 10px;
+        background: var(--surface-soft);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        gap: 8px;
+        transition:
+          background 140ms ease,
+          border-color 140ms ease,
+          box-shadow 140ms ease;
+      }
+
+      .search:focus-within,
+      .path-field:focus-within {
+        background: var(--surface);
+        border-color: #92b8a1;
+        box-shadow: 0 0 0 3px rgba(32, 116, 74, 0.1);
+      }
+
+      .search svg {
+        width: 15px;
+        height: 15px;
+        color: var(--faint);
+        flex: 0 0 auto;
+      }
+
+      .search input,
+      .path-field input {
+        min-width: 0;
+        flex: 1;
+        color: var(--ink);
+        background: transparent;
+        border: 0;
+        outline: 0;
+        font-size: 12px;
+      }
+
+      .search input::placeholder {
+        color: var(--faint);
+      }
+
+      .section-label {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 28px;
+        padding: 0 14px;
+        color: var(--faint);
+        font-size: 10px;
+        font-weight: 650;
+      }
+
+      .project-list {
+        max-height: 182px;
+        padding: 0 6px 6px;
+        overflow-y: auto;
+      }
+
+      .option-row {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        min-height: 44px;
+        padding: 5px 9px;
+        text-align: left;
+        background: transparent;
+        border: 0;
+        border-radius: 7px;
+        gap: 10px;
+        cursor: pointer;
+        transition: background 110ms ease;
+      }
+
+      .option-row:hover,
+      .option-row[data-keyboard="true"] {
+        background: var(--surface-hover);
+      }
+
+      .option-row:focus-visible,
+      .action-row:focus-visible,
+      .location-row:focus-visible,
+      .tree-row:focus-visible,
+      .directory-row:focus-visible,
+      .toolbar-button:focus-visible,
+      .footer-button:focus-visible {
+        outline: 2px solid rgba(32, 116, 74, 0.34);
+        outline-offset: -2px;
+      }
+
+      .folder-icon {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        color: #607068;
+        background: #edf0ed;
+        border-radius: 7px;
+        flex: 0 0 auto;
+        place-items: center;
+      }
+
+      .folder-icon svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      .option-copy {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .option-copy strong,
+      .option-copy span {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .option-copy strong {
+        font-size: 12px;
+        line-height: 17px;
+        font-weight: 600;
+      }
+
+      .option-copy span {
+        color: var(--faint);
+        font-size: 10px;
+        line-height: 14px;
+      }
+
+      .check {
+        width: 16px;
+        height: 16px;
+        color: var(--accent);
+        opacity: 0;
+      }
+
+      .option-row[aria-selected="true"] .check {
+        opacity: 1;
+      }
+
+      .empty-result {
+        display: grid;
+        height: 86px;
+        margin: 0 6px 6px;
+        color: var(--faint);
+        border-radius: 7px;
+        font-size: 11px;
+        gap: 5px;
+        place-items: center;
+        align-content: center;
+      }
+
+      .empty-result svg {
+        width: 18px;
+        height: 18px;
+      }
+
+      .picker-actions {
+        padding: 6px;
+        border-top: 1px solid var(--line);
+      }
+
+      .action-row {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 42px;
+        padding: 0 9px;
+        text-align: left;
+        background: transparent;
+        border: 0;
+        border-radius: 7px;
+        gap: 10px;
+        cursor: pointer;
+        transition: background 110ms ease;
+      }
+
+      .action-row:hover {
+        background: var(--surface-hover);
+      }
+
+      .action-row svg {
+        width: 16px;
+        height: 16px;
+        color: var(--muted);
+      }
+
+      .action-row span {
+        flex: 1;
+        font-size: 12px;
+        font-weight: 560;
+      }
+
+      .action-row kbd {
+        color: var(--faint);
+        font-family: inherit;
+        font-size: 10px;
+      }
+
+      .action-row.clear span {
+        color: #5e6561;
+      }
+
+      .picker-error {
+        margin: 0 8px 8px;
+        padding: 8px 10px;
+        color: var(--danger);
+        background: #fbefed;
+        border-radius: 7px;
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .picker-error[hidden] {
+        display: none;
+      }
+
+      .browser-head {
+        padding: 10px 10px 9px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .browser-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 25px;
+        padding: 0 3px;
+      }
+
+      .browser-title strong {
+        font-size: 13px;
+        font-weight: 650;
+      }
+
+      .browser-title span {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--faint);
+        font-size: 10px;
+      }
+
+      .browser-toolbar {
+        display: grid;
+        grid-template-columns: auto minmax(240px, 1fr) 188px;
+        align-items: center;
+        margin-top: 7px;
+        gap: 7px;
+      }
+
+      .nav-buttons {
+        display: flex;
+        align-items: center;
+        gap: 2px;
+      }
+
+      .toolbar-button {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        color: var(--muted);
+        background: transparent;
+        border: 0;
+        border-radius: 7px;
+        cursor: pointer;
+        place-items: center;
+      }
+
+      .toolbar-button:hover:not(:disabled) {
+        background: var(--surface-hover);
+      }
+
+      .toolbar-button:disabled {
+        color: #c6cbc7;
+        cursor: default;
+      }
+
+      .toolbar-button svg {
+        width: 15px;
+        height: 15px;
+      }
+
+      .path-field {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        height: 32px;
+        padding: 0 9px;
+        background: var(--surface-soft);
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        gap: 7px;
+      }
+
+      .path-field svg {
+        width: 14px;
+        height: 14px;
+        color: var(--faint);
+        flex: 0 0 auto;
+      }
+
+      .browser-search {
+        height: 32px;
+        border-radius: 7px;
+      }
+
+      .browser-body {
+        display: grid;
+        grid-template-columns: 220px minmax(0, 1fr);
+        height: 270px;
+        min-height: 0;
+      }
+
+      .browser-sidebar,
+      .browser-content {
+        min-height: 0;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+        scrollbar-gutter: stable;
+      }
+
+      .browser-sidebar {
+        padding: 8px 7px 14px;
+        background: #f7f9f7;
+        border-right: 1px solid var(--line);
+      }
+
+      .sidebar-label {
+        height: 25px;
+        padding: 0 8px;
+        color: var(--faint);
+        font-size: 10px;
+        font-weight: 650;
+        line-height: 25px;
+      }
+
+      .sidebar-label.tree-label {
+        margin-top: 9px;
+      }
+
+      .location-row,
+      .tree-row {
+        display: flex;
+        align-items: center;
+        width: 100%;
+        height: 30px;
+        padding: 0 8px;
+        overflow: hidden;
+        color: #515a54;
+        text-align: left;
+        background: transparent;
+        border: 0;
+        border-radius: 6px;
+        gap: 8px;
+        cursor: pointer;
+      }
+
+      .location-row:hover,
+      .tree-row:hover {
+        background: #e9eeea;
+      }
+
+      .location-row[aria-current="true"],
+      .tree-row[aria-current="true"] {
+        color: #245f40;
+        background: var(--accent-soft);
+      }
+
+      .location-row svg,
+      .tree-row svg {
+        width: 14px;
+        height: 14px;
+        flex: 0 0 auto;
+      }
+
+      .location-row span,
+      .tree-row span {
+        overflow: hidden;
+        font-size: 11px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .tree-row {
+        padding-left: calc(8px + var(--depth, 0) * 15px);
+      }
+
+      .tree-toggle {
+        width: 12px;
+        color: var(--faint);
+      }
+
+      .browser-content {
+        position: relative;
+        background: var(--surface);
+      }
+
+      .list-head {
+        position: sticky;
+        top: 0;
+        z-index: 1;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 118px;
+        height: 29px;
+        padding: 0 12px 0 14px;
+        color: var(--faint);
+        background: rgba(255, 255, 255, 0.97);
+        border-bottom: 1px solid #edf0ed;
+        font-size: 10px;
+        line-height: 29px;
+      }
+
+      .directory-list {
+        padding: 4px 6px 10px;
+      }
+
+      .directory-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 118px;
+        align-items: center;
+        width: 100%;
+        height: 35px;
+        padding: 0 7px 0 8px;
+        text-align: left;
+        background: transparent;
+        border: 0;
+        border-radius: 6px;
+        cursor: default;
+      }
+
+      .directory-row:hover {
+        background: var(--surface-hover);
+      }
+
+      .directory-row[aria-selected="true"] {
+        background: var(--accent-soft);
+      }
+
+      .directory-row-name {
+        display: flex;
+        align-items: center;
+        min-width: 0;
+        gap: 9px;
+      }
+
+      .directory-row-name svg {
+        width: 16px;
+        height: 16px;
+        color: #5e7467;
+        fill: #edf2ee;
+        flex: 0 0 auto;
+      }
+
+      .directory-row-name span,
+      .directory-time {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .directory-row-name span {
+        font-size: 11px;
+        font-weight: 540;
+      }
+
+      .directory-time {
+        color: var(--faint);
+        font-size: 10px;
+      }
+
+      .browser-state {
+        display: grid;
+        min-height: 228px;
+        padding: 28px;
+        color: var(--faint);
+        text-align: center;
+        font-size: 11px;
+        line-height: 1.55;
+        place-items: center;
+        align-content: center;
+        gap: 8px;
+      }
+
+      .browser-state svg {
+        width: 21px;
+        height: 21px;
+      }
+
+      .browser-state strong {
+        color: #555e58;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .spinner {
+        animation: spin 800ms linear infinite;
+      }
+
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .retry-button {
+        height: 29px;
+        padding: 0 10px;
+        color: #3f4942;
+        background: #fff;
+        border: 1px solid var(--line-strong);
+        border-radius: 7px;
+        font-size: 11px;
+        cursor: pointer;
+      }
+
+      .browser-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 53px;
+        padding: 0 10px 0 13px;
+        background: #fafbfa;
+        border-top: 1px solid var(--line);
+        gap: 12px;
+      }
+
+      .selection-copy {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .selection-copy span {
+        color: var(--faint);
+        font-size: 9px;
+      }
+
+      .selection-copy strong {
+        overflow: hidden;
+        max-width: 430px;
+        color: #515a54;
+        font-size: 10px;
+        font-weight: 540;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .footer-actions {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        flex: 0 0 auto;
+      }
+
+      .footer-button {
+        height: 31px;
+        padding: 0 12px;
+        background: #fff;
+        border: 1px solid var(--line-strong);
+        border-radius: 7px;
+        font-size: 11px;
+        font-weight: 560;
+        cursor: pointer;
+      }
+
+      .footer-button:hover {
+        background: var(--surface-hover);
+      }
+
+      .footer-button.primary {
+        color: #fff;
+        background: var(--accent);
+        border-color: var(--accent);
+      }
+
+      .footer-button.primary:hover {
+        background: #1a633f;
+      }
+
+      .composer {
+        display: flex;
+        height: 132px;
+        padding: 14px 14px 12px;
+        background: var(--surface);
+        border: 1px solid var(--line-strong);
+        border-radius: 16px;
+        box-shadow: 0 7px 24px rgba(34, 42, 37, 0.08);
+        flex-direction: column;
+      }
+
+      .composer textarea {
+        width: 100%;
+        flex: 1;
+        resize: none;
+        color: var(--ink);
+        background: transparent;
+        border: 0;
+        outline: 0;
+        font-size: 13px;
+      }
+
+      .composer textarea::placeholder {
+        color: var(--faint);
+      }
+
+      .composer-tools,
+      .tool-group {
+        display: flex;
+        align-items: center;
+      }
+
+      .composer-tools {
+        justify-content: space-between;
+      }
+
+      .tool-group {
+        gap: 6px;
+      }
+
+      .icon-button {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        color: var(--muted);
+        background: transparent;
+        border: 0;
+        border-radius: 50%;
+        cursor: pointer;
+        place-items: center;
+      }
+
+      .icon-button:hover {
+        background: var(--surface-hover);
+      }
+
+      .icon-button svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .send {
+        color: #8b938e;
+        background: #e3e7e4;
+        cursor: not-allowed;
+      }
+
+      .run-config {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 34px;
+        padding: 0 9px;
+        color: var(--muted);
+        font-size: 10px;
+      }
+
+      .run-label {
+        padding-right: 12px;
+        border-right: 1px solid var(--line);
+      }
+
+      .run-values {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .toast {
+        position: absolute;
+        bottom: 206px;
+        left: 50%;
+        z-index: 20;
+        max-width: 440px;
+        padding: 9px 13px;
+        color: #fff;
+        background: rgba(32, 37, 34, 0.92);
+        border-radius: 8px;
+        box-shadow: 0 8px 28px rgba(32, 37, 34, 0.18);
+        font-size: 11px;
+        opacity: 0;
+        transform: translate(-50%, 8px);
+        transition:
+          opacity 150ms ease,
+          transform 150ms ease;
+        pointer-events: none;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+
+      .spec {
+        padding: 34px max(34px, calc((100vw - 1120px) / 2)) 48px;
+        background: #fff;
+        border-top: 1px solid var(--line);
+      }
+
+      .spec h2 {
+        margin: 0 0 20px;
+        font-size: 18px;
+        font-weight: 650;
+      }
+
+      .spec-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 24px;
+      }
+
+      .spec-block {
+        min-width: 0;
+      }
+
+      .spec-block strong {
+        display: block;
+        margin-bottom: 8px;
+        color: var(--accent);
+        font-size: 11px;
+      }
+
+      .spec-block p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.7;
+      }
+    </style>
+  </head>
+  <body>
+    <main class="demo">
+      <section class="workspace" aria-label="桌面端新对话工作目录设计稿">
+        <header class="topbar">
+          <div class="brand"><span class="brand-mark">H</span><span>Helm</span></div>
+        </header>
+
+        <div class="conversation">
+          <div class="empty-copy">
+            <span>新对话</span>
+            <h1>今天想构建点什么？</h1>
+          </div>
+
+          <div class="composer-shell">
+            <div class="directory-anchor" id="directory-anchor">
+              <button
+                class="directory-trigger"
+                id="directory-trigger"
+                type="button"
+                aria-expanded="true"
+                aria-controls="directory-picker"
+              >
+                <i data-lucide="folder"></i>
+                <span class="directory-copy">
+                  <strong id="directory-name">Helm</strong>
+                  <span id="directory-path">~/Desktop/coding/person/Helm</span>
+                </span>
+                <i data-lucide="chevron-down"></i>
+              </button>
+
+              <div
+                class="picker"
+                id="directory-picker"
+                role="dialog"
+                aria-label="选择工作目录"
+              ></div>
+            </div>
+
+            <div class="composer">
+              <textarea
+                aria-label="对话输入"
+                placeholder="描述你的任务，或输入 / 使用命令"
+              ></textarea>
+              <div class="composer-tools">
+                <div class="tool-group">
+                  <button class="icon-button" type="button" title="添加">
+                    <i data-lucide="plus"></i>
+                  </button>
+                  <button class="icon-button" type="button" title="语音输入">
+                    <i data-lucide="mic"></i>
+                  </button>
+                </div>
+                <button class="icon-button send" type="button" title="发送" disabled>
+                  <i data-lucide="arrow-up"></i>
+                </button>
+              </div>
+            </div>
+            <div class="run-config">
+              <span class="run-label">运行配置</span>
+              <span class="run-values">
+                <span>OpenAI · 官方 · GPT-5</span>
+                <span>High</span>
+                <span>构建</span>
+                <span>上下文 --</span>
+              </span>
+            </div>
+          </div>
+
+          <div class="toast" id="toast" role="status"></div>
+        </div>
+      </section>
+    </main>
+
+    <section class="spec" aria-label="交互注解">
+      <h2>交互注解</h2>
+      <div class="spec-grid">
+        <div class="spec-block">
+          <strong>文件系统浏览</strong>
+          <p>
+            项目浮层保持 424px；“浏览文件系统…”切换到 704px 双栏浏览器。数据来自当前电脑的
+            daemon，左侧位置与目录树、右侧完整目录列表分别滚动。
+          </p>
+        </div>
+        <div class="spec-block">
+          <strong>交互</strong>
+          <p>
+            单击目录选中，双击或 Enter
+            进入；支持返回、前进、路径跳转、当前层搜索、树展开、取消与确认。Escape
+            返回上一级表面或关闭。
+          </p>
+        </div>
+        <div class="spec-block">
+          <strong>状态与边界</strong>
+          <p>
+            加载、空目录、错误和权限不足都有出口；不显示设备身份或切换器，仅覆盖 PC Electron 与桌面
+            Web。
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <script>
+      const projectSets = [
+        { name: "Helm", path: "/Users/zhuanzmima0000/Desktop/coding/person/Helm" },
+        { name: "Skill Graph", path: "/Users/zhuanzmima0000/Desktop/coding/company/skill-graph" },
+        { name: "Yoncode Tool", path: "/Users/zhuanzmima0000/Desktop/coding/company/Yoncode Tool" },
+      ];
+
+      const directoryMap = {
+        "/Users/zhuanzmima0000": [
+          ["Desktop", "今天 09:24"],
+          ["Documents", "昨天 18:42"],
+          ["Downloads", "今天 12:08"],
+          ["Library", "7 月 28 日"],
+          ["Movies", "7 月 26 日"],
+          ["Music", "7 月 24 日"],
+          ["Pictures", "7 月 22 日"],
+          ["Public", "7 月 18 日"],
+          ["Sites", "7 月 15 日"],
+          [".cache", "7 月 12 日"],
+        ],
+        "/Users/zhuanzmima0000/Desktop": [
+          ["coding", "今天 09:24"],
+          ["Screenshots", "今天 08:18"],
+          ["Design references", "昨天 19:30"],
+          ["Notes", "8 月 1 日"],
+        ],
+        "/Users/zhuanzmima0000/Downloads": [
+          ["Installers", "今天 12:08"],
+          ["Attachments", "昨天 16:44"],
+          ["Exports", "7 月 31 日"],
+        ],
+        "/Users/zhuanzmima0000/Desktop/coding": [
+          ["person", "今天 11:31"],
+          ["company", "今天 10:18"],
+          ["experiments", "昨天 21:06"],
+          ["archive", "7 月 30 日"],
+          ["docs", "7 月 28 日"],
+          ["shared", "7 月 25 日"],
+          ["sandbox", "7 月 20 日"],
+          ["restricted", "7 月 18 日"],
+          ["empty-project", "7 月 16 日"],
+          ["release-tools", "7 月 12 日"],
+          ["worker-runtime", "7 月 9 日"],
+          ["design-system", "7 月 6 日"],
+        ],
+        "/Users/zhuanzmima0000/Desktop/coding/person": [
+          ["Helm", "今天 11:31"],
+          ["Paseo", "今天 10:18"],
+          ["Agent notes", "昨天 21:06"],
+          ["Playground", "昨天 17:43"],
+          ["Reference apps", "8 月 1 日"],
+          ["Scratch", "7 月 30 日"],
+          ["Templates", "7 月 28 日"],
+          ["Tests", "7 月 25 日"],
+          ["Tools", "7 月 22 日"],
+          ["Archive", "7 月 20 日"],
+          ["restricted", "7 月 18 日"],
+          ["empty-project", "7 月 16 日"],
+          ["Release builds", "7 月 12 日"],
+          ["Worker runtime", "7 月 9 日"],
+        ],
+        "/Users/zhuanzmima0000/Desktop/coding/person/Helm": [
+          ["docs", "今天 11:29"],
+          ["packages", "今天 10:45"],
+          ["scripts", "昨天 19:12"],
+          ["tests", "昨天 18:34"],
+        ],
+        "/Users/zhuanzmima0000/Desktop/coding/company": [
+          ["skill-graph", "今天 10:18"],
+          ["Yoncode Tool", "昨天 17:03"],
+          ["design-system", "昨天 16:44"],
+          ["internal-tools", "7 月 30 日"],
+        ],
+        "/Users/zhuanzmima0000/Desktop/coding/company/skill-graph": [
+          ["packages", "今天 09:18"],
+          ["examples", "昨天 16:44"],
+          ["docs", "7 月 30 日"],
+        ],
+        "/Users/zhuanzmima0000/Desktop/coding/company/Yoncode Tool": [
+          ["apps", "今天 10:18"],
+          ["packages", "昨天 17:03"],
+          ["public", "7 月 30 日"],
+        ],
+        "/Users/zhuanzmima0000/Desktop/coding/empty-project": [],
+      };
+
+      const locations = [
+        ["home", "主目录", "/Users/zhuanzmima0000"],
+        ["monitor-down", "桌面", "/Users/zhuanzmima0000/Desktop"],
+        ["download", "下载", "/Users/zhuanzmima0000/Downloads"],
+        ["code-2", "编码项目", "/Users/zhuanzmima0000/Desktop/coding"],
+      ];
+
+      const trigger = document.getElementById("directory-trigger");
+      const picker = document.getElementById("directory-picker");
+      const anchor = document.getElementById("directory-anchor");
+      const directoryName = document.getElementById("directory-name");
+      const directoryPath = document.getElementById("directory-path");
+      const toast = document.getElementById("toast");
+      let panelMode = "quick";
+      let projectQuery = "";
+      let keyboardIndex = -1;
+      let selectedDirectory = projectSets[0];
+      let toastTimer = null;
+      let loadTimer = null;
+      const browserState = {
+        path: "/Users/zhuanzmima0000/Desktop/coding/person",
+        selectedPath: "",
+        query: "",
+        status: "ready",
+        history: ["/Users/zhuanzmima0000/Desktop/coding/person"],
+        historyIndex: 0,
+        expanded: new Set([
+          "/Users/zhuanzmima0000",
+          "/Users/zhuanzmima0000/Desktop",
+          "/Users/zhuanzmima0000/Desktop/coding",
+          "/Users/zhuanzmima0000/Desktop/coding/person",
+        ]),
+      };
+
+      function escapeHtml(value) {
+        return String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;");
+      }
+
+      function refreshIcons() {
+        if (window.lucide) window.lucide.createIcons();
+      }
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        window.clearTimeout(toastTimer);
+        toastTimer = window.setTimeout(() => toast.classList.remove("show"), 1800);
+      }
+
+      function updateDirectoryTrigger() {
+        directoryName.textContent = selectedDirectory?.name || "对话";
+        directoryPath.textContent = selectedDirectory?.path || "未选择工作目录";
+      }
+
+      function setPickerOpen(open, focusSearch = false) {
+        picker.hidden = !open;
+        trigger.setAttribute("aria-expanded", String(open));
+        keyboardIndex = -1;
+        if (open) renderPicker();
+        if (open && focusSearch) {
+          window.requestAnimationFrame(() =>
+            picker.querySelector("input")?.focus({ preventScroll: true }),
+          );
+        }
+      }
+
+      function applyDirectory(name, path) {
+        selectedDirectory = { name, path };
+        updateDirectoryTrigger();
+        setPickerOpen(false);
+        showToast("工作目录已更新");
+      }
+
+      function filteredProjects() {
+        return projectSets.filter((project) =>
+          `${project.name} ${project.path}`
+            .toLocaleLowerCase()
+            .includes(projectQuery.toLocaleLowerCase()),
+        );
+      }
+
+      function projectRows() {
+        const filtered = filteredProjects();
+        if (filtered.length === 0) {
+          return '<div class="empty-result"><i data-lucide="folder-search"></i><span>没有匹配的项目</span></div>';
+        }
+        return filtered
+          .map(
+            (project, index) => `
+              <button class="option-row" type="button" role="option" data-project-index="${index}"
+                data-name="${escapeHtml(project.name)}" data-path="${escapeHtml(project.path)}"
+                aria-selected="${String(selectedDirectory?.path === project.path)}">
+                <span class="folder-icon"><i data-lucide="folder-git-2"></i></span>
+                <span class="option-copy"><strong>${escapeHtml(project.name)}</strong><span>${escapeHtml(project.path)}</span></span>
+                <i class="check" data-lucide="check"></i>
+              </button>`,
+          )
+          .join("");
+      }
+
+      function renderQuickPicker() {
+        picker.classList.remove("is-browser");
+        picker.innerHTML = `
+          <div class="picker-head">
+            <div class="picker-title"><strong>选择工作目录</strong></div>
+            <label class="search">
+              <i data-lucide="search"></i>
+              <input id="project-search" type="search" value="${escapeHtml(projectQuery)}" placeholder="搜索项目"
+                autocomplete="off" spellcheck="false" />
+            </label>
+          </div>
+          <div class="section-label"><span>最近使用</span><span id="project-count">${filteredProjects().length} 个项目</span></div>
+          <div class="project-list" id="project-list" role="listbox">${projectRows()}</div>
+          <div class="picker-actions">
+            <button class="action-row" type="button" data-action="filesystem-browser">
+              <i data-lucide="folder-tree"></i>
+              <span>浏览文件系统…</span>
+              <kbd>⌘ O</kbd>
+            </button>
+            <button class="action-row clear" type="button" data-action="clear">
+              <i data-lucide="message-circle"></i><span>不使用工作目录</span>
+            </button>
+          </div>
+          <div class="picker-error" id="picker-error" role="status" hidden></div>`;
+      }
+
+      function renderTree() {
+        const rows = [
+          ["/Users/zhuanzmima0000", "zhuanzmima0000", 0],
+          ["/Users/zhuanzmima0000/Desktop", "Desktop", 1],
+          ["/Users/zhuanzmima0000/Desktop/coding", "coding", 2],
+          ["/Users/zhuanzmima0000/Desktop/coding/person", "person", 3],
+          ["/Users/zhuanzmima0000/Desktop/coding/company", "company", 3],
+          ["/Users/zhuanzmima0000/Downloads", "Downloads", 1],
+          ["/Users/zhuanzmima0000/Documents", "Documents", 1],
+        ];
+        return rows
+          .filter(([path, , depth]) => {
+            if (depth === 0) return true;
+            const parent = path.slice(0, path.lastIndexOf("/"));
+            return browserState.expanded.has(parent);
+          })
+          .map(([path, name, depth]) => {
+            const hasChildren = Object.keys(directoryMap).some(
+              (candidate) => candidate.startsWith(`${path}/`) && candidate !== path,
+            );
+            const expanded = browserState.expanded.has(path);
+            return `
+              <button class="tree-row" type="button" style="--depth:${depth}" data-tree-path="${escapeHtml(path)}"
+                aria-current="${String(browserState.path === path)}">
+                <i class="tree-toggle" data-lucide="${hasChildren ? (expanded ? "chevron-down" : "chevron-right") : "minus"}"></i>
+                <i data-lucide="folder"></i><span>${escapeHtml(name)}</span>
+              </button>`;
+          })
+          .join("");
+      }
+
+      function renderDirectoryContent() {
+        if (browserState.status === "loading") {
+          return '<div class="browser-state"><i class="spinner" data-lucide="loader-circle"></i><strong>正在读取目录</strong><span>正在读取当前电脑的文件夹…</span></div>';
+        }
+        if (browserState.status === "permission") {
+          return '<div class="browser-state"><i data-lucide="shield-alert"></i><strong>没有权限访问此目录</strong><span>请更换目录，或在系统设置中允许访问。</span><button class="retry-button" type="button" data-action="go-parent">返回上一级</button></div>';
+        }
+        if (browserState.status === "error") {
+          return '<div class="browser-state"><i data-lucide="circle-alert"></i><strong>目录读取失败</strong><span>无法读取当前位置，请重试或返回上一级。</span><button class="retry-button" type="button" data-action="retry">重试</button></div>';
+        }
+
+        const entries = directoryMap[browserState.path] || [];
+        const query = browserState.query.trim().toLocaleLowerCase();
+        const filtered = entries.filter(([name]) => name.toLocaleLowerCase().includes(query));
+        if (filtered.length === 0) {
+          return `<div class="list-head"><span>名称</span><span>修改时间</span></div><div class="browser-state"><i data-lucide="folder-open"></i><strong>${query ? "没有匹配的目录" : "此目录为空"}</strong><span>${query ? "清除搜索可查看当前目录的全部内容。" : "可以选择当前目录，或返回其它位置。"}</span></div>`;
+        }
+        const rows = filtered
+          .map(([name, time]) => {
+            const path = `${browserState.path}/${name}`.replaceAll("//", "/");
+            return `
+              <button class="directory-row" type="button" data-directory-path="${escapeHtml(path)}"
+                aria-selected="${String(browserState.selectedPath === path)}">
+                <span class="directory-row-name"><i data-lucide="folder"></i><span>${escapeHtml(name)}</span></span>
+                <span class="directory-time">${escapeHtml(time)}</span>
+              </button>`;
+          })
+          .join("");
+        return `<div class="list-head"><span>名称</span><span>修改时间</span></div><div class="directory-list">${rows}</div>`;
+      }
+
+      function renderFilesystemBrowser() {
+        picker.classList.add("is-browser");
+        const selected = browserState.selectedPath || browserState.path;
+        picker.innerHTML = `
+          <div class="browser-head">
+            <div class="browser-title">
+              <strong>浏览文件系统</strong>
+              <span>选择一个文件夹作为工作目录</span>
+            </div>
+            <div class="browser-toolbar">
+              <div class="nav-buttons">
+                <button class="toolbar-button" type="button" title="返回" data-action="back" ${browserState.historyIndex === 0 ? "disabled" : ""}><i data-lucide="chevron-left"></i></button>
+                <button class="toolbar-button" type="button" title="前进" data-action="forward" ${browserState.historyIndex === browserState.history.length - 1 ? "disabled" : ""}><i data-lucide="chevron-right"></i></button>
+                <button class="toolbar-button" type="button" title="刷新" data-action="retry"><i data-lucide="rotate-cw"></i></button>
+              </div>
+              <label class="path-field"><i data-lucide="folder-tree"></i><input id="path-input" value="${escapeHtml(browserState.path)}" aria-label="当前路径" spellcheck="false" /></label>
+              <label class="search browser-search"><i data-lucide="search"></i><input id="directory-search" type="search" value="${escapeHtml(browserState.query)}" placeholder="搜索当前目录" autocomplete="off" /></label>
+            </div>
+          </div>
+          <div class="browser-body">
+            <aside class="browser-sidebar" aria-label="常用位置与目录树">
+              <div class="sidebar-label">常用位置</div>
+              ${locations
+                .map(
+                  ([icon, name, path]) => `
+                    <button class="location-row" type="button" data-location-path="${escapeHtml(path)}" aria-current="${String(browserState.path === path)}">
+                      <i data-lucide="${icon}"></i><span>${escapeHtml(name)}</span>
+                    </button>`,
+                )
+                .join("")}
+              <div class="sidebar-label tree-label">目录树</div>
+              ${renderTree()}
+            </aside>
+            <section class="browser-content" id="browser-content" aria-label="当前目录">
+              ${renderDirectoryContent()}
+            </section>
+          </div>
+          <footer class="browser-footer">
+            <div class="selection-copy"><span>当前选择</span><strong>${escapeHtml(selected)}</strong></div>
+            <div class="footer-actions">
+              <button class="footer-button" type="button" data-action="cancel-browser">取消</button>
+              <button class="footer-button primary" type="button" data-action="choose-directory">选择此目录</button>
+            </div>
+          </footer>`;
+      }
+
+      function renderPicker() {
+        if (panelMode === "browser") renderFilesystemBrowser();
+        else renderQuickPicker();
+        refreshIcons();
+      }
+
+      function selectDirectory(path) {
+        browserState.selectedPath = path;
+        picker.querySelectorAll("[data-directory-path]").forEach((row) => {
+          row.setAttribute("aria-selected", String(row.dataset.directoryPath === path));
+        });
+        const selection = picker.querySelector(".selection-copy strong");
+        if (selection) selection.textContent = path;
+      }
+
+      function updateProjectResults() {
+        const list = document.getElementById("project-list");
+        const count = document.getElementById("project-count");
+        if (list) list.innerHTML = projectRows();
+        if (count) count.textContent = `${filteredProjects().length} 个项目`;
+        refreshIcons();
+      }
+
+      function updateDirectoryResults() {
+        const content = document.getElementById("browser-content");
+        if (content) content.innerHTML = renderDirectoryContent();
+        refreshIcons();
+      }
+
+      function navigateTo(path, options = {}) {
+        const normalized = path.replace(/\/$/, "") || "/";
+        window.clearTimeout(loadTimer);
+        browserState.path = normalized;
+        browserState.selectedPath = "";
+        browserState.query = "";
+        browserState.status = "loading";
+        if (!options.history) {
+          browserState.history = browserState.history.slice(0, browserState.historyIndex + 1);
+          browserState.history.push(normalized);
+          browserState.historyIndex = browserState.history.length - 1;
+        }
+        renderPicker();
+        loadTimer = window.setTimeout(() => {
+          if (normalized.endsWith("/restricted")) browserState.status = "permission";
+          else browserState.status = "ready";
+          renderPicker();
+          picker.querySelector(".browser-content")?.scrollTo({ top: 0 });
+        }, 260);
+      }
+
+      trigger.addEventListener("click", () => {
+        panelMode = "quick";
+        setPickerOpen(picker.hidden, true);
+      });
+
+      picker.addEventListener("input", (event) => {
+        if (event.target.id === "project-search") {
+          projectQuery = event.target.value;
+          keyboardIndex = -1;
+          updateProjectResults();
+        }
+        if (event.target.id === "directory-search") {
+          browserState.query = event.target.value;
+          updateDirectoryResults();
+        }
+      });
+
+      picker.addEventListener("click", (event) => {
+        const project = event.target.closest("[data-project-index]");
+        if (project) {
+          applyDirectory(project.dataset.name, project.dataset.path);
+          return;
+        }
+        const row = event.target.closest("[data-directory-path]");
+        if (row) {
+          selectDirectory(row.dataset.directoryPath);
+          return;
+        }
+        const location = event.target.closest("[data-location-path]");
+        if (location) {
+          navigateTo(location.dataset.locationPath);
+          return;
+        }
+        const tree = event.target.closest("[data-tree-path]");
+        if (tree) {
+          const path = tree.dataset.treePath;
+          if (browserState.expanded.has(path)) browserState.expanded.delete(path);
+          else browserState.expanded.add(path);
+          navigateTo(path);
+          return;
+        }
+        const action = event.target.closest("[data-action]")?.dataset.action;
+        if (!action) return;
+        if (action === "filesystem-browser") {
+          panelMode = "browser";
+          renderPicker();
+        }
+        if (action === "clear") {
+          selectedDirectory = null;
+          updateDirectoryTrigger();
+          setPickerOpen(false);
+          showToast("已切换为纯对话");
+        }
+        if (action === "cancel-browser") {
+          panelMode = "quick";
+          renderPicker();
+        }
+        if (action === "choose-directory") {
+          const path = browserState.selectedPath || browserState.path;
+          applyDirectory(path.split("/").filter(Boolean).at(-1) || "/", path);
+        }
+        if (action === "back" && browserState.historyIndex > 0) {
+          browserState.historyIndex -= 1;
+          navigateTo(browserState.history[browserState.historyIndex], { history: true });
+        }
+        if (action === "forward" && browserState.historyIndex < browserState.history.length - 1) {
+          browserState.historyIndex += 1;
+          navigateTo(browserState.history[browserState.historyIndex], { history: true });
+        }
+        if (action === "go-parent") {
+          navigateTo(browserState.path.slice(0, browserState.path.lastIndexOf("/")) || "/");
+        }
+        if (action === "retry") navigateTo(browserState.path, { history: true });
+      });
+
+      picker.addEventListener("dblclick", (event) => {
+        const row = event.target.closest("[data-directory-path]");
+        if (row) navigateTo(row.dataset.directoryPath);
+      });
+
+      picker.addEventListener("keydown", (event) => {
+        if (event.target.id === "path-input" && event.key === "Enter") {
+          event.preventDefault();
+          navigateTo(event.target.value.trim());
+          return;
+        }
+        if (event.target.matches("[data-directory-path]") && event.key === "Enter") {
+          event.preventDefault();
+          navigateTo(event.target.dataset.directoryPath);
+          return;
+        }
+        if (event.target.id !== "project-search") return;
+        const rows = Array.from(picker.querySelectorAll("[data-project-index]"));
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          event.preventDefault();
+          keyboardIndex =
+            (keyboardIndex + (event.key === "ArrowDown" ? 1 : -1) + rows.length) % rows.length;
+          rows.forEach((row, index) => (row.dataset.keyboard = String(index === keyboardIndex)));
+          rows[keyboardIndex]?.scrollIntoView({ block: "nearest" });
+        } else if (event.key === "Enter" && keyboardIndex >= 0) {
+          event.preventDefault();
+          rows[keyboardIndex]?.click();
+        }
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape" && !picker.hidden) {
+          if (panelMode === "browser") {
+            panelMode = "quick";
+            renderPicker();
+          } else {
+            setPickerOpen(false);
+            trigger.focus();
+          }
+        }
+        if (
+          (event.metaKey || event.ctrlKey) &&
+          event.key.toLowerCase() === "o" &&
+          !picker.hidden &&
+          panelMode === "quick"
+        ) {
+          event.preventDefault();
+          panelMode = "browser";
+          renderPicker();
+        }
+      });
+
+      document.addEventListener("pointerdown", (event) => {
+        if (
+          !picker.hidden &&
+          !anchor.contains(event.target) &&
+          !event.target.closest("#directory-picker")
+        ) {
+          setPickerOpen(false);
+        }
+      });
+
+      updateDirectoryTrigger();
+      setPickerOpen(true);
+      refreshIcons();
+    </script>
+  </body>
+</html>

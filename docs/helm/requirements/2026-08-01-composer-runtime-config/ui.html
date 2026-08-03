@@ -1,0 +1,1461 @@
+<div id="helm-composer-a-refined">
+  <div class="hc-composer"></div>
+
+  <style>
+    #helm-composer-a-refined {
+      color-scheme: light dark;
+      --hc-surface: light-dark(#ffffff, #191b1a);
+      --hc-surface-soft: light-dark(#f4f7f5, #222522);
+      --hc-surface-hover: light-dark(#ebf0ed, #2b302c);
+      --hc-surface-active: light-dark(#e4ece7, #333a35);
+      --hc-popover: light-dark(#ffffff, #202320);
+      --hc-line: light-dark(#dce4df, #363c38);
+      --hc-line-strong: light-dark(#bdc9c2, #59635d);
+      --hc-text: light-dark(#1b211e, #f2f4f3);
+      --hc-muted: light-dark(#66716b, #a8b0ab);
+      --hc-faint: light-dark(#8d9891, #7b847e);
+      --hc-accent: light-dark(#1b704a, #7bcba0);
+      --hc-accent-fill: light-dark(#1e734d, #8bd4aa);
+      --hc-accent-on: light-dark(#ffffff, #102218);
+      --hc-accent-soft: light-dark(#e7f3ec, #22382b);
+      --hc-danger: light-dark(#b54b4b, #ed9090);
+      --hc-danger-soft: light-dark(#faeeee, #3b2828);
+      --hc-warning: light-dark(#986626, #deb56e);
+      width: 100%;
+      min-width: 0;
+      color: var(--hc-text);
+      font-family:
+        Inter,
+        ui-sans-serif,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      font-size: var(--font-size-base, 14px);
+      line-height: 1.4;
+      letter-spacing: 0;
+    }
+    #helm-composer-a-refined * {
+      box-sizing: border-box;
+      letter-spacing: 0;
+    }
+    #helm-composer-a-refined button,
+    #helm-composer-a-refined input,
+    #helm-composer-a-refined textarea {
+      color: inherit;
+      font: inherit;
+    }
+    #helm-composer-a-refined button {
+      cursor: pointer;
+    }
+    #helm-composer-a-refined button:disabled {
+      cursor: default;
+      opacity: 0.45;
+    }
+    #helm-composer-a-refined button svg,
+    #helm-composer-a-refined i[data-lucide] {
+      width: 16px;
+      height: 16px;
+      flex: none;
+    }
+    #helm-composer-a-refined strong {
+      font-weight: 500;
+    }
+    #helm-composer-a-refined small {
+      color: var(--hc-muted);
+      font-size: 0.82em;
+    }
+    #helm-composer-a-refined [hidden] {
+      display: none !important;
+    }
+    #helm-composer-a-refined .hc-composer {
+      width: min(100%, 760px);
+      margin-inline: auto;
+    }
+    #helm-composer-a-refined .hc-composer {
+      animation: hc-enter 170ms ease-out both;
+    }
+    #helm-composer-a-refined .hc-layout {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+      gap: 9px;
+    }
+    #helm-composer-a-refined .hc-new-conversation-starter {
+      display: flex;
+      min-height: 176px;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      text-align: center;
+    }
+    #helm-composer-a-refined .hc-new-conversation-starter small {
+      color: var(--hc-accent);
+      font-weight: 500;
+    }
+    #helm-composer-a-refined .hc-new-conversation-starter h2 {
+      margin: 0;
+      color: var(--hc-text);
+      font-size: 22px;
+      font-weight: 500;
+      letter-spacing: 0;
+    }
+    #helm-composer-a-refined .hc-context-line {
+      display: flex;
+      min-height: 36px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 0 4px;
+    }
+    #helm-composer-a-refined .hc-context-group,
+    #helm-composer-a-refined .hc-action-group {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 6px;
+    }
+    #helm-composer-a-refined .hc-context-group {
+      flex: 1;
+    }
+    #helm-composer-a-refined .hc-directory {
+      display: flex;
+      min-width: 0;
+      height: 34px;
+      align-items: center;
+      gap: 8px;
+      padding: 0 9px 0 5px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      text-align: left;
+    }
+    #helm-composer-a-refined .hc-directory:not(:disabled):hover {
+      background: var(--hc-surface-hover);
+    }
+    #helm-composer-a-refined .hc-folder-mark {
+      display: inline-flex;
+      width: 26px;
+      height: 26px;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      border-radius: 9px;
+      background: var(--hc-accent-soft);
+      color: var(--hc-accent);
+    }
+    #helm-composer-a-refined .hc-directory .hc-path {
+      overflow: hidden;
+      max-width: 340px;
+      color: var(--hc-muted);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #helm-composer-a-refined .hc-chevron {
+      color: var(--hc-muted);
+    }
+    #helm-composer-a-refined .hc-run-state {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--hc-muted);
+      white-space: nowrap;
+    }
+    #helm-composer-a-refined .hc-run-pulse {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+    }
+    #helm-composer-a-refined .hc-run-pulse i {
+      width: 3px;
+      height: 3px;
+      border-radius: 50%;
+      background: var(--hc-accent);
+      animation: hc-dot 1.2s ease-in-out infinite;
+    }
+    #helm-composer-a-refined .hc-run-pulse i:nth-child(2) {
+      animation-delay: 120ms;
+    }
+    #helm-composer-a-refined .hc-run-pulse i:nth-child(3) {
+      animation-delay: 240ms;
+    }
+    #helm-composer-a-refined .hc-run-state time {
+      font-variant-numeric: tabular-nums;
+    }
+    #helm-composer-a-refined .hc-input-surface {
+      position: relative;
+      overflow: visible;
+      border: 1px solid var(--hc-line-strong);
+      border-radius: 16px;
+      background: var(--hc-surface);
+      box-shadow: 0 12px 30px light-dark(rgb(27 39 32 / 0.08), rgb(0 0 0 / 0.3));
+      transition:
+        border-color 160ms ease,
+        box-shadow 160ms ease,
+        transform 160ms ease;
+    }
+    #helm-composer-a-refined .hc-input-surface:focus-within {
+      border-color: var(--hc-accent);
+      box-shadow:
+        0 0 0 2px color-mix(in srgb, var(--hc-accent) 13%, transparent),
+        0 15px 34px light-dark(rgb(27 39 32 / 0.11), rgb(0 0 0 / 0.36));
+      transform: translateY(-1px);
+    }
+    #helm-composer-a-refined .hc-editor {
+      min-height: 116px;
+      padding: 16px 17px 10px;
+    }
+    #helm-composer-a-refined textarea {
+      display: block;
+      width: 100%;
+      min-height: 84px;
+      max-height: 180px;
+      resize: none;
+      border: 0;
+      background: transparent;
+      line-height: 1.55;
+    }
+    #helm-composer-a-refined textarea::placeholder,
+    #helm-composer-a-refined input::placeholder {
+      color: var(--hc-faint);
+      opacity: 1;
+    }
+    #helm-composer-a-refined .hc-inner-footer {
+      display: flex;
+      min-height: 48px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 9px;
+      border-radius: 0 0 15px 15px;
+      background: color-mix(in srgb, var(--hc-surface-soft) 56%, transparent);
+    }
+    #helm-composer-a-refined .hc-icon-button,
+    #helm-composer-a-refined .hc-send-button,
+    #helm-composer-a-refined .hc-config-control {
+      display: inline-flex;
+      height: 34px;
+      align-items: center;
+      justify-content: center;
+      transition:
+        background 120ms ease,
+        color 120ms ease,
+        border-color 120ms ease,
+        transform 120ms ease,
+        box-shadow 120ms ease;
+    }
+    #helm-composer-a-refined .hc-icon-button {
+      width: 34px;
+      padding: 0;
+      flex: none;
+      border: 1px solid transparent;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--hc-muted);
+    }
+    #helm-composer-a-refined .hc-icon-button:hover {
+      border-color: var(--hc-line);
+      background: var(--hc-surface-hover);
+      color: var(--hc-text);
+    }
+    #helm-composer-a-refined .hc-send-button {
+      width: 34px;
+      padding: 0;
+      flex: none;
+      border: 0;
+      border-radius: 50%;
+      background: var(--hc-accent-fill);
+      color: var(--hc-accent-on);
+      box-shadow: 0 3px 9px color-mix(in srgb, var(--hc-accent-fill) 27%, transparent);
+    }
+    #helm-composer-a-refined .hc-send-button:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 12px color-mix(in srgb, var(--hc-accent-fill) 31%, transparent);
+    }
+    #helm-composer-a-refined .hc-send-button:disabled {
+      opacity: 1;
+      background: color-mix(in srgb, var(--hc-accent-fill) 42%, var(--hc-surface));
+      color: var(--hc-accent-on);
+      box-shadow: none;
+    }
+    #helm-composer-a-refined .hc-send-button.is-stop {
+      background: var(--hc-danger);
+      color: var(--hc-surface);
+      box-shadow: none;
+    }
+    #helm-composer-a-refined .hc-icon-button:active,
+    #helm-composer-a-refined .hc-config-control:active,
+    #helm-composer-a-refined .hc-send-button:active {
+      transform: scale(0.97);
+    }
+    #helm-composer-a-refined .hc-runtime-dock {
+      display: flex;
+      min-height: 46px;
+      align-items: center;
+      justify-content: flex-start;
+      gap: 8px;
+      padding: 6px;
+      border-radius: 16px;
+      background: var(--hc-surface-soft);
+    }
+    #helm-composer-a-refined .hc-dock-label {
+      display: inline-flex;
+      min-width: auto;
+      align-items: center;
+      gap: 6px;
+      padding-left: 3px;
+      color: var(--hc-muted);
+      white-space: nowrap;
+    }
+    #helm-composer-a-refined .hc-runtime-divider {
+      width: 1px;
+      height: 24px;
+      flex: none;
+      background: var(--hc-line);
+    }
+    #helm-composer-a-refined .hc-runtime-group {
+      display: flex;
+      min-width: 0;
+      flex: 1;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+    #helm-composer-a-refined .hc-config-control {
+      width: auto;
+      min-width: 0;
+      height: 32px;
+      gap: 5px;
+      padding: 0 8px;
+      border: 1px solid var(--hc-line);
+      border-radius: 17px;
+      background: var(--hc-surface);
+      white-space: nowrap;
+    }
+    #helm-composer-a-refined .hc-select-anchor {
+      position: relative;
+      min-width: 0;
+      flex: none;
+    }
+    #helm-composer-a-refined .hc-model-anchor,
+    #helm-composer-a-refined .hc-reasoning-anchor,
+    #helm-composer-a-refined .hc-mode-anchor,
+    #helm-composer-a-refined .hc-usage-anchor {
+      width: auto;
+    }
+    #helm-composer-a-refined .hc-select-anchor > .hc-config-control {
+      width: auto;
+    }
+    #helm-composer-a-refined .hc-model-chain {
+      display: flex;
+      overflow: visible;
+      min-width: 0;
+      flex: 1;
+      align-items: center;
+      gap: 3px;
+      color: var(--hc-muted);
+      text-overflow: clip;
+      white-space: nowrap;
+    }
+    #helm-composer-a-refined .hc-model-chain strong {
+      color: var(--hc-text);
+    }
+    #helm-composer-a-refined .hc-config-control .hc-value {
+      color: var(--hc-text);
+    }
+    #helm-composer-a-refined .hc-mode-control .hc-value {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    #helm-composer-a-refined .hc-reasoning-control,
+    #helm-composer-a-refined .hc-mode-control,
+    #helm-composer-a-refined .hc-context-control {
+      gap: 5px;
+      padding-inline: 8px 6px;
+    }
+    #helm-composer-a-refined .hc-config-control:hover {
+      border-color: var(--hc-line-strong);
+      background: var(--hc-surface-hover);
+    }
+    #helm-composer-a-refined .hc-config-control > span {
+      min-width: 0;
+      white-space: nowrap;
+    }
+    #helm-composer-a-refined .hc-config-control .hc-value,
+    #helm-composer-a-refined .hc-config-control .hc-secondary {
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    #helm-composer-a-refined .hc-config-control > svg:last-child {
+      width: 13px;
+      height: 13px;
+      margin-left: auto;
+      color: var(--hc-muted);
+    }
+    #helm-composer-a-refined .hc-config-control .hc-secondary {
+      color: var(--hc-muted);
+    }
+    #helm-composer-a-refined .hc-config-control .hc-divider {
+      overflow: visible;
+      color: var(--hc-faint);
+    }
+    #helm-composer-a-refined .hc-config-control.is-open {
+      border-color: var(--hc-accent);
+      background: var(--hc-accent-soft);
+    }
+    #helm-composer-a-refined .hc-risk-dot {
+      width: 6px;
+      height: 6px;
+      flex: none;
+      border-radius: 50%;
+      background: var(--hc-warning);
+    }
+    #helm-composer-a-refined .hc-attachments {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 11px 12px 0;
+    }
+    #helm-composer-a-refined .hc-attachment {
+      display: inline-flex;
+      max-width: 240px;
+      height: 31px;
+      align-items: center;
+      gap: 7px;
+      padding: 0 4px 0 10px;
+      border-radius: 10px;
+      background: var(--hc-surface-soft);
+      color: var(--hc-muted);
+      animation: hc-item-in 140ms ease-out both;
+    }
+    #helm-composer-a-refined .hc-attachment > span {
+      overflow: hidden;
+      color: var(--hc-text);
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #helm-composer-a-refined .hc-attachment button,
+    #helm-composer-a-refined .hc-queue-row button {
+      display: inline-flex;
+      width: 25px;
+      height: 25px;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: var(--hc-muted);
+    }
+    #helm-composer-a-refined .hc-attachment button:hover,
+    #helm-composer-a-refined .hc-queue-row button:hover {
+      background: var(--hc-surface-hover);
+      color: var(--hc-text);
+    }
+    #helm-composer-a-refined .hc-queue {
+      padding: 6px 9px;
+      border-bottom: 1px solid var(--hc-line);
+      background: var(--hc-surface-soft);
+    }
+    #helm-composer-a-refined .hc-queue-row {
+      display: flex;
+      min-height: 37px;
+      align-items: center;
+      gap: 8px;
+    }
+    #helm-composer-a-refined .hc-queue-row + .hc-queue-row {
+      border-top: 1px solid var(--hc-line);
+    }
+    #helm-composer-a-refined .hc-queue-index {
+      display: inline-flex;
+      width: 21px;
+      height: 21px;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      border-radius: 7px;
+      background: var(--hc-surface-active);
+      color: var(--hc-muted);
+      font-size: 0.82em;
+    }
+    #helm-composer-a-refined .hc-queue-text {
+      overflow: hidden;
+      min-width: 0;
+      flex: 1;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #helm-composer-a-refined .hc-suggestions {
+      padding: 5px 8px 8px;
+      border-top: 1px solid var(--hc-line);
+    }
+    #helm-composer-a-refined .hc-suggestion {
+      display: flex;
+      width: 100%;
+      min-height: 42px;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 9px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      text-align: left;
+    }
+    #helm-composer-a-refined .hc-suggestion:hover,
+    #helm-composer-a-refined .hc-suggestion.is-active {
+      background: var(--hc-surface-hover);
+    }
+    #helm-composer-a-refined .hc-suggestion > span {
+      display: flex;
+      min-width: 0;
+      flex: 1;
+      flex-direction: column;
+    }
+    #helm-composer-a-refined .hc-voice-live {
+      display: inline-flex;
+      height: 34px;
+      align-items: center;
+      gap: 7px;
+      padding: 0 5px 0 10px;
+      border-radius: 17px;
+      background: var(--hc-danger-soft);
+      color: var(--hc-danger);
+    }
+    #helm-composer-a-refined .hc-wave {
+      display: inline-flex;
+      height: 14px;
+      align-items: center;
+      gap: 2px;
+    }
+    #helm-composer-a-refined .hc-wave i {
+      width: 2px;
+      height: 5px;
+      border-radius: 1px;
+      background: currentColor;
+      animation: hc-wave 850ms ease-in-out infinite;
+    }
+    #helm-composer-a-refined .hc-wave i:nth-child(2) {
+      height: 11px;
+      animation-delay: 100ms;
+    }
+    #helm-composer-a-refined .hc-wave i:nth-child(3) {
+      height: 8px;
+      animation-delay: 200ms;
+    }
+    #helm-composer-a-refined .hc-voice-live button {
+      display: inline-flex;
+      width: 25px;
+      height: 25px;
+      align-items: center;
+      justify-content: center;
+      border: 0;
+      border-radius: 50%;
+      background: transparent;
+      color: inherit;
+    }
+    #helm-composer-a-refined .hc-dropdown {
+      position: absolute;
+      z-index: 30;
+      overflow: hidden;
+      border: 1px solid var(--hc-line);
+      border-radius: 14px;
+      background: var(--hc-popover);
+      box-shadow: 0 16px 38px light-dark(rgb(27 39 32 / 0.13), rgb(0 0 0 / 0.4));
+      animation: hc-panel-in 150ms ease-out both;
+    }
+    #helm-composer-a-refined .hc-runtime-group .hc-dropdown {
+      bottom: calc(100% + 14px);
+    }
+    #helm-composer-a-refined .hc-model-anchor .hc-dropdown {
+      left: 0;
+      width: 345px;
+    }
+    #helm-composer-a-refined .hc-reasoning-anchor .hc-dropdown {
+      right: 0;
+      width: 250px;
+    }
+    #helm-composer-a-refined .hc-mode-anchor .hc-dropdown {
+      right: 0;
+      width: 270px;
+    }
+    #helm-composer-a-refined .hc-usage-anchor .hc-dropdown {
+      right: 0;
+      width: 260px;
+    }
+    #helm-composer-a-refined .hc-directory-anchor {
+      position: relative;
+      min-width: 0;
+    }
+    #helm-composer-a-refined .hc-directory-anchor .hc-dropdown {
+      bottom: calc(100% + 8px);
+      left: 0;
+      width: min(424px, calc(100vw - 8px));
+    }
+    #helm-composer-a-refined .hc-action-anchor {
+      position: relative;
+      display: inline-flex;
+    }
+    #helm-composer-a-refined .hc-action-anchor .hc-dropdown {
+      bottom: calc(100% + 8px);
+      width: min(330px, calc(100vw - 20px));
+    }
+    #helm-composer-a-refined .hc-action-anchor.is-left .hc-dropdown {
+      left: 0;
+    }
+    #helm-composer-a-refined .hc-action-anchor.is-right .hc-dropdown {
+      right: 0;
+      width: min(260px, calc(100vw - 20px));
+    }
+    #helm-composer-a-refined .hc-action-anchor .hc-panel-head {
+      min-height: 35px;
+      padding-block: 4px;
+    }
+    #helm-composer-a-refined .hc-action-anchor .hc-menu-list {
+      padding: 4px;
+    }
+    #helm-composer-a-refined .hc-action-anchor .hc-menu-row {
+      min-height: 36px;
+      padding-block: 4px;
+    }
+    #helm-composer-a-refined .hc-action-anchor .hc-row-icon {
+      width: 26px;
+      height: 26px;
+    }
+    #helm-composer-a-refined .hc-action-anchor.is-right .hc-usage-block {
+      padding: 8px 10px;
+    }
+    #helm-composer-a-refined .hc-action-anchor.is-right .hc-usage-block small {
+      display: none;
+    }
+    #helm-composer-a-refined .hc-panel-head,
+    #helm-composer-a-refined .hc-panel-foot {
+      display: flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 7px 9px 7px 12px;
+    }
+    #helm-composer-a-refined .hc-panel-head {
+      border-bottom: 1px solid var(--hc-line);
+    }
+    #helm-composer-a-refined .hc-directory-search {
+      display: flex;
+      min-width: 0;
+      align-items: center;
+      gap: 8px;
+      margin: 8px;
+      padding: 0 9px;
+      min-height: 34px;
+      border: 1px solid var(--hc-line);
+      border-radius: 8px;
+      background: var(--hc-surface-soft);
+    }
+    #helm-composer-a-refined .hc-directory-search:focus-within {
+      border-color: var(--hc-accent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--hc-accent) 12%, transparent);
+    }
+    #helm-composer-a-refined .hc-directory-search > svg {
+      flex: 0 0 auto;
+      color: var(--hc-muted);
+    }
+    #helm-composer-a-refined .hc-directory-search input {
+      min-width: 0;
+      flex: 1;
+      padding: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--hc-text);
+    }
+    #helm-composer-a-refined .hc-panel-head > div {
+      display: flex;
+      min-width: 0;
+      flex-direction: column;
+    }
+    #helm-composer-a-refined .hc-panel-foot {
+      border-top: 1px solid var(--hc-line);
+    }
+    #helm-composer-a-refined .hc-panel-close {
+      border-color: transparent;
+    }
+    #helm-composer-a-refined .hc-menu-list {
+      display: flex;
+      flex-direction: column;
+      padding: 6px;
+    }
+    #helm-composer-a-refined .hc-empty {
+      min-height: 74px;
+      display: grid;
+      place-items: center;
+      color: var(--hc-muted);
+      font-size: 12px;
+    }
+    #helm-composer-a-refined .hc-menu-row {
+      display: flex;
+      width: 100%;
+      min-height: 44px;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 9px;
+      border: 0;
+      border-radius: 10px;
+      background: transparent;
+      text-align: left;
+    }
+    #helm-composer-a-refined .hc-menu-row:hover {
+      background: var(--hc-surface-hover);
+    }
+    #helm-composer-a-refined .hc-menu-row.is-selected {
+      background: var(--hc-surface-active);
+    }
+    #helm-composer-a-refined .hc-menu-row > svg {
+      margin-left: auto;
+      color: var(--hc-accent);
+    }
+    #helm-composer-a-refined .hc-row-icon {
+      display: inline-flex;
+      width: 29px;
+      height: 29px;
+      align-items: center;
+      justify-content: center;
+      flex: none;
+      border-radius: 9px;
+      background: var(--hc-surface-soft);
+      color: var(--hc-muted);
+    }
+    #helm-composer-a-refined .hc-row-copy {
+      display: flex;
+      overflow: hidden;
+      min-width: 0;
+      flex: 1;
+      flex-direction: column;
+    }
+    #helm-composer-a-refined .hc-row-copy strong,
+    #helm-composer-a-refined .hc-row-copy small {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    #helm-composer-a-refined .hc-panel-text {
+      display: inline-flex;
+      min-height: 30px;
+      align-items: center;
+      gap: 6px;
+      padding: 0 8px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--hc-muted);
+    }
+    #helm-composer-a-refined .hc-panel-text:hover {
+      background: var(--hc-surface-hover);
+      color: var(--hc-text);
+    }
+    #helm-composer-a-refined .hc-model-anchor .hc-menu-list {
+      padding: 4px;
+    }
+    #helm-composer-a-refined .hc-model-anchor .hc-menu-row {
+      min-height: 38px;
+      padding-block: 4px;
+    }
+    #helm-composer-a-refined .hc-model-anchor .hc-row-icon {
+      width: 26px;
+      height: 26px;
+    }
+    #helm-composer-a-refined .hc-cascade-path {
+      display: flex;
+      min-height: 36px;
+      align-items: center;
+      gap: 3px;
+      padding: 4px 6px;
+      border-bottom: 1px solid var(--hc-line);
+    }
+    #helm-composer-a-refined .hc-cascade-path button,
+    #helm-composer-a-refined .hc-cascade-path span {
+      display: inline-flex;
+      min-width: 0;
+      height: 28px;
+      align-items: center;
+      gap: 5px;
+      padding: 0 7px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--hc-muted);
+      white-space: nowrap;
+    }
+    #helm-composer-a-refined .hc-cascade-path button:hover:not(:disabled),
+    #helm-composer-a-refined .hc-cascade-path button.is-current {
+      background: var(--hc-surface-hover);
+      color: var(--hc-text);
+    }
+    #helm-composer-a-refined .hc-cascade-path button:disabled {
+      opacity: 1;
+    }
+    #helm-composer-a-refined .hc-cascade-path > svg {
+      width: 13px;
+      height: 13px;
+      color: var(--hc-faint);
+    }
+    #helm-composer-a-refined .hc-locked-provider {
+      color: var(--hc-muted);
+    }
+    #helm-composer-a-refined .hc-cascade-title {
+      display: flex;
+      min-height: 35px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 5px 10px;
+      border-bottom: 1px solid var(--hc-line);
+    }
+    #helm-composer-a-refined .hc-cascade-title > span {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--hc-muted);
+    }
+    #helm-composer-a-refined .hc-menu-row:disabled {
+      opacity: 0.55;
+    }
+    #helm-composer-a-refined .hc-compact-list {
+      display: flex;
+      flex-direction: column;
+      padding: 4px;
+    }
+    #helm-composer-a-refined .hc-select-row {
+      display: flex;
+      width: 100%;
+      min-height: 33px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 9px;
+      border: 0;
+      border-radius: 9px;
+      background: transparent;
+      text-align: left;
+    }
+    #helm-composer-a-refined .hc-select-row:hover,
+    #helm-composer-a-refined .hc-select-row.is-selected {
+      background: var(--hc-surface-hover);
+    }
+    #helm-composer-a-refined .hc-select-row > svg {
+      color: var(--hc-accent);
+    }
+    #helm-composer-a-refined .hc-usage-block {
+      padding: 12px 13px;
+      border-bottom: 1px solid var(--hc-line);
+    }
+    #helm-composer-a-refined .hc-usage-block:last-child {
+      border-bottom: 0;
+    }
+    #helm-composer-a-refined .hc-usage-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    #helm-composer-a-refined .hc-usage-block small {
+      display: block;
+      margin-top: 7px;
+    }
+    #helm-composer-a-refined .hc-meter {
+      height: 4px;
+      overflow: hidden;
+      border-radius: 2px;
+      background: var(--hc-surface-active);
+    }
+    #helm-composer-a-refined .hc-meter span {
+      display: block;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--hc-accent);
+    }
+    #helm-composer-a-refined .hc-meter.is-warn span {
+      background: var(--hc-warning);
+    }
+    @keyframes hc-enter {
+      from {
+        opacity: 0;
+        transform: translateY(3px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    @keyframes hc-panel-in {
+      from {
+        opacity: 0;
+        transform: translateY(4px) scale(0.995);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    @keyframes hc-item-in {
+      from {
+        opacity: 0;
+        transform: translateY(3px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    @keyframes hc-dot {
+      50% {
+        opacity: 0.28;
+        transform: translateY(-2px);
+      }
+    }
+    @keyframes hc-wave {
+      50% {
+        transform: scaleY(0.45);
+        opacity: 0.55;
+      }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #helm-composer-a-refined *,
+      #helm-composer-a-refined *::before,
+      #helm-composer-a-refined *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+      }
+    }
+  </style>
+
+  <script>
+    (() => {
+      const root = document.getElementById("helm-composer-a-refined");
+      if (!root || root.dataset.ready === "true") return;
+      root.dataset.ready = "true";
+
+      const composer = root.querySelector(".hc-composer");
+      const state = {
+        directory: { name: "Helm", path: "/Users/zhuanzmima0000/Desktop/coding/person/Helm" },
+        directoryQuery: "",
+        provider: "Codex",
+        relay: "官方直连",
+        model: "GPT-5.6 Sol",
+        reasoning: "High",
+        mode: "完全访问",
+        conversationStarted: false,
+        cascadeStep: "model",
+        text: "",
+        attachments: [],
+        queue: [],
+        running: false,
+        elapsed: 0,
+        timer: null,
+        voice: false,
+        context: 38,
+        openPanel: null,
+        suggestions: [],
+        suggestionIndex: 0,
+      };
+      const catalog = {
+        Codex: {
+          官方直连: ["GPT-5.6 Sol", "GPT-5.6 Terra", "GPT-5.4 Mini"],
+          公司网关: ["GPT-5.6 Sol", "GPT-5.6 Terra"],
+        },
+        "Claude Code": {
+          官方直连: ["Claude Opus 4.6", "Claude Sonnet 4.6"],
+          公司网关: ["Claude Sonnet 4.6"],
+        },
+        OpenCode: {
+          本地服务: ["GPT-5.6", "Claude Sonnet 4.6"],
+          公司网关: ["GPT-5.6"],
+        },
+      };
+      const providerModes = {
+        Codex: ["默认权限", "自动审查", "完全访问"],
+        "Claude Code": ["默认", "规划"],
+        OpenCode: ["构建", "规划"],
+      };
+      const reasonings = ["Low", "Medium", "High", "XHigh", "Max"];
+      const escapeHtml = (value) =>
+        String(value)
+          .replaceAll("&", "&amp;")
+          .replaceAll("<", "&lt;")
+          .replaceAll(">", "&gt;")
+          .replaceAll('"', "&quot;")
+          .replaceAll("'", "&#039;");
+      const refreshIcons = () => {
+        if (globalThis.lucide) globalThis.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+      };
+      const canSend = () => Boolean(state.text.trim() || state.attachments.length);
+      const panelControls = ["directory", "model", "reasoning", "mode", "usage", "attachment"];
+
+      const iconButton = (icon, label, control, extra = "") =>
+        `<button type="button" class="hc-icon-button ${extra}" aria-label="${label}" data-control="${control}" data-tooltip="${label}"><i data-lucide="${icon}" aria-hidden="true"></i></button>`;
+      const configClass = (control) => (state.openPanel === control ? "is-open" : "");
+      const modelButton = () =>
+        `<button type="button" class="hc-config-control hc-model-control ${configClass("model")}" data-control="model" aria-label="模型：${escapeHtml(state.provider)}，${escapeHtml(state.relay)}，${escapeHtml(state.model)}"><small class="hc-model-chain"><span>${escapeHtml(state.provider)}</span><span>·</span><span>${escapeHtml(state.relay)}</span><span>·</span><strong>${escapeHtml(state.model)}</strong></small><i data-lucide="chevron-down" aria-hidden="true"></i></button>`;
+      const reasoningButton = () =>
+        `<button type="button" class="hc-config-control hc-reasoning-control ${configClass("reasoning")}" data-control="reasoning" aria-label="推理强度：${escapeHtml(state.reasoning)}"><small class="hc-value">${escapeHtml(state.reasoning)}</small><i data-lucide="chevron-down" aria-hidden="true"></i></button>`;
+      const modeButton = () =>
+        `<button type="button" class="hc-config-control hc-mode-control ${configClass("mode")}" data-control="mode" aria-label="运行模式：${escapeHtml(state.mode)}"><small class="hc-value"><span class="hc-risk-dot"></span>${escapeHtml(state.mode)}</small><i data-lucide="chevron-down" aria-hidden="true"></i></button>`;
+      const usageButton = () =>
+        `<button type="button" class="hc-config-control hc-context-control ${configClass("usage")}" data-control="usage" aria-label="上下文：${state.context}%"><small>上下文</small><small class="hc-value">${state.context}%</small><i data-lucide="chevron-down" aria-hidden="true"></i></button>`;
+      const sendButton = () =>
+        `<button type="button" class="hc-send-button ${state.running ? "is-stop" : ""}" data-control="send" aria-label="${state.running ? "停止运行" : "发送"}" ${state.running || canSend() ? "" : "disabled"}><i data-lucide="${state.running ? "square" : "arrow-up"}" aria-hidden="true"></i></button>`;
+      const queueButton = () =>
+        `<button type="button" class="hc-icon-button" data-control="queue" aria-label="加入待发队列" data-tooltip="加入待发队列" ${state.running && canSend() ? "" : "hidden"}><i data-lucide="list-plus" aria-hidden="true"></i></button>`;
+      const directoryButton = () =>
+        state.directory
+          ? `<button type="button" class="hc-directory" data-control="directory" ${state.conversationStarted ? "disabled" : ""}><span class="hc-folder-mark"><i data-lucide="folder-git-2" aria-hidden="true"></i></span><strong>${escapeHtml(state.directory.name)}</strong><span class="hc-path">${escapeHtml(state.directory.path)}</span><i class="hc-chevron" data-lucide="chevron-down" aria-hidden="true"></i></button>`
+          : `<button type="button" class="hc-directory" data-control="directory" ${state.conversationStarted ? "disabled" : ""}><span class="hc-folder-mark"><i data-lucide="message-circle" aria-hidden="true"></i></span><strong>对话</strong><span class="hc-path">未选择工作目录</span><i class="hc-chevron" data-lucide="chevron-down" aria-hidden="true"></i></button>`;
+      const runStatus = () =>
+        state.running
+          ? `<span class="hc-run-state"><span class="hc-run-pulse"><i></i><i></i><i></i></span><span>正在执行</span><time>00:00</time></span>`
+          : "";
+      const directActions = () =>
+        state.voice
+          ? `<div class="hc-voice-live"><span class="hc-wave"><i></i><i></i><i></i></span><strong>正在听取</strong><button type="button" data-control="stop-voice" aria-label="停止语音输入"><i data-lucide="square" aria-hidden="true"></i></button></div>`
+          : `<span class="hc-action-anchor is-left">${iconButton("plus", "添加附件", "attachment")}${state.openPanel === "attachment" ? attachmentDropdown() : ""}</span>${iconButton("mic", "语音输入", "voice")}`;
+      const queueMarkup = () =>
+        state.queue.length
+          ? `<div class="hc-queue" aria-label="待发队列">${state.queue.map((text, index) => `<div class="hc-queue-row"><span class="hc-queue-index">${index + 1}</span><span class="hc-queue-text">${escapeHtml(text)}</span><button type="button" data-delete-queue="${index}" aria-label="删除待发消息"><i data-lucide="trash-2" aria-hidden="true"></i></button><button type="button" data-send-now="${index}" aria-label="立即发送"><i data-lucide="forward" aria-hidden="true"></i></button></div>`).join("")}</div>`
+          : "";
+      const attachmentMarkup = () =>
+        state.attachments.length
+          ? `<div class="hc-attachments" aria-label="附件">${state.attachments.map((item, index) => `<span class="hc-attachment"><i data-lucide="${item.icon}" aria-hidden="true"></i><span>${escapeHtml(item.name)}</span><button type="button" data-remove-attachment="${index}" aria-label="移除 ${escapeHtml(item.name)}"><i data-lucide="x" aria-hidden="true"></i></button></span>`).join("")}</div>`
+          : "";
+      const suggestionRows = () =>
+        state.suggestions
+          .map(
+            (item, index) =>
+              `<button type="button" class="hc-suggestion ${index === state.suggestionIndex ? "is-active" : ""}" data-suggestion="${index}"><i data-lucide="${item.icon}" aria-hidden="true"></i><span><strong>${escapeHtml(item.label)}</strong><small>${escapeHtml(item.detail)}</small></span><i data-lucide="corner-down-left" aria-hidden="true"></i></button>`,
+          )
+          .join("");
+      const suggestionMarkup = () =>
+        `<div class="hc-suggestions" ${state.suggestions.length ? "" : "hidden"}>${suggestionRows()}</div>`;
+      const newConversationStarter = () =>
+        state.conversationStarted
+          ? ""
+          : `<section class="hc-new-conversation-starter"><small>新对话</small><h2>今天想构建点什么？</h2></section>`;
+
+      const renderComposer = (preserveFocus = false) => {
+        composer.innerHTML = `<div class="hc-layout ${state.running ? "is-running" : ""} ${canSend() ? "has-draft" : ""} ${state.voice ? "is-voice" : ""}">
+          ${newConversationStarter()}
+          <div class="hc-context-line"><div class="hc-context-group"><span class="hc-directory-anchor">${directoryButton()}${state.openPanel === "directory" ? directoryDropdown() : ""}</span></div>${runStatus()}</div>
+          <section class="hc-input-surface" aria-label="对话输入框">
+            ${queueMarkup()}${attachmentMarkup()}
+            <div class="hc-editor"><textarea rows="3" aria-label="给 Agent 发消息" placeholder="描述任务，/ 调用命令">${escapeHtml(state.text)}</textarea></div>
+            ${suggestionMarkup()}
+            <div class="hc-inner-footer"><div class="hc-action-group">${directActions()}</div><div class="hc-action-group">${queueButton()}${sendButton()}</div></div>
+          </section>
+          <nav class="hc-runtime-dock" aria-label="运行配置"><span class="hc-dock-label"><i data-lucide="sliders-horizontal" aria-hidden="true"></i><small>运行配置</small></span><span class="hc-runtime-divider" aria-hidden="true"></span><div class="hc-runtime-group"><span class="hc-select-anchor hc-model-anchor">${modelButton()}${state.openPanel === "model" ? modelDropdown() : ""}</span><span class="hc-select-anchor hc-reasoning-anchor">${reasoningButton()}${state.openPanel === "reasoning" ? reasoningDropdown() : ""}</span><span class="hc-select-anchor hc-mode-anchor">${modeButton()}${state.openPanel === "mode" ? modeDropdown() : ""}</span><span class="hc-select-anchor hc-usage-anchor">${usageButton()}${state.openPanel === "usage" ? usageDropdown() : ""}</span></div></nav>
+        </div>`;
+        const textarea = root.querySelector("textarea");
+        textarea.style.height = "auto";
+        textarea.style.height = `${Math.min(textarea.scrollHeight, 180)}px`;
+        if (preserveFocus) textarea.focus();
+        refreshIcons();
+      };
+
+      const closePanel = () => {
+        state.openPanel = null;
+      };
+      const panelHead = (title, subtitle = "") =>
+        `<div class="hc-panel-head"><div><strong>${title}</strong>${subtitle ? `<small>${subtitle}</small>` : ""}</div>${iconButton("x", `关闭${title}`, "close-panel", "hc-panel-close")}</div>`;
+      const row = (icon, title, detail, attrs, selected = false) =>
+        `<button type="button" class="hc-menu-row ${selected ? "is-selected" : ""}" ${attrs}><span class="hc-row-icon"><i data-lucide="${icon}" aria-hidden="true"></i></span><span class="hc-row-copy"><strong>${escapeHtml(title)}</strong><small>${escapeHtml(detail)}</small></span>${selected ? '<i data-lucide="check" aria-hidden="true"></i>' : ""}</button>`;
+      const selectRow = (title, attrs, selected = false) =>
+        `<button type="button" class="hc-select-row ${selected ? "is-selected" : ""}" ${attrs}><span>${escapeHtml(title)}</span>${selected ? '<i data-lucide="check" aria-hidden="true"></i>' : ""}</button>`;
+      const cascadePath = () => {
+        const providerLocked = state.conversationStarted;
+        return `<div class="hc-cascade-path">
+          <button type="button" data-cascade-step="provider" class="${state.cascadeStep === "provider" ? "is-current" : ""}" ${providerLocked ? "disabled" : ""}>${providerLocked ? '<i data-lucide="lock" aria-hidden="true"></i>' : ""}${escapeHtml(state.provider)}</button>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+          <button type="button" data-cascade-step="relay" class="${state.cascadeStep === "relay" ? "is-current" : ""}">${escapeHtml(state.relay)}</button>
+          <i data-lucide="chevron-right" aria-hidden="true"></i>
+          <button type="button" data-cascade-step="model" class="${state.cascadeStep === "model" ? "is-current" : ""}">${escapeHtml(state.model)}</button>
+        </div>`;
+      };
+      const modelDropdown = () => {
+        const step = state.cascadeStep;
+        const titles = { provider: "选择提供方", relay: "选择中转站", model: "选择模型" };
+        let rows = "";
+        if (step === "provider") {
+          rows = Object.keys(catalog)
+            .map((name) =>
+              row(
+                "bot",
+                name,
+                "Agent 提供方",
+                `data-provider-choice="${escapeHtml(name)}"`,
+                name === state.provider,
+              ),
+            )
+            .join("");
+        } else if (step === "relay") {
+          rows = Object.keys(catalog[state.provider])
+            .map((name) =>
+              row(
+                "network",
+                name,
+                `${state.provider} 中转站`,
+                `data-relay-choice="${escapeHtml(name)}"`,
+                name === state.relay,
+              ),
+            )
+            .join("");
+        } else {
+          rows = catalog[state.provider][state.relay]
+            .map((name) =>
+              row(
+                "sparkles",
+                name,
+                name.includes("Sol") || name.includes("Opus")
+                  ? "复杂编码与长任务"
+                  : "日常编码与快速迭代",
+                `data-model-choice="${escapeHtml(name)}"`,
+                name === state.model,
+              ),
+            )
+            .join("");
+        }
+        return `<div class="hc-dropdown">${cascadePath()}<div class="hc-cascade-title"><strong>${titles[step]}</strong>${state.conversationStarted ? '<span class="hc-locked-provider"><i data-lucide="lock" aria-hidden="true"></i>提供方已锁定</span>' : ""}</div><div class="hc-menu-list">${rows}</div></div>`;
+      };
+      const reasoningDropdown = () =>
+        `<div class="hc-dropdown"><div class="hc-cascade-title"><strong>模型强度</strong><span>${escapeHtml(state.model)}</span></div><div class="hc-compact-list">${reasonings.map((name) => selectRow(name, `data-reasoning="${name}"`, name === state.reasoning)).join("")}</div></div>`;
+      const modeDropdown = () =>
+        `<div class="hc-dropdown"><div class="hc-cascade-title"><strong>运行模式</strong><span>${escapeHtml(state.model)}</span></div><div class="hc-compact-list">${providerModes[state.provider].map((name) => selectRow(name, `data-mode="${escapeHtml(name)}"`, name === state.mode)).join("")}</div></div>`;
+      const directoryProjects = [
+        { name: "Helm", path: "/Users/zhuanzmima0000/Desktop/coding/person/Helm" },
+        { name: "Skill Graph", path: "/Users/zhuanzmima0000/Desktop/coding/company/skill-graph" },
+        { name: "Yoncode Tool", path: "/Users/zhuanzmima0000/Desktop/coding/company/Yoncode Tool" },
+      ];
+      const projectDirectoryPanel = () => {
+        const query = state.directoryQuery.trim().toLocaleLowerCase();
+        const filteredProjects = directoryProjects.filter((project) =>
+          `${project.name} ${project.path}`.toLocaleLowerCase().includes(query),
+        );
+        const rows = filteredProjects
+          .map((project) =>
+            row(
+              "folder-git-2",
+              project.name,
+              project.path,
+              `data-directory="${escapeHtml(project.name)}" data-path="${escapeHtml(project.path)}"`,
+              state.directory?.path === project.path,
+            ),
+          )
+          .join("");
+        return `<label class="hc-directory-search"><i data-lucide="search" aria-hidden="true"></i><input data-directory-search type="search" aria-label="搜索项目" value="${escapeHtml(state.directoryQuery)}" placeholder="搜索项目" autocomplete="off" /></label><div class="hc-menu-list">${rows || '<div class="hc-empty">没有匹配的项目</div>'}</div>`;
+      };
+      const directoryDropdown = () =>
+        `<div class="hc-dropdown"><div class="hc-panel-head"><div><strong>选择工作目录</strong></div></div>${projectDirectoryPanel()}<div class="hc-panel-foot"><button type="button" class="hc-panel-text" data-filesystem-directory><i data-lucide="folder-tree" aria-hidden="true"></i>浏览文件系统…</button><button type="button" class="hc-panel-text" data-control="clear-directory"><i data-lucide="message-circle" aria-hidden="true"></i>不使用工作目录</button></div></div>`;
+      const attachmentDropdown = () =>
+        `<div class="hc-dropdown">${panelHead("添加附件")}<div class="hc-compact-list">${selectRow("添加图片", 'data-panel-action="image"')}${selectRow("添加文件", 'data-panel-action="file"')}${selectRow("截取画布区域", 'data-panel-action="capture"')}</div></div>`;
+      const usageDropdown = () =>
+        `<div class="hc-dropdown">${panelHead("上下文与额度", `${state.provider} · ${state.relay}`)}<div class="hc-usage-block"><div class="hc-usage-label"><span>对话上下文</span><strong>72k / 190k</strong></div><div class="hc-meter"><span style="width:${state.context}%"></span></div></div><div class="hc-usage-block"><div class="hc-usage-label"><span>5 小时额度</span><strong>64%</strong></div><div class="hc-meter is-warn"><span style="width:64%"></span></div><small>1 小时 42 分钟后重置</small></div></div>`;
+      const defaultCascadeStep = () =>
+        !state.provider ? "provider" : !state.relay ? "relay" : "model";
+      const togglePanel = (type) => {
+        if (state.openPanel === type) {
+          state.openPanel = null;
+        } else {
+          state.openPanel = type;
+          if (type === "model") state.cascadeStep = defaultCascadeStep();
+        }
+        renderComposer();
+      };
+
+      const updateSuggestions = () => {
+        const textarea = root.querySelector("textarea");
+        state.text = textarea.value;
+        const slash = state.text.match(/(?:^|\s)\/([\w-]*)$/);
+        const options = slash
+          ? [
+              { icon: "scan-search", value: "/review", label: "/review", detail: "审查当前改动" },
+              { icon: "flask-conical", value: "/test", label: "/test", detail: "运行相关测试" },
+              {
+                icon: "message-circle-question",
+                value: "/explain",
+                label: "/explain",
+                detail: "解释选中代码",
+              },
+            ]
+          : [];
+        const query = (slash?.[1] || "").toLowerCase();
+        state.suggestions = options.filter((item) =>
+          `${item.label} ${item.detail}`.toLowerCase().includes(query),
+        );
+        state.suggestionIndex = Math.min(
+          state.suggestionIndex,
+          Math.max(0, state.suggestions.length - 1),
+        );
+        const suggestionBox = root.querySelector(".hc-suggestions");
+        suggestionBox.hidden = state.suggestions.length === 0;
+        suggestionBox.innerHTML = suggestionRows();
+        const send = root.querySelector('[data-control="send"]');
+        if (!state.running) send.disabled = !canSend();
+        const queueSend = root.querySelector('[data-control="queue"]');
+        queueSend.hidden = !(state.running && canSend());
+        root.querySelector(".hc-layout").classList.toggle("has-draft", canSend());
+        textarea.style.height = "auto";
+        textarea.style.height = `${Math.min(textarea.scrollHeight, 180)}px`;
+        refreshIcons();
+      };
+      const chooseSuggestion = (index) => {
+        const item = state.suggestions[index];
+        if (!item) return;
+        state.text = state.text.replace(
+          /(?:^|\s)\/[\w-]*$/,
+          (match) => `${match.startsWith(" ") ? " " : ""}${item.value} `,
+        );
+        state.suggestions = [];
+        const textarea = root.querySelector("textarea");
+        textarea.value = state.text;
+        const suggestionBox = root.querySelector(".hc-suggestions");
+        suggestionBox.hidden = true;
+        suggestionBox.innerHTML = "";
+        textarea.style.height = "auto";
+        textarea.style.height = `${Math.min(textarea.scrollHeight, 180)}px`;
+        textarea.focus();
+      };
+      const beginRun = () => {
+        state.running = true;
+        state.conversationStarted = true;
+        state.elapsed = 0;
+        if (state.timer) window.clearInterval(state.timer);
+        state.timer = window.setInterval(() => {
+          state.elapsed += 1;
+          const time = root.querySelector(".hc-run-state time");
+          if (time)
+            time.textContent = `${String(Math.floor(state.elapsed / 60)).padStart(2, "0")}:${String(state.elapsed % 60).padStart(2, "0")}`;
+        }, 1000);
+        closePanel();
+        renderComposer();
+      };
+      const startRun = () => {
+        if (!canSend()) return;
+        state.text = "";
+        state.attachments = [];
+        beginRun();
+      };
+      const stopRun = () => {
+        state.running = false;
+        if (state.timer) window.clearInterval(state.timer);
+        state.timer = null;
+        renderComposer();
+      };
+      const addQueue = () => {
+        if (!canSend()) return;
+        state.queue.push(
+          state.text.trim() || state.attachments.map((item) => item.name).join("、"),
+        );
+        state.text = "";
+        state.attachments = [];
+        renderComposer();
+      };
+
+      root.addEventListener("click", (event) => {
+        const control = event.target.closest("[data-control]")?.dataset.control;
+        if (control === "close-panel") {
+          closePanel();
+          renderComposer();
+          return;
+        }
+        if (panelControls.includes(control)) {
+          togglePanel(control);
+          return;
+        }
+        if (control === "voice") {
+          state.voice = true;
+          renderComposer();
+          return;
+        }
+        if (control === "stop-voice") {
+          state.voice = false;
+          state.text += `${state.text ? " " : ""}再检查一遍交互细节和异常状态`;
+          renderComposer(true);
+          return;
+        }
+        if (control === "send") {
+          state.running ? stopRun() : startRun();
+          return;
+        }
+        if (control === "queue") {
+          addQueue();
+          return;
+        }
+        if (control === "clear-directory") {
+          state.directory = null;
+          closePanel();
+          renderComposer(true);
+          return;
+        }
+
+        if (event.target.closest("[data-filesystem-directory]")) {
+          window.location.href = "../2026-08-03-filesystem-picker-design/ui.html";
+          return;
+        }
+
+        const directory = event.target.closest("[data-directory]");
+        if (directory) {
+          state.directory = { name: directory.dataset.directory, path: directory.dataset.path };
+          closePanel();
+          renderComposer();
+          return;
+        }
+        const cascadeStep = event.target.closest("[data-cascade-step]");
+        if (
+          cascadeStep &&
+          !(cascadeStep.dataset.cascadeStep === "provider" && state.conversationStarted)
+        ) {
+          state.cascadeStep = cascadeStep.dataset.cascadeStep;
+          renderComposer();
+          return;
+        }
+        const provider = event.target.closest("[data-provider-choice]");
+        if (provider && !state.conversationStarted) {
+          state.provider = provider.dataset.providerChoice;
+          state.relay = Object.keys(catalog[state.provider])[0];
+          state.model = catalog[state.provider][state.relay][0];
+          state.mode = providerModes[state.provider][0];
+          state.cascadeStep = "relay";
+          renderComposer();
+          return;
+        }
+        const relay = event.target.closest("[data-relay-choice]");
+        if (relay) {
+          state.relay = relay.dataset.relayChoice;
+          state.model = catalog[state.provider][state.relay][0];
+          state.cascadeStep = "model";
+          renderComposer();
+          return;
+        }
+        const model = event.target.closest("[data-model-choice]");
+        if (model) {
+          state.model = model.dataset.modelChoice;
+          closePanel();
+          renderComposer();
+          return;
+        }
+        const reasoning = event.target.closest("[data-reasoning]");
+        if (reasoning) {
+          state.reasoning = reasoning.dataset.reasoning;
+          closePanel();
+          renderComposer();
+          return;
+        }
+        const mode = event.target.closest("[data-mode]");
+        if (mode) {
+          state.mode = mode.dataset.mode;
+          closePanel();
+          renderComposer();
+          return;
+        }
+        const panelAction = event.target.closest("[data-panel-action]")?.dataset.panelAction;
+        if (panelAction) {
+          const names = {
+            image: "composer-layout.png",
+            file: "interaction-notes.md",
+            capture: "canvas-capture.png",
+          };
+          state.attachments.push({
+            name: names[panelAction],
+            icon: panelAction === "file" ? "file-text" : "image",
+          });
+          closePanel();
+          renderComposer();
+          return;
+        }
+        const remove = event.target.closest("[data-remove-attachment]");
+        if (remove) {
+          state.attachments.splice(Number(remove.dataset.removeAttachment), 1);
+          renderComposer();
+          return;
+        }
+        const deleteQueue = event.target.closest("[data-delete-queue]");
+        if (deleteQueue) {
+          state.queue.splice(Number(deleteQueue.dataset.deleteQueue), 1);
+          renderComposer();
+          return;
+        }
+        const sendNow = event.target.closest("[data-send-now]");
+        if (sendNow) {
+          state.queue.splice(Number(sendNow.dataset.sendNow), 1);
+          state.running ? renderComposer() : beginRun();
+          return;
+        }
+        const suggestion = event.target.closest("[data-suggestion]");
+        if (suggestion) {
+          chooseSuggestion(Number(suggestion.dataset.suggestion));
+          return;
+        }
+        if (event.target.closest(".hc-composer") && state.openPanel) {
+          closePanel();
+          renderComposer();
+        }
+      });
+
+      root.addEventListener("input", (event) => {
+        if (event.target.matches("[data-directory-search]")) {
+          state.directoryQuery = event.target.value;
+          renderComposer();
+          const directorySearch = root.querySelector("[data-directory-search]");
+          directorySearch.focus();
+          directorySearch.setSelectionRange(
+            state.directoryQuery.length,
+            state.directoryQuery.length,
+          );
+          return;
+        }
+        if (event.target.matches("textarea")) {
+          state.suggestionIndex = 0;
+          updateSuggestions();
+        }
+      });
+      root.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closePanel();
+          state.suggestions = [];
+          renderComposer();
+          return;
+        }
+        if (!event.target.matches("textarea")) return;
+        if (state.suggestions.length && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+          event.preventDefault();
+          state.suggestionIndex =
+            (state.suggestionIndex +
+              (event.key === "ArrowDown" ? 1 : -1) +
+              state.suggestions.length) %
+            state.suggestions.length;
+          const suggestionBox = root.querySelector(".hc-suggestions");
+          suggestionBox.innerHTML = suggestionRows();
+          refreshIcons();
+          return;
+        }
+        if (state.suggestions.length && event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          chooseSuggestion(state.suggestionIndex);
+          return;
+        }
+        if (event.key === "Enter" && !event.shiftKey) {
+          event.preventDefault();
+          state.running ? addQueue() : startRun();
+        }
+      });
+      document.addEventListener("click", (event) => {
+        if (!event.composedPath().includes(root) && state.openPanel) {
+          closePanel();
+          renderComposer();
+        }
+      });
+
+      renderComposer();
+    })();
+  </script>
+</div>

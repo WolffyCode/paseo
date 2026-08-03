@@ -54,7 +54,7 @@ function trimNonEmpty(value: string | null | undefined): string | null {
 
 export function buildWorkspaceTabPersistenceKey(input: {
   serverId: string;
-  workspaceId: string;
+  workspaceId: string | null | undefined;
 }): string | null {
   const serverId = trimNonEmpty(input.serverId);
   const workspaceId = trimNonEmpty(input.workspaceId);

@@ -1535,13 +1535,14 @@ function ActiveAgentComposer({
   const workspaceAttachments = useWorkspaceAttachments(workspaceAttachmentScopeKey);
   const handleOpenWorkspaceAttachment = useCallback(
     (attachment: WorkspaceComposerAttachment) => {
-      if (attachment.kind !== "review") {
+      const currentWorkspaceId = workspaceId;
+      if (attachment.kind !== "review" || currentWorkspaceId === null) {
         return;
       }
       navigateToPreparedWorkspaceTab({
         serverId,
-        workspaceId,
-        target: createWorkspaceReviewTabTarget(workspaceId),
+        workspaceId: currentWorkspaceId,
+        target: createWorkspaceReviewTabTarget(currentWorkspaceId),
       });
     },
     [serverId, workspaceId],

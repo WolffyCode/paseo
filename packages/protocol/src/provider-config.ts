@@ -96,8 +96,8 @@ export const ProviderOverrideSchema = z.object({
   disallowedTools: z.array(z.string()).optional(),
   enabled: z.boolean().optional(),
   order: z.number().optional(),
-  // 中转站子树 + 「当前 vendor」标记：均 .optional() 后向兼容(旧 config 无此键照常解析)。
-  // currentVendorId 本期写入并在设置内回显，NOT 被 composer 消费(deferred seam)。
+  // 中转站子树 + 当前中转站标记均保持 optional，旧 config 无此键时照常解析。
+  // Composer 消费 currentVendorId 做选择与回显；daemon 启动链路暂不消费它。
   vendors: z.array(ProviderVendorSchema).optional(),
   currentVendorId: z.string().optional(),
 });

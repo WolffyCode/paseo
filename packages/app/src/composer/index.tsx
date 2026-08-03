@@ -18,16 +18,16 @@ import {
   ArrowUp,
   Square,
   Trash2,
-  AudioLines,
   CircleDot,
   FileText,
   GitPullRequest,
   Github,
   Image as ImageIcon,
   Paperclip,
-  Folder,
-  Lock,
+  FolderGit2,
   Clock3,
+  SlidersHorizontal,
+  ChevronDown,
 } from "lucide-react-native";
 import Animated from "react-native-reanimated";
 import { FOOTER_HEIGHT, MAX_CONTENT_WIDTH } from "@/constants/layout";
@@ -63,7 +63,6 @@ import {
   type QueueWriter,
   type QueuedComposerMessage,
 } from "@/composer/actions";
-import { useVoiceOptional } from "@/contexts/voice-context";
 import { useToast } from "@/contexts/toast-context";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Shortcut } from "@/components/ui/shortcut";
@@ -107,6 +106,7 @@ import { useCheckoutStatusQuery } from "@/git/use-status-query";
 import { useComposerGithubAutoAttach } from "./github/auto-attach";
 import { resolveClientSlashCommand, type ClientSlashCommand } from "@/client-slash-commands";
 import { shortenPath } from "@/utils/shorten-path";
+import { DESKTOP_COMPOSER_METRICS } from "@/composer/desktop-composer-spec";
 
 type QueuedMessage = QueuedComposerMessage;
 
@@ -128,20 +128,12 @@ function resolveIsComposerLocked(
   return submitBehavior === "preserve-and-lock" && isSubmitLoading;
 }
 
-function resolveIsVoiceModeForAgent(
-  voice: ReturnType<typeof useVoiceOptional>,
-  serverId: string,
-  agentId: string,
-): boolean {
-  return voice?.isVoiceModeForAgent(serverId, agentId) ?? false;
-}
-
 function resolveKeyboardPriority(isMessageInputFocused: boolean): number {
   return isMessageInputFocused ? 200 : 100;
 }
 
-function resolveIsDesktopWebBreakpoint(isMobile: boolean): boolean {
-  return isWeb && !isMobile;
+function resolveUsesDesktopComposerSurface(): boolean {
+  return isWeb;
 }
 
 function resolveCompactLayout(override: boolean | undefined, formFactor: boolean): boolean {
@@ -192,23 +184,23 @@ function renderContextWindowMeter(
   contextWindowUsedTokens: number | null,
   totalCostUsd: number | null,
   showPercentage: boolean,
+  showLabel: boolean,
   serverId: string,
   provider: string | null,
   pending: boolean,
+  showUnavailable: boolean,
 ): ReactElement | null {
-  const hasData = contextWindowMaxTokens !== null && contextWindowUsedTokens !== null;
-  if (!hasData && !pending) {
-    return null;
-  }
   return (
     <ContextWindowMeter
       maxTokens={contextWindowMaxTokens}
       usedTokens={contextWindowUsedTokens}
       totalCostUsd={totalCostUsd}
       showPercentage={showPercentage}
+      showLabel={showLabel}
       serverId={serverId}
       provider={provider}
       pending={pending}
+      showUnavailable={showUnavailable}
     />
   );
 }
@@ -222,9 +214,6 @@ interface RenderLeftContentArgs {
   compactPlacement?: "toolbar" | "overflow";
 }
 
-/** Show the immutable workspace identity inside an active conversation Composer. */
-const COMPOSER_MAX_WIDTH = 780;
-
 /** Return the final path segment for the Composer's project label. */
 function workspaceDirectoryName(cwd: string): string {
   const trimmed = cwd.trim().replace(/[\\/]+$/, "");
@@ -233,20 +222,18 @@ function workspaceDirectoryName(cwd: string): string {
 }
 
 function LockedWorkspaceContext({ cwd }: { cwd: string }) {
-  const { t } = useTranslation();
   return (
     <View style={styles.workspaceContext} testID="composer-workspace-context">
-      <ThemedFolder size={ICON_SIZE.md} uniProps={iconForegroundMutedMapping} />
+      <View style={styles.workspaceFolderMark}>
+        <ThemedFolderGit size={ICON_SIZE.md} uniProps={iconAccentMapping} />
+      </View>
       <Text style={styles.workspaceContextName} numberOfLines={1}>
         {workspaceDirectoryName(cwd)}
       </Text>
       <Text style={styles.workspaceContextPath} numberOfLines={1} ellipsizeMode="middle">
         {shortenPath(cwd)}
       </Text>
-      <View style={styles.workspaceContextLock}>
-        <ThemedLock size={ICON_SIZE.sm} uniProps={iconForegroundMutedMapping} />
-        <Text style={styles.workspaceContextLockText}>{t("composer.workspace.locked")}</Text>
-      </View>
+      <ThemedChevronDown size={14} uniProps={iconForegroundMutedMapping} />
     </View>
   );
 }
@@ -431,35 +418,6 @@ function renderComposerAttachmentPill(args: RenderComposerAttachmentPillArgs): R
       removeLabel={labels.removeGithub}
     />
   );
-}
-
-function resolveVoiceStartErrorMessage(error: unknown): string | null {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  return null;
-}
-
-interface AttemptStartRealtimeVoiceArgs {
-  voice: ReturnType<typeof useVoiceOptional>;
-  isConnected: boolean;
-  hasAgent: boolean;
-  serverId: string;
-  agentId: string;
-  toastErrorRef: { current: (message: string) => void };
-}
-
-function attemptStartRealtimeVoice(args: AttemptStartRealtimeVoiceArgs): void {
-  const { voice, isConnected, hasAgent, serverId, agentId, toastErrorRef } = args;
-  if (!voice || !isConnected || !hasAgent) return;
-  if (voice.isVoiceSwitching) return;
-  if (voice.isVoiceModeForAgent(serverId, agentId)) return;
-  void voice.startVoice(serverId, agentId).catch((error) => {
-    console.error("[Composer] Failed to start voice mode", error);
-    const message = resolveVoiceStartErrorMessage(error);
-    if (message && message.trim().length > 0) {
-      toastErrorRef.current(message);
-    }
-  });
 }
 
 function focusMessageInputWithPlatformStrategy(messageInputRef: {
@@ -972,7 +930,6 @@ export function Composer({
   const toast = useToast();
   const toastErrorRef = useRef(toast.error);
   toastErrorRef.current = toast.error;
-  const voice = useVoiceOptional();
   const agentInterruptKeys = useShortcutKeys("agent-interrupt");
   const isDictationReady = useIsDictationReady({
     serverId,
@@ -995,8 +952,8 @@ export function Composer({
 
   const isCompactFormFactor = useIsCompactFormFactor();
   const isCompactLayout = resolveCompactLayout(isCompactLayoutOverride, isCompactFormFactor);
-  const isDesktopWebBreakpoint = resolveIsDesktopWebBreakpoint(isCompactFormFactor);
-  const isDesktopLayout = resolveIsDesktopWebBreakpoint(isCompactLayout);
+  const isDesktopWebBreakpoint = resolveUsesDesktopComposerSurface();
+  const isDesktopLayout = isDesktopWebBreakpoint;
   const messagePlaceholder = resolveMessagePlaceholder(isDesktopLayout, t);
   const userInput = value;
   const setUserInput = onChangeText;
@@ -1206,7 +1163,6 @@ export function Composer({
   }, [onSubmitMessage]);
 
   const isAgentRunning = agentState.status === "running";
-  const hasAgent = agentState.status !== null;
 
   const queueWriter = useMemo<QueueWriter>(
     () => ({
@@ -1464,19 +1420,6 @@ export function Composer({
     enabled: !externalKeyboardShift,
   });
 
-  const isVoiceModeForAgent = resolveIsVoiceModeForAgent(voice, serverId, agentId);
-
-  const handleToggleRealtimeVoice = useCallback(() => {
-    attemptStartRealtimeVoice({
-      voice,
-      isConnected,
-      hasAgent,
-      serverId,
-      agentId,
-      toastErrorRef,
-    });
-  }, [agentId, hasAgent, isConnected, serverId, voice]);
-
   const handleDeleteQueuedMessage = useCallback(
     (id: string) => {
       deleteQueuedComposerMessage({
@@ -1536,8 +1479,6 @@ export function Composer({
     [isConnected, isCancellingAgent],
   );
 
-  const isVoiceSwitching = voice?.isVoiceSwitching ?? false;
-
   const cancelButton = useMemo(
     () => (
       <ComposerCancelButtonSlot
@@ -1585,7 +1526,9 @@ export function Composer({
   );
 
   const contextWindowPending =
-    agentState.status === "initializing" || agentState.status === "running";
+    agentState.status === "initializing" ||
+    agentState.status === "running" ||
+    (isDesktopLayout && resolveAgentControlsMode(agentControls) === "draft");
 
   const contextWindowMeter = useMemo(
     () =>
@@ -1593,10 +1536,12 @@ export function Composer({
         contextWindowMaxTokens,
         contextWindowUsedTokens,
         agentState.totalCostUsd,
-        !isCompactLayout,
+        isDesktopLayout || !isCompactLayout,
+        isDesktopLayout,
         serverId,
         agentState.provider,
         contextWindowPending,
+        isDesktopLayout,
       ),
     [
       contextWindowMaxTokens,
@@ -1606,6 +1551,7 @@ export function Composer({
       serverId,
       agentState.provider,
       contextWindowPending,
+      isDesktopLayout,
     ],
   );
   const beforeVoiceContent = useMemo(
@@ -1660,29 +1606,8 @@ export function Composer({
           void handlePickFile();
         },
       },
-      ...(hasAgent && !isVoiceModeForAgent
-        ? [
-            {
-              id: "realtime-voice",
-              label: t("composer.voice.enableVoiceMode"),
-              icon: <ThemedAudioLines size={ICON_SIZE.md} uniProps={iconForegroundMutedMapping} />,
-              disabled: !isConnected || isVoiceSwitching || isAgentRunning,
-              onSelect: handleToggleRealtimeVoice,
-            },
-          ]
-        : []),
     ],
-    [
-      handlePickImage,
-      handlePickFile,
-      handleToggleRealtimeVoice,
-      hasAgent,
-      isAgentRunning,
-      isConnected,
-      isVoiceModeForAgent,
-      isVoiceSwitching,
-      t,
-    ],
+    [handlePickImage, handlePickFile, t],
   );
 
   const handleToggleGithubItem = useCallback(
@@ -1706,8 +1631,15 @@ export function Composer({
   );
 
   const leftContent = useMemo(
-    () => renderLeftContent({ agentControls, agentId, serverId, focusInput, isCompactLayout }),
-    [agentId, focusInput, serverId, agentControls, isCompactLayout],
+    () =>
+      renderLeftContent({
+        agentControls,
+        agentId,
+        serverId,
+        focusInput,
+        isCompactLayout: isDesktopLayout ? false : isCompactLayout,
+      }),
+    [agentId, focusInput, serverId, agentControls, isCompactLayout, isDesktopLayout],
   );
   const compactMenuContent = useMemo(
     () =>
@@ -1839,6 +1771,19 @@ export function Composer({
     ? t("composer.github.searching")
     : t("composer.github.noResults");
   const autocompleteVisible = autocomplete.isVisible && isPaneFocused;
+  const desktopRuntimeDock = isDesktopLayout ? (
+    <View style={styles.runtimeDock} testID="composer-runtime-dock">
+      <View style={styles.runtimeDockLabel}>
+        <ThemedSlidersHorizontal size={ICON_SIZE.sm} uniProps={iconForegroundMutedMapping} />
+        <Text style={styles.runtimeDockLabelText}>{t("composer.runtimeConfig.label")}</Text>
+      </View>
+      <View style={styles.runtimeDockDivider} />
+      <View style={styles.runtimeDockControls}>
+        {leftContent}
+        {contextWindowMeter}
+      </View>
+    </View>
+  ) : null;
 
   return (
     <Animated.View style={composerContainerStyle}>
@@ -1848,6 +1793,7 @@ export function Composer({
         <View style={styles.inputAreaContent}>
           {queueList}
           {sendErrorNode}
+          {isDesktopLayout ? workspaceContextSlot : null}
 
           <View ref={messageInputContainerRef} style={styles.messageInputContainer}>
             <AutocompletePopover
@@ -1879,7 +1825,7 @@ export function Composer({
               attachments={selectedAttachments}
               cwd={cwd}
               attachmentMenuItems={attachmentMenuItems}
-              attachmentMenuContent={compactMenuContent}
+              attachmentMenuContent={isDesktopLayout ? null : compactMenuContent}
               onAttachButtonRef={handleAttachButtonRef}
               onAddImages={addImages}
               client={client}
@@ -1889,8 +1835,8 @@ export function Composer({
               autoFocusKey={`${serverId}:${agentId}`}
               disabled={isSubmitLoading}
               isPaneFocused={isPaneFocused}
-              leftContent={leftContent}
-              beforeVoiceContent={beforeVoiceContent}
+              leftContent={isDesktopLayout ? null : leftContent}
+              beforeVoiceContent={isDesktopLayout ? null : beforeVoiceContent}
               rightContent={rightContent}
               voiceServerId={serverId}
               voiceAgentId={agentId}
@@ -1904,7 +1850,8 @@ export function Composer({
               onHeightChange={onComposerHeightChange}
               inputWrapperStyle={inputWrapperStyle}
               attachmentSlot={attachmentTray}
-              contextSlot={workspaceContextSlot}
+              contextSlot={isDesktopLayout ? null : workspaceContextSlot}
+              desktopSurface={isDesktopLayout}
             />
             <Combobox
               options={githubSearchOptions}
@@ -1923,6 +1870,7 @@ export function Composer({
               renderOption={renderGithubPickerOption}
             />
           </View>
+          {desktopRuntimeDock}
         </View>
       </View>
       {renderComposerFooter(footer)}
@@ -1960,8 +1908,8 @@ const styles = StyleSheet.create((theme: Theme) => ({
   },
   inputAreaContent: {
     width: "100%",
-    maxWidth: COMPOSER_MAX_WIDTH,
-    gap: theme.spacing[3],
+    maxWidth: DESKTOP_COMPOSER_METRICS.maxWidth,
+    gap: DESKTOP_COMPOSER_METRICS.sectionGap,
   },
   footer: {
     width: "100%",
@@ -2120,12 +2068,23 @@ const styles = StyleSheet.create((theme: Theme) => ({
     fontSize: theme.fontSize.sm,
   },
   workspaceContext: {
-    minHeight: 36,
+    minHeight: DESKTOP_COMPOSER_METRICS.contextMinHeight,
+    maxWidth: "100%",
+    alignSelf: "flex-start",
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[2],
-    paddingHorizontal: theme.spacing[4],
-    backgroundColor: theme.colors.surface1,
+    paddingHorizontal: theme.spacing[1],
+    backgroundColor: "transparent",
+  },
+  workspaceFolderMark: {
+    width: DESKTOP_COMPOSER_METRICS.directoryIconSize,
+    height: DESKTOP_COMPOSER_METRICS.directoryIconSize,
+    flexShrink: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 9,
+    backgroundColor: theme.colorScheme === "dark" ? theme.colors.surface3 : "#E7F3EC",
   },
   workspaceContextName: {
     flexShrink: 0,
@@ -2134,33 +2093,59 @@ const styles = StyleSheet.create((theme: Theme) => ({
     fontWeight: theme.fontWeight.medium,
   },
   workspaceContextPath: {
-    flex: 1,
+    maxWidth: 340,
+    flexShrink: 1,
     minWidth: 0,
     color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.xs,
+    fontSize: theme.fontSize.sm,
   },
-  workspaceContextLock: {
+  runtimeDock: {
+    width: "100%",
+    minHeight: DESKTOP_COMPOSER_METRICS.runtimeMinHeight,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    padding: 6,
+    borderRadius: DESKTOP_COMPOSER_METRICS.runtimeRadius,
+    backgroundColor: theme.colorScheme === "dark" ? "#222522" : "#F4F7F5",
+  },
+  runtimeDockLabel: {
     flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 6,
+    paddingLeft: 3,
   },
-  workspaceContextLockText: {
+  runtimeDockLabelText: {
     color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.xs,
+  },
+  runtimeDockDivider: {
+    width: 1,
+    height: 24,
+    flexShrink: 0,
+    backgroundColor: theme.colors.border,
+  },
+  runtimeDockControls: {
+    minWidth: 0,
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 6,
   },
 })) as unknown as Record<string, object>;
 
 const QUEUE_SEND_BUTTON_STYLE = [styles.queueActionButton, styles.queueSendButton];
 
 const ThemedTrash = withUnistyles(Trash2);
-const ThemedFolder = withUnistyles(Folder);
-const ThemedLock = withUnistyles(Lock);
+const ThemedFolderGit = withUnistyles(FolderGit2);
 const ThemedArrowUp = withUnistyles(ArrowUp);
 const ThemedGitPullRequest = withUnistyles(GitPullRequest);
 const ThemedCircleDot = withUnistyles(CircleDot);
-const ThemedAudioLines = withUnistyles(AudioLines);
 const ThemedClock3 = withUnistyles(Clock3);
+const ThemedSlidersHorizontal = withUnistyles(SlidersHorizontal);
+const ThemedChevronDown = withUnistyles(ChevronDown);
 const ThemedPaperclip = withUnistyles(Paperclip);
 const ThemedImageIcon = withUnistyles(ImageIcon);
 const ThemedFileText = withUnistyles(FileText);

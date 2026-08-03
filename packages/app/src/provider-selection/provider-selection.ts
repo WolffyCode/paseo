@@ -292,6 +292,7 @@ export function resolveSubmissionReadiness(input: {
   };
   autoSubmitConfig: { provider: string; model: string | null } | null;
   workspaceDirectory: string | null;
+  requiresWorkspaceDirectory?: boolean;
   hasClient: boolean;
 }): ProviderSelectionReadiness {
   if (!input.allowsEmptyAutoSubmit && !input.text.trim()) {
@@ -310,7 +311,7 @@ export function resolveSubmissionReadiness(input: {
   if (!hasSelectedModel && input.selection.availableModels.length > 0) {
     return { ok: false, reason: i18n.t("providerSelection.readiness.noModelAvailable") };
   }
-  if (!input.workspaceDirectory) {
+  if (input.requiresWorkspaceDirectory !== false && !input.workspaceDirectory) {
     return { ok: false, reason: i18n.t("providerSelection.readiness.workspaceDirectoryNotFound") };
   }
   if (!input.hasClient) {

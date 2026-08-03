@@ -506,6 +506,8 @@ function createSessionForWorkspaceTests(
     onMessage?: (message: SessionOutboundMessage) => void;
     workspaceGitService?: ReturnType<typeof createNoopWorkspaceGitService>;
     terminalManager?: TerminalManager | null;
+    agentManager?: SessionOptions["agentManager"];
+    agentStorage?: SessionOptions["agentStorage"];
     projectRegistry?: SessionOptions["projectRegistry"];
     workspaceRegistry?: SessionOptions["workspaceRegistry"];
     github?: GitHubService;
@@ -537,42 +539,46 @@ function createSessionForWorkspaceTests(
       pushTokenStore: asPushTokenStore(),
       paseoHome: options.paseoHome ?? "/tmp/paseo-test",
       worktreesRoot: options.worktreesRoot,
-      agentManager: asAgentManager({
-        subscribe: () => () => {},
-        listAgents: () => [],
-        getAgent: () => null,
-        archiveAgent: async () => ({ archivedAt: new Date().toISOString() }),
-        archiveSnapshot: async () => ({}),
-        unarchiveSnapshot: async () => true,
-        clearAgentAttention: async () => {},
-        notifyAgentState: () => {},
-      }),
-      agentStorage: asAgentStorage({
-        list: async () => [
-          createPersistedWorkspaceRecord({
-            workspaceId: "ws-repo-running",
-            projectId: "proj-repo-running",
-            cwd: REPO_CWD,
-            kind: "directory",
-            displayName: "repo",
-            createdAt: "2026-03-01T12:00:00.000Z",
-            updatedAt: "2026-03-01T12:00:00.000Z",
-          }),
-        ],
-        get: async (workspaceId: string) =>
-          workspaceId === "ws-repo-running"
-            ? createPersistedWorkspaceRecord({
-                workspaceId: "ws-repo-running",
-                projectId: "proj-repo-running",
-                cwd: REPO_CWD,
-                kind: "directory",
-                displayName: "repo",
-                createdAt: "2026-03-01T12:00:00.000Z",
-                updatedAt: "2026-03-01T12:00:00.000Z",
-              })
-            : null,
-        upsert: async () => {},
-      }),
+      agentManager:
+        options.agentManager ??
+        asAgentManager({
+          subscribe: () => () => {},
+          listAgents: () => [],
+          getAgent: () => null,
+          archiveAgent: async () => ({ archivedAt: new Date().toISOString() }),
+          archiveSnapshot: async () => ({}),
+          unarchiveSnapshot: async () => true,
+          clearAgentAttention: async () => {},
+          notifyAgentState: () => {},
+        }),
+      agentStorage:
+        options.agentStorage ??
+        asAgentStorage({
+          list: async () => [
+            createPersistedWorkspaceRecord({
+              workspaceId: "ws-repo-running",
+              projectId: "proj-repo-running",
+              cwd: REPO_CWD,
+              kind: "directory",
+              displayName: "repo",
+              createdAt: "2026-03-01T12:00:00.000Z",
+              updatedAt: "2026-03-01T12:00:00.000Z",
+            }),
+          ],
+          get: async (workspaceId: string) =>
+            workspaceId === "ws-repo-running"
+              ? createPersistedWorkspaceRecord({
+                  workspaceId: "ws-repo-running",
+                  projectId: "proj-repo-running",
+                  cwd: REPO_CWD,
+                  kind: "directory",
+                  displayName: "repo",
+                  createdAt: "2026-03-01T12:00:00.000Z",
+                  updatedAt: "2026-03-01T12:00:00.000Z",
+                })
+              : null,
+          upsert: async () => {},
+        }),
       projectRegistry: options.projectRegistry ?? {
         initialize: async () => {},
         existsOnDisk: async () => true,
@@ -676,6 +682,66 @@ test("client heartbeat clears attention for the focused terminal", async () => {
     focusedTerminalId: "terminal-1",
     appVisible: true,
   });
+});
+
+test("conversation-only create uses an internal cwd without creating project ownership", async () => {
+  const workdir = mkdtempSync(path.join(tmpdir(), "paseo-conversation-only-"));
+  try {
+    const paseoHome = path.join(workdir, "paseo-home");
+    const emitted: SessionOutboundMessage[] = [];
+    const logger = {
+      child: () => logger,
+      trace: vi.fn(),
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    };
+    const agentStorage = new AgentStorage(path.join(workdir, "agents"), asSessionLogger(logger));
+    const agentManager = new AgentManager({
+      clients: { codex: new CreateAgentTestClient() },
+      registry: agentStorage,
+      logger: asSessionLogger(logger),
+      idFactory: () => "00000000-0000-4000-8000-000000000550",
+    });
+    const projectRegistry = new FileBackedProjectRegistry(
+      path.join(workdir, "projects.json"),
+      asSessionLogger(logger),
+    );
+    const workspaceRegistry = new FileBackedWorkspaceRegistry(
+      path.join(workdir, "workspaces.json"),
+      asSessionLogger(logger),
+    );
+    const session = createSessionForWorkspaceTests({
+      onMessage: (message) => emitted.push(message),
+      paseoHome,
+      agentManager,
+      agentStorage,
+      projectRegistry,
+      workspaceRegistry,
+    });
+
+    await session.handleMessage({
+      type: "create_agent_request",
+      requestId: "req-conversation-only",
+      config: { provider: "codex", cwd: "." },
+      conversationOnly: true,
+      attachments: [],
+    });
+
+    const [createdAgent] = agentManager.listAgents();
+    expect(createdAgent?.cwd).toBe(path.join(paseoHome, "conversations"));
+    expect(createdAgent?.workspaceId).toBeUndefined();
+    expect(await workspaceRegistry.list()).toEqual([]);
+    expect(await projectRegistry.list()).toEqual([]);
+    expect(existsSync(path.join(paseoHome, "conversations"))).toBe(true);
+    expect(findByType(emitted, "status")?.payload).toMatchObject({
+      status: "agent_created",
+      agent: { id: "00000000-0000-4000-8000-000000000550" },
+    });
+  } finally {
+    rmSync(workdir, { recursive: true, force: true });
+  }
 });
 
 test("create_agent_request keeps requested child cwd when grouped under an existing parent workspace", async () => {

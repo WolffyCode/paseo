@@ -266,6 +266,7 @@ export interface CreateAgentRequestOptions extends AgentConfigOverrides {
   cwd?: string;
   env?: CreateAgentRequestMessage["env"];
   workspaceId?: string;
+  conversationOnly?: boolean;
   initialPrompt?: string;
   clientMessageId?: string;
   outputSchema?: Record<string, unknown>;
@@ -2067,6 +2068,7 @@ export class DaemonClient {
       config,
       ...(options.env ? { env: options.env } : {}),
       ...(options.workspaceId !== undefined ? { workspaceId: options.workspaceId } : {}),
+      ...(options.conversationOnly ? { conversationOnly: true } : {}),
       ...(options.initialPrompt ? { initialPrompt: options.initialPrompt } : {}),
       ...(options.clientMessageId ? { clientMessageId: options.clientMessageId } : {}),
       ...(options.outputSchema ? { outputSchema: options.outputSchema } : {}),
@@ -5404,6 +5406,7 @@ function resolveAgentConfig(options: CreateAgentRequestOptions): AgentSessionCon
     cwd,
     env: _env,
     workspaceId: _workspaceId,
+    conversationOnly,
     initialPrompt: _initialPrompt,
     images: _images,
     git: _git,
@@ -5421,13 +5424,13 @@ function resolveAgentConfig(options: CreateAgentRequestOptions): AgentSessionCon
 
   const merged = config ? { ...baseConfig, ...config } : baseConfig;
 
-  if (!merged.provider || !merged.cwd) {
+  if (!merged.provider || (!merged.cwd && !conversationOnly)) {
     throw new Error("createAgent requires provider and cwd");
   }
 
   return {
     ...merged,
     provider: merged.provider,
-    cwd: merged.cwd,
+    cwd: merged.cwd ?? ".",
   };
 }

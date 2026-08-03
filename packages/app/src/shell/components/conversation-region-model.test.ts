@@ -47,7 +47,7 @@ describe("resolveFocusedConversation", () => {
     });
   });
 
-  it("returns null until a root with workspace ownership is selected", () => {
+  it("returns null until a known root is selected", () => {
     expect(
       resolveFocusedConversation({
         focusedRootId: null,
@@ -62,6 +62,21 @@ describe("resolveFocusedConversation", () => {
         workspaceDetails: new Map(),
       }),
     ).toBeNull();
+  });
+
+  it("keeps a known conversation-only root focused without a workspace", () => {
+    const conversationOnlyAgent = { ...AGENT, id: "conversation-only", workspaceId: null };
+    expect(
+      resolveFocusedConversation({
+        focusedRootId: conversationOnlyAgent.id,
+        agents: new Map([[conversationOnlyAgent.id, conversationOnlyAgent]]),
+        workspaceDetails: new Map(),
+      }),
+    ).toEqual({
+      agentId: conversationOnlyAgent.id,
+      workspaceId: null,
+      workspaceRoot: "",
+    });
   });
 });
 
@@ -118,6 +133,20 @@ describe("resolveConversationRegionTarget", () => {
     ).toEqual({
       kind: "draft",
       draftId: "draft-empty",
+      workspaceId: null,
+      workspaceRoot: "",
+    });
+    expect(
+      resolveConversationRegionTarget({
+        focusedRootId: "conversation-only",
+        draftTarget: null,
+        pendingAgentTarget: { agentId: "conversation-only", workspaceId: null },
+        agents: new Map(),
+        workspaceDetails: new Map(),
+      }),
+    ).toEqual({
+      kind: "agent",
+      agentId: "conversation-only",
       workspaceId: null,
       workspaceRoot: "",
     });

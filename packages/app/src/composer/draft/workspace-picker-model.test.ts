@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   draftWorkspaceDirectoryName,
+  normalizeFilesystemBrowserPath,
+  resolveFilesystemParent,
   shouldUseNativeDirectoryPicker,
 } from "./workspace-picker-model";
 
@@ -25,5 +27,18 @@ describe("shouldUseNativeDirectoryPicker", () => {
   it("keeps remote hosts and plain browsers on the host-backed path picker", () => {
     expect(shouldUseNativeDirectoryPicker({ isLocalDaemon: false, isElectron: true })).toBe(false);
     expect(shouldUseNativeDirectoryPicker({ isLocalDaemon: true, isElectron: false })).toBe(false);
+  });
+});
+
+describe("filesystem browser paths", () => {
+  it("normalizes host-relative paths without changing the root marker", () => {
+    expect(normalizeFilesystemBrowserPath("./packages\\app//src")).toBe("packages/app/src");
+    expect(normalizeFilesystemBrowserPath("  ")).toBe(".");
+  });
+
+  it("walks upward until the host home root", () => {
+    expect(resolveFilesystemParent(".")).toBeNull();
+    expect(resolveFilesystemParent("packages/app")).toBe("packages");
+    expect(resolveFilesystemParent("packages")).toBe(".");
   });
 });

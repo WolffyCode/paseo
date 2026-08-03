@@ -1,5 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
 import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { AutocompleteOption } from "@/components/ui/autocomplete";
@@ -10,21 +9,13 @@ import {
 } from "./use-agent-commands-query";
 import { orderAutocompleteOptions } from "@/components/ui/autocomplete-utils";
 import { useAutocomplete } from "./use-autocomplete";
-import { useSessionStore } from "@/stores/session-store";
-import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-runtime";
 import { CLIENT_SLASH_COMMANDS, type ClientSlashCommand } from "@/client-slash-commands";
 import {
   applySlashCommandReplacement,
   filterAndRankCommandAutocompleteEntries,
   filterInlineSkillCommandEntries,
   findActiveSlashCommand,
-  type SlashCommandRange,
 } from "@/utils/agent-command-autocomplete";
-import {
-  applyFileMentionReplacement,
-  findActiveFileMention,
-  type FileMentionRange,
-} from "@/utils/file-mention-autocomplete";
 
 interface UseAgentAutocompleteInput {
   userInput: string;
@@ -40,12 +31,7 @@ interface UseAgentAutocompleteInput {
 
 type AgentAutocompleteOption =
   | (AutocompleteOption & { type: "client_command"; command: ClientSlashCommand })
-  | (AutocompleteOption & { type: "provider_command" })
-  | (AutocompleteOption & {
-      type: "workspace_entry";
-      entryPath: string;
-      mention: FileMentionRange;
-    });
+  | (AutocompleteOption & { type: "provider_command" });
 
 interface AgentAutocompleteResult {
   isVisible: boolean;
@@ -57,11 +43,6 @@ interface AgentAutocompleteResult {
   emptyText: string;
   onSelectOption: (option: AutocompleteOption) => void;
   onKeyPress: (event: { key: string; preventDefault: () => void }) => boolean;
-}
-
-interface DirectorySuggestionEntry {
-  path: string;
-  kind: "file" | "directory";
 }
 
 type AvailableCommand =
@@ -94,29 +75,7 @@ function normalizeDraftCommandConfig(
   };
 }
 
-function mapDirectorySuggestionsToEntries(payload: {
-  entries?: Array<{ path: string; kind: string }>;
-  directories?: string[];
-}): DirectorySuggestionEntry[] {
-  if (Array.isArray(payload.entries) && payload.entries.length > 0) {
-    return payload.entries.flatMap((entry) => {
-      if (
-        !entry ||
-        typeof entry.path !== "string" ||
-        (entry.kind !== "file" && entry.kind !== "directory")
-      ) {
-        return [];
-      }
-      return [{ path: entry.path, kind: entry.kind }];
-    });
-  }
-
-  return (payload.directories ?? []).map((path) => ({
-    path,
-    kind: "directory" as const,
-  }));
-}
-
+/** Project one client or provider slash command into the shared autocomplete option shape. */
 function mapCommandToOption(entry: AvailableCommand, t: TFunction): AgentAutocompleteOption {
   const command = entry.command;
   const base = {
@@ -140,94 +99,44 @@ function mapCommandToOption(entry: AvailableCommand, t: TFunction): AgentAutocom
   };
 }
 
-type AutocompleteMode = "command" | "file" | null;
-
 interface BuildAutocompleteOptionsInput {
   isVisible: boolean;
-  mode: AutocompleteMode;
   commands: AgentSlashCommand[];
   isDraftContext: boolean;
   commandFilterQuery: string;
-  activeSlashCommand: SlashCommandRange | null;
-  activeFileMention: FileMentionRange | null;
-  fileSuggestions: DirectorySuggestionEntry[];
+  isInlineCommand: boolean;
   t: TFunction;
 }
 
+/** Build the ranked slash-command list for the active cursor token. */
 function buildCommandAutocompleteOptions(input: BuildAutocompleteOptionsInput) {
   if (!input.isVisible) {
     return [];
   }
 
-  if (input.mode === "command") {
-    const providerCommands = input.commands.map(
-      (command): AvailableCommand => ({ source: "provider", command }),
-    );
-    const clientCommandNames = new Set(CLIENT_SLASH_COMMANDS.map((command) => command.name));
-    const rootCommands: AvailableCommand[] = input.isDraftContext
-      ? providerCommands
-      : [
-          ...CLIENT_SLASH_COMMANDS.map(
-            (command): AvailableCommand => ({ source: "client", command }),
-          ),
-          ...providerCommands.filter((entry) => !clientCommandNames.has(entry.command.name)),
-        ];
-    const availableCommands =
-      input.activeSlashCommand?.position === "inline"
-        ? filterInlineSkillCommandEntries(providerCommands)
-        : rootCommands;
-    const matches = filterAndRankCommandAutocompleteEntries(
-      availableCommands,
-      input.commandFilterQuery,
-    );
-    const orderedMatches = orderAutocompleteOptions(matches);
-    return orderedMatches.map((entry) => mapCommandToOption(entry, input.t));
-  }
-
-  const activeFileMention = input.activeFileMention;
-  if (input.mode === "file" && activeFileMention) {
-    const orderedEntries = orderAutocompleteOptions(input.fileSuggestions);
-    return orderedEntries.map((entry) => ({
-      type: "workspace_entry" as const,
-      id: `${entry.kind}:${entry.path}`,
-      label: entry.path,
-      kind: entry.kind,
-      entryPath: entry.path,
-      mention: activeFileMention,
-    }));
-  }
-
-  return [];
+  const providerCommands = input.commands.map(
+    (command): AvailableCommand => ({ source: "provider", command }),
+  );
+  const clientCommandNames = new Set(CLIENT_SLASH_COMMANDS.map((command) => command.name));
+  const rootCommands: AvailableCommand[] = input.isDraftContext
+    ? providerCommands
+    : [
+        ...CLIENT_SLASH_COMMANDS.map(
+          (command): AvailableCommand => ({ source: "client", command }),
+        ),
+        ...providerCommands.filter((entry) => !clientCommandNames.has(entry.command.name)),
+      ];
+  const availableCommands = input.isInlineCommand
+    ? filterInlineSkillCommandEntries(providerCommands)
+    : rootCommands;
+  const matches = filterAndRankCommandAutocompleteEntries(
+    availableCommands,
+    input.commandFilterQuery,
+  );
+  return orderAutocompleteOptions(matches).map((entry) => mapCommandToOption(entry, input.t));
 }
 
-function resolveAutocompleteMode(args: {
-  showFileAutocomplete: boolean;
-  showCommandAutocomplete: boolean;
-}): AutocompleteMode {
-  if (args.showFileAutocomplete) {
-    return "file";
-  }
-  if (args.showCommandAutocomplete) {
-    return "command";
-  }
-  return null;
-}
-
-function resolveAutocompleteIsVisible(args: {
-  mode: AutocompleteMode;
-  canLoadCommands: boolean;
-  serverId: string;
-  autocompleteCwd: string;
-}): boolean {
-  if (args.mode === "command") {
-    return args.canLoadCommands;
-  }
-  if (args.mode === "file") {
-    return Boolean(args.serverId) && args.autocompleteCwd.length > 0;
-  }
-  return false;
-}
-
+/** Decide whether the current host and conversation can enumerate slash commands. */
 function resolveCanLoadCommands(args: {
   serverId: string;
   agentId: string;
@@ -239,44 +148,7 @@ function resolveCanLoadCommands(args: {
   return Boolean(args.agentId) || args.isDraftContext;
 }
 
-function resolveAutocompleteIsLoading(args: {
-  mode: AutocompleteMode;
-  isCommandsLoading: boolean;
-  fileSuggestionsIsPending: boolean;
-  fileSuggestionsIsLoading: boolean;
-  optionsLength: number;
-}): boolean {
-  if (args.mode === "command") {
-    return args.isCommandsLoading && args.optionsLength === 0;
-  }
-  if (args.mode === "file") {
-    return (
-      args.fileSuggestionsIsPending || (args.fileSuggestionsIsLoading && args.optionsLength === 0)
-    );
-  }
-  return false;
-}
-
-function resolveAutocompleteErrorMessage(args: {
-  mode: AutocompleteMode;
-  isCommandError: boolean;
-  commandError: Error | null;
-  fileSuggestionsError: unknown;
-  t: TFunction;
-}): string | undefined {
-  if (args.mode === "command") {
-    return args.isCommandError
-      ? (args.commandError?.message ?? args.t("agentAutocomplete.failedToLoad"))
-      : undefined;
-  }
-  if (args.mode === "file") {
-    return args.fileSuggestionsError instanceof Error
-      ? args.fileSuggestionsError.message
-      : undefined;
-  }
-  return undefined;
-}
-
+/** Expose slash-command autocomplete state and keyboard behavior to the Composer. */
 export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAutocompleteResult {
   const { t } = useTranslation();
   const {
@@ -299,25 +171,7 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
       }),
     [cursorIndex, userInput],
   );
-  const showCommandAutocomplete = activeSlashCommand !== null;
   const commandFilterQuery = activeSlashCommand?.query ?? "";
-
-  const activeFileMention = useMemo(
-    () =>
-      findActiveFileMention({
-        text: userInput,
-        cursorIndex,
-      }),
-    [cursorIndex, userInput],
-  );
-  const showFileAutocomplete = activeFileMention !== null;
-  const fileFilterQuery = activeFileMention?.query ?? "";
-  const [debouncedFileFilterQuery, setDebouncedFileFilterQuery] = useState(fileFilterQuery);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setDebouncedFileFilterQuery(fileFilterQuery), 180);
-    return () => clearTimeout(timer);
-  }, [fileFilterQuery]);
 
   const normalizedDraftConfig = useMemo(
     () => normalizeDraftCommandConfig(draftConfig),
@@ -328,26 +182,7 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
   const queryDraftConfig = normalizedDraftConfig;
   const canLoadCommands = resolveCanLoadCommands({ serverId, agentId, isDraftContext });
 
-  const agentCwd = useSessionStore(
-    (state) => state.sessions[serverId]?.agents?.get(agentId)?.cwd ?? "",
-  );
-  const autocompleteCwd = useMemo(() => {
-    if (isDraftContext) {
-      return queryDraftConfig?.cwd ?? "";
-    }
-    return agentCwd.trim();
-  }, [agentCwd, isDraftContext, queryDraftConfig]);
-
-  const client = useHostRuntimeClient(serverId);
-  const isConnected = useHostRuntimeIsConnected(serverId);
-
-  const mode = resolveAutocompleteMode({ showFileAutocomplete, showCommandAutocomplete });
-  const canShowAutocomplete = resolveAutocompleteIsVisible({
-    mode,
-    canLoadCommands,
-    serverId,
-    autocompleteCwd,
-  });
+  const canShowAutocomplete = activeSlashCommand !== null && canLoadCommands;
 
   const {
     commands,
@@ -357,72 +192,23 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
   } = useAgentCommandsQuery({
     serverId,
     agentId,
-    enabled: mode === "command" && canLoadCommands,
+    enabled: canShowAutocomplete,
     draftConfig: queryDraftConfig,
   });
 
-  const isVisible = canShowAutocomplete && !(mode === "command" && isCommandsLoading);
-
-  const fileSuggestionsQuery = useQuery({
-    queryKey: [
-      "directorySuggestions",
-      serverId,
-      autocompleteCwd,
-      debouncedFileFilterQuery,
-      true,
-      true,
-    ],
-    queryFn: async (): Promise<DirectorySuggestionEntry[]> => {
-      if (!client) {
-        throw new Error(t("common.errors.daemonClientUnavailable"));
-      }
-      const response = await client.getDirectorySuggestions({
-        cwd: autocompleteCwd,
-        query: debouncedFileFilterQuery,
-        limit: 50,
-        includeFiles: true,
-        includeDirectories: true,
-      });
-      if (response.error) {
-        throw new Error(response.error);
-      }
-      return mapDirectorySuggestionsToEntries(response);
-    },
-    enabled:
-      mode === "file" &&
-      Boolean(serverId) &&
-      autocompleteCwd.length > 0 &&
-      Boolean(client) &&
-      isConnected,
-    retry: false,
-    staleTime: 15_000,
-    placeholderData: keepPreviousData,
-  });
+  const isVisible = canShowAutocomplete && !isCommandsLoading;
 
   const options = useMemo<AgentAutocompleteOption[]>(
     () =>
       buildCommandAutocompleteOptions({
-        activeFileMention,
         commandFilterQuery,
         commands,
-        activeSlashCommand,
-        fileSuggestions: fileSuggestionsQuery.data ?? [],
+        isInlineCommand: activeSlashCommand?.position === "inline",
         isDraftContext,
         isVisible,
-        mode,
         t,
       }),
-    [
-      activeFileMention,
-      activeSlashCommand,
-      commandFilterQuery,
-      commands,
-      fileSuggestionsQuery.data,
-      isDraftContext,
-      isVisible,
-      mode,
-      t,
-    ],
+    [activeSlashCommand, commandFilterQuery, commands, isDraftContext, isVisible, t],
   );
 
   const onSelectOption = useCallback(
@@ -438,27 +224,16 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
         return;
       }
 
-      if (selected.type === "client_command" || selected.type === "provider_command") {
-        if (!activeSlashCommand) {
-          setUserInput(`/${selected.id} `);
-          onAutocompleteApplied?.();
-          return;
-        }
-
-        const nextInput = applySlashCommandReplacement({
-          text: userInput,
-          command: activeSlashCommand,
-          commandName: selected.id,
-        });
-        setUserInput(nextInput);
+      if (!activeSlashCommand) {
+        setUserInput(`/${selected.id} `);
         onAutocompleteApplied?.();
         return;
       }
 
-      const nextInput = applyFileMentionReplacement({
+      const nextInput = applySlashCommandReplacement({
         text: userInput,
-        mention: selected.mention,
-        relativePath: selected.entryPath,
+        command: activeSlashCommand,
+        commandName: selected.id,
       });
       setUserInput(nextInput);
       onAutocompleteApplied?.();
@@ -476,44 +251,19 @@ export function useAgentAutocomplete(input: UseAgentAutocompleteInput): AgentAut
   const { selectedIndex, onKeyPress } = useAutocomplete({
     isVisible,
     options,
-    query: mode === "command" ? commandFilterQuery : fileFilterQuery,
+    query: commandFilterQuery,
     onSelectOption,
-    onEscape:
-      mode === "command" && activeSlashCommand?.position === "start"
-        ? () => setUserInput("")
-        : undefined,
+    onEscape: activeSlashCommand?.position === "start" ? () => setUserInput("") : undefined,
   });
-
-  const isLoading = resolveAutocompleteIsLoading({
-    mode,
-    isCommandsLoading,
-    fileSuggestionsIsPending: fileSuggestionsQuery.isPending,
-    fileSuggestionsIsLoading: fileSuggestionsQuery.isLoading,
-    optionsLength: options.length,
-  });
-  const errorMessage = resolveAutocompleteErrorMessage({
-    mode,
-    isCommandError: isError,
-    commandError: error,
-    fileSuggestionsError: fileSuggestionsQuery.error,
-    t,
-  });
-
-  const loadingText =
-    mode === "file"
-      ? t("agentAutocomplete.searchingWorkspace")
-      : t("agentAutocomplete.loadingCommands");
-  const emptyText =
-    mode === "file" ? t("agentAutocomplete.noFiles") : t("agentAutocomplete.noCommands");
 
   return {
     isVisible,
     options,
     selectedIndex,
-    isLoading,
-    errorMessage,
-    loadingText,
-    emptyText,
+    isLoading: isCommandsLoading && options.length === 0,
+    errorMessage: isError ? (error?.message ?? t("agentAutocomplete.failedToLoad")) : undefined,
+    loadingText: t("agentAutocomplete.loadingCommands"),
+    emptyText: t("agentAutocomplete.noCommands"),
     onSelectOption,
     onKeyPress,
   };

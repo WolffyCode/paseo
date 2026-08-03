@@ -51,6 +51,36 @@ interface ControlLabelInput {
   label?: string | null;
 }
 
+type ModeLabelTranslationKey =
+  | "agentControls.mode.labels.alwaysAsk"
+  | "agentControls.mode.labels.autoMode"
+  | "agentControls.mode.labels.acceptFileEdits"
+  | "agentControls.mode.labels.plan"
+  | "agentControls.mode.labels.bypass"
+  | "agentControls.mode.labels.defaultPermissions"
+  | "agentControls.mode.labels.autoReview"
+  | "agentControls.mode.labels.fullAccess"
+  | "agentControls.mode.labels.agent"
+  | "agentControls.mode.labels.allowAll"
+  | "agentControls.mode.labels.build"
+  | "agentControls.mode.labels.default";
+
+const MODE_LABEL_TRANSLATIONS: Record<string, ModeLabelTranslationKey> = {
+  "always ask": "agentControls.mode.labels.alwaysAsk",
+  "auto mode": "agentControls.mode.labels.autoMode",
+  "accept file edits": "agentControls.mode.labels.acceptFileEdits",
+  plan: "agentControls.mode.labels.plan",
+  "plan mode": "agentControls.mode.labels.plan",
+  bypass: "agentControls.mode.labels.bypass",
+  "default permissions": "agentControls.mode.labels.defaultPermissions",
+  "auto-review": "agentControls.mode.labels.autoReview",
+  "full access": "agentControls.mode.labels.fullAccess",
+  agent: "agentControls.mode.labels.agent",
+  "allow all": "agentControls.mode.labels.allowAll",
+  build: "agentControls.mode.labels.build",
+  default: "agentControls.mode.labels.default",
+};
+
 function sentenceCase(value: string): string {
   if (!value) {
     return value;
@@ -75,7 +105,9 @@ function formatControlLabel(option: ControlLabelInput, splitHyphen: boolean): st
 }
 
 export function formatAgentModeLabel(mode: ControlLabelInput): string {
-  return formatControlLabel(mode, mode.label == null);
+  const formatted = formatControlLabel(mode, mode.label == null);
+  const translationKey = MODE_LABEL_TRANSLATIONS[formatted.toLowerCase()];
+  return translationKey ? i18n.t(translationKey) : formatted;
 }
 
 export function formatThinkingOptionLabel(option: ControlLabelInput): string {

@@ -1309,6 +1309,7 @@ export const CreateAgentRequestMessageSchema = z.object({
   config: AgentSessionConfigSchema,
   env: z.record(z.string(), z.string()).optional(),
   workspaceId: z.string().optional(),
+  conversationOnly: z.boolean().optional(),
   worktreeName: z.string().optional(),
   initialPrompt: z.string().optional(),
   clientMessageId: z.string().optional(),
@@ -2592,6 +2593,8 @@ export const ServerInfoStatusPayloadSchema = z
         // it falsely advertise autosave. Only a daemon with the fs.write handler broadcasts this.
         // COMPAT(fsWriteFile): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
         fsWriteFile: z.boolean().optional(),
+        // COMPAT(conversationOnlyAgents): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+        conversationOnlyAgents: z.boolean().optional(),
       })
       .optional(),
   })

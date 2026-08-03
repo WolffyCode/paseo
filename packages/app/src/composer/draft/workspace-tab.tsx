@@ -24,7 +24,7 @@ import { useHostRuntimeClient, useHostRuntimeIsConnected } from "@/runtime/host-
 import { buildWorkspaceDraftAgentConfig } from "@/screens/workspace/workspace-draft-agent-config";
 import { buildDraftStoreKey } from "@/stores/draft-keys";
 import { useCreateFlowStore } from "@/stores/create-flow-store";
-import type { Agent } from "@/stores/session-store";
+import { useSessionStore, type Agent } from "@/stores/session-store";
 import { useWorkspaceFields } from "@/stores/session-store-hooks";
 import { useWorkspaceDraftSubmissionStore } from "@/stores/workspace-draft-submission-store";
 import { encodeImages } from "@/utils/encode-images";
@@ -34,7 +34,11 @@ import {
 } from "@/workspace/file-open";
 import { navigateToPreparedWorkspaceTab } from "@/utils/workspace-navigation";
 import { shouldAutoFocusWorkspaceDraftComposer } from "@/screens/workspace/workspace-draft-pane-focus";
-import { validateDraftSubmission } from "@/composer/draft/workspace-tab-core";
+import {
+  resolveWorkspaceDraftContentKind,
+  validateDraftSubmission,
+  type WorkspaceDraftEmptyLayout,
+} from "@/composer/draft/workspace-tab-core";
 import type { AgentCapabilityFlags } from "@getpaseo/protocol/agent-types";
 import type { AgentSnapshotPayload, WorkspaceDescriptorPayload } from "@getpaseo/protocol/messages";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
@@ -152,8 +156,6 @@ async function submitDraftCreateRequest(input: {
     composerState,
   } = input;
 
-  invariant(workspaceDirectory, "Workspace directory is required");
-  invariant(workspaceId, "Workspace id is required");
   if (!client) {
     throw new Error(input.hostDisconnectedMessage);
   }
@@ -169,7 +171,7 @@ async function submitDraftCreateRequest(input: {
   });
   const config = buildWorkspaceDraftAgentConfig({
     provider,
-    cwd: workspaceDirectory,
+    cwd: resolveDraftRuntimeCwd(workspaceDirectory),
     ...modeIdOverride,
     model: autoSubmitConfig?.model ?? (composerState.effectiveModelId || undefined),
     thinkingOptionId:
@@ -181,7 +183,7 @@ async function submitDraftCreateRequest(input: {
   const attachmentsArray = Array.isArray(attachments) ? attachments : undefined;
   const result = await client.createAgent({
     config,
-    workspaceId,
+    ...(workspaceId ? { workspaceId } : { conversationOnly: true }),
     ...(text ? { initialPrompt: text } : {}),
     clientMessageId: attempt.clientMessageId,
     ...(imagesData && imagesData.length > 0 ? { images: imagesData } : {}),
@@ -211,7 +213,6 @@ function buildDraftAgentSnapshot(input: {
   selectModelMessage: string;
 }): Agent {
   const { attempt, serverId, tabId, workspaceDirectory, autoSubmitConfig, composerState } = input;
-  invariant(workspaceDirectory, "Workspace directory is required");
   const now = attempt.timestamp;
   const model = autoSubmitConfig?.model ?? (composerState.effectiveModelId || null);
   const thinkingOptionId =
@@ -241,7 +242,7 @@ function buildDraftAgentSnapshot(input: {
     persistence: null,
     runtimeInfo: { provider, sessionId: null, model, modeId },
     title: "Agent",
-    cwd: workspaceDirectory,
+    cwd: resolveDraftRuntimeCwd(workspaceDirectory),
     model,
     features: composerState.agentControls.features,
     thinkingOptionId,
@@ -279,6 +280,11 @@ function resolveDraftWorkingDirectory(input: {
   return input.workspaceDirectory;
 }
 
+/** Resolve the host runtime cwd without turning an unbound chat into a workspace. */
+function resolveDraftRuntimeCwd(workspaceDirectory: string | null): string {
+  return workspaceDirectory?.trim() || ".";
+}
+
 function resolveOnlineServerIds(input: { isConnected: boolean; serverId: string }): string[] {
   if (!input.isConnected) {
     return EMPTY_ONLINE_SERVER_IDS;
@@ -296,7 +302,7 @@ interface WorkspaceDraftAgentTabProps {
   onCreated: (snapshot: AgentSnapshotPayload) => void;
   onOpenWorkspaceFile: (request: WorkspaceFileOpenRequest) => void;
   onOpenImportSheet?: () => void;
-  emptyLayout?: "centered" | "docked";
+  emptyLayout?: WorkspaceDraftEmptyLayout;
   workspacePicker?: {
     readonly labels: DraftWorkspacePickerLabels;
     readonly onSelected: (workspace: WorkspaceDescriptorPayload) => void;
@@ -313,6 +319,7 @@ function resolveImportPillPress(
   return onOpenImportSheet ?? null;
 }
 
+/** Render the draft body selected by the presentation model above the shared Composer. */
 function WorkspaceDraftContent({
   isSubmitting,
   draftAgent,
@@ -321,6 +328,7 @@ function WorkspaceDraftContent({
   tabId,
   onOpenWorkspaceFile,
   emptyLayout,
+  emptyLabel,
   emptyTitle,
   formErrorMessage,
 }: {
@@ -330,11 +338,19 @@ function WorkspaceDraftContent({
   serverId: string;
   tabId: string;
   onOpenWorkspaceFile: (request: WorkspaceFileOpenRequest) => void;
-  emptyLayout: "centered" | "docked";
+  emptyLayout: WorkspaceDraftEmptyLayout;
+  emptyLabel: string;
   emptyTitle: string;
   formErrorMessage: string | null;
 }) {
-  if (isSubmitting && draftAgent) {
+  const contentKind = resolveWorkspaceDraftContentKind({
+    isSubmitting,
+    hasDraftAgent: draftAgent !== null,
+    emptyLayout,
+    hasError: formErrorMessage !== null,
+  });
+  if (contentKind === "stream") {
+    invariant(draftAgent, "Submitting workspace draft requires an optimistic agent");
     return (
       <View style={styles.streamContainer}>
         <AgentStreamView
@@ -348,7 +364,7 @@ function WorkspaceDraftContent({
       </View>
     );
   }
-  if (emptyLayout === "centered") {
+  if (contentKind === "centered-title") {
     return (
       <View style={styles.emptyHero}>
         <Text style={styles.emptyTitle}>{emptyTitle}</Text>
@@ -360,14 +376,30 @@ function WorkspaceDraftContent({
       </View>
     );
   }
-  if (!formErrorMessage) return null;
-  return (
-    <View style={styles.dockedErrorContainer}>
-      <Text style={styles.errorText}>{formErrorMessage}</Text>
-    </View>
-  );
+  if (contentKind === "docked-title") {
+    return (
+      <View style={styles.dockedEmptyHero} testID="workspace-draft-empty-title">
+        <Text style={styles.dockedEmptyLabel}>{emptyLabel}</Text>
+        <Text style={styles.emptyTitle}>{emptyTitle}</Text>
+        {formErrorMessage ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>{formErrorMessage}</Text>
+          </View>
+        ) : null}
+      </View>
+    );
+  }
+  if (contentKind === "docked-error") {
+    return (
+      <View style={styles.dockedErrorContainer}>
+        <Text style={styles.errorText}>{formErrorMessage}</Text>
+      </View>
+    );
+  }
+  return null;
 }
 
+/** Own the full create-agent draft lifecycle while keeping one Composer instance mounted. */
 export function WorkspaceDraftAgentTab({
   serverId,
   workspaceId,
@@ -464,6 +496,9 @@ export function WorkspaceDraftAgentTab({
     };
   }, [pendingAutoSubmit, pendingCreateAttempt]);
   const allowsEmptyAutoSubmit = pendingAutoSubmit?.allowEmptyText === true;
+  const supportsConversationOnlyAgents = useSessionStore(
+    (state) => state.sessions[serverId]?.serverInfo?.features?.conversationOnlyAgents === true,
+  );
   const isCompactFormFactor = useIsCompactFormFactor();
   const { onLayout: onInputAreaLayout, isBelow: isCompactComposerLayout } = useContainerWidthBelow(
     COMPACT_FORM_FACTOR_WIDTH,
@@ -503,17 +538,20 @@ export function WorkspaceDraftAgentTab({
     initialAttempt: initialCreateAttempt,
     allowEmptyText: allowsEmptyAutoSubmit,
     validateBeforeSubmit: ({ text }) => {
+      // COMPAT(conversationOnlyAgents): added in v0.1.X, drop the gate when daemon floor >= v0.1.X.
+      if (!draftWorkingDirectory && !supportsConversationOnlyAgents) {
+        return t("workspaceSetup.errors.updateHostForConversationOnly");
+      }
       const validation = validateDraftSubmission({
         text,
         allowsEmptyAutoSubmit,
         composerState,
         autoSubmitConfig,
         workspaceDirectory: draftWorkingDirectory,
+        requiresWorkspaceDirectory: false,
         hasClient: Boolean(client),
       });
-      return !draftWorkingDirectory && validation !== null
-        ? (workspacePicker?.labels.selectDirectory ?? validation)
-        : validation;
+      return validation;
     },
     onBeforeSubmit: async () => {
       await composerState.persistFormPreferences();
@@ -763,6 +801,7 @@ export function WorkspaceDraftAgentTab({
             tabId={tabId}
             onOpenWorkspaceFile={onOpenWorkspaceFile}
             emptyLayout={emptyLayout}
+            emptyLabel={t("sidebar.actions.newConversation")}
             emptyTitle={t("panels.draft.emptyTitle")}
             formErrorMessage={formErrorMessage}
           />
@@ -830,6 +869,20 @@ const styles = StyleSheet.create((theme) => ({
     gap: theme.spacing[6],
     paddingHorizontal: theme.spacing[4],
     paddingBottom: theme.spacing[4],
+  },
+  dockedEmptyHero: {
+    flex: 1,
+    minHeight: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing[3],
+    paddingHorizontal: theme.spacing[4],
+    paddingBottom: theme.spacing[12],
+  },
+  dockedEmptyLabel: {
+    color: theme.colors.accent,
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.medium,
   },
   emptyTitle: {
     fontSize: theme.fontSize["3xl"],

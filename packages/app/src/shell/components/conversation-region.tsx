@@ -38,6 +38,15 @@ function buildWorkspacePickerLabels(_locale: string) {
     empty: i18nModel.t("shell.conversation.directoryEmpty"),
     openPath: i18nModel.t("shell.conversation.directoryOpenPath"),
     openFailed: i18nModel.t("shell.conversation.directoryOpenFailed"),
+    projects: i18nModel.t("shell.conversation.projects"),
+    filesystem: i18nModel.t("shell.conversation.filesystem"),
+    filesystemPlaceholder: i18nModel.t("shell.conversation.filesystemPlaceholder"),
+    filesystemLoading: i18nModel.t("shell.conversation.filesystemLoading"),
+    filesystemEmpty: i18nModel.t("shell.conversation.filesystemEmpty"),
+    chooseCurrentDirectory: i18nModel.t("shell.conversation.chooseCurrentDirectory"),
+    parentDirectory: i18nModel.t("shell.conversation.parentDirectory"),
+    filesystemUnavailable: i18nModel.t("shell.conversation.filesystemUnavailable"),
+    conversationOnly: i18nModel.t("shell.conversation.conversationOnly"),
   };
 }
 
@@ -219,7 +228,7 @@ export const ConversationRegion = observer(function ConversationRegion({
           isPaneFocused
           onCreated={completeDraft}
           onOpenWorkspaceFile={openFile}
-          emptyLayout="docked"
+          emptyLayout={isWeb ? "docked-with-title" : "docked"}
           workspacePicker={workspacePicker}
         />
       </View>

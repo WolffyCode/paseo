@@ -56,7 +56,7 @@ export interface ConversationTreeDraftTarget {
 
 export interface ConversationTreePendingAgentTarget {
   readonly agentId: string;
-  readonly workspaceId: string;
+  readonly workspaceId: string | null;
 }
 
 interface ConversationTreeNodeBase {

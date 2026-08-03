@@ -82,7 +82,11 @@ function TerminalPanel() {
   }));
   const workspaceDirectory = workspaceFields?.workspaceDirectory || null;
   const handleOpenFileExplorer = useCallback(() => {
-    openTab(createWorkspaceFilesTabTarget(workspaceId));
+    const currentWorkspaceId = workspaceId;
+    if (currentWorkspaceId === null) {
+      return;
+    }
+    openTab(createWorkspaceFilesTabTarget(currentWorkspaceId));
   }, [openTab, workspaceId]);
   invariant(target.kind === "terminal", "TerminalPanel requires terminal target");
 

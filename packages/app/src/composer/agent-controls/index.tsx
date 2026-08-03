@@ -62,13 +62,19 @@ import { useToast } from "@/contexts/toast-context";
 import { toErrorMessage } from "@/utils/error-messages";
 import { showProviderNoticeToast } from "@/utils/provider-notice-toast";
 import { deriveComposerToolbarLayout } from "@/composer/composer-toolbar-model";
+import { useComposerModelRoutes } from "@/composer/agent-controls/use-composer-model-routes";
+import { getDesktopRuntimePopoverSpec } from "@/composer/desktop-composer-spec";
+import { isWeb } from "@/constants/platform";
+
+const REASONING_POPOVER_SPEC = getDesktopRuntimePopoverSpec("reasoning");
+const FEATURE_POPOVER_SPEC = getDesktopRuntimePopoverSpec("feature");
 
 interface AgentControlOption {
   id: string;
   label: string;
 }
 
-type AgentControlSelector = "provider" | "mode" | "model" | "thinking" | `feature-${string}`;
+type AgentControlSelector = "mode" | "model" | "thinking" | `feature-${string}`;
 
 interface ControlledAgentControlsProps {
   provider: string;
@@ -198,19 +204,21 @@ function shortModelLabel(label: string): string {
 function DesktopModelTriggerContent({
   selectedModelLabel,
   providerLabel,
+  routeLabel,
 }: {
   selectedModelLabel: string;
   providerLabel: string;
+  routeLabel: string;
 }) {
   const { theme } = useUnistyles();
-  const { t } = useTranslation();
   return (
     <View pointerEvents="none" style={styles.desktopModelTrigger}>
-      <Text style={styles.desktopModelPrimary} numberOfLines={1}>
-        {shortModelLabel(selectedModelLabel)}
-      </Text>
-      <Text style={styles.desktopModelSecondary} numberOfLines={1}>
-        {providerLabel} · {t("modelSelector.officialDirect")}
+      <Text style={styles.desktopModelChain} numberOfLines={1} ellipsizeMode="middle">
+        <Text style={styles.desktopModelSecondary}>{providerLabel}</Text>
+        <Text style={styles.desktopModelSeparator}> · </Text>
+        <Text style={styles.desktopModelSecondary}>{routeLabel}</Text>
+        <Text style={styles.desktopModelSeparator}> · </Text>
+        <Text style={styles.desktopModelPrimary}>{shortModelLabel(selectedModelLabel)}</Text>
       </Text>
       <ChevronDown size={13} color={theme.colors.foregroundMuted} />
     </View>
@@ -220,20 +228,17 @@ function DesktopModelTriggerContent({
 type ActiveSheet = "thinking" | "features" | null;
 
 function resolveHasAnyControl({
-  providerOptions,
   canSelectModel,
   thinkingOptions,
   features,
   hasDesktopExtras,
 }: {
-  providerOptions: AgentControlOption[] | undefined;
   canSelectModel: boolean;
   thinkingOptions: AgentControlOption[] | undefined;
   features: AgentFeature[] | undefined;
   hasDesktopExtras: boolean;
 }) {
   return (
-    Boolean(providerOptions?.length) ||
     canSelectModel ||
     Boolean(thinkingOptions?.length) ||
     Boolean(features?.length) ||
@@ -444,13 +449,8 @@ function ControlledAgentControls({
   const [activeSheet, setActiveSheet] = useState<ActiveSheet>(null);
   const [openSelector, setOpenSelector] = useState<AgentControlSelector | null>(null);
 
-  const providerAnchorRef = useRef<View>(null);
-  const _modelAnchorRef = useRef<View>(null);
   const thinkingAnchorRef = useRef<View>(null);
 
-  const canSelectProvider = Boolean(
-    onSelectProvider && providerOptions && providerOptions.length > 0,
-  );
   const canSelectModel = Boolean(onSelectModel);
   const canSelectThinking = Boolean(
     onSelectThinkingOption && thinkingOptions && thinkingOptions.length > 0,
@@ -472,7 +472,6 @@ function ControlledAgentControls({
   );
 
   const hasAnyControl = resolveHasAnyControl({
-    providerOptions,
     canSelectModel,
     thinkingOptions,
     features,
@@ -497,15 +496,16 @@ function ControlledAgentControls({
 
   const modelDisabled = disabled;
 
-  const comboboxProviderOptions = useMemo<ComboboxOption[]>(
-    () => toComboboxOptions(providerOptions),
-    [providerOptions],
-  );
   const fallbackModelSelectorProviders = useMemo(
     () => buildFallbackModelSelectorProviders(provider, modelOptions),
     [modelOptions, provider],
   );
   const effectiveModelSelectorProviders = modelSelectorProviders ?? fallbackModelSelectorProviders;
+  const modelRoutes = useComposerModelRoutes({
+    serverId: modelSelectorServerId,
+    providers: effectiveModelSelectorProviders,
+    selectedProvider: provider,
+  });
   const comboboxThinkingOptions = useMemo<ComboboxOption[]>(
     () => toComboboxOptions(formattedThinkingOptions),
     [formattedThinkingOptions],
@@ -530,21 +530,12 @@ function ControlledAgentControls({
     [onDropdownClose],
   );
 
-  const handleProviderPress = useCallback(() => {
-    handleOpenChange("provider")(openSelector !== "provider");
-  }, [handleOpenChange, openSelector]);
-
   const handleThinkingPress = useCallback(() => {
     handleOpenChange("thinking")(openSelector !== "thinking");
   }, [handleOpenChange, openSelector]);
 
-  const handleProviderOpenChange = useMemo(() => handleOpenChange("provider"), [handleOpenChange]);
   const handleThinkingOpenChange = useMemo(() => handleOpenChange("thinking"), [handleOpenChange]);
 
-  const handleProviderSelect = useCallback(
-    (id: string) => onSelectProvider?.(id),
-    [onSelectProvider],
-  );
   const handleThinkingSelect = useCallback(
     (id: string) => onSelectThinkingOption?.(id),
     [onSelectThinkingOption],
@@ -555,17 +546,6 @@ function ControlledAgentControls({
       pickDesktopModel({ nextProviderId, modelId, currentProvider: provider, onSelectModel });
     },
     [onSelectModel, provider],
-  );
-
-  const providerPressableStyle = useMemo(
-    () =>
-      makeBadgePressableStyle(
-        styles.modeBadge,
-        styles.disabledBadge,
-        disabled || !canSelectProvider,
-        openSelector === "provider",
-      ),
-    [canSelectProvider, disabled, openSelector],
   );
 
   const thinkingPressableStyle = useMemo(
@@ -622,9 +602,6 @@ function ControlledAgentControls({
       {!isCompact ? (
         <DesktopAgentControlsContent
           provider={provider}
-          providerOptions={providerOptions}
-          selectedProviderId={selectedProviderId}
-          modelOptions={modelOptions}
           selectedModelId={selectedModelId}
           thinkingOptions={formattedThinkingOptions}
           selectedThinkingOptionId={selectedThinkingOptionId}
@@ -638,27 +615,21 @@ function ControlledAgentControls({
           favoriteKeys={favoriteKeys}
           disabled={disabled}
           isModelLoading={isModelLoading}
-          canSelectProvider={canSelectProvider}
           canSelectModel={canSelectModel}
           canSelectThinking={canSelectThinking}
           modelSelectorProviders={effectiveModelSelectorProviders}
+          modelRoutes={modelRoutes}
           modelDisabled={modelDisabled}
-          comboboxProviderOptions={comboboxProviderOptions}
           comboboxThinkingOptions={comboboxThinkingOptions}
           displayProvider={displayProvider}
           displayThinking={displayThinking}
           openSelector={openSelector}
-          providerAnchorRef={providerAnchorRef}
           thinkingAnchorRef={thinkingAnchorRef}
-          providerPressableStyle={providerPressableStyle}
           thinkingPressableStyle={thinkingPressableStyle}
-          handleProviderPress={handleProviderPress}
           handleThinkingPress={handleThinkingPress}
-          handleProviderSelect={handleProviderSelect}
           handleThinkingSelect={handleThinkingSelect}
           handleDesktopModelSelect={handleDesktopModelSelect}
           onSelectProvider={onSelectProvider}
-          handleProviderOpenChange={handleProviderOpenChange}
           handleThinkingOpenChange={handleThinkingOpenChange}
           handleOpenChange={handleOpenChange}
           renderThinkingOption={renderThinkingOption}
@@ -683,6 +654,7 @@ function ControlledAgentControls({
           canSelectModel={canSelectModel}
           canSelectThinking={canSelectThinking}
           modelSelectorProviders={effectiveModelSelectorProviders}
+          modelRoutes={modelRoutes}
           modelDisabled={modelDisabled}
           comboboxThinkingOptions={comboboxThinkingOptions}
           openSelector={openSelector}
@@ -710,9 +682,6 @@ function ControlledAgentControls({
 
 interface DesktopAgentControlsContentProps {
   provider: string;
-  providerOptions?: AgentControlOption[];
-  selectedProviderId?: string;
-  modelOptions?: AgentControlOption[];
   selectedModelId?: string;
   thinkingOptions?: AgentControlOption[];
   selectedThinkingOptionId?: string;
@@ -726,27 +695,21 @@ interface DesktopAgentControlsContentProps {
   favoriteKeys: Set<string>;
   disabled: boolean;
   isModelLoading: boolean;
-  canSelectProvider: boolean;
   canSelectModel: boolean;
   canSelectThinking: boolean;
   modelSelectorProviders: ProviderSelectorProvider[];
+  modelRoutes: ReturnType<typeof useComposerModelRoutes>;
   modelDisabled: boolean;
-  comboboxProviderOptions: ComboboxOption[];
   comboboxThinkingOptions: ComboboxOption[];
   displayProvider: string;
   displayThinking: string;
   openSelector: AgentControlSelector | null;
-  providerAnchorRef: RefObject<View | null>;
   thinkingAnchorRef: RefObject<View | null>;
-  providerPressableStyle: (state: PressableStateCallbackType) => StyleProp<ViewStyle>;
   thinkingPressableStyle: (state: PressableStateCallbackType) => StyleProp<ViewStyle>;
-  handleProviderPress: () => void;
   handleThinkingPress: () => void;
-  handleProviderSelect: (id: string) => void;
   handleThinkingSelect: (id: string) => void;
   handleDesktopModelSelect: (providerId: string, modelId: string) => void;
   onSelectProvider?: (providerId: string) => void;
-  handleProviderOpenChange: (open: boolean) => void;
   handleThinkingOpenChange: (open: boolean) => void;
   handleOpenChange: (selector: AgentControlSelector) => (nextOpen: boolean) => void;
   renderThinkingOption: (args: {
@@ -759,17 +722,16 @@ interface DesktopAgentControlsContentProps {
   modelSelectorServerId: string | null;
 }
 
-const DESKTOP_SEARCH_THRESHOLD = 6;
-
 function DesktopAgentControlsContent(props: DesktopAgentControlsContentProps) {
   const { t } = useTranslation();
+  const { theme } = useUnistyles();
   const {
     provider,
-    providerOptions,
-    selectedProviderId,
     selectedModelId,
     thinkingOptions,
     selectedThinkingOptionId,
+    features,
+    onSetFeature,
     onToggleFavoriteModel,
     onDropdownClose,
     onModelSelectorOpen,
@@ -778,82 +740,70 @@ function DesktopAgentControlsContent(props: DesktopAgentControlsContentProps) {
     favoriteKeys,
     disabled,
     isModelLoading,
-    canSelectProvider,
     canSelectModel,
     canSelectThinking,
     modelSelectorProviders,
+    modelRoutes,
     modelDisabled,
-    comboboxProviderOptions,
     comboboxThinkingOptions,
     displayProvider,
     displayThinking,
     openSelector,
-    providerAnchorRef,
     thinkingAnchorRef,
-    providerPressableStyle,
     thinkingPressableStyle,
-    handleProviderPress,
     handleThinkingPress,
-    handleProviderSelect,
     handleThinkingSelect,
     handleDesktopModelSelect,
     onSelectProvider,
-    handleProviderOpenChange,
     handleThinkingOpenChange,
+    handleOpenChange,
     renderThinkingOption,
     extras,
     modelSelectorServerId,
   } = props;
+  const selectedRouteLabel =
+    modelRoutes.routes[provider]?.find((route) => route.id === modelRoutes.selectedRouteId)
+      ?.label ?? t("modelSelector.routeLabel");
+  const thinkingPopoverHeader = useMemo(
+    () => (
+      <View style={styles.popoverHeader}>
+        <Text style={styles.popoverTitle}>{t("agentControls.thinking.strengthTitle")}</Text>
+        {selectedModelId ? (
+          <Text style={styles.popoverSubtitle} numberOfLines={1}>
+            {shortModelLabel(selectedModelId)}
+          </Text>
+        ) : null}
+      </View>
+    ),
+    [selectedModelId, t],
+  );
 
   const renderDesktopModelTrigger = useCallback(
     ({ selectedModelLabel }: { selectedModelLabel: string }) => (
       <DesktopModelTriggerContent
         selectedModelLabel={selectedModelLabel}
         providerLabel={displayProvider}
+        routeLabel={selectedRouteLabel}
       />
     ),
-    [displayProvider],
+    [displayProvider, selectedRouteLabel],
   );
 
   return (
     <>
-      {providerOptions && providerOptions.length > 0 ? (
-        <>
-          <ComboboxTrigger
-            ref={providerAnchorRef}
-            collapsable={false}
-            disabled={disabled || !canSelectProvider}
-            onPress={handleProviderPress}
-            style={providerPressableStyle}
-            accessibilityRole="button"
-            accessibilityLabel={t("agentControls.provider.select")}
-            testID="agent-provider-selector"
-          >
-            <Text style={styles.modeBadgeText}>{displayProvider}</Text>
-          </ComboboxTrigger>
-          <Combobox
-            options={comboboxProviderOptions}
-            value={selectedProviderId ?? ""}
-            onSelect={handleProviderSelect}
-            searchable={comboboxProviderOptions.length > DESKTOP_SEARCH_THRESHOLD}
-            open={openSelector === "provider"}
-            onOpenChange={handleProviderOpenChange}
-            anchorRef={providerAnchorRef}
-            desktopPlacement="top-start"
-          />
-        </>
-      ) : null}
-
       {canSelectModel ? (
         <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile={false}>
           <TooltipTrigger asChild triggerRefProp="ref">
-            <View>
+            <View style={styles.modelControlAnchor}>
               <CombinedModelSelector
                 providers={modelSelectorProviders}
+                routes={modelRoutes.routes}
                 selectedProvider={provider}
+                selectedRouteId={modelRoutes.selectedRouteId}
                 selectedModel={selectedModelId ?? ""}
                 onSelect={handleDesktopModelSelect}
                 onSelectProvider={onSelectProvider}
+                onSelectRoute={modelRoutes.selectRoute}
                 favoriteKeys={favoriteKeys}
                 onToggleFavorite={onToggleFavoriteModel}
                 isLoading={isModelLoading}
@@ -890,7 +840,10 @@ function DesktopAgentControlsContent(props: DesktopAgentControlsContentProps) {
                 })}
                 testID="agent-thinking-selector"
               >
-                <Text style={styles.modeBadgeText}>{displayThinking}</Text>
+                <Text style={styles.runtimeBadgeText} numberOfLines={1}>
+                  {displayThinking}
+                </Text>
+                <ChevronDown size={13} color={theme.colors.foregroundMuted} />
               </ComboboxTrigger>
             </TooltipTrigger>
             <TooltipContent side="top" align="center" offset={8}>
@@ -901,17 +854,32 @@ function DesktopAgentControlsContent(props: DesktopAgentControlsContentProps) {
             options={comboboxThinkingOptions}
             value={selectedThinkingOptionId ?? ""}
             onSelect={handleThinkingSelect}
-            searchable={comboboxThinkingOptions.length > DESKTOP_SEARCH_THRESHOLD}
+            searchable={false}
             open={openSelector === "thinking"}
             onOpenChange={handleThinkingOpenChange}
             anchorRef={thinkingAnchorRef}
-            desktopPlacement="top-start"
+            desktopPlacement={REASONING_POPOVER_SPEC.placement}
+            desktopOffset={REASONING_POPOVER_SPEC.offset}
+            desktopWidth={REASONING_POPOVER_SPEC.width}
+            desktopSurfaceVariant="composer"
+            stickyHeader={thinkingPopoverHeader}
             renderOption={renderThinkingOption}
           />
         </>
       ) : null}
 
       {extras}
+
+      {(features ?? []).map((feature) => (
+        <DesktopFeatureControl
+          key={feature.id}
+          feature={feature}
+          disabled={disabled}
+          openSelector={openSelector}
+          handleOpenChange={handleOpenChange}
+          onSetFeature={onSetFeature}
+        />
+      ))}
     </>
   );
 }
@@ -933,6 +901,7 @@ interface SheetAgentControlsContentProps {
   canSelectModel: boolean;
   canSelectThinking: boolean;
   modelSelectorProviders: ProviderSelectorProvider[];
+  modelRoutes: ReturnType<typeof useComposerModelRoutes>;
   modelDisabled: boolean;
   comboboxThinkingOptions: ComboboxOption[];
   openSelector: AgentControlSelector | null;
@@ -979,6 +948,7 @@ function SheetAgentControlsContent(props: SheetAgentControlsContentProps) {
     canSelectModel,
     canSelectThinking,
     modelSelectorProviders,
+    modelRoutes,
     modelDisabled,
     comboboxThinkingOptions,
     openSelector,
@@ -1059,10 +1029,13 @@ function SheetAgentControlsContent(props: SheetAgentControlsContentProps) {
       {showModel && canSelectModel ? (
         <CombinedModelSelector
           providers={modelSelectorProviders}
+          routes={modelRoutes.routes}
           selectedProvider={provider}
+          selectedRouteId={modelRoutes.selectedRouteId}
           selectedModel={selectedModelId ?? ""}
           onSelect={handleSheetModelSelect}
           onSelectProvider={onSelectProvider}
+          onSelectRoute={modelRoutes.selectRoute}
           favoriteKeys={favoriteKeys}
           onToggleFavorite={onToggleFavoriteModel}
           isLoading={isModelLoading}
@@ -1256,6 +1229,139 @@ function SheetFeatureItem({
   return null;
 }
 
+/** Render one capability-defined feature as an independent desktop runtime control. */
+function DesktopFeatureControl({
+  feature,
+  disabled,
+  openSelector,
+  handleOpenChange,
+  onSetFeature,
+}: {
+  feature: AgentFeature;
+  disabled: boolean;
+  openSelector: AgentControlSelector | null;
+  handleOpenChange: (selector: AgentControlSelector) => (nextOpen: boolean) => void;
+  onSetFeature?: (featureId: string, value: unknown) => void;
+}) {
+  const { theme } = useUnistyles();
+  const featureSelector: AgentControlSelector = `feature-${feature.id}`;
+  const anchorRef = useRef<View>(null);
+  const FeatureIcon = getFeatureIcon(feature.icon);
+  const featureTooltip = getFeatureTooltip(feature);
+  const handleFeatureOpenChange = useMemo(
+    () => handleOpenChange(featureSelector),
+    [featureSelector, handleOpenChange],
+  );
+  const handleSelectOption = useCallback(
+    (optionId: string) => onSetFeature?.(feature.id, optionId),
+    [feature.id, onSetFeature],
+  );
+  const handleToggle = useCallback(() => {
+    if (feature.type === "toggle") {
+      onSetFeature?.(feature.id, !feature.value);
+    }
+  }, [feature, onSetFeature]);
+  const handleFeaturePress = useCallback(
+    () => handleFeatureOpenChange(openSelector !== featureSelector),
+    [featureSelector, handleFeatureOpenChange, openSelector],
+  );
+  const options = useMemo<ComboboxOption[]>(
+    () =>
+      feature.type === "select"
+        ? feature.options.map((option) => ({ id: option.id, label: option.label }))
+        : [],
+    [feature],
+  );
+  const accessibilityState = useMemo(
+    () => ({
+      checked: feature.type === "toggle" ? feature.value : false,
+      disabled: disabled || !onSetFeature,
+    }),
+    [disabled, feature, onSetFeature],
+  );
+  const toggleStyle = useCallback(
+    ({ hovered, pressed }: PressableStateCallbackType & { hovered?: boolean }) => [
+      styles.desktopFeatureToggle,
+      feature.type === "toggle" && feature.value ? styles.desktopFeatureToggleActive : null,
+      hovered ? styles.modeBadgeHovered : null,
+      pressed ? styles.modeBadgePressed : null,
+      disabled || !onSetFeature ? styles.disabledBadge : null,
+    ],
+    [disabled, feature, onSetFeature],
+  );
+
+  if (feature.type === "toggle") {
+    return (
+      <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile={false}>
+        <TooltipTrigger
+          onPress={handleToggle}
+          disabled={disabled || !onSetFeature}
+          style={toggleStyle}
+          accessibilityRole="switch"
+          accessibilityState={accessibilityState}
+          accessibilityLabel={featureTooltip}
+          testID={`agent-feature-${feature.id}`}
+        >
+          <FeatureIcon
+            size={theme.iconSize.sm}
+            color={getFeatureIconColor(
+              feature.id,
+              feature.value,
+              theme.colors.palette,
+              theme.colors.foregroundMuted,
+            )}
+          />
+        </TooltipTrigger>
+        <TooltipContent side="top" align="center" offset={8}>
+          <Text style={styles.tooltipText}>{featureTooltip}</Text>
+        </TooltipContent>
+      </Tooltip>
+    );
+  }
+
+  const selectedOption = options.find((option) => option.id === feature.value);
+  const selectStyle = makeBadgePressableStyle(
+    styles.desktopFeatureSelect,
+    styles.disabledBadge,
+    disabled || !onSetFeature,
+    openSelector === featureSelector,
+  );
+  return (
+    <>
+      <ComboboxTrigger
+        ref={anchorRef}
+        collapsable={false}
+        disabled={disabled || !onSetFeature}
+        onPress={handleFeaturePress}
+        style={selectStyle}
+        accessibilityRole="button"
+        accessibilityLabel={featureTooltip}
+        testID={`agent-feature-${feature.id}`}
+      >
+        <FeatureIcon size={theme.iconSize.sm} color={theme.colors.foregroundMuted} />
+        <Text style={styles.runtimeBadgeText} numberOfLines={1}>
+          {selectedOption?.label ?? feature.label}
+        </Text>
+        <ChevronDown size={13} color={theme.colors.foregroundMuted} />
+      </ComboboxTrigger>
+      <Combobox
+        options={options}
+        value={String(feature.value)}
+        onSelect={handleSelectOption}
+        searchable={false}
+        open={openSelector === featureSelector}
+        onOpenChange={handleFeatureOpenChange}
+        anchorRef={anchorRef}
+        desktopPlacement={FEATURE_POPOVER_SPEC.placement}
+        desktopOffset={FEATURE_POPOVER_SPEC.offset}
+        desktopWidth={FEATURE_POPOVER_SPEC.width}
+        desktopSurfaceVariant="composer"
+        desktopOptionPresentation="compact"
+      />
+    </>
+  );
+}
+
 function FeatureOptionMenuItem({
   option,
   selected,
@@ -1289,7 +1395,11 @@ function ThinkingComboboxOption({
   onPress: () => void;
   iconColor: string;
 }) {
-  const leadingSlot = useMemo(() => <Brain size={16} color={iconColor} />, [iconColor]);
+  const isCompact = useIsCompactFormFactor() && !isWeb;
+  const leadingSlot = useMemo(
+    () => (isCompact ? <Brain size={16} color={iconColor} /> : null),
+    [iconColor, isCompact],
+  );
   return (
     <ComboboxItem
       label={option.label}
@@ -1297,6 +1407,7 @@ function ThinkingComboboxOption({
       active={active}
       onPress={onPress}
       leadingSlot={leadingSlot}
+      presentation={isCompact ? "default" : "compact"}
     />
   );
 }
@@ -1558,6 +1669,11 @@ export function DraftAgentControls({
   const { preferences, updatePreferences } = useFormPreferences();
   const isCompactFormFactor = useIsCompactFormFactor();
   const isCompact = isCompactLayout ?? isCompactFormFactor;
+  const draftModelRoutes = useComposerModelRoutes({
+    serverId: modelSelectorServerId,
+    providers: modelSelectorProviders,
+    selectedProvider: selectedProvider ?? "",
+  });
   const selectedProviderLabel = useMemo(
     () =>
       providerDefinitions.find((definition) => definition.id === selectedProvider)?.label ??
@@ -1565,14 +1681,19 @@ export function DraftAgentControls({
       "",
     [providerDefinitions, selectedProvider],
   );
+  const selectedRouteLabel =
+    draftModelRoutes.routes[selectedProvider ?? ""]?.find(
+      (route) => route.id === draftModelRoutes.selectedRouteId,
+    )?.label ?? "";
   const renderDraftModelTrigger = useCallback(
     ({ selectedModelLabel }: { selectedModelLabel: string }) => (
       <DesktopModelTriggerContent
         selectedModelLabel={selectedModelLabel}
         providerLabel={selectedProviderLabel}
+        routeLabel={selectedRouteLabel}
       />
     ),
-    [selectedProviderLabel],
+    [selectedProviderLabel, selectedRouteLabel],
   );
 
   const mappedThinkingOptions = useMemo<AgentControlOption[]>(() => {
@@ -1617,6 +1738,7 @@ export function DraftAgentControls({
         providerDefinitions={providerDefinitions}
         modeOptions={modeOptions}
         selectedMode={selectedMode}
+        selectedModel={selectedModel}
         onSelectMode={onSelectMode}
         disabled={disabled}
         isCompactLayout={isCompactLayout}
@@ -1627,6 +1749,7 @@ export function DraftAgentControls({
       providerDefinitions,
       modeOptions,
       selectedMode,
+      selectedModel,
       onSelectMode,
       disabled,
       isCompactLayout,
@@ -1639,10 +1762,13 @@ export function DraftAgentControls({
       <View style={styles.container}>
         <CombinedModelSelector
           providers={modelSelectorProviders}
+          routes={draftModelRoutes.routes}
           selectedProvider={selectedProvider ?? ""}
+          selectedRouteId={draftModelRoutes.selectedRouteId}
           selectedModel={selectedModel}
           onSelect={onSelectProviderAndModel}
           onSelectProvider={onSelectProvider}
+          onSelectRoute={draftModelRoutes.selectRoute}
           favoriteKeys={favoriteKeys}
           onToggleFavorite={handleToggleFavorite}
           isLoading={isAllModelsLoading}
@@ -1709,17 +1835,20 @@ const styles = StyleSheet.create((theme) => ({
     minWidth: 0,
     flexShrink: 1,
     flexDirection: "row",
-    alignItems: "flex-end",
+    alignItems: "center",
     gap: 6,
   },
   modeBadge: {
     height: 32,
+    minWidth: 0,
+    maxWidth: 112,
+    flexShrink: 1,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: theme.colors.surface1,
+    backgroundColor: theme.colors.surface0,
     gap: 6,
     paddingHorizontal: theme.spacing[2],
-    borderRadius: 6,
+    borderRadius: theme.borderRadius.full,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
@@ -1728,47 +1857,114 @@ const styles = StyleSheet.create((theme) => ({
     height: 32,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: theme.colors.surface1,
-    borderRadius: 6,
+    backgroundColor: theme.colors.surface0,
+    borderRadius: theme.borderRadius.full,
     borderWidth: 1,
     borderColor: theme.colors.border,
   },
   modeBadgeHovered: {
-    backgroundColor: theme.colors.surface2,
+    borderColor: theme.colorScheme === "dark" ? "#59635D" : "#BDC9C2",
+    backgroundColor: theme.colorScheme === "dark" ? "#2B302C" : "#EBF0ED",
   },
   modeBadgePressed: {
-    backgroundColor: theme.colors.surface0,
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colorScheme === "dark" ? "#22382B" : "#E7F3EC",
   },
   disabledBadge: {
     opacity: 0.5,
   },
   modeBadgeText: {
+    minWidth: 0,
+    flexShrink: 1,
     color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.normal,
   },
+  runtimeBadgeText: {
+    minWidth: 0,
+    flexShrink: 1,
+    color: theme.colors.foreground,
+    fontSize: theme.fontSize.xs,
+    fontWeight: theme.fontWeight.normal,
+  },
+  modelControlAnchor: {
+    minWidth: 0,
+    flexShrink: 1,
+  },
+  desktopFeatureToggle: {
+    width: 32,
+    height: 32,
+    flexShrink: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface0,
+  },
+  desktopFeatureToggleActive: {
+    borderColor: theme.colors.accent,
+    backgroundColor: theme.colors.surface2,
+  },
+  desktopFeatureSelect: {
+    height: 32,
+    minWidth: 0,
+    maxWidth: 112,
+    flexShrink: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: theme.spacing[2],
+    borderRadius: theme.borderRadius.full,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    backgroundColor: theme.colors.surface0,
+  },
   desktopModelTrigger: {
-    width: "100%",
-    maxWidth: 230,
+    width: "auto",
+    maxWidth: 290,
     height: 32,
     minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
     paddingHorizontal: 9,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    backgroundColor: theme.colors.surface1,
   },
   desktopModelPrimary: {
-    minWidth: 0,
-    flexShrink: 1,
     color: theme.colors.foreground,
-    fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.medium,
   },
+  desktopModelChain: {
+    minWidth: 0,
+    flexShrink: 1,
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.xs,
+  },
   desktopModelSecondary: {
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.xs,
+  },
+  desktopModelSeparator: {
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.xs,
+  },
+  popoverHeader: {
+    minHeight: 35,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderBottomWidth: 1,
+    borderBottomColor: theme.colors.border,
+  },
+  popoverTitle: {
+    color: theme.colors.foreground,
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.semibold,
+  },
+  popoverSubtitle: {
     minWidth: 0,
     flexShrink: 1,
     color: theme.colors.foregroundMuted,
@@ -1807,7 +2003,7 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     gap: 6,
     paddingHorizontal: theme.spacing[2],
-    borderRadius: 6,
+    borderRadius: theme.borderRadius.full,
     borderWidth: 1,
     borderColor: theme.colors.border,
     backgroundColor: theme.colors.surface1,

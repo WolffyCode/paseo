@@ -572,6 +572,32 @@ describe("ConversationTreeStore", () => {
     expect(harness.store.pendingAgentTarget).toBeNull();
   });
 
+  test("keeps a completed conversation-only draft mounted without workspace ownership", async () => {
+    const data = new FakeConversationTreeData();
+    const harness = createStoreHarness(data);
+    await harness.store.load();
+    harness.store.openNewConversation();
+
+    harness.store.completeDraft("conversation-only-agent");
+
+    expect(harness.store.draftTarget).toBeNull();
+    expect(harness.store.pendingAgentTarget).toEqual({
+      agentId: "conversation-only-agent",
+      workspaceId: null,
+    });
+    expect(harness.store.focusedRootId).toBe("conversation-only-agent");
+    expect(harness.retargetedConversationViews).toEqual([
+      { draftId: "draft-2", agentId: "conversation-only-agent" },
+    ]);
+
+    data.emitAgent({
+      kind: "upsert",
+      agent: agent("conversation-only-agent"),
+      project: null,
+    });
+    expect(harness.store.pendingAgentTarget).toBeNull();
+  });
+
   test("dispose unsubscribes both streams exactly once and blocks later fake events", () => {
     const data = new FakeConversationTreeData();
     const { store } = createStoreHarness(data);

@@ -845,6 +845,24 @@
             <span class="pill p0">运行模式与额度</span>
           </td>
         </tr>
+        <tr>
+          <td>2026-08-01</td>
+          <td>定稿并实现桌面 Composer 输入与三级运行配置</td>
+          <td>
+            <span class="pill p0">输入框外单行配置</span>
+            <span class="pill p0">提供方 → 中转站 → 模型</span>
+            <span class="pill p0">仅 PC / Web</span>
+          </td>
+        </tr>
+        <tr>
+          <td>2026-08-03</td>
+          <td>工作目录统一使用当前电脑的双栏文件系统浏览</td>
+          <td>
+            <span class="pill p0">本机双栏浏览</span>
+            <span class="pill p0">Electron / 本机 Web</span>
+            <span class="pill p0">仅 PC / Web</span>
+          </td>
+        </tr>
       </table>
     </div>
 
@@ -857,6 +875,7 @@
       <a href="#s5">S5 平台变体（Web/手机）</a>
       <a href="#conversation-tree">左侧对话树</a>
       <a href="#conversation-content">中区真实对话</a>
+      <a href="#filesystem-picker-design">工作目录选择</a>
       <a href="#conversation-composer">对话 Composer</a>
       <a href="#right-conversation-tabs">右侧对话页签</a>
       <a href="#conversation-view-memory">对话视图状态记忆</a>
@@ -1474,7 +1493,9 @@
         <p>
           左侧点击根对话后，中区复用既有真实对话面板，展示 daemon timeline、工具调用、附件、
           subagent 轨道与 Composer；点击“新对话”时保持主页 URL 与三栏布局，在中区原位显示底部
-          Composer，发送后内容从其上方出现。首次进入即默认显示未绑定项目的新对话草稿，不经过“选择一个对话”空态；选择真实工作目录后才绑定项目。完整画面与状态见本需求设计稿。
+          Composer，桌面空态画布中部显示“新对话”与“今天想构建点什么？”，发送后标题让位、内容从
+          Composer 上方出现。首次进入即默认显示未绑定项目的新对话草稿，不经过“选择一个对话”空态；
+          工作目录可以不选；选择真实目录后绑定项目，直接发送则创建不归入项目的纯对话。完整画面与状态见本需求设计稿。
         </p>
       </div>
       <iframe
@@ -1489,8 +1510,9 @@
             <span class="pin">L</span>
             <div>
               <b>布局</b>：桌面自适应填满左栏与右侧工具之间的剩余宽度；工作目录固定在 Composer
-              顶部上下文条；新对话首帧、乐观发送和真实 agent 接管共用同一个底部 Composer
-              锚点；右栏最大化时按壳规则隐藏。
+              顶部上下文条；PC/Web 中区新对话在空白消息区中部显示两行轻量标题，新对话首帧、乐观
+              发送和真实 agent 接管共用同一个底部 Composer 锚点；右侧窄对话与手机端不显示该标题，
+              右栏最大化时按壳规则隐藏。
             </div>
           </li>
           <li>
@@ -1499,7 +1521,7 @@
               <b>状态</b
               >：首次加载、未绑定草稿、目录选择中、目录选择失败、已绑定、新建中、新建失败、
               正常、运行、错误、离线与归档均有出口；首次加载成功后直接进入未绑定草稿，切换 agent
-              不残留上一条消息，取消、选择失败与创建失败均保留草稿。
+              不残留上一条消息，取消、选择失败与创建失败均保留草稿；首条消息发送后标题让位给消息流。
             </div>
           </li>
           <li>
@@ -1509,47 +1531,31 @@
           <li>
             <span class="pin">C</span>
             <div>
-              <b>点击效果</b>：顶部“新对话”创建未绑定草稿，项目菜单入口预选该项目；点击目录栏选择
-              host 真实目录，未选目录发送时提示先选择；首次发送后消息从 Composer
-              上方出现并原位接管真实 agent；根对话切换中区；subagent
-              保持中区并打开右栏；消息文件链接在当前 workspace 的右侧文件面板打开。
+              <b>点击效果</b>：顶部“新对话”创建未绑定草稿，项目菜单入口预选该项目；点击目录栏可在
+              紧凑浮层中搜索并选择当前电脑的项目；点击“浏览文件系统…”进入 Helm
+              双栏浏览器；未选目录也可 直接发送并创建不绑定 workspace 的纯对话。首次发送后消息从
+              Composer 上方出现并原位接管真实 agent；根对话切换中区；subagent
+              保持中区并打开右栏；只有存在 workspace 时，消息文件链接才在右侧文件面板打开。
             </div>
           </li>
         </ol>
       </div>
     </section>
 
-    <section class="screen" id="new-conversation-directory">
+    <section class="screen" id="filesystem-picker-design">
       <div class="screen-head">
-        <span class="tag">主页 · 新对话目录</span>
-        <h2>未选目录是独立草稿，选中目录后归入项目</h2>
+        <span class="tag">主页 · 工作目录 · Gate 1 已确认 · 待 Gate 2</span>
+        <h2>项目快速选择 + 本机双栏目录浏览</h2>
         <p>
-          全局新对话不继承旧对话或默认项目；Composer 顶部上下文条提供本机或 host 目录选择。只有 host
-          返回真实 workspace 后才能启动 agent，并在首次发送后归入对应项目。
+          紧凑浮层承担当前电脑的项目搜索、最近项目和当前选择。点击“浏览文件系统…”进入 Helm
+          双栏浏览器，左侧位置与目录树、右侧完整目录列表分别滚动，选择后回填当前电脑 daemon
+          返回的绝对路径。
         </p>
       </div>
       <iframe
         class="embedded-spec"
-        src="./requirements/2026-07-28-new-conversation-directory/ui.html#sND1"
-        title="新对话工作目录完整 UI 设计稿"
-      ></iframe>
-    </section>
-
-    <section class="screen" id="conversation-composer">
-      <div class="screen-head">
-        <span class="tag">主页 · Composer · 已实现，待 Gate 3 验收</span>
-        <h2>新对话、进行中对话与运行配置</h2>
-        <p>
-          Composer 改为单一连续输入表面：顶部工作目录上下文条、正文输入区、底部工具与运行配置。
-          底栏左侧只保留统一“+”，右侧以三个同规格且间隔 6px 的文字标签承载模型、英文推理强度和
-          provider
-          真实运行模式，再放上下文与发送；所有点击槽位统一高度、圆角和图标尺寸。模型选择使用贴着触发器的单列锚定下拉，顶部承载提供方与中转站。新对话与进行中对话、队列操作、模型下拉、强度/模式菜单、上下文/额度、紧凑态和关键异常状态见完整设计稿。
-        </p>
-      </div>
-      <iframe
-        class="embedded-spec"
-        src="./requirements/2026-07-29-conversation-composer/ui.html#new"
-        title="对话 Composer 与运行配置完整 UI 设计稿"
+        src="./requirements/2026-08-03-filesystem-picker-design/ui.html"
+        title="工作目录选择器最新交互设计稿"
       ></iframe>
       <div class="anno" style="margin-top: 18px">
         <div class="anno-h">交互注解</div>
@@ -1557,37 +1563,99 @@
           <li>
             <span class="pin">L</span>
             <div>
-              <b>布局</b>：目录、输入和底栏合为一个 Composer；宽度和底部锚点在新对话、运行、队列与
-              错误状态下保持稳定。底栏只有统一“+”、模型/强度/模式三个文字标签、上下文和发送；三个
-              标签之间固定留 6px，所有槽位统一 32px 高、6px 圆角和 16px
-              图标，只有发送/停止使用实色。桌面模型选择是最多 430px
-              且列表内部滚动的锚定下拉，紧凑态使用底部 sheet；780px 桌面与 320px
-              紧凑宽度均不换行、不裁切、不横向滚动。
+              <b>布局</b>：仅 PC Electron 与桌面 Web；424px 紧凑浮层锚定在工作目录节点正上方，
+              顶部是项目搜索，中部是最近项目，底部提供“浏览文件系统…”与“不使用工作目录”； 704px
+              浏览器左侧位置与目录树、右侧当前目录分别滚动。
+            </div>
+          </li>
+          <li>
+            <span class="pin">S</span>
+            <div>
+              <b>状态</b>：项目默认、搜索、无结果、选中、hover、键盘焦点和关闭齐全；文件浏览的
+              加载、空目录、错误、权限不足、路径历史、搜索与选择有出口。取消、Escape、点击外部和
+              失败都不改变原选择或 Composer 输入。
+            </div>
+          </li>
+          <li>
+            <span class="pin">R</span>
+            <div><b>右键菜单</b>：无。项目与目录都通过左键与键盘操作。</div>
+          </li>
+          <li>
+            <span class="pin">C</span>
+            <div>
+              <b>点击效果</b>：搜索只过滤当前电脑的已知项目；项目行直接选择；点击“浏览文件系统…”
+              进入双栏后可切换位置、展开目录树、搜索、选中、进入并确认目录，回填当前电脑 daemon
+              可解析的绝对路径；“不使用工作目录”切换为纯对话。
+            </div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="screen" id="conversation-composer">
+      <div class="screen-head">
+        <span class="tag">主页 · Composer · 主体已实现，目录选择设计已通过 Gate 1</span>
+        <h2>桌面输入框与单行运行配置</h2>
+        <p>
+          PC 客户端和桌面 Web 使用同一结构：工作目录在 16px 圆角输入框上方，输入框左下保留“+”与
+          独立语音，右下为发送；输入框下方单独放一行运行配置。小字号标签位于竖线左侧，右侧控件靠右，
+          依次为提供方 · 中转站 · 模型、英文推理强度、中文运行模式、按能力出现的配置和上下文。
+          第一选择器按提供方 → 中转站 → 模型推进，所有下拉锚定各自控件正上方。右侧工作区压窄中区时，
+          各文字触发器在自身范围内省略长值，仍保留全部独立入口且不回流到“+”。上下文只显示文字、
+          百分比或可点击的“--”空态与下拉箭头，不显示环形图。
+        </p>
+      </div>
+      <iframe
+        class="embedded-spec"
+        src="./requirements/2026-08-01-composer-runtime-config/ui.html"
+        title="桌面 Composer 输入与运行配置完整 UI 设计稿"
+      ></iframe>
+      <div class="anno" style="margin-top: 18px">
+        <div class="anno-h">交互注解</div>
+        <ol>
+          <li>
+            <span class="pin">L</span>
+            <div>
+              <b>布局</b>：工作目录、圆角输入框和运行配置纵向排列，最大宽度 760px；输入框左下是圆形
+              “+”和独立语音，右下是圆形发送/停止；空输入时发送按钮保留圆形底和清晰的向上箭头但不可点击。
+              运行配置只占一行，标签在竖线左侧，全部配置在右侧
+              靠右；模型摘要和其它长值可在控件内部省略，整行不换行、不重叠、不横向滚动。中区受右栏
+              挤压时仍保留三个文字选择器，完整值在各自上方下拉中展示。模型弹层 `top-start`，其它
+              运行配置弹层 `top-end`，均与当前触发器相隔 14px 并覆盖输入框区域。
             </div>
           </li>
           <li>
             <span class="pin">S</span>
             <div>
               <b>状态</b
-              >：工作目录、提供方、中转站、模型、推理强度、运行模式、上下文和账号额度均有默认、
-              加载、空、错误与离线状态；能力不支持的控件不渲染灰色占位。紧凑态把附件、`@`、语音、
-              强度、模式与 provider feature 收进“+”，入口移动但功能不丢失。
+              >：工作目录可选；新对话可切换工作目录与提供方，对话开始后两者锁定。目录浮层包含项目
+              搜索、最近项目、无结果、选中、清空，以及双栏浏览的加载、空目录、错误、权限不足、路径历史、
+              搜索和确认。中转站、模型、推理强度、运行模式、 上下文和 provider feature
+              均有默认、加载、空、错误与离线状态；能力不支持的控件不显示。
+              上下文不画环形图，百分比未知时显示可点击的 `--`；中转站只展示明确暴露的模型，暴露列表
+              缺失或为空时展示空列表。`@` 入口与文件提及自动补全删除，`/`
+              命令保留。本期不设计手机端。
             </div>
           </li>
           <li>
             <span class="pin">C</span>
             <div>
-              <b>点击效果</b>：新对话中目录、提供方、中转站、模型、强度和模式均可调整；创建后目录和
-              提供方锁定，其余运行配置按下一条消息生效；每条待发消息右侧可删除或强制发送；上下文入口
-              展开对话 token 占用与当前官方/中转站运行路由返回的 windows、balances 和 details；5h、7
-              天只是可能返回的窗口示例。
+              <b>点击效果</b>：第一选择器是唯一的提供方入口；缺提供方时打开提供方层，缺中转站时打开
+              中转站层，三级完整时默认打开模型层。选择后依次推进，顶部路径可回退，活动对话的提供方路径
+              锁定。第二选择器只选英文推理强度，第三选择器只选中文运行模式；上下文展开 token
+              与额度详情。Electron 与 Web 点击工作目录都先打开项目浮层；点击“浏览文件系统…”进入 Helm
+              双栏浏览器。确认后回填当前电脑 daemon 的绝对路径；保持“对话 ·
+              未选择工作目录”时也能发送。
             </div>
           </li>
           <li>
             <span class="pin">B</span>
             <div>
-              <b>边界</b>：中转站是 API 供应商，不是 host Relay；Plan / Build 等是运行模式而非模型，
-              推理档位保留英文，额度窗口不硬编码。深度配置仍进入设置；本需求不修改协议。
+              <b>右键菜单</b>：无。<b>边界</b>：中转站是 API 供应商，不是 host
+              Relay；推理档位保留英文，运行模式本地化为中文。中转站选择写入配置并回显，但 daemon
+              启动链路尚未消费它；深度配置仍进入设置。纯对话使用可选 `conversationOnly` 字段和
+              `conversationOnlyAgents` 能力门。文件系统浏览只覆盖当前电脑，由 daemon 目录服务驱动；
+              本期不设计远程 Host 或多设备切换。
             </div>
           </li>
         </ol>
@@ -1691,7 +1759,7 @@
     </section>
 
     <div class="note">
-      Helm · canonical UI 设计稿 · 更新于 2026-07-29 · 浅色主题 · accent #20744A
+      Helm · canonical UI 设计稿 · 更新于 2026-08-03 · 浅色主题 · accent #20744A
     </div>
   </body>
 </html>
