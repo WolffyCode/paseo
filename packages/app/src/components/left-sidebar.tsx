@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { CircleGauge, FolderPlus, GitBranch, Server, Settings, X } from "lucide-react-native";
+import { CircleGauge, FolderPlus, GitBranch, Plus, Server, Settings, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
@@ -23,6 +23,7 @@ import {
 import { HostPicker } from "@/components/hosts/host-picker";
 import { SidebarDisplayPreferencesMenu } from "@/components/sidebar/display-preferences/menu";
 import { SidebarSeparator } from "@/components/sidebar/sidebar-separator";
+import { SidebarSectionAction, SidebarSectionHeader } from "@/components/sidebar/section-header";
 import { SidebarNavRows } from "@/components/sidebar/sidebar-nav-rows";
 import { SidebarHelpMenu } from "@/components/sidebar/sidebar-help-menu";
 import { SidebarResizeHandle } from "@/components/sidebar-resize-handle";
@@ -31,7 +32,7 @@ import { Shortcut } from "@/components/ui/shortcut";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { HEADER_INNER_HEIGHT, useIsCompactFormFactor } from "@/constants/layout";
 import { useOpenAddProject } from "@/hooks/use-open-add-project";
-import { useImportSession } from "@/hooks/use-import-session";
+import { useOpenNewConversation } from "@/hooks/use-new-conversation";
 import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
 import {
   type SidebarProjectEntry,
@@ -47,6 +48,7 @@ import { useHosts } from "@/runtime/host-runtime";
 import { PluginSidebarItem } from "@/plugins/sidebar-items";
 import { builtinSidebarNavLabelKey } from "@/sidebar-nav/model";
 import { useSidebarNavItems } from "@/sidebar-nav/use-sidebar-nav-items";
+import { useSidebarCollapsedSectionsStore } from "@/stores/sidebar-collapsed-sections-store";
 import { usePanelStore } from "@/stores/panel-store";
 import { useOwnsWindowChromeCorner, WindowChromeSafeArea } from "@/utils/desktop-window";
 import { useCloseAgentListGesture } from "@/mobile-panels/gestures";
@@ -84,7 +86,6 @@ interface SidebarSharedProps {
   toggleProjectCollapsed: (projectViewKey: string) => void;
   handleRefresh: () => void;
   handleOpenProject: () => void;
-  handleImportSession: () => void;
   handleSettings: () => void;
   labels: SidebarLabels;
   handleAddHost: () => void;
@@ -150,7 +151,6 @@ export const LeftSidebar = memo(function LeftSidebar({ active }: { active: boole
   }, [isRevalidating, isManualRefresh]);
 
   const openProjectPicker = useOpenAddProject();
-  const { open: openImportSession, sheet: importSessionSheet } = useImportSession();
 
   const handleOpenProjectMobile = useCallback(() => {
     showMobileAgent();
@@ -191,11 +191,6 @@ export const LeftSidebar = memo(function LeftSidebar({ active }: { active: boole
     openHostOverview(serverId);
   }, []);
 
-  const handleImportSessionMobile = useCallback(() => {
-    showMobileAgent();
-    openImportSession();
-  }, [openImportSession, showMobileAgent]);
-
   const labels = useMemo(
     (): SidebarLabels => ({
       addProject: t("sidebar.actions.addProject"),
@@ -229,42 +224,34 @@ export const LeftSidebar = memo(function LeftSidebar({ active }: { active: boole
 
   if (isCompactLayout) {
     return (
-      <>
-        <RetainedPanelActivity active={active}>
-          <MobileSidebar
-            {...sharedProps}
-            active={active}
-            insetsTop={insets.top}
-            insetsBottom={insets.bottom}
-            closeSidebar={showMobileAgent}
-            handleOpenProject={handleOpenProjectMobile}
-            handleImportSession={handleImportSessionMobile}
-            handleSettings={handleSettingsMobile}
-            handleAddHost={handleAddHostMobile}
-            handleOpenHostSettings={handleOpenHostSettingsMobile}
-          />
-        </RetainedPanelActivity>
-        {importSessionSheet}
-      </>
+      <RetainedPanelActivity active={active}>
+        <MobileSidebar
+          {...sharedProps}
+          active={active}
+          insetsTop={insets.top}
+          insetsBottom={insets.bottom}
+          closeSidebar={showMobileAgent}
+          handleOpenProject={handleOpenProjectMobile}
+          handleSettings={handleSettingsMobile}
+          handleAddHost={handleAddHostMobile}
+          handleOpenHostSettings={handleOpenHostSettingsMobile}
+        />
+      </RetainedPanelActivity>
     );
   }
 
   return (
-    <>
-      <RetainedPanelActivity active={active}>
-        <DesktopSidebar
-          {...sharedProps}
-          insetsTop={insets.top}
-          active={active}
-          handleOpenProject={handleOpenProjectDesktop}
-          handleImportSession={openImportSession}
-          handleSettings={handleSettingsDesktop}
-          handleAddHost={handleAddHostDesktop}
-          handleOpenHostSettings={handleOpenHostSettingsDesktop}
-        />
-      </RetainedPanelActivity>
-      {importSessionSheet}
-    </>
+    <RetainedPanelActivity active={active}>
+      <DesktopSidebar
+        {...sharedProps}
+        insetsTop={insets.top}
+        active={active}
+        handleOpenProject={handleOpenProjectDesktop}
+        handleSettings={handleSettingsDesktop}
+        handleAddHost={handleAddHostDesktop}
+        handleOpenHostSettings={handleOpenHostSettingsDesktop}
+      />
+    </RetainedPanelActivity>
   );
 });
 
@@ -523,7 +510,6 @@ function MobileSidebar({
   toggleProjectCollapsed,
   handleRefresh,
   handleOpenProject,
-  handleImportSession,
   handleSettings,
   labels,
   handleAddHost,
@@ -538,6 +524,10 @@ function MobileSidebar({
   const handleWorkspacePress = useCallback(() => {
     closeSidebar();
   }, [closeSidebar]);
+  const projectsSectionHeader = useMemo(
+    () => <ProjectsSectionHeader onBeforeNavigate={closeSidebar} />,
+    [closeSidebar],
+  );
 
   const mobileSidebarInsetStyle = useMemo(
     () => ({
@@ -598,11 +588,9 @@ function MobileSidebar({
             isRefreshing={isManualRefresh && isRevalidating}
             onRefresh={handleRefresh}
             onWorkspacePress={handleWorkspacePress}
-            onAddProject={handleOpenProject}
-            onImportSession={handleImportSession}
             parentGestureRef={closeGestureRef}
             dragGestureHostActive={active}
-            listHeaderComponent={projectsSectionHeaderElement}
+            listHeaderComponent={projectsSectionHeader}
           />
         )}
 
@@ -637,7 +625,6 @@ function DesktopSidebar({
   toggleProjectCollapsed,
   handleRefresh,
   handleOpenProject,
-  handleImportSession,
   handleSettings,
   labels,
   handleAddHost,
@@ -773,8 +760,6 @@ function DesktopSidebar({
             workspaceEntriesByKey={workspaceEntriesByKey}
             isRefreshing={isManualRefresh && isRevalidating}
             onRefresh={handleRefresh}
-            onAddProject={handleOpenProject}
-            onImportSession={handleImportSession}
             listHeaderComponent={projectsSectionHeaderElement}
           />
         )}
@@ -801,24 +786,39 @@ function DesktopSidebar({
   );
 }
 
-function ProjectsSectionHeader() {
+function ProjectsSectionHeader({ onBeforeNavigate }: { onBeforeNavigate?: () => void }) {
   const { t } = useTranslation();
+  const collapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedProjects);
+  const onToggle = useSidebarCollapsedSectionsStore((state) => state.toggleProjectsCollapsed);
+  const openNewConversation = useOpenNewConversation();
+  const handleNewConversation = useCallback(() => {
+    onBeforeNavigate?.();
+    openNewConversation();
+  }, [onBeforeNavigate, openNewConversation]);
   return (
-    <View style={styles.projectsSectionHeader} testID="sidebar-projects-section-header">
-      <Text style={styles.projectsSectionTitle}>{t("sidebar.sections.projects")}</Text>
-      <View style={styles.projectsSectionActions}>
-        <Tooltip delayDuration={300}>
-          <TooltipTrigger asChild>
-            <View>
-              <SidebarDisplayPreferencesMenu />
-            </View>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="center" offset={8}>
-            <IconTooltipContent label={t("sidebar.display.trigger")} />
-          </TooltipContent>
-        </Tooltip>
-      </View>
-    </View>
+    <SidebarSectionHeader
+      title={t("sidebar.sections.projects")}
+      testID="sidebar-projects-section-header"
+      collapsed={collapsed}
+      onToggle={onToggle}
+    >
+      <Tooltip delayDuration={300}>
+        <TooltipTrigger asChild>
+          <View>
+            <SidebarDisplayPreferencesMenu />
+          </View>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="center" offset={8}>
+          <IconTooltipContent label={t("sidebar.display.trigger")} />
+        </TooltipContent>
+      </Tooltip>
+      <SidebarSectionAction
+        icon={Plus}
+        onPress={handleNewConversation}
+        label={t("newWorkspace.title")}
+        testID="sidebar-projects-new-chat"
+      />
+    </SidebarSectionHeader>
   );
 }
 
@@ -839,37 +839,11 @@ const staticStyles = RNStyleSheet.create({
 const styles = StyleSheet.create((theme) => ({
   sidebarHeaderGroup: {
     paddingTop: theme.spacing[2],
-    gap: 2,
-    paddingBottom: theme.spacing[1.5],
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    gap: theme.spacing[0.5],
+    paddingBottom: theme.spacing[3],
   },
   sidebarHeaderGroupBelowChrome: {
     paddingTop: 0,
-  },
-  projectsSectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: theme.spacing[2],
-    // Rendered inside the scroll's listContent (paddingHorizontal spacing[2]). The title
-    // lands at spacing[2] left to align with project icons. Settings2's painted path stops
-    // inside its 14px SVG, so 4px aligns the ink rather than the SVG box to the row rail.
-    paddingLeft: theme.spacing[2],
-    paddingRight: 4,
-    paddingTop: theme.spacing[1],
-    paddingBottom: theme.spacing[1],
-    minHeight: 36,
-  },
-  projectsSectionTitle: {
-    color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.medium,
-  },
-  projectsSectionActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[1],
   },
   sidebarContent: {
     flex: 1,

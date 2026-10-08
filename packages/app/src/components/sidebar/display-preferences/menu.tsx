@@ -22,7 +22,7 @@ import {
   GitPullRequest,
   Globe,
   Server,
-  Settings2,
+  Ellipsis,
   Tag,
   Type,
 } from "lucide-react-native";
@@ -55,13 +55,17 @@ import type { WorkspaceTitleSource } from "@/hooks/use-settings";
 import { SIDEBAR_CHECKS_DISPLAYS, type SidebarChecksDisplay } from "./checks-display";
 import { useSidebarDisplayPreferences, type SidebarTrailingChoice } from "./model";
 import { SIDEBAR_ROW_ITEMS, type SidebarRowItem } from "./row-items";
+import {
+  SIDEBAR_ACTION_ICON_SIZE,
+  sidebarSectionStyles,
+} from "@/components/sidebar/section-header";
 import { useWorkspaceLabelProjection } from "@/workspace-labels";
 import { WorkspaceLabelDot } from "@/workspace-labels/swatch";
 import { WorkspaceLabelManagerModal } from "@/workspace-labels/manager-modal";
 
 const mutedIconMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 
-const ThemedSettings2 = withUnistyles(Settings2);
+const ThemedEllipsis = withUnistyles(Ellipsis);
 /** CI's mark: the subject of the checks row, and the shape the icon-only option leaves behind. */
 const ThemedCircleCheck = withUnistyles(CircleCheck);
 const ThemedCircle = withUnistyles(Circle);
@@ -174,9 +178,9 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
   const closeManager = useCallback(() => setManagerOpen(false), []);
 
   const triggerStyle = useCallback(
-    ({ hovered = false }: PressableStateCallbackType & { hovered?: boolean }) => [
-      styles.trigger,
-      hovered && styles.triggerHovered,
+    ({ hovered = false, pressed }: PressableStateCallbackType & { hovered?: boolean }) => [
+      sidebarSectionStyles.action,
+      (hovered || pressed) && sidebarSectionStyles.actionHighlighted,
     ],
     [],
   );
@@ -292,7 +296,7 @@ export function SidebarDisplayPreferencesMenu(): ReactElement {
           accessibilityLabel={t("sidebar.display.trigger")}
           testID="sidebar-display-preferences-menu"
         >
-          <ThemedSettings2 size={14} uniProps={mutedIconMapping} />
+          <ThemedEllipsis size={SIDEBAR_ACTION_ICON_SIZE} uniProps={mutedIconMapping} />
         </MenuTrigger>
         <MenuSurface
           align="end"
@@ -753,20 +757,10 @@ function HostFilterItem({
   );
 }
 
-const styles = StyleSheet.create((theme) => ({
-  trigger: {
-    width: 28,
-    height: 28,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: theme.borderRadius.md,
-  },
-  triggerHovered: {
-    backgroundColor: theme.colors.surfaceSidebarHover,
-  },
+const styles = StyleSheet.create({
   // The icon sits in a 14pt menu slot, so the fallback initial is sized down to match rather
   // than reusing the sidebar row's 16pt figure.
   projectIconText: {
     fontSize: 8,
   },
-}));
+});

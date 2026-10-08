@@ -85,6 +85,8 @@ function projectionInput(options?: {
     projectNamesByViewKey: new Map([["project", "Project"]]),
     groupMode: options?.groupMode ?? ("project" as const),
     pinnedCollapsed: options?.pinnedCollapsed ?? false,
+    projectsCollapsed: false,
+    conversationsCollapsed: false,
     collapsedProjectKeys: new Set<string>(),
     collapsedWorkspaceGroupKeys: new Set<string>(),
     t: i18n.t,
@@ -115,6 +117,42 @@ function twoProjectInput(groupMode: "project" | "status") {
 
 describe("buildSidebarProjection", () => {
   for (const groupMode of ["project", "status"] as const) {
+    it.each([
+      { projectsCollapsed: true, conversationsCollapsed: false, expected: ["pinned", "chat"] },
+      { projectsCollapsed: false, conversationsCollapsed: true, expected: ["pinned", "unpinned"] },
+      { projectsCollapsed: true, conversationsCollapsed: true, expected: ["pinned"] },
+    ])(
+      `excludes collapsed sections from ${groupMode} shortcuts without removing their records: %j`,
+      ({ projectsCollapsed, conversationsCollapsed, expected }) => {
+        const chat = makeWorkspace("chat");
+        chat.placement.purpose = chat.entry.purpose = "chat";
+        const input = {
+          ...projectionInput({ groupMode }),
+          chats: [chat.placement],
+          projectsCollapsed,
+          conversationsCollapsed,
+        };
+        const projection = buildSidebarProjection(input);
+        expect(
+          projection.shortcutModel.shortcutTargets.map((target) => target.workspaceId),
+        ).toEqual(expected);
+        expect(projection.pinnedGroups.unpinnedChats).toEqual([chat.placement]);
+        expect(
+          projection.pinnedGroups.unpinnedProjects[0].workspaces.map((row) => row.workspaceId),
+        ).toEqual(["unpinned"]);
+        const expanded = buildSidebarProjection({
+          ...input,
+          projectsCollapsed: false,
+          conversationsCollapsed: false,
+        });
+        expect(expanded.shortcutModel.shortcutTargets.map((target) => target.workspaceId)).toEqual([
+          "pinned",
+          "unpinned",
+          "chat",
+        ]);
+      },
+    );
+
     it(`keeps independent conversations after projects with ${groupMode} grouping`, () => {
       const input = projectionInput({ groupMode });
       for (const entry of input.workspaceEntriesByKey.values()) entry.statusBucket = "done";

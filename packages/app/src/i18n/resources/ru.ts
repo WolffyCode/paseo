@@ -1278,7 +1278,6 @@ export const ru: TranslationResources = {
       },
       empty: {
         title: "Пока нет проектов",
-        description: "Ваши проекты появятся здесь.",
       },
     },
     workspace: {

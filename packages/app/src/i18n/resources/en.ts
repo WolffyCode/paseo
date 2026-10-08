@@ -1268,7 +1268,6 @@ export const en = {
       },
       empty: {
         title: "No projects yet",
-        description: "Your projects will appear here.",
       },
     },
     workspace: {

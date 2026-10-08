@@ -152,6 +152,7 @@ export function SidebarStatusWorkspaceList({
     (state) => state.collapsedWorkspaceGroupKeys,
   );
   const pinnedCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedPinned);
+  const projectsCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedProjects);
   const togglePinnedCollapsed = useSidebarCollapsedSectionsStore(
     (state) => state.togglePinnedCollapsed,
   );
@@ -200,6 +201,21 @@ export function SidebarStatusWorkspaceList({
       supportsPinningByServerId,
     ],
   );
+  const projectBody = sidebarFilterEmpty ? (
+    <SidebarFilterEmptyState />
+  ) : (
+    <StatusGroupList
+      groups={groups}
+      collapsedWorkspaceGroupKeys={collapsedWorkspaceGroupKeys}
+      projectIconByProjectViewKey={projectIconByProjectViewKey}
+      shortcutIndex={statusShortcutIndex}
+      showShortcutBadges={showShortcutBadges}
+      onWorkspacePress={onWorkspacePress}
+      hostBadgeByServerId={hostBadgeByServerId}
+      supportsPinningByServerId={supportsPinningByServerId}
+      onToggleWorkspacePin={onToggleWorkspacePin}
+    />
+  );
   const content = (
     <>
       <View style={styles.pinnedSection} testID="sidebar-pinned-section">
@@ -229,21 +245,7 @@ export function SidebarStatusWorkspaceList({
         )}
       </View>
       {listHeaderComponent}
-      {sidebarFilterEmpty ? (
-        <SidebarFilterEmptyState />
-      ) : (
-        <StatusGroupList
-          groups={groups}
-          collapsedWorkspaceGroupKeys={collapsedWorkspaceGroupKeys}
-          projectIconByProjectViewKey={projectIconByProjectViewKey}
-          shortcutIndex={statusShortcutIndex}
-          showShortcutBadges={showShortcutBadges}
-          onWorkspacePress={onWorkspacePress}
-          hostBadgeByServerId={hostBadgeByServerId}
-          supportsPinningByServerId={supportsPinningByServerId}
-          onToggleWorkspacePin={onToggleWorkspacePin}
-        />
-      )}
+      {projectsCollapsed ? null : projectBody}
       {listFooterComponent}
     </>
   );

@@ -1296,7 +1296,6 @@ export const es: TranslationResources = {
       },
       empty: {
         title: "Aún no hay proyectos",
-        description: "Tus proyectos aparecerán aquí.",
       },
     },
     workspace: {

@@ -69,6 +69,10 @@ export function SidebarModelProvider({
     (state) => state.collapsedWorkspaceGroupKeys,
   );
   const pinnedCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedPinned);
+  const projectsCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedProjects);
+  const conversationsCollapsed = useSidebarCollapsedSectionsStore(
+    (state) => state.collapsedConversations,
+  );
   const pinnedWorkspaceOrder = useSidebarOrderStore((state) => state.pinnedWorkspaceOrder);
   const toggleProjectCollapsed = useSidebarCollapsedSectionsStore(
     (state) => state.toggleProjectCollapsed,
@@ -166,6 +170,8 @@ export function SidebarModelProvider({
       projectNamesByViewKey: list.projectNamesByViewKey,
       groupMode,
       pinnedCollapsed,
+      projectsCollapsed,
+      conversationsCollapsed,
       collapsedProjectKeys,
       collapsedWorkspaceGroupKeys,
       t,
@@ -178,6 +184,8 @@ export function SidebarModelProvider({
       filteredProjects,
       filteredChats,
       pinnedCollapsed,
+      projectsCollapsed,
+      conversationsCollapsed,
       pinnedKeys,
       pinnedWorkspaceOrder,
       filteredWorkspaceEntriesByKey,

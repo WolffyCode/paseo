@@ -1260,7 +1260,6 @@ export const ar: TranslationResources = {
       },
       empty: {
         title: "لا توجد مشاريع حتى الآن",
-        description: "ستظهر مشاريعك هنا.",
       },
     },
     workspace: {

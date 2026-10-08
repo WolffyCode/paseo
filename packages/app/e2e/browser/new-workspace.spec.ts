@@ -90,6 +90,8 @@ test("independent chat sidebar has four sections and supports create, reopen, pi
   const pinned = page.getByTestId("sidebar-pinned-section");
   const projects = page.getByTestId("sidebar-projects-section-header");
   const conversations = page.getByTestId("sidebar-conversations-section");
+  const pinnedToggle = page.getByTestId("sidebar-pinned-section-header");
+  const conversationsToggle = page.getByTestId("sidebar-conversations-section-header");
   await expect(pinned).toBeVisible();
   await expect(projects).toHaveText(/Projects/);
   await expect(conversations).toContainText("Conversations");
@@ -116,10 +118,35 @@ test("independent chat sidebar has four sections and supports create, reopen, pi
     await expect(conversations.getByTestId(`sidebar-workspace-row-${key}`)).toContainText(message);
     await expect(row).toHaveAttribute("aria-selected", "true");
     await expect(page.locator('[data-testid^="sidebar-project-row-"]')).toHaveCount(0);
+    await projects.click();
+    await expect(page.getByTestId("sidebar-project-empty-state")).toHaveCount(0);
+    await expect(row).toBeVisible();
+    await conversationsToggle.click();
+    await expect(row).toHaveCount(0);
+    await pinnedToggle.click();
     await page.reload();
-    await expect(conversations.getByTestId(`sidebar-workspace-row-${key}`)).toContainText(message);
+    for (const toggle of [pinnedToggle, projects, conversationsToggle]) {
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+    }
+    await expect(row).toHaveCount(0);
+    await expect(page.getByTestId("sidebar-project-empty-state")).toHaveCount(0);
+    await page.getByTestId("sidebar-projects-new-chat").click();
+    await expect(page.getByTestId("new-conversation-screen")).toBeVisible();
+    const projectEntryUrl = page.url();
+    await expect(page.getByTestId("new-workspace-project-picker-trigger")).toContainText(
+      "Workspace directory (optional)",
+    );
     await page.getByTestId("sidebar-new-chat").click();
     await expect(page.getByTestId("new-conversation-screen")).toBeVisible();
+    await expect(page).not.toHaveURL(projectEntryUrl);
+    await conversationsToggle.focus();
+    await page.keyboard.press("Enter");
+    await expect(conversations.getByTestId(`sidebar-workspace-row-${key}`)).toContainText(message);
+    await expect(projects).toHaveAttribute("aria-expanded", "false");
+    await expect(pinnedToggle).toHaveAttribute("aria-expanded", "false");
+    await projects.click();
+    await expect(page.getByTestId("sidebar-project-empty-state")).toBeVisible();
+    await pinnedToggle.click();
     await row.click();
     await expect(page.getByTestId("workspace-header-title")).toHaveText(message);
 
@@ -129,6 +156,10 @@ test("independent chat sidebar has four sections and supports create, reopen, pi
     await page.getByTestId(`sidebar-workspace-menu-pin-${key}`).click();
     await expect(pinned.getByTestId(`sidebar-workspace-row-${key}`)).toBeVisible();
     await expect(conversations.getByTestId(`sidebar-workspace-row-${key}`)).toHaveCount(0);
+    await pinnedToggle.click();
+    await expect(row).toHaveCount(0);
+    await pinnedToggle.click();
+    await expect(pinned.getByTestId(`sidebar-workspace-row-${key}`)).toBeVisible();
     await row.hover();
     await page.getByTestId(`sidebar-workspace-kebab-${key}`).click();
     await page.getByTestId(`sidebar-workspace-menu-rename-${key}`).click();

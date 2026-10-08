@@ -1249,8 +1249,7 @@ export const zhCN: TranslationResources = {
         updateHostToRemove: "更新 host 以移除 projects。",
       },
       empty: {
-        title: "还没有项目",
-        description: "添加的项目会显示在这里。",
+        title: "暂无项目",
       },
     },
     workspace: {
@@ -1313,7 +1312,7 @@ export const zhCN: TranslationResources = {
       search: "搜索工作区目录",
       empty: "没有匹配的工作区目录。",
     },
-    title: "新对话",
+    title: "新聊天",
     create: "创建",
     isolation: {
       local: "本地",
@@ -2309,7 +2308,7 @@ export const zhCN: TranslationResources = {
       },
       help: {
         openProject: "打开项目",
-        newWorkspace: "新对话",
+        newWorkspace: "新聊天",
         newWorktree: "新建 worktree",
         archiveWorkspace: "归档工作区",
         newTab: "新建标签",

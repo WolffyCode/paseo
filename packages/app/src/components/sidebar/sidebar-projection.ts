@@ -46,6 +46,8 @@ export interface SidebarProjectionInput {
   projectNamesByViewKey: Map<string, string>;
   groupMode: SidebarGroupMode;
   pinnedCollapsed: boolean;
+  projectsCollapsed: boolean;
+  conversationsCollapsed: boolean;
   collapsedProjectKeys: ReadonlySet<string>;
   collapsedWorkspaceGroupKeys: ReadonlySet<string>;
   t: TFunction;
@@ -75,18 +77,21 @@ export function buildSidebarProjection(input: SidebarProjectionInput): SidebarPr
     sections.push(
       ...pinnedGroups.unpinnedProjects.map((project) => ({
         workspaces: project.workspaces,
-        collapsed: input.collapsedProjectKeys.has(project.viewKey),
+        collapsed: input.projectsCollapsed || input.collapsedProjectKeys.has(project.viewKey),
       })),
     );
   } else {
     sections.push(
       ...workspaceGroups.map((group) => ({
         workspaces: group.rows,
-        collapsed: input.collapsedWorkspaceGroupKeys.has(group.key),
+        collapsed: input.projectsCollapsed || input.collapsedWorkspaceGroupKeys.has(group.key),
       })),
     );
   }
-  sections.push({ workspaces: pinnedGroups.unpinnedChats });
+  sections.push({
+    workspaces: pinnedGroups.unpinnedChats,
+    collapsed: input.conversationsCollapsed,
+  });
 
   return {
     pinnedGroups,

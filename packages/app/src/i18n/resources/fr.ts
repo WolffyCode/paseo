@@ -1288,7 +1288,6 @@ export const fr: TranslationResources = {
       },
       empty: {
         title: "Aucun projet pour l’instant",
-        description: "Vos projets apparaîtront ici.",
       },
     },
     workspace: {

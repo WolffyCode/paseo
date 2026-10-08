@@ -1267,7 +1267,6 @@ export const ko: TranslationResources = {
       },
       empty: {
         title: "아직 프로젝트가 없습니다",
-        description: "추가한 프로젝트가 여기에 표시됩니다.",
       },
     },
     workspace: {

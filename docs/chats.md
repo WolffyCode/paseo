@@ -7,9 +7,13 @@ entry inside a project supplies that project's context. Clearing the directory k
 the draft. Adding a new directory through the picker also keeps the form and draft.
 
 The sidebar uses one creation entry above Pinned, Projects, and Conversations. Search
-and Schedules retain their normal entries. Conversations lists independent conversations;
-its plus button opens the same creation form. Pinned conversations move to Pinned and
-appear once. Project filters narrow ordinary projects without hiding conversations.
+and Schedules retain their normal entries. Conversations lists independent conversations.
+The Projects plus button and Conversations compose button open the same creation form.
+Pinned, Projects, and Conversations collapse independently and remember their state on
+the device. Collapsing hides the section's rows and empty state while keeping its header
+actions available. Keyboard workspace shortcuts skip collapsed sections in either grouping
+mode. Pinned conversations move to Pinned and appear once. Project filters narrow ordinary
+projects without hiding conversations.
 
 Conversation rows own reopen, rename, pin, and archive actions. Leaving the page or closing an agent tab keeps the conversation;
 explicit archive stops its agents and removes it from the active list. Open archived

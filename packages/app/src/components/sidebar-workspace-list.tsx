@@ -225,8 +225,6 @@ interface SidebarWorkspaceListProps {
   isRefreshing?: boolean;
   onRefresh?: () => void;
   onWorkspacePress?: () => void;
-  onAddProject?: () => void;
-  onImportSession?: () => void;
   listFooterComponent?: ReactElement | null;
   // Rendered inside the scroll area, below Pinned and above Projects.
   listHeaderComponent?: ReactElement | null;
@@ -1894,8 +1892,6 @@ export function SidebarWorkspaceList({
   isRefreshing: _isRefreshing = false,
   onRefresh: _onRefresh,
   onWorkspacePress,
-  onAddProject,
-  onImportSession,
   listFooterComponent,
   listHeaderComponent,
   parentGestureRef,
@@ -2031,8 +2027,6 @@ export function SidebarWorkspaceList({
         onToggleProjectCollapsed={onToggleProjectCollapsed}
         shortcutIndexByWorkspaceKey={shortcutIndexByWorkspaceKey}
         onWorkspacePress={onWorkspacePress}
-        onAddProject={onAddProject}
-        onImportSession={onImportSession}
         listFooterComponent={footer}
         listHeaderComponent={listHeaderComponent}
         sidebarFilterEmpty={sidebarFilterEmpty}
@@ -2129,8 +2123,6 @@ function ProjectModeList({
   onToggleProjectCollapsed,
   shortcutIndexByWorkspaceKey,
   onWorkspacePress,
-  onAddProject,
-  onImportSession,
   listFooterComponent,
   listHeaderComponent,
   sidebarFilterEmpty,
@@ -2167,6 +2159,7 @@ function ProjectModeList({
   );
   const showShortcutBadges = useShowShortcutBadges();
   const pinnedCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedPinned);
+  const projectsCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedProjects);
   const togglePinnedCollapsed = useSidebarCollapsedSectionsStore(
     (state) => state.togglePinnedCollapsed,
   );
@@ -2437,7 +2430,7 @@ function ProjectModeList({
 
   const projectBody =
     projects.length === 0 ? (
-      <SidebarProjectEmptyState onAddProject={onAddProject} onImportSession={onImportSession} />
+      <SidebarProjectEmptyState />
     ) : (
       <DraggableList
         testID="sidebar-project-list"
@@ -2455,6 +2448,7 @@ function ProjectModeList({
       />
     );
 
+  const visibleProjectBody = sidebarFilterEmpty ? <SidebarFilterEmptyState /> : projectBody;
   const content = (
     <>
       <View style={styles.pinnedSection} testID="sidebar-pinned-section">
@@ -2486,7 +2480,7 @@ function ProjectModeList({
         )}
       </View>
       {listHeaderComponent}
-      {sidebarFilterEmpty ? <SidebarFilterEmptyState /> : projectBody}
+      {projectsCollapsed ? null : visibleProjectBody}
       {listFooterComponent}
     </>
   );

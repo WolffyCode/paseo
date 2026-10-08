@@ -12,6 +12,7 @@ import { HEADER_INNER_HEIGHT, HEADER_INNER_HEIGHT_MOBILE } from "@/constants/lay
 import { ICON_SIZE } from "@/styles/theme";
 import type { Theme } from "@/styles/theme";
 import { Shortcut } from "@/components/ui/shortcut";
+import { buttonControlHeight } from "@/components/ui/control-geometry";
 import type { ShortcutKey } from "@/utils/format-shortcut";
 
 const foregroundColorMapping = (theme: Theme) => ({ color: theme.colors.foreground });
@@ -66,7 +67,9 @@ export function SidebarHeaderRow({
   const handlePointerLeave = useCallback(() => setIsHovered(false), []);
   const ThemedIcon = useMemo(() => (Icon ? withUnistyles(Icon) : null), [Icon]);
   const isHighlighted = isHovered || isActive;
-  const iconSize = variant === "header" ? ICON_SIZE.md : ICON_SIZE.sm;
+  const iconSize = variant === "inline" ? ICON_SIZE.sm : ICON_SIZE.md;
+  const isPrimaryLabel = isHighlighted || variant === "compact";
+  const compactStyle = variant === "compact" ? styles.compactRow : undefined;
 
   let right = trailing ?? null;
   if (right === null && shortcutKeys && isHovered) {
@@ -76,7 +79,7 @@ export function SidebarHeaderRow({
   return (
     <View ref={rowRef} collapsable={false} style={getContainerStyle(variant)}>
       <View
-        style={[styles.row, isHighlighted && styles.rowHighlighted]}
+        style={[styles.row, compactStyle, isHighlighted && styles.rowHighlighted]}
         onPointerEnter={handlePointerEnter}
         onPointerLeave={handlePointerLeave}
       >
@@ -89,17 +92,17 @@ export function SidebarHeaderRow({
           accessibilityLabel={accessibilityLabel ?? label}
           accessibilityState={isActive ? SELECTED_STATE : undefined}
           aria-selected={isActive}
-          style={styles.button}
+          style={[styles.button, compactStyle]}
         >
           {ThemedIcon ? (
             <ThemedIcon
               size={iconSize}
-              uniProps={isHighlighted ? foregroundColorMapping : foregroundMutedColorMapping}
+              uniProps={isPrimaryLabel ? foregroundColorMapping : foregroundMutedColorMapping}
             />
           ) : (
-            <View style={variant === "header" ? styles.iconSpacer : styles.iconSpacerCompact} />
+            <View style={variant === "inline" ? styles.iconSpacerCompact : styles.iconSpacer} />
           )}
-          <Text style={[styles.label, isHighlighted && styles.labelHighlighted]}>{label}</Text>
+          <Text style={[styles.label, isPrimaryLabel && styles.labelHighlighted]}>{label}</Text>
         </Pressable>
         {right === null ? null : (
           <Pressable onPress={onPress} accessible={false} focusable={false} style={styles.trailing}>
@@ -145,6 +148,9 @@ const styles = StyleSheet.create((theme) => ({
   },
   rowHighlighted: {
     backgroundColor: theme.colors.surfaceSidebarHover,
+  },
+  compactRow: {
+    minHeight: buttonControlHeight.sm,
   },
   button: {
     flex: 1,

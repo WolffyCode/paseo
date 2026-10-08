@@ -14,6 +14,8 @@ function emptyState(): CollapsedProjectsState {
     collapsedProjectKeys: new Set(),
     collapsedWorkspaceGroupKeys: new Set(),
     collapsedPinned: false,
+    collapsedProjects: false,
+    collapsedConversations: false,
   };
 }
 
@@ -35,13 +37,20 @@ describe("sidebar collapsed projects transitions", () => {
       collapsedProjectKeys: new Set(["project-a", "project-b"]),
       collapsedWorkspaceGroupKeys: new Set(["running"]),
       collapsedPinned: true,
+      collapsedProjects: true,
+      collapsedConversations: true,
     };
 
     expect(serializeCollapsedProjects(state)).toEqual({
       collapsedProjectKeys: ["project-a", "project-b"],
       collapsedWorkspaceGroupKeys: ["running"],
       collapsedPinned: true,
+      collapsedProjects: true,
+      collapsedConversations: true,
     });
+    expect(
+      mergePersistedCollapsedProjects(serializeCollapsedProjects(state), emptyState()),
+    ).toEqual(state);
   });
 
   it("toggles and restores the pinned section collapse flag", () => {
@@ -50,6 +59,8 @@ describe("sidebar collapsed projects transitions", () => {
 
     const restored = mergePersistedCollapsedProjects({ collapsedPinned: true }, emptyState());
     expect(restored.collapsedPinned).toBe(true);
+    expect(restored.collapsedProjects).toBe(false);
+    expect(restored.collapsedConversations).toBe(false);
   });
 
   it("rejects the complete value when a persisted project key is invalid", () => {

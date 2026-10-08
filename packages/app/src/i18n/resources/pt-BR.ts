@@ -1286,7 +1286,6 @@ export const ptBR: TranslationResources = {
       },
       empty: {
         title: "Nenhum projeto ainda",
-        description: "Seus projetos aparecerão aqui.",
       },
     },
     workspace: {

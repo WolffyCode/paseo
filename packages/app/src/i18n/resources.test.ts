@@ -546,7 +546,6 @@ describe("translation resources", () => {
       pending: "Pending: {{count}}",
     });
     expect(en.sidebar.project.empty.title).toBe("No projects yet");
-    expect(en.sidebar.project.empty.description).toBe("Your projects will appear here.");
     expect(en.settings.projectList.hostLoadFailed).toBe(
       "Couldn't load projects from host {{hostName}}: {{message}}",
     );

@@ -8,8 +8,9 @@
 | 需求                                         | 验收状态                                           |
 | -------------------------------------------- | -------------------------------------------------- |
 | 统一新对话入口，目录可选                     | 已实现；无目录/项目目录两条浏览器路径验证          |
-| 新对话/搜索/计划、置顶、项目、对话侧栏       | 桌面与 390px 紧凑布局浏览器验证                    |
+| 新聊天/搜索/计划、置顶、项目、对话侧栏       | 桌面与 390px 紧凑布局浏览器验证                    |
 | 侧栏对话记录与右侧新建按钮                   | 新建、重开、置顶、取消置顶、重命名、归档和重载验证 |
+| 置顶、项目、对话独立展开与收起               | 标题与箭头切换、刷新恢复、收起后的新建按钮验证     |
 | 不选择项目、目录或 Git 分支即可发送首条消息  | 已实现；真实 daemon 和浏览器验证                   |
 | 继续同一聊天、停止当前 Agent                 | 继续聊天已验证；停止复用现有 composer              |
 | 重命名、归档、从 History 找回归档记录        | 重命名与归档已验证；History 使用原有恢复流程       |
@@ -20,8 +21,8 @@
 | 旧主机有更新提示，旧客户端能解析新主机消息   | SDK 拒绝不支持的主机；未扩展原 workspace-kind 枚举 |
 | 中文与其余既有语言资源完整                   | 新文案覆盖九个已有语言，资源测试通过               |
 
-最终目标为：在开发分支形成可审阅的实现，定向检查通过、阻塞缺陷清零、
-测试证据和未覆盖范围明确，再按合并方案集成。当前不自动修改 develop。
+本轮交付目标为：定向回归通过后，从本地 develop 创建 release 分支，合入本功能，
+从该分支构建可安装的 Apple Silicon macOS DMG。开发与发布分支均保留可审阅的提交。
 
 ## 审查结论
 
@@ -72,14 +73,41 @@
 
 ## 已执行验证
 
-当前验证原始输出为 [unified-validation.txt](unified-validation.txt)，界面证据为
+统一创建流程验证原始输出为 [unified-validation.txt](unified-validation.txt)，界面证据为
 [统一创建页](unified-new.png)和[紧凑侧栏](sidebar-compact.png)。全工作区 `typecheck`、
 `lint` 与格式检查通过；7 个定向 Vitest 文件共 115 tests 通过。
 16 个不同的真实浏览器场景通过，覆盖创建/续聊/重开/置顶/重命名/归档/重载、注册新目录不跳页、目录选择与
 清除保留草稿、首条失败重试、普通项目创建、终端模式及主机选择。
 
-创建、协议和持久化的基础验证输出保存在 `validation.txt`；对应服务端代码本轮没有改动。
-本地审查未发现未修复的阻塞项；下表的设备与真实 provider 补验仍是正式合并门槛。
+侧栏修订已将中文创建入口统一为“新聊天”，项目空状态改为居中的文件夹图标和
+“暂无项目”，项目加号与对话区编辑图标均进入统一创建页。旧空状态按钮、专用
+导入弹窗挂载与说明文案已删除。桌面实测三个创建入口，390px 浏览器实测项目
+加号进入新草稿并收起侧栏；原有对话仍可重开。语言资源测试 39 项通过。
+按 Codex 参考图调整后，实测导航与分组标题均为 14px，操作图标为 16px，右侧
+按钮为 32×32；项目与对话按钮共用右边线。三个分组复用标题组件，已删除旧样式。
+省略号菜单及三个创建入口、390px 下的显示与收栏均通过浏览器验证。全工作区
+typecheck、lint 与格式检查通过，输出见 [sidebar-refinement-validation.txt](sidebar-refinement-validation.txt)，
+当前侧栏截图见 [sidebar-refined.jpg](sidebar-refined.jpg)，[侧栏细节](sidebar-style-detail.jpg)。
+紧凑布局验证使用浏览器，未增加原生设备覆盖。
+
+分组折叠使用原有本地侧栏偏好，保留各项目内部的折叠设置。三个标题均显示方向
+箭头，收起时隐藏列表、空状态及“显示更多”，标题和右侧操作保持可用。状态存储
+与投影两个既有测试文件共 18 项通过，覆盖保存恢复及两种分组模式下跳过隐藏项
+的快捷键顺序。浏览器验证三组独立切换、刷新恢复、收起时新建、Enter 展开及
+390px 下切换；全部恢复展开并清除视口覆盖。输出见
+[sidebar-collapse-validation.txt](sidebar-collapse-validation.txt)，收起效果见
+[sidebar-collapsed.jpg](sidebar-collapsed.jpg)。
+
+2026-10-08 打包前重新回归：19 个定向 Vitest 文件共 301 条用例通过，18 个不同的
+浏览器场景通过；全工作区 typecheck、lint 和格式检查通过。既有浏览器用例增加
+三个分组独立收起、重载保留、收起后两个新建入口仍可用、Enter 展开和置顶记录
+收起后重开的断言。初次运行因新增断言误用了旧目录提示文案而失败；将测试改为
+当前“Workspace directory (optional)”后，受影响的 9 个聊天/项目场景全部通过。
+原始输出见 [release-regression-validation.txt](release-regression-validation.txt)。
+
+创建、协议和持久化的基础验证输出保存在 `validation.txt`。本地审查未发现未修复的
+阻塞项。下表未覆盖的平台与真实 provider 验收仍需补做；本地 DMG 的打包日志、
+安装包启动验证和校验和随产物一起交付。
 
 仅运行修改涉及的定向 Vitest 文件和浏览器 spec，未运行全量套件。浏览器使用真实网络与隔离 daemon，
 Agent 使用既有 Mock fixture；服务端生命周期测试使用仓库已有 fake provider。
@@ -102,15 +130,15 @@ Agent 使用既有 Mock fixture；服务端生命周期测试使用仓库已有 
 2. 保留本功能的实现、回归和文档提交，不带入旧 PR 的版本、发布或无关变更。
 3. 使用既有 CI 进行跨平台检查；原生设备和真实 provider 按上表补验，不将本地
    Chromium 结果描述成已验证全部平台。
-4. 本地集成采用正常合并：
+4. 本次按用户要求，在 develop 基线创建本地 release 分支后正常合并：
 
 ```bash
-git switch develop
+git switch -c codex/release-0.11.1-chats-20261008 develop
 git merge --no-ff codex/independent-chats
-npm run build:server
-npm run typecheck
-npm run lint
-npm run test:e2e --workspace=@getpaseo/app -- new-workspace.spec.ts --grep 'independent chat|unified new conversation|global new conversation' --max-failures=1
+CSC_IDENTITY_AUTO_DISCOVERY=false PASEO_DESKTOP_SMOKE=1 \
+  npm run build:desktop -- --publish never --mac dmg --arm64 \
+  --config.mac.identity=- --config.mac.notarize=false \
+  --config.directories.output=release/independent-chats-20261008
 ```
 
 5. 提交前运行 `npm run format`。合并后确认 chat source、普通工作区、缓存字段、

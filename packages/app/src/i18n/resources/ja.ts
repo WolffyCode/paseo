@@ -1274,7 +1274,6 @@ export const ja: TranslationResources = {
       },
       empty: {
         title: "プロジェクトがまだありません",
-        description: "追加したプロジェクトがここに表示されます。",
       },
     },
     workspace: {
