@@ -1168,6 +1168,10 @@ export const ja: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "会話",
+      new: "新しい会話",
+    },
     statusGroupAccessibility: "{{label}} グループ",
     statusBucket: {
       needsInput: "入力待ち",
@@ -1252,6 +1256,7 @@ export const ja: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "プロジェクト",
       sessions: "履歴",
       search: "検索",
       schedules: "スケジュール",

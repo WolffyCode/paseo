@@ -74,7 +74,6 @@ interface SidebarSharedProps {
   pinnedGroups: PinnedSidebarGroups;
   projects: SidebarProjectEntry[];
   hasProjectsBeforeFilter: boolean;
-  hasActiveProjectFilter: boolean;
   workspaceEntriesByKey: ReadonlyMap<string, SidebarWorkspaceEntry>;
   isInitialLoad: boolean;
   isRevalidating: boolean;
@@ -123,7 +122,6 @@ export const LeftSidebar = memo(function LeftSidebar({ active }: { active: boole
   const {
     projects,
     hasProjectsBeforeFilter,
-    resolvedProjectFilters,
     workspaceEntriesByKey,
     isInitialLoad,
     isRevalidating,
@@ -217,7 +215,6 @@ export const LeftSidebar = memo(function LeftSidebar({ active }: { active: boole
     pinnedGroups,
     projects,
     hasProjectsBeforeFilter,
-    hasActiveProjectFilter: resolvedProjectFilters.length > 0,
     workspaceEntriesByKey,
     isInitialLoad,
     isRevalidating,
@@ -516,7 +513,6 @@ function MobileSidebar({
   pinnedGroups,
   projects,
   hasProjectsBeforeFilter,
-  hasActiveProjectFilter,
   workspaceEntriesByKey,
   isInitialLoad,
   isRevalidating,
@@ -598,7 +594,6 @@ function MobileSidebar({
             pinnedGroups={pinnedGroups}
             projects={projects}
             hasProjectsBeforeFilter={hasProjectsBeforeFilter}
-            hasActiveProjectFilter={hasActiveProjectFilter}
             workspaceEntriesByKey={workspaceEntriesByKey}
             isRefreshing={isManualRefresh && isRevalidating}
             onRefresh={handleRefresh}
@@ -607,7 +602,7 @@ function MobileSidebar({
             onImportSession={handleImportSession}
             parentGestureRef={closeGestureRef}
             dragGestureHostActive={active}
-            listHeaderComponent={workspacesSectionHeaderElement}
+            listHeaderComponent={projectsSectionHeaderElement}
           />
         )}
 
@@ -632,7 +627,6 @@ function DesktopSidebar({
   pinnedGroups,
   projects,
   hasProjectsBeforeFilter,
-  hasActiveProjectFilter,
   workspaceEntriesByKey,
   isInitialLoad,
   isRevalidating,
@@ -776,13 +770,12 @@ function DesktopSidebar({
             pinnedGroups={pinnedGroups}
             projects={projects}
             hasProjectsBeforeFilter={hasProjectsBeforeFilter}
-            hasActiveProjectFilter={hasActiveProjectFilter}
             workspaceEntriesByKey={workspaceEntriesByKey}
             isRefreshing={isManualRefresh && isRevalidating}
             onRefresh={handleRefresh}
             onAddProject={handleOpenProject}
             onImportSession={handleImportSession}
-            listHeaderComponent={workspacesSectionHeaderElement}
+            listHeaderComponent={projectsSectionHeaderElement}
           />
         )}
 
@@ -808,11 +801,12 @@ function DesktopSidebar({
   );
 }
 
-function WorkspacesSectionHeader() {
+function ProjectsSectionHeader() {
+  const { t } = useTranslation();
   return (
-    <View style={styles.workspacesSectionHeader}>
-      <Text style={styles.workspacesSectionTitle}>Workspaces</Text>
-      <View style={styles.workspacesSectionActions}>
+    <View style={styles.projectsSectionHeader} testID="sidebar-projects-section-header">
+      <Text style={styles.projectsSectionTitle}>{t("sidebar.sections.projects")}</Text>
+      <View style={styles.projectsSectionActions}>
         <Tooltip delayDuration={300}>
           <TooltipTrigger asChild>
             <View>
@@ -820,7 +814,7 @@ function WorkspacesSectionHeader() {
             </View>
           </TooltipTrigger>
           <TooltipContent side="bottom" align="center" offset={8}>
-            <IconTooltipContent label="Display preferences" />
+            <IconTooltipContent label={t("sidebar.display.trigger")} />
           </TooltipContent>
         </Tooltip>
       </View>
@@ -828,9 +822,7 @@ function WorkspacesSectionHeader() {
   );
 }
 
-// Stable element so the sidebar list's listHeaderComponent prop keeps identity across
-// renders (WorkspacesSectionHeader takes no props).
-const workspacesSectionHeaderElement = <WorkspacesSectionHeader />;
+const projectsSectionHeaderElement = <ProjectsSectionHeader />;
 
 // Static styles for Animated.Views — must NOT use Unistyles dynamic theme to
 // avoid the "Unable to find node on an unmounted component" crash when Unistyles
@@ -855,7 +847,7 @@ const styles = StyleSheet.create((theme) => ({
   sidebarHeaderGroupBelowChrome: {
     paddingTop: 0,
   },
-  workspacesSectionHeader: {
+  projectsSectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -867,13 +859,14 @@ const styles = StyleSheet.create((theme) => ({
     paddingRight: 4,
     paddingTop: theme.spacing[1],
     paddingBottom: theme.spacing[1],
+    minHeight: 36,
   },
-  workspacesSectionTitle: {
+  projectsSectionTitle: {
     color: theme.colors.foregroundMuted,
     fontSize: theme.fontSize.sm,
-    fontWeight: theme.fontWeight.normal,
+    fontWeight: theme.fontWeight.medium,
   },
-  workspacesSectionActions: {
+  projectsSectionActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[1],

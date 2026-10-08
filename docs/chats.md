@@ -1,8 +1,13 @@
 # Independent chats
 
 Open **Chats**, choose a host and model, and send your first message. You do not
-choose a project, directory, branch, or worktree. Chats has its own list, rename,
-and archive actions. Leaving the page or closing an agent tab keeps the conversation;
+choose a project, directory, branch, or worktree. The sidebar puts Chats and New workspace
+above Pinned, Projects, and Conversations. Conversations lists active independent chats;
+its plus button opens Chats to compose a new conversation. Pinned conversations move to
+Pinned and appear once. Project filters narrow ordinary projects without hiding conversations.
+History, Search, and Schedules are optional navigation items in Sidebar settings.
+
+Chats has its own list, rename, and archive actions. Leaving the page or closing an agent tab keeps the conversation;
 explicit archive stops its agents and removes it from the active list. Open archived
 conversations through History.
 
@@ -14,8 +19,9 @@ The daemon manages a directory workspace and its parent internally; they are exe
 backing, not user-selectable projects. Chat identity is the persisted `purpose: "chat"`
 field. Names, paths, and project keys never determine whether something is a chat.
 
-Exclude the backing project from project pickers and sidebar project groups. A last
-active chat cannot seed New workspace. Git reconciliation cannot turn a chat into a
+Exclude the backing project from project pickers and sidebar project groups. Conversation
+rows omit the backing directory and Git metadata. Archiving the active conversation returns
+to Chats. A last active chat cannot seed New workspace. Git reconciliation cannot turn a chat into a
 checkout when the daemon's home happens to sit inside a Git repository.
 
 ## Creation and recovery

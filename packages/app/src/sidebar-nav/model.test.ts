@@ -31,7 +31,7 @@ function summarize(items: readonly SidebarNavItem[]): SidebarNavPreference[] {
 }
 
 describe("resolveSidebarNavItems", () => {
-  it("yields builtins then plugins, all visible, when nothing is stored", () => {
+  it("shows Chats and New workspace by default and keeps optional navigation configurable", () => {
     const items = resolveSidebarNavItems({
       section: "header",
       pluginGroups: [kanban, notes],
@@ -41,9 +41,9 @@ describe("resolveSidebarNavItems", () => {
     expect(summarize(items)).toEqual([
       { key: "chats", visible: true },
       { key: "new-workspace", visible: true },
-      { key: "history", visible: true },
-      { key: "search", visible: true },
-      { key: "schedules", visible: true },
+      { key: "history", visible: false },
+      { key: "search", visible: false },
+      { key: "schedules", visible: false },
       { key: kanbanKey, visible: true },
       { key: notesKey, visible: true },
     ]);
@@ -72,8 +72,8 @@ describe("resolveSidebarNavItems", () => {
       { key: "schedules", visible: true },
       { key: "new-workspace", visible: false },
       { key: "chats", visible: true },
-      { key: "history", visible: true },
-      { key: "search", visible: true },
+      { key: "history", visible: false },
+      { key: "search", visible: false },
       { key: notesKey, visible: true },
     ]);
   });
@@ -112,8 +112,8 @@ describe("resolveSidebarNavItems", () => {
       { key: "history", visible: false },
       { key: "chats", visible: true },
       { key: "new-workspace", visible: true },
-      { key: "search", visible: true },
-      { key: "schedules", visible: true },
+      { key: "search", visible: false },
+      { key: "schedules", visible: false },
     ]);
   });
 });
@@ -141,9 +141,9 @@ describe("setSidebarNavItemVisible", () => {
     expect(next).toEqual([
       { key: "chats", visible: true },
       { key: "new-workspace", visible: true },
-      { key: "history", visible: true },
+      { key: "history", visible: false },
       { key: "search", visible: false },
-      { key: "schedules", visible: true },
+      { key: "schedules", visible: false },
       { key: kanbanKey, visible: true },
     ]);
   });
@@ -166,8 +166,8 @@ describe("setSidebarNavItemVisible", () => {
       { key: "history", visible: false },
       { key: "chats", visible: true },
       { key: "new-workspace", visible: true },
-      { key: "search", visible: true },
-      { key: "schedules", visible: true },
+      { key: "search", visible: false },
+      { key: "schedules", visible: false },
     ]);
   });
 

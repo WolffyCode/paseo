@@ -2,9 +2,11 @@ import { useCallback, useEffect, useMemo } from "react";
 import { useStoreWithEqualityFn } from "zustand/traditional";
 import { useCreateFlowStore } from "@/stores/create-flow-store";
 import { useSessionStore } from "@/stores/session-store";
-import { useWorkspaceDirectoryServerIds } from "@/stores/session-store-hooks";
+import {
+  useWorkspaceDirectoryServerIds,
+  useWorkspaceStructure,
+} from "@/stores/session-store-hooks";
 import { workspaceEqualityFns } from "@/stores/session-store-hooks/selectors";
-import { useHostProjects } from "@/projects/host-projects";
 import { getHostRuntimeStore, useHostRegistryLoaded, useHosts } from "@/runtime/host-runtime";
 import { useSidebarOrderStore } from "@/stores/sidebar-order-store";
 import { useSidebarViewStore } from "@/stores/sidebar-view-store";
@@ -86,6 +88,7 @@ const EMPTY_PROJECT_NAMES = new Map<string, string>();
 
 export interface SidebarWorkspacesListResult {
   workspacePlacements: SidebarWorkspacePlacement[];
+  chats: SidebarWorkspacePlacement[];
   projects: SidebarProjectEntry[];
   projectNamesByViewKey: Map<string, string>;
   isLoading: boolean;
@@ -138,14 +141,14 @@ export function useSidebarWorkspacesList(options?: {
 
   const directoryServerIds = useWorkspaceDirectoryServerIds(serverIds);
 
-  const hostProjects = useHostProjects(directoryServerIds);
+  const workspaceStructure = useWorkspaceStructure(directoryServerIds);
 
   const sidebarModel = useMemo(
     () =>
       buildSidebarWorkspacePlacementModel({
-        projects: hostProjects,
+        projects: workspaceStructure.projects,
       }),
-    [hostProjects],
+    [workspaceStructure.projects],
   );
 
   const projects = sidebarModel.projects.length > 0 ? sidebarModel.projects : EMPTY_PROJECTS;
@@ -194,6 +197,7 @@ export function useSidebarWorkspacesList(options?: {
 
   return {
     workspacePlacements,
+    chats: sidebarModel.chats,
     projects,
     projectNamesByViewKey,
     ...loadingState,

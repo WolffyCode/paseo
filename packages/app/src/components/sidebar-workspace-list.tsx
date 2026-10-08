@@ -1,4 +1,5 @@
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { SidebarConversationsSection } from "@/chats/sidebar-section";
 import {
   View,
   Text,
@@ -56,7 +57,6 @@ import {
   parseHostWorkspaceRouteFromPathname,
 } from "@/utils/host-routes";
 import {
-  shouldShowSidebarHostLabels,
   useSidebarProjectStatusBucket,
   type SidebarProjectEntry,
   type SidebarWorkspaceEntry,
@@ -217,8 +217,6 @@ interface SidebarWorkspaceListProps {
   pinnedGroups: PinnedSidebarGroups;
   projects: SidebarProjectEntry[];
   hasProjectsBeforeFilter: boolean;
-  /** Whether a project filter is actually being applied — the resolved list, not the stored one. */
-  hasActiveProjectFilter: boolean;
   workspaceEntriesByKey: ReadonlyMap<string, SidebarWorkspaceEntry>;
   collapsedProjectKeys: ReadonlySet<string>;
   onToggleProjectCollapsed: (projectViewKey: string) => void;
@@ -230,8 +228,7 @@ interface SidebarWorkspaceListProps {
   onAddProject?: () => void;
   onImportSession?: () => void;
   listFooterComponent?: ReactElement | null;
-  // Rendered inside the scroll area, below the Pinned section and above the workspace
-  // list. Holds the "Workspaces" section header so pinned items sit above it.
+  // Rendered inside the scroll area, below Pinned and above Projects.
   listHeaderComponent?: ReactElement | null;
   /** Gesture ref for coordinating with parent gestures (e.g., sidebar close) */
   parentGestureRef?: MutableRefObject<GestureType | undefined>;
@@ -640,7 +637,7 @@ function WorkspaceRowRightGroup({
   isPinned?: boolean;
   onTogglePin?: () => void;
 }) {
-  const workspacePath = workspace.workspaceDirectory ?? workspace.projectRootPath;
+  const workspacePath = workspace.purpose === "chat" ? null : workspace.workspaceDirectory;
   const { t } = useTranslation();
   const trailing = useSidebarWorkspaceTrailing();
   const showShortcut = showShortcutBadge && shortcutNumber !== null;
@@ -1150,7 +1147,9 @@ function WorkspaceRowInner({
               archiveShortcutKeys={archiveShortcutKeys}
               isPinned={isPinned}
               onTogglePin={onTogglePin}
-              openInFileManagerPath={workspace.workspaceDirectory}
+              openInFileManagerPath={
+                workspace.purpose === "chat" ? null : workspace.workspaceDirectory
+              }
               disabled={isArchiving}
               aria-selected={selected}
               accessibilityRole="button"
@@ -1345,7 +1344,7 @@ function WorkspaceRowWithMenu({
         archivePendingLabel={t("sidebar.workspace.actions.archiving")}
         onArchive={handleArchive}
         onCopyBranchName={canCopyBranchName ? handleCopyBranchName : undefined}
-        onCopyPath={handleCopyPath}
+        onCopyPath={workspace.purpose === "chat" ? undefined : handleCopyPath}
         onRename={handleOpenRename}
         onMarkAsRead={hasClearableAttention ? handleMarkAsRead : undefined}
         onMarkAsUnread={canMarkUnread ? handleMarkAsUnread : undefined}
@@ -1887,7 +1886,6 @@ export function SidebarWorkspaceList({
   pinnedGroups,
   projects,
   hasProjectsBeforeFilter,
-  hasActiveProjectFilter,
   workspaceEntriesByKey,
   collapsedProjectKeys,
   onToggleProjectCollapsed,
@@ -1906,12 +1904,13 @@ export function SidebarWorkspaceList({
   const pathname = usePathname();
   const hosts = useHosts();
   const rowItems = useSidebarRowItems();
-  // Host badge visibility is a lattice, not three competing switches: this gate is the global
-  // "off", `shouldShowSidebarHostLabels` is the automatic "there is only one host so it says
-  // nothing", and each host's own `badgeDisplay` decides name vs icon vs hidden. Turning the
-  // item off here removes the badge everywhere; leaving it on defers to the per-host setting.
+  const visibleServerIds = new Set([
+    ...projects.flatMap((project) => project.hosts.map((host) => host.serverId)),
+    ...pinnedGroups.pinnedChats.map((chat) => chat.serverId),
+    ...pinnedGroups.unpinnedChats.map((chat) => chat.serverId),
+  ]);
   const hostBadgeByServerId = useHostBadges({
-    enabled: rowItems.host && shouldShowSidebarHostLabels(projects),
+    enabled: rowItems.host && visibleServerIds.size > 1,
   });
   const serverIds = useMemo(() => hosts.map((host) => host.serverId), [hosts]);
   const supportsMultiplicityByServerId = useHostFeatureMap(serverIds, "workspaceMultiplicity");
@@ -1948,6 +1947,47 @@ export function SidebarWorkspaceList({
   // paints them on each row, all keyed by `projectViewKey`. The targets come from the projection
   // that produced the rows, so the question "what is on screen" is answered once.
   const projectIconByProjectViewKey = useProjectIcons({ projects: projectIconTargets });
+  const activeWorkspaceSelection = useActiveWorkspaceSelection();
+  const showShortcutBadges = useShowShortcutBadges();
+  const selectionEnabled = Boolean(parseHostWorkspaceRouteFromPathname(pathname));
+  const renderChat = useCallback(
+    (chat: SidebarWorkspacePlacement) => (
+      <MemoWorkspaceRowItem
+        workspace={chat}
+        workspaceEntry={workspaceEntriesByKey.get(chat.workspaceKey) ?? null}
+        hostBadge={hostBadgeByServerId.get(chat.serverId) ?? null}
+        shortcutNumber={shortcutIndexByWorkspaceKey.get(chat.workspaceKey) ?? null}
+        showShortcutBadge={showShortcutBadges}
+        canCopyBranchName={false}
+        canPin={supportsPinningByServerId.get(chat.serverId) === true}
+        onToggleWorkspacePin={onToggleWorkspacePin}
+        selectionEnabled={selectionEnabled}
+        activeWorkspaceSelection={activeWorkspaceSelection}
+        onWorkspacePress={onWorkspacePress}
+      />
+    ),
+    [
+      activeWorkspaceSelection,
+      hostBadgeByServerId,
+      onToggleWorkspacePin,
+      onWorkspacePress,
+      selectionEnabled,
+      shortcutIndexByWorkspaceKey,
+      showShortcutBadges,
+      supportsPinningByServerId,
+      workspaceEntriesByKey,
+    ],
+  );
+  const footer = (
+    <>
+      <SidebarConversationsSection
+        chats={pinnedGroups.unpinnedChats}
+        renderChat={renderChat}
+        onBeforeNavigate={onWorkspacePress}
+      />
+      {listFooterComponent}
+    </>
+  );
 
   // A filter that matches nothing swaps the list's body and nothing above it. It used to replace
   // this whole subtree, which unmounted the header — and the header is where the display menu's
@@ -1976,6 +2016,7 @@ export function SidebarWorkspaceList({
         onToggleWorkspacePin={onToggleWorkspacePin}
         onPinnedWorkspaceReorder={handlePinnedWorkspaceReorder}
         listHeaderComponent={listHeaderComponent}
+        listFooterComponent={footer}
         sidebarFilterEmpty={sidebarFilterEmpty}
         parentGestureRef={parentGestureRef}
         dragGestureHostActive={dragGestureHostActive}
@@ -1992,10 +2033,9 @@ export function SidebarWorkspaceList({
         onWorkspacePress={onWorkspacePress}
         onAddProject={onAddProject}
         onImportSession={onImportSession}
-        listFooterComponent={listFooterComponent}
+        listFooterComponent={footer}
         listHeaderComponent={listHeaderComponent}
         sidebarFilterEmpty={sidebarFilterEmpty}
-        hasActiveProjectFilter={hasActiveProjectFilter}
         parentGestureRef={parentGestureRef}
         dragGestureHostActive={dragGestureHostActive}
         pathname={pathname}
@@ -2028,6 +2068,7 @@ function SidebarGroupedModeList({
   onToggleWorkspacePin,
   onPinnedWorkspaceReorder,
   listHeaderComponent,
+  listFooterComponent,
   sidebarFilterEmpty,
   parentGestureRef,
   dragGestureHostActive,
@@ -2043,6 +2084,7 @@ function SidebarGroupedModeList({
   onToggleWorkspacePin: ToggleSidebarWorkspacePin;
   onPinnedWorkspaceReorder: (workspaces: SidebarWorkspacePlacement[]) => void;
   listHeaderComponent?: ReactElement | null;
+  listFooterComponent?: ReactElement | null;
   sidebarFilterEmpty: boolean;
   parentGestureRef?: MutableRefObject<GestureType | undefined>;
   dragGestureHostActive?: boolean;
@@ -2070,6 +2112,7 @@ function SidebarGroupedModeList({
       onToggleWorkspacePin={onToggleWorkspacePin}
       onPinnedWorkspaceReorder={onPinnedWorkspaceReorder}
       listHeaderComponent={listHeaderComponent}
+      listFooterComponent={listFooterComponent}
       sidebarFilterEmpty={sidebarFilterEmpty}
       parentGestureRef={parentGestureRef}
       dragGestureHostActive={dragGestureHostActive}
@@ -2091,7 +2134,6 @@ function ProjectModeList({
   listFooterComponent,
   listHeaderComponent,
   sidebarFilterEmpty,
-  hasActiveProjectFilter,
   parentGestureRef,
   dragGestureHostActive,
   pathname,
@@ -2119,7 +2161,6 @@ function ProjectModeList({
   onToggleWorkspacePin: ToggleSidebarWorkspacePin;
   onPinnedWorkspaceReorder: (workspaces: SidebarWorkspacePlacement[]) => void;
 }) {
-  const hasActiveHostFilter = useSidebarViewStore((state) => state.hostFilters.length > 0);
   const [creatingWorkspaceIds, setCreatingWorkspaceIds] = useState<Set<string>>(() => new Set());
   const creatingWorkspaceTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
     new Map(),
@@ -2360,7 +2401,7 @@ function ProjectModeList({
           workspace={workspace}
           workspaceEntry={workspaceEntriesByKey.get(workspace.workspaceKey) ?? null}
           hostBadge={hostBadgeByServerId.get(workspace.serverId) ?? null}
-          leadingProjectName={workspace.projectName}
+          leadingProjectName={workspace.purpose === "chat" ? null : workspace.projectName}
           leadingProjectIconDataUri={
             projectIconByProjectViewKey.get(workspace.projectViewKey) ?? null
           }
@@ -2416,48 +2457,35 @@ function ProjectModeList({
 
   const content = (
     <>
-      {pinnedChats.length > 0 ? (
-        <View style={styles.pinnedSection} testID="sidebar-pinned-section">
-          <PinnedSectionHeader collapsed={pinnedCollapsed} onToggle={togglePinnedCollapsed} />
-          {pinnedCollapsed ? null : (
-            <>
-              <DraggableList
-                testID="sidebar-pinned-list"
-                data={visiblePinnedChats}
-                keyExtractor={workspaceKeyExtractor}
-                renderItem={renderPinnedChat}
-                onDragEnd={onPinnedWorkspaceReorder}
-                extraData={activeWorkspaceSelectionKey(activeWorkspaceSelection)}
-                scrollEnabled={false}
-                useDragHandle
-                nestable={platformIsNative}
-                simultaneousGestureRef={parentGestureRef}
-                gestureHostPresented={dragGestureHostActive}
-                containerStyle={styles.workspaceListContainer}
+      <View style={styles.pinnedSection} testID="sidebar-pinned-section">
+        <PinnedSectionHeader collapsed={pinnedCollapsed} onToggle={togglePinnedCollapsed} />
+        {pinnedCollapsed ? null : (
+          <>
+            <DraggableList
+              testID="sidebar-pinned-list"
+              data={visiblePinnedChats}
+              keyExtractor={workspaceKeyExtractor}
+              renderItem={renderPinnedChat}
+              onDragEnd={onPinnedWorkspaceReorder}
+              extraData={activeWorkspaceSelectionKey(activeWorkspaceSelection)}
+              scrollEnabled={false}
+              useDragHandle
+              nestable={platformIsNative}
+              simultaneousGestureRef={parentGestureRef}
+              gestureHostPresented={dragGestureHostActive}
+              containerStyle={styles.workspaceListContainer}
+            />
+            {canTogglePinnedChats ? (
+              <SidebarGroupToggleRow
+                expanded={pinnedChatsExpanded}
+                onPress={togglePinnedChatsExpanded}
+                testID="sidebar-pinned-show-more"
               />
-              {canTogglePinnedChats ? (
-                <SidebarGroupToggleRow
-                  expanded={pinnedChatsExpanded}
-                  onPress={togglePinnedChatsExpanded}
-                  testID="sidebar-pinned-show-more"
-                />
-              ) : null}
-            </>
-          )}
-        </View>
-      ) : null}
-      {/* The header carries the display menu, which is the only way back out of a filter, so it
-        stays for as long as a filter is what emptied the list. It is absent only when the
-        sidebar is genuinely empty, where a section heading would sit over nothing.
-        Every filter that can empty this branch needs a term here: a project filter pinned to a
-        project whose chats are all pinned leaves `unpinnedProjects` empty, and without its term
-        the header would go with it, taking the only route back to the filter page. */}
-      {unpinnedProjects.length > 0 ||
-      hasActiveHostFilter ||
-      hasActiveProjectFilter ||
-      sidebarFilterEmpty
-        ? listHeaderComponent
-        : null}
+            ) : null}
+          </>
+        )}
+      </View>
+      {listHeaderComponent}
       {sidebarFilterEmpty ? <SidebarFilterEmptyState /> : projectBody}
       {listFooterComponent}
     </>

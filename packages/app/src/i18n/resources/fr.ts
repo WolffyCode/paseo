@@ -1183,6 +1183,10 @@ export const fr: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "Conversations",
+      new: "Nouvelle conversation",
+    },
     statusGroupAccessibility: "Groupe {{label}}",
     statusBucket: {
       needsInput: "Attend une réponse",
@@ -1267,6 +1271,7 @@ export const fr: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "Projets",
       sessions: "Historique",
       search: "Recherche",
       schedules: "Planifications",

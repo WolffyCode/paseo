@@ -1164,6 +1164,10 @@ export const en = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "Conversations",
+      new: "New conversation",
+    },
     statusGroupAccessibility: "{{label}} group",
     statusBucket: {
       needsInput: "Needs input",
@@ -1247,6 +1251,7 @@ export const en = {
       appName: "Paseo",
     },
     sections: {
+      projects: "Projects",
       sessions: "History",
       search: "Search",
       schedules: "Schedules",

@@ -1172,6 +1172,10 @@ export const ru: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "Диалоги",
+      new: "Новый диалог",
+    },
     statusGroupAccessibility: "Группа «{{label}}»",
     statusBucket: {
       needsInput: "Ожидает ввода",
@@ -1256,6 +1260,7 @@ export const ru: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "Проекты",
       sessions: "История",
       search: "Поиск",
       schedules: "Расписания",

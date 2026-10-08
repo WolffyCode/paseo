@@ -72,6 +72,144 @@ const BACKGROUND_RESOLUTION_FILE = {
   buffer: Buffer.from(JSON.stringify({ composer: "background-resolution" })),
 };
 
+test("independent chat sidebar has four sections and supports create, reopen, pin, rename and archive", async ({
+  page,
+  e2eWorkerClient,
+}, testInfo) => {
+  await gotoAppShell(page);
+  await expect(page.getByTestId("sidebar-chats")).toBeVisible();
+  await expect(page.getByTestId("sidebar-global-new-workspace")).toBeVisible();
+  await expect(page.getByTestId("sidebar-sessions")).toHaveCount(0);
+  await expect(page.getByTestId("sidebar-search")).toHaveCount(0);
+  await expect(page.getByTestId("sidebar-schedules")).toHaveCount(0);
+  const pinned = page.getByTestId("sidebar-pinned-section");
+  const projects = page.getByTestId("sidebar-projects-section-header");
+  const conversations = page.getByTestId("sidebar-conversations-section");
+  await expect(pinned).toBeVisible();
+  await expect(projects).toHaveText(/Projects/);
+  await expect(conversations).toContainText("Conversations");
+  const pinnedBounds = await pinned.boundingBox();
+  const projectBounds = await projects.boundingBox();
+  const conversationBounds = await conversations.boundingBox();
+  expect(pinnedBounds!.y).toBeLessThan(projectBounds!.y);
+  expect(projectBounds!.y).toBeLessThan(conversationBounds!.y);
+
+  await page.getByTestId("sidebar-new-chat").click();
+  await expect(page.getByTestId("chats-screen")).toBeVisible();
+  const message = "Conversation from the sidebar";
+  await fillNewWorkspaceDraft(page, message);
+  await page.getByTestId("chat-create-submit").click();
+  await expect(page.getByTestId("workspace-header-title")).toHaveText(message);
+  const chats = (await e2eWorkerClient.fetchWorkspaces()).entries.filter(
+    (entry) => entry.purpose === "chat",
+  );
+  expect(chats).toHaveLength(1);
+  const chat = chats[0];
+  const key = `${getServerId()}:${chat.id}`;
+  const row = page.getByTestId(`sidebar-workspace-row-${key}`);
+  try {
+    await expect(conversations.getByTestId(`sidebar-workspace-row-${key}`)).toContainText(message);
+    await expect(row).toHaveAttribute("aria-selected", "true");
+    await expect(page.locator('[data-testid^="sidebar-project-row-"]')).toHaveCount(0);
+    await page.reload();
+    await expect(conversations.getByTestId(`sidebar-workspace-row-${key}`)).toContainText(message);
+    await page.getByTestId("sidebar-new-chat").click();
+    await expect(page.getByTestId("chats-screen")).toBeVisible();
+    await row.click();
+    await expect(page.getByTestId("workspace-header-title")).toHaveText(message);
+
+    await row.hover();
+    await page.getByTestId(`sidebar-workspace-kebab-${key}`).click();
+    await expect(page.getByTestId(`sidebar-workspace-menu-copy-path-${key}`)).toHaveCount(0);
+    await page.getByTestId(`sidebar-workspace-menu-pin-${key}`).click();
+    await expect(pinned.getByTestId(`sidebar-workspace-row-${key}`)).toBeVisible();
+    await expect(conversations.getByTestId(`sidebar-workspace-row-${key}`)).toHaveCount(0);
+    await row.hover();
+    await page.getByTestId(`sidebar-workspace-kebab-${key}`).click();
+    await page.getByTestId(`sidebar-workspace-menu-rename-${key}`).click();
+    await page
+      .getByTestId(`sidebar-workspace-rename-modal-${key}-input`)
+      .fill("Sidebar conversation");
+    await page.getByTestId(`sidebar-workspace-rename-modal-${key}-submit`).click();
+    await expect(row).toContainText("Sidebar conversation");
+    await selectSidebarStatusGrouping(page);
+    await expect(pinned.getByTestId(`sidebar-workspace-row-${key}`)).toContainText(
+      "Sidebar conversation",
+    );
+    await expect(conversations).toBeVisible();
+    await row.hover();
+    await page.getByTestId(`sidebar-workspace-kebab-${key}`).click();
+    await page.getByTestId(`sidebar-workspace-menu-pin-${key}`).click();
+    await expect(conversations.getByTestId(`sidebar-workspace-row-${key}`)).toContainText(
+      "Sidebar conversation",
+    );
+    await expect(
+      page
+        .locator('[data-testid^="sidebar-status-group-rows-"]')
+        .getByTestId(`sidebar-workspace-row-${key}`),
+    ).toHaveCount(0);
+    await page.screenshot({
+      path: testInfo.outputPath("conversation-sidebar.png"),
+      fullPage: true,
+    });
+    await row.hover();
+    await page.getByTestId(`sidebar-workspace-kebab-${key}`).click();
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByTestId(`sidebar-workspace-menu-archive-${key}`).click();
+    await expect(page.getByTestId("chats-screen")).toBeVisible();
+    await expect(row).toHaveCount(0);
+  } finally {
+    await e2eWorkerClient.archiveWorkspace(chat.id);
+  }
+});
+
+test.describe("Independent conversations on a compact sidebar", () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test("independent chat sidebar creates and reopens conversations on compact layouts", async ({
+    page,
+    e2eWorkerClient,
+  }, testInfo) => {
+    await gotoAppShell(page);
+    await page.getByRole("button", { name: "Open menu", exact: true }).click();
+    await expect(page.getByTestId("sidebar-pinned-section")).toBeVisible();
+    await expect(page.getByTestId("sidebar-projects-section-header")).toBeVisible();
+    await expect(page.getByTestId("sidebar-conversations-section")).toBeVisible();
+    await page.getByTestId("sidebar-new-chat").click();
+    await expect(page.getByTestId("chats-screen")).toBeVisible();
+    await expect(page.getByTestId("sidebar-new-chat")).not.toBeVisible();
+    const message = "Compact conversation";
+    await fillNewWorkspaceDraft(page, message);
+    await page.getByTestId("chat-create-submit").click();
+    await expect(page.getByTestId("workspace-header-title")).toHaveText(message);
+    const chats = (await e2eWorkerClient.fetchWorkspaces()).entries.filter(
+      (entry) => entry.purpose === "chat",
+    );
+    expect(chats).toHaveLength(1);
+    const chat = chats[0];
+    try {
+      await page.reload();
+      await page.getByRole("button", { name: "Open menu", exact: true }).click();
+      const row = page.getByTestId(`sidebar-workspace-row-${getServerId()}:${chat.id}`);
+      await expect(
+        page
+          .getByTestId("sidebar-conversations-list")
+          .getByTestId(`sidebar-workspace-row-${getServerId()}:${chat.id}`),
+      ).toContainText(message);
+      await page.screenshot({
+        path: testInfo.outputPath("conversation-sidebar-compact.png"),
+        fullPage: true,
+      });
+      await row.click();
+      await expect(page.getByRole("button", { name: "Open menu", exact: true })).toBeVisible();
+      await expect(row).not.toBeVisible();
+      await expect(page.getByTestId("workspace-header-title")).toHaveText(message);
+    } finally {
+      await e2eWorkerClient.archiveWorkspace(chat.id);
+    }
+  });
+});
+
 test("independent chat creates, continues, reloads, renames and archives without choosing a project", async ({
   page,
   e2eWorkerClient,

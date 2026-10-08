@@ -1155,6 +1155,10 @@ export const ar: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "المحادثات",
+      new: "محادثة جديدة",
+    },
     statusGroupAccessibility: "مجموعة {{label}}",
     statusBucket: {
       needsInput: "تحتاج إدخالاً",
@@ -1238,6 +1242,7 @@ export const ar: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "المشاريع",
       sessions: "السجل",
       search: "بحث",
       schedules: "الجداول",

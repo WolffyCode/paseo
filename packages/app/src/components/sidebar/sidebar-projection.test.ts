@@ -72,6 +72,7 @@ function projectionInput(options?: {
   const unpinned = makeWorkspace("unpinned", "needs_input");
   return {
     projects: [makeProject([pinned.placement, unpinned.placement])],
+    chats: [],
     pinnedKeys: {
       pinnedWorkspaceKeys: [pinned.placement.workspaceKey],
       pinnedAtByKey: { [pinned.placement.workspaceKey]: "2026-07-12T12:00:00.000Z" },
@@ -113,6 +114,46 @@ function twoProjectInput(groupMode: "project" | "status") {
 }
 
 describe("buildSidebarProjection", () => {
+  for (const groupMode of ["project", "status"] as const) {
+    it(`keeps independent conversations after projects with ${groupMode} grouping`, () => {
+      const input = projectionInput({ groupMode });
+      for (const entry of input.workspaceEntriesByKey.values()) entry.statusBucket = "done";
+      const pinned = makeWorkspace("pinned-conversation", "running", [], "private-chats");
+      const recent = makeWorkspace("recent-conversation", "running", [], "private-chats");
+      pinned.placement.purpose = pinned.entry.purpose = "chat";
+      recent.placement.purpose = recent.entry.purpose = "chat";
+      const projection = buildSidebarProjection({
+        ...input,
+        chats: [recent.placement, pinned.placement],
+        pinnedKeys: {
+          pinnedWorkspaceKeys: [pinned.placement.workspaceKey],
+          pinnedAtByKey: { [pinned.placement.workspaceKey]: "2026-10-08T00:00:00Z" },
+        },
+        workspaceEntriesByKey: new Map([
+          ...input.workspaceEntriesByKey,
+          [pinned.entry.workspaceKey, pinned.entry],
+          [recent.entry.workspaceKey, recent.entry],
+        ]),
+      });
+      expect(projection.pinnedGroups.pinnedChats).toEqual([pinned.placement]);
+      expect(projection.pinnedGroups.unpinnedChats).toEqual([recent.placement]);
+      expect(
+        projection.workspaceGroups
+          .flatMap((group) => group.rows)
+          .some((row) => row.purpose === "chat"),
+      ).toBe(false);
+      expect(projection.projectIconTargets.map((target) => target.projectViewKey)).toEqual([
+        "project",
+      ]);
+      expect(projection.shortcutModel.shortcutTargets).toEqual([
+        { serverId: "srv", workspaceId: "pinned-conversation" },
+        { serverId: "srv", workspaceId: "pinned" },
+        { serverId: "srv", workspaceId: "unpinned" },
+        { serverId: "srv", workspaceId: "recent-conversation" },
+      ]);
+    });
+  }
+
   // The rule that outlived the bug it was written for: a project icon is fetched per project, so
   // whatever a mode groups by, the rows it produces can only reference projects already covered.
   for (const groupMode of ["project", "status"] as const) {

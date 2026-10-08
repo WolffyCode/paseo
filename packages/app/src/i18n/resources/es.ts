@@ -1192,6 +1192,10 @@ export const es: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "Conversaciones",
+      new: "Nueva conversación",
+    },
     statusGroupAccessibility: "Grupo {{label}}",
     statusBucket: {
       needsInput: "Necesita datos",
@@ -1275,6 +1279,7 @@ export const es: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "Proyectos",
       sessions: "Historial",
       search: "Buscar",
       schedules: "Horarios",

@@ -1163,6 +1163,10 @@ export const ko: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "대화",
+      new: "새 대화",
+    },
     statusGroupAccessibility: "{{label}} 그룹",
     statusBucket: {
       needsInput: "입력 필요",
@@ -1246,6 +1250,7 @@ export const ko: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "프로젝트",
       sessions: "기록",
       search: "검색",
       schedules: "일정",

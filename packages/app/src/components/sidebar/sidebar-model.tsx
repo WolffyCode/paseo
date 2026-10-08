@@ -140,10 +140,26 @@ export function SidebarModelProvider({
     list.projects,
     visibleWorkspaceKeys,
   ]);
-  const pinnedKeys = usePinnedSidebarKeys(filteredProjects);
+  const filteredChats = useMemo(() => {
+    const chats = list.chats.flatMap((placement) => {
+      const entry = filteredWorkspaceEntriesByKey.get(placement.workspaceKey);
+      return entry ? [entry] : [];
+    });
+    return chats.sort(
+      (left, right) =>
+        (right.statusEnteredAt?.getTime() ?? 0) - (left.statusEnteredAt?.getTime() ?? 0) ||
+        left.workspaceKey.localeCompare(right.workspaceKey),
+    );
+  }, [list.chats, filteredWorkspaceEntriesByKey]);
+  const visiblePlacements = useMemo(
+    () => [...filteredProjects.flatMap((project) => project.workspaces), ...filteredChats],
+    [filteredProjects, filteredChats],
+  );
+  const pinnedKeys = usePinnedSidebarKeys(visiblePlacements);
   const projectionInput = useMemo(
     () => ({
       projects: filteredProjects,
+      chats: filteredChats,
       pinnedKeys,
       pinnedWorkspaceOrder,
       workspaceEntriesByKey: filteredWorkspaceEntriesByKey,
@@ -160,6 +176,7 @@ export function SidebarModelProvider({
       groupMode,
       list.projectNamesByViewKey,
       filteredProjects,
+      filteredChats,
       pinnedCollapsed,
       pinnedKeys,
       pinnedWorkspaceOrder,

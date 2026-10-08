@@ -1147,6 +1147,10 @@ export const zhCN: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "对话",
+      new: "新建对话",
+    },
     statusGroupAccessibility: "{{label}} 分组",
     statusBucket: {
       needsInput: "需要输入",
@@ -1201,7 +1205,7 @@ export const zhCN: TranslationResources = {
       clear: "清除筛选",
     },
     pinned: {
-      title: "已置顶",
+      title: "置顶",
     },
     host: {
       noHost: "没有 Host",
@@ -1209,7 +1213,7 @@ export const zhCN: TranslationResources = {
       searchPlaceholder: "搜索 Hosts...",
     },
     actions: {
-      addProject: "添加 project",
+      addProject: "添加项目",
       newWorkspace: "新建工作区",
       hosts: "Hosts",
       settings: "设置",
@@ -1230,6 +1234,7 @@ export const zhCN: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "项目",
       sessions: "历史",
       search: "搜索",
       schedules: "计划",
@@ -1262,7 +1267,7 @@ export const zhCN: TranslationResources = {
         updateHostToRemove: "更新 host 以移除 projects。",
       },
       empty: {
-        title: "还没有 projects",
+        title: "还没有项目",
         description: "添加的项目会显示在这里。",
       },
     },

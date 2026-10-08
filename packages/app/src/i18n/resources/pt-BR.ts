@@ -1181,6 +1181,10 @@ export const ptBR: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "Conversas",
+      new: "Nova conversa",
+    },
     statusGroupAccessibility: "Grupo {{label}}",
     statusBucket: {
       needsInput: "Precisa de resposta",
@@ -1264,6 +1268,7 @@ export const ptBR: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "Projetos",
       sessions: "Histórico",
       search: "Buscar",
       schedules: "Agendamentos",
