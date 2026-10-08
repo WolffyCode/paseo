@@ -137,9 +137,14 @@ git switch -c codex/release-0.11.1-chats-20261008 develop
 git merge --no-ff codex/independent-chats
 CSC_IDENTITY_AUTO_DISCOVERY=false PASEO_DESKTOP_SMOKE=1 \
   npm run build:desktop -- --publish never --mac dmg --arm64 \
-  --config.mac.identity=- --config.mac.notarize=false \
+  --config.mac.identity=- --config.mac.notarize=false --config.mac.hardenedRuntime=false \
   --config.directories.output=release/independent-chats-20261008
 ```
+
+本机没有 Developer ID 证书，本地包使用 ad-hoc 签名并关闭 Hardened Runtime 和
+公证。ad-hoc 身份没有 Team ID；开启库验证会在 Helper 加载 Electron Framework
+时被系统拒绝，已由真实安装包冷启动测试复现。此构建参数只用于本地包，公开
+发布仍使用仓库默认的证书签名与公证配置。
 
 5. 提交前运行 `npm run format`。合并后确认 chat source、普通工作区、缓存字段、
    capability 与目的字段均在最终 diff 中。回退使用对应合并提交的 `git revert -m 1`，
