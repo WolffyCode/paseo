@@ -10,6 +10,21 @@ import {
 } from "./messages.js";
 
 describe("workspace message schemas", () => {
+  test("creates an independent chat without a caller-selected directory", () => {
+    const request = {
+      type: "workspace.create.request",
+      requestId: "chat-create",
+      source: { kind: "chat" },
+    };
+    expect(WorkspaceCreateRequestSchema.parse(request)).toEqual(request);
+    expect(
+      WorkspaceCreateRequestSchema.safeParse({
+        ...request,
+        source: { kind: "chat", path: "/tmp/override" },
+      }).success,
+    ).toBe(false);
+  });
+
   test("parses mark-unread request and response", () => {
     expect(
       SessionInboundMessageSchema.parse({

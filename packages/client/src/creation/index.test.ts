@@ -57,8 +57,9 @@ function fixture(modern: boolean) {
   const result = new Promise<CreationResult>((done) => {
     resolve = done;
   });
+  const features = { creationLifecycle: modern, independentChats: modern };
   const client = new CreationClient({
-    supports: (feature) => (feature === "creationLifecycle" ? modern : true),
+    supports: (feature) => (feature === "agentRequestReceipts" ? true : features[feature]),
     requestId: () => "generated-key",
     request: async (kind, input) => {
       requests.push({ kind, input });
@@ -83,8 +84,27 @@ function fixture(modern: boolean) {
       clientMessageId: "message-one",
     },
   };
-  return { client, requests, legacy, resolve, input };
+  return { client, requests, legacy, resolve, input, features };
 }
+
+test("independent chats refuse a legacy host without creating a substitute workspace", async () => {
+  const f = fixture(false);
+  await expect(f.client.createWorkspace({ source: { kind: "chat" } })).rejects.toThrow(
+    "Update the host to create independent chats",
+  );
+  expect(f.legacy).toEqual([]);
+  expect(f.requests).toEqual([]);
+});
+
+test("a host with creation lifecycle but no chat capability is refused before any request", async () => {
+  const f = fixture(true);
+  f.features.independentChats = false;
+  await expect(f.client.createWorkspace({ source: { kind: "chat" } })).rejects.toThrow(
+    "Update the host to create independent chats",
+  );
+  expect(f.requests).toEqual([]);
+  expect(f.legacy).toEqual([]);
+});
 
 test("duplicate client submissions join one complete intent and cumulative updates never regress", async () => {
   const f = fixture(true);

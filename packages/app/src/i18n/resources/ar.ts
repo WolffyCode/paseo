@@ -1138,6 +1138,10 @@ export const ar: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "المحادثات",
+      empty: "ستظهر محادثاتك هنا بعد إرسال رسالة.",
+    },
     statusGroupAccessibility: "مجموعة {{label}}",
     statusBucket: {
       needsInput: "تحتاج إدخالاً",
@@ -1201,7 +1205,6 @@ export const ar: TranslationResources = {
     },
     actions: {
       addProject: "إضافة مشروع",
-      newWorkspace: "مساحة عمل جديدة",
       hosts: "المضيفون",
       settings: "إعدادات",
       closeSidebar: "إغلاق الشريط الجانبي",
@@ -1221,6 +1224,7 @@ export const ar: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "المشاريع",
       sessions: "السجل",
       search: "بحث",
       schedules: "الجداول",
@@ -1256,7 +1260,6 @@ export const ar: TranslationResources = {
       },
       empty: {
         title: "لا توجد مشاريع حتى الآن",
-        description: "أضف مشروعًا للبدء",
       },
     },
     workspace: {
@@ -1313,7 +1316,14 @@ export const ar: TranslationResources = {
     },
   },
   newWorkspace: {
-    title: "مساحة عمل جديدة",
+    directory: {
+      title: "مجلد مساحة العمل",
+      placeholder: "مجلد مساحة العمل (اختياري)",
+      none: "بدون مساحة عمل",
+      search: "البحث عن مجلدات مساحة العمل",
+      empty: "لا توجد مجلدات مطابقة.",
+    },
+    title: "محادثة جديدة",
     create: "يخلق",
     isolation: {
       local: "محلي",
@@ -1327,13 +1337,15 @@ export const ar: TranslationResources = {
     },
     titlePlaceholder: "العنوان (اختياري)",
     errors: {
+      createFailed: "تعذر إنشاء المحادثة. حاول مرة أخرى.",
+      updateHost: "حدّث هذا المضيف لبدء محادثة بدون مساحة عمل.",
+      enterMessage: "أدخل رسالة أو أضف مرفقاً.",
       hostDisconnected: "Host غير متصل",
       createWorktreeFailed: "فشل في إنشاء شجرة العمل",
       composerStateRequired: "حالة الملحن مطلوبة",
       selectModel: "اختر نموذجا",
     },
     tooltips: {
-      project: "Choose the project",
       host: "Choose the host",
       isolation: "Choose the isolation level",
       startingRef: "اختر من أين تبدأ",
@@ -2324,7 +2336,7 @@ export const ar: TranslationResources = {
       },
       help: {
         openProject: "مشروع مفتوح",
-        newWorkspace: "مساحة عمل جديدة",
+        newWorkspace: "محادثة جديدة",
         newWorktree: "شجرة عمل جديدة",
         archiveWorkspace: "أرشفة مساحة العمل",
         newTab: "علامة تبويب جديدة",

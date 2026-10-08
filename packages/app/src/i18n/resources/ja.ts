@@ -1151,6 +1151,10 @@ export const ja: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "会話",
+      empty: "メッセージを送信すると会話がここに表示されます。",
+    },
     statusGroupAccessibility: "{{label}} グループ",
     statusBucket: {
       needsInput: "入力待ち",
@@ -1215,7 +1219,6 @@ export const ja: TranslationResources = {
     },
     actions: {
       addProject: "プロジェクトを追加",
-      newWorkspace: "新しいワークスペース",
       hosts: "ホスト",
       settings: "設定",
       closeSidebar: "サイドバーを閉じる",
@@ -1235,6 +1238,7 @@ export const ja: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "プロジェクト",
       sessions: "履歴",
       search: "検索",
       schedules: "スケジュール",
@@ -1270,7 +1274,6 @@ export const ja: TranslationResources = {
       },
       empty: {
         title: "プロジェクトがまだありません",
-        description: "始めるにはプロジェクトを追加してください",
       },
     },
     workspace: {
@@ -1327,7 +1330,14 @@ export const ja: TranslationResources = {
     },
   },
   newWorkspace: {
-    title: "新しいワークスペース",
+    directory: {
+      title: "ワークスペースのディレクトリ",
+      placeholder: "ワークスペースのディレクトリ（任意）",
+      none: "ワークスペースなし",
+      search: "ワークスペースのディレクトリを検索",
+      empty: "一致するディレクトリがありません。",
+    },
+    title: "新しい会話",
     create: "作成",
     isolation: {
       local: "ローカル",
@@ -1341,13 +1351,15 @@ export const ja: TranslationResources = {
     },
     titlePlaceholder: "タイトル（任意）",
     errors: {
+      createFailed: "会話を作成できませんでした。再試行してください。",
+      updateHost: "ワークスペースなしで会話を始めるには、このホストを更新してください。",
+      enterMessage: "メッセージを入力するか添付ファイルを追加してください。",
       hostDisconnected: "ホストが接続されていません",
       createWorktreeFailed: "ワークツリーの作成に失敗しました",
       composerStateRequired: "コンポーザーの状態が必要です",
       selectModel: "モデルを選択してください",
     },
     tooltips: {
-      project: "Choose the project",
       host: "Choose the host",
       isolation: "Choose the isolation level",
       startingRef: "開始点を選択",
@@ -2344,7 +2356,7 @@ export const ja: TranslationResources = {
       },
       help: {
         openProject: "プロジェクトを開く",
-        newWorkspace: "新しいワークスペース",
+        newWorkspace: "新しい会話",
         newWorktree: "新しいワークツリー",
         archiveWorkspace: "ワークスペースをアーカイブ",
         newTab: "新しいタブ",

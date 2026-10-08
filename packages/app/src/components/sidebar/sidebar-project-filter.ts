@@ -24,8 +24,7 @@ export function resolveActiveProjectFilters(
 /**
  * Applies the Project page's selection to the sidebar's workspace entries.
  *
- * A workspace belongs to exactly one project, so this is a plain allowlist — no tri-state, and
- * no "unassigned" row of the kind the label filter needs.
+ * Independent conversations remain visible because they do not belong to a selectable project.
  */
 export function filterWorkspacesByProjects(input: {
   workspaces: readonly SidebarWorkspaceEntry[];
@@ -34,7 +33,9 @@ export function filterWorkspacesByProjects(input: {
   const { workspaces, projectFilters } = input;
   if (projectFilters.length === 0) return [...workspaces];
   const included = new Set(projectFilters);
-  return workspaces.filter((workspace) => included.has(workspace.projectViewKey));
+  return workspaces.filter(
+    (workspace) => workspace.purpose === "chat" || included.has(workspace.projectViewKey),
+  );
 }
 
 const EMPTY_PROJECT_FILTERS: readonly string[] = [];

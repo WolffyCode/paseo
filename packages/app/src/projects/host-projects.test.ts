@@ -8,6 +8,7 @@ import {
   hostProjectFromRoute,
   hostProjectFromWorkspace,
   resolveEquivalentHostProjectCandidate,
+  resolveInitialWorkspaceProject,
 } from "./host-project-model";
 import { normalizeWorkspaceDescriptor } from "@/stores/session-store";
 
@@ -37,6 +38,37 @@ function project(): HostProjectListItem {
 }
 
 describe("host project lookups", () => {
+  test("leaves the directory unselected when opening a global conversation", () => {
+    expect(
+      resolveInitialWorkspaceProject({
+        routeProject: null,
+        projects: [project()],
+        serverId: "host-a",
+        allowAllProjects: true,
+      }),
+    ).toBeNull();
+  });
+
+  test("uses only the project explicitly supplied by the route", () => {
+    const routed = project();
+    expect(
+      resolveInitialWorkspaceProject({
+        routeProject: routed,
+        projects: [routed],
+        serverId: "host-b",
+        allowAllProjects: true,
+      }),
+    ).toBe(routed);
+    expect(
+      resolveInitialWorkspaceProject({
+        routeProject: routed,
+        projects: [routed],
+        serverId: "missing",
+        allowAllProjects: true,
+      }),
+    ).toBeNull();
+  });
+
   test("resolves equivalent projects without Array.prototype.toSorted", () => {
     const descriptor = Object.getOwnPropertyDescriptor(Array.prototype, "toSorted");
     Reflect.deleteProperty(Array.prototype, "toSorted");

@@ -31,7 +31,7 @@ function summarize(items: readonly SidebarNavItem[]): SidebarNavPreference[] {
 }
 
 describe("resolveSidebarNavItems", () => {
-  it("yields builtins then plugins, all visible, when nothing is stored", () => {
+  it("uses one creation entry and keeps Search and Schedules visible", () => {
     const items = resolveSidebarNavItems({
       section: "header",
       pluginGroups: [kanban, notes],
@@ -40,7 +40,7 @@ describe("resolveSidebarNavItems", () => {
 
     expect(summarize(items)).toEqual([
       { key: "new-workspace", visible: true },
-      { key: "history", visible: true },
+      { key: "history", visible: false },
       { key: "search", visible: true },
       { key: "schedules", visible: true },
       { key: kanbanKey, visible: true },
@@ -70,7 +70,7 @@ describe("resolveSidebarNavItems", () => {
       { key: kanbanKey, visible: false },
       { key: "schedules", visible: true },
       { key: "new-workspace", visible: false },
-      { key: "history", visible: true },
+      { key: "history", visible: false },
       { key: "search", visible: true },
       { key: notesKey, visible: true },
     ]);
@@ -136,7 +136,7 @@ describe("setSidebarNavItemVisible", () => {
 
     expect(next).toEqual([
       { key: "new-workspace", visible: true },
-      { key: "history", visible: true },
+      { key: "history", visible: false },
       { key: "search", visible: false },
       { key: "schedules", visible: true },
       { key: kanbanKey, visible: true },

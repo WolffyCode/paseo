@@ -1,27 +1,20 @@
 import { router, usePathname } from "expo-router";
-import { CalendarClock, History, Plus, Search } from "lucide-react-native";
+import { CalendarClock, History, Search, SquarePen } from "lucide-react-native";
 import { memo, useCallback, useMemo, useRef, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type StyleProp, type ViewStyle } from "react-native";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
 import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
 import { PluginSidebarItem } from "@/plugins/sidebar-items";
-import { canCreateWorktreeForProjectKind } from "@/projects/host-projects";
-import { useHostFeature } from "@/runtime/host-features";
 import {
   builtinSidebarNavLabelKey,
   builtinSidebarNavShortcutAction,
   type BuiltinSidebarNavId,
 } from "@/sidebar-nav/model";
+import { useOpenNewConversation } from "@/hooks/use-new-conversation";
 import { useSidebarNavItems } from "@/sidebar-nav/use-sidebar-nav-items";
 import { useKeyboardShortcutsStore } from "@/stores/keyboard-shortcuts-store";
-import { useActiveWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
-import { useWorkspace } from "@/stores/session-store-hooks";
-import {
-  buildNewWorkspaceRoute,
-  buildSchedulesRoute,
-  buildSessionsRoute,
-} from "@/utils/host-routes";
+import { buildSchedulesRoute, buildSessionsRoute } from "@/utils/host-routes";
 
 interface SidebarNavRowProps {
   onBeforeNavigate?: () => void;
@@ -65,44 +58,20 @@ export function SidebarNavRows({ style, onBeforeNavigate }: SidebarNavRowsProps)
   );
 }
 
-const SidebarNewWorkspaceRow = memo(function SidebarNewWorkspaceRow({
+const SidebarNewConversationRow = memo(function SidebarNewConversationRow({
   onBeforeNavigate,
 }: SidebarNavRowProps) {
   const { t } = useTranslation();
   const shortcutKeys = useShortcutKeys(builtinSidebarNavShortcutAction("new-workspace"));
-  const activeWorkspaceSelection = useActiveWorkspaceSelection();
-  const activeWorkspaceServerId = activeWorkspaceSelection?.serverId ?? null;
-  const activeWorkspaceId = activeWorkspaceSelection?.workspaceId ?? null;
-  const activeWorkspace = useWorkspace(activeWorkspaceServerId, activeWorkspaceId);
-  const supportsWorkspaceMultiplicity = useHostFeature(
-    activeWorkspaceServerId,
-    "workspaceMultiplicity",
-  );
-  const canUseActiveWorkspaceContext = Boolean(
-    activeWorkspace &&
-    (supportsWorkspaceMultiplicity || canCreateWorktreeForProjectKind(activeWorkspace.projectKind)),
-  );
-
+  const openNewConversation = useOpenNewConversation();
   const handlePress = useCallback(() => {
     onBeforeNavigate?.();
-    router.push(
-      activeWorkspaceServerId
-        ? buildNewWorkspaceRoute(
-            activeWorkspace && canUseActiveWorkspaceContext
-              ? {
-                  serverId: activeWorkspaceServerId,
-                  sourceDirectory: activeWorkspace.projectRootPath,
-                  projectId: activeWorkspace.projectId,
-                }
-              : { serverId: activeWorkspaceServerId },
-          )
-        : buildNewWorkspaceRoute(),
-    );
-  }, [activeWorkspace, activeWorkspaceServerId, canUseActiveWorkspaceContext, onBeforeNavigate]);
+    openNewConversation();
+  }, [onBeforeNavigate, openNewConversation]);
 
   return (
     <SidebarHeaderRow
-      icon={Plus}
+      icon={SquarePen}
       label={t(builtinSidebarNavLabelKey("new-workspace"))}
       onPress={handlePress}
       testID="sidebar-global-new-workspace"
@@ -174,7 +143,7 @@ function SidebarSchedulesRow({ onBeforeNavigate }: SidebarNavRowProps) {
 }
 
 const BUILTIN_ROWS: Record<BuiltinSidebarNavId, ComponentType<SidebarNavRowProps>> = {
-  "new-workspace": SidebarNewWorkspaceRow,
+  "new-workspace": SidebarNewConversationRow,
   history: SidebarHistoryRow,
   search: SidebarSearchRow,
   schedules: SidebarSchedulesRow,

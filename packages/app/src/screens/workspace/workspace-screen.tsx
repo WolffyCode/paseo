@@ -922,7 +922,7 @@ function WorkspaceHeaderProjectRow({
 }) {
   const isCompact = useIsCompactFormFactor();
   const hostBadge = useHostBadges({ enabled: isCompact }).get(serverId) ?? null;
-  const showProject = isSubtitleDistinct || isCompact;
+  const showProject = Boolean(subtitle) && (isSubtitleDistinct || isCompact);
   if (!showProject && !hostBadge) {
     return null;
   }
@@ -2550,7 +2550,7 @@ function WorkspaceScreenContent({
 
         const agent =
           useSessionStore.getState().sessions[normalizedServerId]?.agents?.get(agentId) ?? null;
-        let closePolicy = resolveCloseAgentTabPolicy(agent);
+        let closePolicy = resolveCloseAgentTabPolicy(agent, workspaceDescriptor);
         const isRunning = agent?.status === "running";
 
         if (isRunning && closePolicy.kind === "archive-on-close") {
@@ -2579,7 +2579,7 @@ function WorkspaceScreenContent({
             });
             const latestAgent =
               useSessionStore.getState().sessions[normalizedServerId]?.agents?.get(agentId) ?? null;
-            closePolicy = resolveCloseAgentTabPolicy(latestAgent);
+            closePolicy = resolveCloseAgentTabPolicy(latestAgent, workspaceDescriptor);
           } catch (error) {
             console.error("[WorkspaceScreen] Failed to close subagent tab", { error, agentId });
             toast.error(t("workspace.tabs.toasts.failedToCloseAgent"));
@@ -2609,6 +2609,7 @@ function WorkspaceScreenContent({
       closeWorkspaceTabWithCleanup,
       normalizedServerId,
       persistenceKey,
+      workspaceDescriptor,
       t,
       toast,
     ],
@@ -2833,7 +2834,9 @@ function WorkspaceScreenContent({
 
       const groups = classifyBulkClosableTabs(tabsToClose, (agentId) => {
         const agent = useSessionStore.getState().sessions[normalizedServerId]?.agents?.get(agentId);
-        return resolveCloseAgentTabPolicy(agent).kind === "layout-only" ? "layout-only" : "archive";
+        return resolveCloseAgentTabPolicy(agent, workspaceDescriptor).kind === "layout-only"
+          ? "layout-only"
+          : "archive";
       });
       const modifiedCount = tabsToClose.filter(
         (tab) =>
@@ -2872,7 +2875,9 @@ function WorkspaceScreenContent({
           });
           const latestAgent =
             useSessionStore.getState().sessions[normalizedServerId]?.agents?.get(agentId) ?? null;
-          if (resolveCloseAgentTabPolicy(latestAgent).kind === "archive-on-close") {
+          if (
+            resolveCloseAgentTabPolicy(latestAgent, workspaceDescriptor).kind === "archive-on-close"
+          ) {
             await archiveAgent({ serverId: normalizedServerId, agentId });
           }
         },
@@ -2901,6 +2906,7 @@ function WorkspaceScreenContent({
       normalizedServerId,
       normalizedWorkspaceId,
       persistenceKey,
+      workspaceDescriptor,
       t,
     ],
   );

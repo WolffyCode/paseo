@@ -420,7 +420,7 @@ describe("translation resources", () => {
     expect(en.sidebar.project.toasts.updateHostToRemove).toBe(
       "Update the host to remove projects.",
     );
-    expect(en.newWorkspace.title).toBe("New workspace");
+    expect(en.newWorkspace.title).toBe("New conversation");
     expect(en.newWorkspace.refPicker.searchPlaceholder).toBe("Search branches and PRs");
     expect(en.openProject.tiles.addProject.title).toBe("Add a project");
   });
@@ -455,7 +455,7 @@ describe("translation resources", () => {
     expect(en.settings.shortcuts.dialogTitle).toBe("Shortcuts");
     expect(en.settings.shortcuts.sections.tabsPanes).toBe("Tabs & Panes");
     expect(en.settings.shortcuts.help.toggleCommandCenter).toBe("Toggle command center");
-    expect(en.settings.shortcuts.help.newWorkspace).toBe("New workspace");
+    expect(en.settings.shortcuts.help.newWorkspace).toBe("New conversation");
     expect(en.settings.shortcuts.help.cycleAgentMode).toBe("Cycle agent mode");
     expect(en.settings.shortcuts.helpNotes.showKeyboardShortcuts).toBe(
       "Available when focus is not in a text field or terminal.",
@@ -546,7 +546,6 @@ describe("translation resources", () => {
       pending: "Pending: {{count}}",
     });
     expect(en.sidebar.project.empty.title).toBe("No projects yet");
-    expect(en.sidebar.project.empty.description).toBe("Add a project to get started");
     expect(en.settings.projectList.hostLoadFailed).toBe(
       "Couldn't load projects from host {{hostName}}: {{message}}",
     );

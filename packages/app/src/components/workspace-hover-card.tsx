@@ -114,7 +114,7 @@ function WorkspaceHoverCardContent({
           testID="hover-card-workspace-branch"
         />
       ) : null}
-      {workspace.workspaceDirectoryLabel ? (
+      {workspace.purpose !== "chat" && workspace.workspaceDirectoryLabel ? (
         <CopyableInfoRow
           icon={ThemedFolder}
           value={workspace.workspaceDirectoryLabel}

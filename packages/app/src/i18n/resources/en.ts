@@ -1146,6 +1146,10 @@ export const en = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "Conversations",
+      empty: "Your conversations will appear here after you send a message.",
+    },
     statusGroupAccessibility: "{{label}} group",
     statusBucket: {
       needsInput: "Needs input",
@@ -1209,7 +1213,6 @@ export const en = {
     },
     actions: {
       addProject: "Add project",
-      newWorkspace: "New workspace",
       hosts: "Hosts",
       settings: "Settings",
       closeSidebar: "Close sidebar",
@@ -1229,6 +1232,7 @@ export const en = {
       appName: "Paseo",
     },
     sections: {
+      projects: "Projects",
       sessions: "History",
       search: "Search",
       schedules: "Schedules",
@@ -1264,7 +1268,6 @@ export const en = {
       },
       empty: {
         title: "No projects yet",
-        description: "Add a project to get started",
       },
     },
     workspace: {
@@ -1321,7 +1324,14 @@ export const en = {
     },
   },
   newWorkspace: {
-    title: "New workspace",
+    directory: {
+      title: "Workspace directory",
+      placeholder: "Workspace directory (optional)",
+      none: "Without a workspace",
+      search: "Search workspace directories",
+      empty: "No matching workspace directories.",
+    },
+    title: "New conversation",
     create: "Create",
     isolation: {
       local: "Local",
@@ -1335,13 +1345,15 @@ export const en = {
     },
     titlePlaceholder: "Title (optional)",
     errors: {
+      createFailed: "Could not create the conversation. Please retry.",
+      updateHost: "Update this host to start a conversation without a workspace.",
+      enterMessage: "Enter a message or add an attachment.",
       hostDisconnected: "Host is not connected",
       createWorktreeFailed: "Failed to create worktree",
       composerStateRequired: "Composer state is required",
       selectModel: "Select a model",
     },
     tooltips: {
-      project: "Choose the project",
       host: "Choose the host",
       isolation: "Choose the isolation level",
       startingRef: "Choose where to start from",
@@ -2447,7 +2459,7 @@ export const en = {
       },
       help: {
         openProject: "Open project",
-        newWorkspace: "New workspace",
+        newWorkspace: "New conversation",
         newWorktree: "New worktree",
         archiveWorkspace: "Archive workspace",
         newTab: "New tab",

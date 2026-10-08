@@ -1,0 +1,377 @@
+Selection regression before repair
+
+ RUN  v4.1.7 /Users/zhuanzmima0000/Desktop/coding/person/Helm/packages/app
+
+ ❯ |unit| src/screens/new-workspace/project-selection.test.ts (23 tests | 1 failed) 8ms
+     × preserves an explicit choice of no directory when the routed project hydrates 7ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  |unit| src/screens/new-workspace/project-selection.test.ts > reconcileProjectSelection > preserves an explicit choice of no directory when the routed project hydrates
+AssertionError: expected { …(3) } to deeply equal { …(3) }
+
+- Expected
++ Received
+
+  {
+-   "contextKey": "view:host:route-project",
+-   "project": null,
+-   "source": "none",
++   "contextKey": "host:route-project",
++   "project": {
++     "hosts": [
++       {
++         "iconWorkingDir": "/work/route-project",
++         "projectId": "route-project",
++         "serverId": "host",
++         "worktreeSupport": "supported",
++       },
++     ],
++     "iconWorkingDir": "/work/route-project",
++     "projectKey": "route-project",
++     "projectKind": "git",
++     "projectName": "route-project",
++     "viewKey": "view:host:route-project",
++     "workspaceKeys": [],
++   },
++   "source": "initial",
+  }
+
+ ❯ src/screens/new-workspace/project-selection.test.ts:75:61
+     73|       projects: [routed, project("other")],
+     74|     });
+     75|     expect(reconcileProjectSelection(current, nextContext)).toEqual(cu…
+       |                                                             ^
+     76|     expect(resolveProjectSelection(current, nextContext)).toBeNull();
+     77|   });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed (23)
+   Start at  15:36:57
+   Duration  439ms (transform 222ms, setup 32ms, import 291ms, tests 8ms, environment 0ms)
+
+
+
+New conversation and workspace unit checks
+
+ RUN  v4.1.7 /Users/zhuanzmima0000/Desktop/coding/person/Helm/packages/app
+
+
+ Test Files  7 passed (7)
+      Tests  115 passed (115)
+   Start at  16:22:24
+   Duration  9.42s (transform 11.21s, setup 249ms, import 12.95s, tests 541ms, environment 2ms)
+
+
+
+Unified conversation browser scenarios
+
+> @getpaseo/app@0.11.1 test:e2e
+> playwright test --project=browser e2e/browser/new-workspace.spec.ts --grep independent chat|global new conversation|unified new conversation --max-failures=1
+
+[metro] Starting project at /Users/zhuanzmima0000/Desktop/coding/person/Helm/packages/app
+[metro] Using src/app as the root directory for Expo Router.
+[metro] Experimental Expo Autolinking module resolver is enabled.
+[metro] React Compiler enabled
+[metro] Unable to run simctl:
+[metro] Error: xcrun simctl help exited with non-zero code: 72
+[metro] Starting Metro Bundler
+[metro] Waiting on http://localhost:52495
+[metro] Logs for your project will appear below.
+[metro] Web packages/app/index.ts ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓░ 97.4% (5297/5367)
+[metro] Web Bundled 2821ms packages/app/index.ts (5435 modules)
+[e2e] Metro warmed on port 52495
+
+Running 7 tests using 1 worker
+
+(node:85737) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:85737) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 0 daemon started on port 52544, home: /var/folders/9n/r2z4nsks0pq_v09z74z6494m0000gn/T/paseo-e2e-worker-0-8IJTjf
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 244ms packages/app/index.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 47ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro] Web Bundled 237ms packages/app/index.ts (1 module)
+[metro] Web Bundled 5ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  1 [browser] › e2e/browser/new-workspace.spec.ts:80:5 › independent chat sidebar has four sections and supports create, reopen, pin, rename and archive (10.0s)
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 230ms packages/app/index.ts (1 module)
+[metro] Web Bundled 6ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 233ms packages/app/index.ts (1 module)
+[metro] Web Bundled 4ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  2 [browser] › e2e/browser/new-workspace.spec.ts:174:7 › Independent conversations on a compact sidebar › independent chat sidebar creates and reopens conversations on compact layouts (7.9s)
+[metro] Web Bundled 234ms packages/app/index.ts (1 module)
+[metro] Web Bundled 4ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 225ms packages/app/index.ts (1 module)
+[metro] Web Bundled 5ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  3 [browser] › e2e/browser/new-workspace.spec.ts:218:5 › independent chat creates, continues, reloads, renames and archives without choosing a project (8.2s)
+[metro] Web Bundled 233ms packages/app/index.ts (1 module)
+[metro] Web Bundled 4ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  4 [browser] › e2e/browser/new-workspace.spec.ts:284:5 › independent chat creation failure retains the draft and can be retried (4.0s)
+[metro] Web Bundled 226ms packages/app/index.ts (1 module)
+[metro] Web Bundled 5ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  5 [browser] › e2e/browser/new-workspace.spec.ts:681:7 › New workspace flow › unified new conversation adds a directory without leaving the form or losing the draft (4.0s)
+[metro] Web Bundled 236ms packages/app/index.ts (1 module)
+[metro] Web Bundled 4ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  6 [browser] › e2e/browser/new-workspace.spec.ts:708:7 › New workspace flow › unified new conversation preserves the draft while selecting and clearing a directory (4.6s)
+[metro] Web Bundled 229ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 4ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  7 [browser] › e2e/browser/new-workspace.spec.ts:758:7 › New workspace flow › global new conversation starts without a directory and creates a project conversation after selection (5.4s)
+[e2e] Worker 0 daemon stopped
+[e2e] Metro stopped
+
+  7 passed (1.0m)
+
+
+Terminal launch and preference regression
+
+> @getpaseo/app@0.11.1 test:e2e
+> playwright test --project=browser e2e/browser/new-workspace-launch-composer.spec.ts e2e/browser/new-workspace-launch-terminal.spec.ts e2e/browser/new-workspace-launch-memory.spec.ts --max-failures=1
+
+[metro] Starting project at /Users/zhuanzmima0000/Desktop/coding/person/Helm/packages/app
+[metro] Using src/app as the root directory for Expo Router.
+[metro] Experimental Expo Autolinking module resolver is enabled.
+[metro] React Compiler enabled
+[metro] Unable to run simctl:
+[metro] Error: xcrun simctl help exited with non-zero code: 72
+[metro] Starting Metro Bundler
+[metro] Waiting on http://localhost:54243
+[metro] Logs for your project will appear below.
+[metro] Web Bundled 2184ms packages/app/index.ts (5435 modules)
+[e2e] Metro warmed on port 54243
+
+Running 3 tests using 1 worker
+
+(node:89632) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:89632) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 0 daemon started on port 54299, home: /var/folders/9n/r2z4nsks0pq_v09z74z6494m0000gn/T/paseo-e2e-worker-0-4EpkaO
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 257ms packages/app/index.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 79ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+  ✓  1 [browser] › e2e/browser/new-workspace-launch-composer.spec.ts:44:7 › New workspace: the composer is one control in two modes › switching launch target does not leak draft text between chat and terminal, and drops the chat-only controls (5.2s)
+[metro] Web Bundled 239ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 5ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  2 [browser] › e2e/browser/new-workspace-launch-memory.spec.ts:51:7 › New workspace: launch target memory › remembers the launch target across visits, and a removed profile falls back to chat instead of a dead entry (8.4s)
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 230ms packages/app/index.ts (1 module)
+[metro] Web Bundled 6ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  3 [browser] › e2e/browser/new-workspace-launch-terminal.spec.ts:59:7 › New workspace: launching a terminal › a profile that takes a prompt launches with it as its trailing argument; a profile without the sentinel launches bare from Launch (6.1s)
+[e2e] Worker 0 daemon stopped
+[e2e] Metro stopped
+
+  3 passed (33.4s)
+
+
+Global entry, keyboard shortcut and host regression
+
+> @getpaseo/app@0.11.1 test:e2e
+> playwright test --project=browser e2e/browser/new-workspace-preselect.spec.ts --max-failures=1
+
+[metro] Starting project at /Users/zhuanzmima0000/Desktop/coding/person/Helm/packages/app
+[metro] Using src/app as the root directory for Expo Router.
+[metro] Experimental Expo Autolinking module resolver is enabled.
+[metro] React Compiler enabled
+[metro] Unable to run simctl:
+[metro] Error: xcrun simctl help exited with non-zero code: 72
+[metro] Starting Metro Bundler
+[metro] Waiting on http://localhost:56603
+[metro] Logs for your project will appear below.
+[metro] Web Bundled 2049ms packages/app/index.ts (5435 modules)
+[e2e] Metro warmed on port 56603
+
+Running 6 tests using 1 worker
+
+(node:95206) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:95206) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 0 daemon started on port 56657, home: /var/folders/9n/r2z4nsks0pq_v09z74z6494m0000gn/T/paseo-e2e-worker-0-D32w6R
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 241ms packages/app/index.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 52ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+  ✓  1 [browser] › e2e/browser/new-workspace-preselect.spec.ts:156:7 › New conversation retains its host without automatically selecting a directory › Cmd+N opens a conversation with no directory from either project (5.2s)
+[metro] Web Bundled 237ms packages/app/index.ts (1 module)
+[metro] Web packages/app/src/attachments/web/indexeddb-attachment-store.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 48ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  2 [browser] › e2e/browser/new-workspace-preselect.spec.ts:177:7 › New conversation retains its host without automatically selecting a directory › New conversation opens with no directory from either project (5.0s)
+[metro] Web Bundled 237ms packages/app/index.ts (1 module)
+[metro] Web Bundled 5ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 228ms packages/app/index.ts (1 module)
+[metro] Web Bundled 7ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  3 [browser] › e2e/browser/new-workspace-preselect.spec.ts:198:7 › New conversation retains its host without automatically selecting a directory › Cmd+N retains the connected host while leaving the directory optional (6.2s)
+[metro] Web Bundled 225ms packages/app/index.ts (1 module)
+[metro] Web Bundled 5ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 224ms packages/app/index.ts (1 module)
+[metro] Web Bundled 4ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  4 [browser] › e2e/browser/new-workspace-preselect.spec.ts:211:7 › New conversation retains its host without automatically selecting a directory › New conversation retains the connected host while leaving the directory optional (6.6s)
+[metro] Web Bundled 232ms packages/app/index.ts (1 module)
+[metro] Web Bundled 5ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 229ms packages/app/index.ts (1 module)
+[metro] Web Bundled 5ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  5 [browser] › e2e/browser/new-workspace-preselect.spec.ts:224:7 › New conversation retains its host without automatically selecting a directory › plain /new ignores stale remembered offline hosts when only one saved host is connected (6.0s)
+[metro] Web Bundled 225ms packages/app/index.ts (1 module)
+[metro] Web Bundled 4ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 261ms packages/app/index.ts (1 module)
+[metro] Web Bundled 4ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  6 [browser] › e2e/browser/new-workspace-preselect.spec.ts:235:7 › New conversation retains its host without automatically selecting a directory › stale remembered offline host heals after visiting the connected workspace (6.8s)
+[e2e] Worker 0 daemon stopped
+[e2e] Metro stopped
+
+  6 passed (49.5s)
+
+
+Final compact proof and directory-picker cleanup verification
+
+> @getpaseo/app@0.11.1 test:e2e
+> playwright test --project=browser e2e/browser/new-workspace.spec.ts --grep independent chat sidebar creates and reopens conversations on compact layouts|unified new conversation adds a directory --max-failures=1
+
+[metro] Starting project at /Users/zhuanzmima0000/Desktop/coding/person/Helm/packages/app
+[metro] Using src/app as the root directory for Expo Router.
+[metro] Experimental Expo Autolinking module resolver is enabled.
+[metro] React Compiler enabled
+[metro] Unable to run simctl:
+[metro] Error: xcrun simctl help exited with non-zero code: 72
+[metro] Starting Metro Bundler
+[metro] Waiting on http://localhost:57544
+[metro] Logs for your project will appear below.
+[metro] Web Bundled 1977ms packages/app/index.ts (5435 modules)
+[e2e] Metro warmed on port 57544
+
+Running 2 tests using 1 worker
+
+(node:6504) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:6504) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[e2e] Worker 0 daemon started on port 57577, home: /var/folders/9n/r2z4nsks0pq_v09z74z6494m0000gn/T/paseo-e2e-worker-0-8VtlK1
+[metro] Web packages/app/index.ts ░░░░░░░░░░░░░░░░  0.0% (0/1)
+[metro] Web Bundled 242ms packages/app/index.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+[metro] Web Bundled 46ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro] Web Bundled 271ms packages/app/index.ts (1 module)
+[metro] Web Bundled 9ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  1 [browser] › e2e/browser/new-workspace.spec.ts:174:7 › Independent conversations on a compact sidebar › independent chat sidebar creates and reopens conversations on compact layouts (8.0s)
+[metro] Web Bundled 235ms packages/app/index.ts (1 module)
+[metro] Web Bundled 6ms packages/app/src/attachments/web/indexeddb-attachment-store.ts (1 module)
+[metro]  LOG  [web] Logs will appear in the browser console
+  ✓  2 [browser] › e2e/browser/new-workspace.spec.ts:681:7 › New workspace flow › unified new conversation adds a directory without leaving the form or losing the draft (4.1s)
+[e2e] Worker 0 daemon stopped
+[e2e] Metro stopped
+
+  2 passed (24.8s)
+
+
+Final npm run typecheck (exit 0)
+
+> paseo@0.11.1 typecheck
+> npm run typecheck --workspaces --if-present
+
+
+> @getpaseo/builtin-plugins@0.11.1 typecheck
+> tsgo -p tsconfig.json --noEmit
+
+
+> @getpaseo/expo-two-way-audio@0.11.1 typecheck
+> tsgo --noEmit
+
+
+> @getpaseo/highlight@0.11.1 typecheck
+> tsgo --noEmit
+
+
+> @getpaseo/plugin@0.11.1 typecheck
+> tsgo --noEmit && tsgo -p tsconfig.examples.json --noEmit
+
+
+> @getpaseo/protocol@0.11.1 pretypecheck
+> npm run generate:validators
+
+
+> @getpaseo/protocol@0.11.1 generate:validators
+> node scripts/generate-validation-aot.mjs
+
+generated src/generated/validation/ws-outbound.aot.ts from codegen/ws-outbound.compile.ts (WSOutboundMessageSchema)
+
+> @getpaseo/protocol@0.11.1 typecheck
+> tsgo --noEmit
+
+
+> @getpaseo/client@0.11.1 typecheck
+> tsgo --noEmit
+
+
+> @getpaseo/server@0.11.1 typecheck
+> tsgo -p tsconfig.server.typecheck.json --noEmit
+
+
+> @getpaseo/app@0.11.1 typecheck
+> tsgo --noEmit
+
+
+> @getpaseo/relay@0.11.1 typecheck
+> tsgo --noEmit
+
+
+> @getpaseo/website@0.11.1 typecheck
+> tsgo --noEmit
+
+
+> @getpaseo/desktop@0.11.1 typecheck
+> tsgo --noEmit -p tsconfig.json
+
+
+> @getpaseo/cli@0.11.1 typecheck
+> tsgo --noEmit
+
+
+
+Final npm run lint (exit 0)
+
+> paseo@0.11.1 lint
+> oxlint
+
+Found 0 warnings and 0 errors.
+Finished in 2.7s on 4587 files with 177 rules using 10 threads.
+
+
+Final npm run format:check (exit 0)
+
+> paseo@0.11.1 format:check
+> oxfmt --check .
+
+Checking formatting...
+
+All matched files use the correct format.
+Finished in 2409ms on 4922 files using 10 threads.

@@ -306,6 +306,7 @@ const StoredWorkspaceSchema = z.strictObject({
   worktreeSlug: z.string().optional(),
   projectKind: z.enum(["git", "non_git", "directory"]),
   workspaceKind: z.enum(["directory", "local_checkout", "checkout", "worktree"]),
+  purpose: z.literal("chat").optional(),
   name: z.string(),
   title: z.string().nullable(),
   pinnedAt: z.string().nullable(),
@@ -333,6 +334,7 @@ const StoredProjectSchema = z.strictObject({
   projectIconRevision: z.string().optional(),
   projectRootPath: z.string(),
   projectKind: z.enum(["git", "non_git", "directory"]),
+  purpose: z.literal("chat").optional(),
 });
 
 const StoredTimelineSchema = z.strictObject({
@@ -696,6 +698,7 @@ function serializeWorkspace(workspace: WorkspaceDescriptor): StoredWorkspace {
     worktreeSlug: workspace.worktreeSlug,
     projectKind: workspace.projectKind,
     workspaceKind: workspace.workspaceKind,
+    purpose: workspace.purpose,
     name: workspace.name,
     title: workspace.title ?? null,
     pinnedAt: workspace.pinnedAt ?? null,
@@ -734,6 +737,7 @@ function serializeProject(project: ProjectDescriptor): StoredProject {
     projectIconRevision: project.projectIconRevision,
     projectRootPath: project.projectRootPath,
     projectKind: project.projectKind,
+    purpose: project.purpose,
   };
 }
 

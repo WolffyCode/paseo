@@ -1,11 +1,12 @@
-import type { Agent } from "@/stores/session-store";
+import type { WorkspaceDescriptor, Agent } from "@/stores/session-store";
 
 export type CloseAgentTabPolicy = { kind: "archive-on-close" } | { kind: "layout-only" };
 
 export function resolveCloseAgentTabPolicy(
   agent: Pick<Agent, "parentAgentId"> | null | undefined,
+  workspace?: Pick<WorkspaceDescriptor, "purpose"> | null,
 ): CloseAgentTabPolicy {
-  if (agent?.parentAgentId) {
+  if (workspace?.purpose === "chat" || agent?.parentAgentId) {
     return { kind: "layout-only" };
   }
 

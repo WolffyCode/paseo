@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { hostProjectFromWorkspace } from "@/projects/host-project-model";
 
 vi.hoisted(() => {
   (globalThis as unknown as { __DEV__: boolean }).__DEV__ = false;
@@ -93,6 +94,35 @@ describe("workspace source of truth consumption", () => {
         checkoutState: { kind: "pending" },
       }),
     ).toEqual({ kind: "skeleton" });
+  });
+
+  it("recognizes chats only by their explicit purpose and suppresses project chrome", () => {
+    const ordinary = createWorkspaceDescriptor({
+      id: "ordinary",
+      projectDisplayName: "Chats",
+      workspaceDirectory: "/projects/chat",
+    });
+    const chat = createWorkspaceDescriptor({
+      id: "independent",
+      purpose: "chat",
+      workspaceKind: "directory",
+    });
+    expect(hostProjectFromWorkspace({ serverId: "srv", workspace: chat })).toBeNull();
+    expect(hostProjectFromWorkspace({ serverId: "srv", workspace: ordinary })?.projectName).toBe(
+      "Chats",
+    );
+    expect(
+      resolveWorkspaceHeaderRenderState({
+        workspace: chat,
+        checkoutState: { kind: "ready", checkout: { isGit: true, currentBranch: "parent-repo" } },
+      }),
+    ).toMatchObject({
+      kind: "ready",
+      subtitle: "",
+      isSubtitleDistinct: false,
+      isGitCheckout: false,
+      currentBranchName: null,
+    });
   });
 
   it("keeps cached git workspace identity visible while checkout status refreshes", () => {

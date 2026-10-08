@@ -41,7 +41,7 @@ export type SidebarNavItem<Section extends SidebarSection = SidebarSection> =
   | PluginSidebarNavItem;
 
 const BUILTIN_LABEL_KEYS: Record<BuiltinSidebarItemId, string> = {
-  "new-workspace": "sidebar.actions.newWorkspace",
+  "new-workspace": "newWorkspace.title",
   history: "sidebar.sections.sessions",
   search: "sidebar.sections.search",
   schedules: "sidebar.sections.schedules",
@@ -69,8 +69,7 @@ export function builtinSidebarNavShortcutAction(id: BuiltinSidebarItemId): strin
   return BUILTIN_SHORTCUT_ACTIONS[id];
 }
 
-/** Builtins that start hidden until the user turns them on: the Usage summary is opt-in. */
-const HIDDEN_BY_DEFAULT: ReadonlySet<BuiltinSidebarItemId> = new Set(["usage"]);
+const HIDDEN_BY_DEFAULT: ReadonlySet<BuiltinSidebarItemId> = new Set(["history", "usage"]);
 
 function builtinVisibleByDefault(id: BuiltinSidebarItemId): boolean {
   return !HIDDEN_BY_DEFAULT.has(id);

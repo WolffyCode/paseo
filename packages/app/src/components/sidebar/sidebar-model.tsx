@@ -69,6 +69,10 @@ export function SidebarModelProvider({
     (state) => state.collapsedWorkspaceGroupKeys,
   );
   const pinnedCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedPinned);
+  const projectsCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedProjects);
+  const conversationsCollapsed = useSidebarCollapsedSectionsStore(
+    (state) => state.collapsedConversations,
+  );
   const pinnedWorkspaceOrder = useSidebarOrderStore((state) => state.pinnedWorkspaceOrder);
   const toggleProjectCollapsed = useSidebarCollapsedSectionsStore(
     (state) => state.toggleProjectCollapsed,
@@ -140,16 +144,34 @@ export function SidebarModelProvider({
     list.projects,
     visibleWorkspaceKeys,
   ]);
-  const pinnedKeys = usePinnedSidebarKeys(filteredProjects);
+  const filteredChats = useMemo(() => {
+    const chats = list.chats.flatMap((placement) => {
+      const entry = filteredWorkspaceEntriesByKey.get(placement.workspaceKey);
+      return entry ? [entry] : [];
+    });
+    return chats.sort(
+      (left, right) =>
+        (right.statusEnteredAt?.getTime() ?? 0) - (left.statusEnteredAt?.getTime() ?? 0) ||
+        left.workspaceKey.localeCompare(right.workspaceKey),
+    );
+  }, [list.chats, filteredWorkspaceEntriesByKey]);
+  const visiblePlacements = useMemo(
+    () => [...filteredProjects.flatMap((project) => project.workspaces), ...filteredChats],
+    [filteredProjects, filteredChats],
+  );
+  const pinnedKeys = usePinnedSidebarKeys(visiblePlacements);
   const projectionInput = useMemo(
     () => ({
       projects: filteredProjects,
+      chats: filteredChats,
       pinnedKeys,
       pinnedWorkspaceOrder,
       workspaceEntriesByKey: filteredWorkspaceEntriesByKey,
       projectNamesByViewKey: list.projectNamesByViewKey,
       groupMode,
       pinnedCollapsed,
+      projectsCollapsed,
+      conversationsCollapsed,
       collapsedProjectKeys,
       collapsedWorkspaceGroupKeys,
       t,
@@ -160,7 +182,10 @@ export function SidebarModelProvider({
       groupMode,
       list.projectNamesByViewKey,
       filteredProjects,
+      filteredChats,
       pinnedCollapsed,
+      projectsCollapsed,
+      conversationsCollapsed,
       pinnedKeys,
       pinnedWorkspaceOrder,
       filteredWorkspaceEntriesByKey,

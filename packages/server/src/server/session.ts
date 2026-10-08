@@ -1,3 +1,4 @@
+import { generateWorkspaceId } from "./workspace-registry-model.js";
 import { searchTimeline } from "./agent/chat-search/index.js";
 import type { BrowserToolsBroker } from "./browser-tools/broker.js";
 import { BrowserAutomationHostCapabilitySchema } from "@getpaseo/protocol/browser-automation/capabilities";
@@ -1383,6 +1384,7 @@ export class Session {
   }
 
   async syncWorkspaceGitObserverForWorkspace(workspace: PersistedWorkspaceRecord): Promise<void> {
+    if (workspace.purpose === "chat") return;
     if (this.workspaceUpdatesSubscriptions.size === 0 && !this.wantsEvent("checkout_status_update"))
       return;
     const descriptor = await this.describeWorkspaceRecord(workspace);
@@ -4088,36 +4090,63 @@ export class Session {
             ? async (id, workspace, onReady) => {
                 if (!workspace?.workspaceDirectory)
                   throw new Error("Created workspace has no directory");
-                const sourceCwd =
-                  request.source.kind === "directory"
-                    ? request.source.path
-                    : await resolveWorktreeSourceCwd(request.source, this.projectRegistry);
-                const relativeCwd = relative(resolve(sourceCwd), resolve(agentInput.config.cwd));
+                if (request.source.kind === "chat") {
+                  const allocated = await this.workspaceRegistry.get(workspace.id);
+                  if (!allocated || allocated.purpose !== "chat")
+                    throw new Error("Chat allocation is no longer available");
+                  await this.workspaceProvisioning.ensureWorkspaceRecordUnarchived(allocated);
+                }
+                let relativeCwd = "";
+                if (request.source.kind !== "chat") {
+                  const sourceCwd =
+                    request.source.kind === "directory"
+                      ? request.source.path
+                      : await resolveWorktreeSourceCwd(request.source, this.projectRegistry);
+                  relativeCwd = relative(resolve(sourceCwd), resolve(agentInput.config.cwd));
+                }
                 if (
                   relativeCwd === ".." ||
                   relativeCwd.startsWith(`..${sep}`) ||
                   isAbsolute(relativeCwd)
                 )
                   throw new Error("Agent directory must be inside the workspace source");
-                return this.createSessionAgent(
-                  {
-                    ...agentInput,
-                    type: "create_agent_request",
-                    requestId,
-                    config: {
-                      ...agentInput.config,
-                      cwd: resolve(workspace.workspaceDirectory, relativeCwd),
+                try {
+                  return await this.createSessionAgent(
+                    {
+                      ...agentInput,
+                      type: "create_agent_request",
+                      requestId,
+                      config: {
+                        ...agentInput.config,
+                        cwd: resolve(workspace.workspaceDirectory, relativeCwd),
+                      },
+                      workspaceId: workspace.id,
                     },
-                    workspaceId: workspace.id,
-                  },
-                  id,
-                  onReady,
-                );
+                    id,
+                    onReady,
+                  );
+                } catch (error) {
+                  if (request.source.kind === "chat" && !(await this.agentStorage.get(id))) {
+                    await archiveWorkspaceContents(
+                      {
+                        agentManager: this.agentManager,
+                        agentStorage: this.agentStorage,
+                        killTerminalsForWorkspace: (workspaceId) =>
+                          this.terminalController.killTerminalsForWorkspace(workspaceId),
+                        sessionLogger: this.sessionLogger,
+                      },
+                      workspace.id,
+                    );
+                    await this.archiveWorkspaceRecord(workspace.id);
+                  }
+                  throw error;
+                }
               }
             : undefined,
         },
         progress ? (snapshot) => progress.emit(this.creationUpdate(snapshot)) : undefined,
       );
+
       this.emitForSource(
         {
           type: "workspace.create.response",
@@ -5543,6 +5572,7 @@ export class Session {
       worktreeSlug,
       projectKind: (resolvedProjectRecord?.kind ?? "directory") === "git" ? "git" : "non_git",
       workspaceKind: workspace.kind,
+      purpose: workspace.purpose,
       name: resolveWorkspaceDisplayName(workspace),
       title: workspace.title,
       pinnedAt: workspace.pinnedAt,
@@ -5808,6 +5838,7 @@ export class Session {
       projectIconRevision: icon.revision,
       projectRootPath: project.rootPath,
       projectKind: project.kind,
+      purpose: project.purpose,
     };
   }
 
@@ -6627,6 +6658,31 @@ export class Session {
       const { type, requestId, ...input } = request;
       const transformed = await this.pluginRuntime.before("workspace.create", input);
       creationRequest = { ...transformed, type, requestId };
+    }
+    if (creationRequest.source.kind === "chat") {
+      const id = workspaceId ?? generateWorkspaceId();
+      const rootPath = resolve(this.paseoHome, "chats");
+      const cwd = resolve(rootPath, id);
+      try {
+        await mkdir(cwd, { recursive: true, mode: 0o700 });
+      } catch (error) {
+        throw new SessionRequestError(
+          "chat_directory_unavailable",
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+      const workspace = await this.workspaceProvisioning.createWorkspaceForChat({
+        rootPath,
+        cwd,
+        workspaceId: id,
+        title:
+          creationRequest.title?.trim() ||
+          resolveFirstAgentPromptTitle(creationRequest.firstAgentContext) ||
+          "New chat",
+      });
+      const descriptor = await this.describeWorkspaceRecord(workspace);
+      await this.emitCreatedWorkspaceUpdate(descriptor, request.agent ? "running" : undefined);
+      return descriptor;
     }
     return creationRequest.source.kind === "directory"
       ? this.handleWorkspaceCreateLocal(creationRequest, workspaceId)

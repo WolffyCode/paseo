@@ -19,6 +19,7 @@ export type SidebarStateBucket = WorkspaceDescriptor["status"];
 
 export interface SidebarWorkspacePlacement {
   workspaceKey: string;
+  purpose?: WorkspaceDescriptor["purpose"];
   serverId: string;
   workspaceId: string;
   projectViewKey: string;
@@ -65,6 +66,7 @@ export interface SidebarProjectEntry {
 
 export interface SidebarWorkspacePlacementModel {
   workspaces: SidebarWorkspacePlacement[];
+  chats: SidebarWorkspacePlacement[];
   projects: SidebarProjectEntry[];
   projectNamesByViewKey: Map<string, string>;
 }
@@ -152,8 +154,19 @@ export function createSidebarWorkspaceEntry(input: {
 }): SidebarWorkspaceEntry {
   const projectViewKey = input.projectViewKey ?? input.workspace.projectId;
   const effectiveStatus = deriveEffectiveWorkspaceStatus(input);
+  const isChat = input.workspace.purpose === "chat";
+  let currentBranch: SidebarWorkspaceEntry["currentBranch"] = null;
+  let prHint: SidebarWorkspaceEntry["prHint"] = null;
+  if (!isChat) {
+    currentBranch = normalizeCurrentBranch(input.workspace.gitRuntime?.currentBranch);
+    prHint = selectPrHintFromStatus(
+      input.workspace.githubRuntime?.pullRequest,
+      input.workspace.forge,
+    );
+  }
   return {
     workspaceKey: `${input.serverId}:${input.workspace.id}`,
+    purpose: input.workspace.purpose,
     serverId: input.serverId,
     workspaceId: input.workspace.id,
     projectViewKey,
@@ -168,15 +181,12 @@ export function createSidebarWorkspaceEntry(input: {
     title: input.workspace.title ?? null,
     pinnedAt: input.workspace.pinnedAt,
     labels: input.workspace.labels ?? EMPTY_WORKSPACE_LABELS,
-    currentBranch: normalizeCurrentBranch(input.workspace.gitRuntime?.currentBranch),
+    currentBranch,
     statusBucket: effectiveStatus.status,
     statusEnteredAt: effectiveStatus.enteredAt,
     archivingAt: input.workspace.archivingAt,
-    diffStat: input.workspace.diffStat,
-    prHint: selectPrHintFromStatus(
-      input.workspace.githubRuntime?.pullRequest,
-      input.workspace.forge,
-    ),
+    diffStat: isChat ? null : input.workspace.diffStat,
+    prHint,
     archiveHasUncommittedChanges: input.workspace.gitRuntime?.isDirty ?? null,
     archiveUnpushedCommitCount: input.workspace.gitRuntime?.aheadOfOrigin ?? null,
     scripts: input.workspace.scripts,
@@ -288,10 +298,19 @@ export function deriveProjectStatusBucket(input: {
 export function buildSidebarWorkspacePlacementModel(input: {
   projects: readonly HostProjectListItem[];
 }): SidebarWorkspacePlacementModel {
-  const projects = buildSidebarProjectsFromHostProjects({ projects: input.projects });
+  const ordinaryProjects = input.projects.filter((project) => project.purpose !== "chat");
+  const projects = buildSidebarProjectsFromHostProjects({ projects: ordinaryProjects });
+  const chats = input.projects
+    .filter((project) => project.purpose === "chat")
+    .flatMap((project) =>
+      project.workspaceKeys.map((workspaceKey) =>
+        createStructuralWorkspaceEntry({ project, workspaceKey }),
+      ),
+    );
   return {
     projects,
-    workspaces: projects.flatMap((project) => project.workspaces),
+    chats,
+    workspaces: [...projects.flatMap((project) => project.workspaces), ...chats],
     projectNamesByViewKey: new Map(
       projects.map((project) => [project.viewKey, project.projectName]),
     ),
@@ -309,6 +328,7 @@ function createStructuralWorkspaceEntry(input: {
 
   return {
     workspaceKey: identity.workspaceKey,
+    purpose: input.project.purpose,
     serverId: identity.serverId,
     workspaceId: identity.workspaceId,
     projectViewKey: input.project.viewKey,
@@ -431,17 +451,7 @@ function areSidebarWorkspaceEntriesEqual(
 export function buildSidebarProjectsFromStructure(input: {
   projects: WorkspaceStructureProject[];
 }): SidebarProjectEntry[] {
-  return buildSidebarProjectsFromHostProjects({
-    projects: input.projects.map((project) => ({
-      viewKey: project.viewKey,
-      projectKey: project.projectKey,
-      projectName: project.projectName,
-      projectKind: project.projectKind,
-      iconWorkingDir: project.iconWorkingDir,
-      hosts: project.hosts,
-      workspaceKeys: project.workspaceKeys,
-    })),
-  });
+  return buildSidebarWorkspacePlacementModel(input).projects;
 }
 
 export function buildSidebarProjectsFromHostProjects(input: {

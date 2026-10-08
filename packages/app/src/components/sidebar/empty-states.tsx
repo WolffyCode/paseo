@@ -1,10 +1,13 @@
 import { type ReactNode, useCallback } from "react";
-import { Import, Plus } from "lucide-react-native";
+import { FolderOpen } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { Text, View } from "react-native";
-import { StyleSheet } from "react-native-unistyles";
+import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { Button } from "@/components/ui/button";
+import { mutedIconColorMapping } from "@/components/ui/icon-color";
 import { useSidebarViewStore } from "@/stores/sidebar-view-store";
+
+const ThemedFolderOpen = withUnistyles(FolderOpen);
 
 function SidebarEmptyStateCard({
   testID,
@@ -61,32 +64,28 @@ export function SidebarFilterEmptyState() {
   );
 }
 
-export function SidebarProjectEmptyState({
-  onAddProject,
-  onImportSession,
-}: {
-  onAddProject?: () => void;
-  onImportSession?: () => void;
-}) {
+export function SidebarProjectEmptyState() {
   const { t } = useTranslation();
 
   return (
-    <SidebarEmptyStateCard
-      testID="sidebar-project-empty-state"
-      title={t("sidebar.project.empty.title")}
-      description={t("sidebar.project.empty.description")}
-    >
-      <Button variant="secondary" size="xs" leftIcon={Plus} onPress={onAddProject}>
-        {t("sidebar.actions.addProject")}
-      </Button>
-      <Button variant="outline" size="xs" leftIcon={Import} onPress={onImportSession}>
-        {t("importSession.title")}
-      </Button>
-    </SidebarEmptyStateCard>
+    <View style={styles.projectEmpty} testID="sidebar-project-empty-state">
+      <ThemedFolderOpen size={28} strokeWidth={1.5} uniProps={mutedIconColorMapping} />
+      <Text style={styles.projectEmptyText}>{t("sidebar.project.empty.title")}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create((theme) => ({
+  projectEmpty: {
+    alignItems: "center",
+    justifyContent: "center",
+    gap: theme.spacing[2],
+    paddingVertical: theme.spacing[6],
+  },
+  projectEmptyText: {
+    color: theme.colors.foregroundMuted,
+    fontSize: theme.fontSize.sm,
+  },
   card: {
     marginTop: theme.spacing[3],
     padding: theme.spacing[4],

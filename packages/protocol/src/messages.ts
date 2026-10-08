@@ -2630,6 +2630,7 @@ export const WorkspaceCreateRequestSchema = z.object({
   // Optional prompt context for workspace-level name/branch generation.
   firstAgentContext: FirstAgentContextSchema.optional(),
   source: z.discriminatedUnion("kind", [
+    z.object({ kind: z.literal("chat") }).strict(),
     z.object({
       kind: z.literal("directory"),
       // Path of the existing checkout/directory to back the workspace.
@@ -3630,6 +3631,7 @@ export const ServerInfoStatusPayloadSchema = z
         checkoutRefresh: z.boolean().optional(),
         // COMPAT(workspaceMultiplicity): added in v0.1.97, drop the gate when floor >= v0.1.97
         workspaceMultiplicity: z.boolean().optional(),
+        independentChats: z.boolean().optional(),
         // COMPAT(projectRemove): added in v0.1.97, drop the gate when floor >= v0.1.97.
         projectRemove: z.boolean().optional(),
         // COMPAT(projectAdd): added in v0.1.97, drop the gate when floor >= v0.1.97.
@@ -4008,6 +4010,7 @@ export const WorkspaceDescriptorPayloadSchema = z
     projectKind: z.enum(["git", "non_git", "directory"]),
     // COMPAT(workspaces): keep legacy directory workspace kind parseable.
     workspaceKind: z.enum(["directory", "local_checkout", "checkout", "worktree"]),
+    purpose: z.literal("chat").optional(),
     name: z.string(),
     // COMPAT(workspaceTitles): added in v0.1.97, drop the optional gate when floor >= v0.1.97.
     // When the user has titled a workspace, `name` carries the resolved value
@@ -4184,6 +4187,7 @@ export const FetchRecentProviderSessionsResponseMessageSchema = z.object({
 // workspace is archived.
 export const WorkspaceProjectDescriptorPayloadSchema = z.object({
   projectId: z.string(),
+  purpose: z.literal("chat").optional(),
   // COMPAT(projectKey): added in v0.2.4 on 2026-07-28; remove optional after 2027-01-28.
   projectKey: z.string().optional(),
   projectDisplayName: z.string(),

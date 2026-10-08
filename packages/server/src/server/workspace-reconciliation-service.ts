@@ -352,6 +352,7 @@ export class WorkspaceReconciliationService {
 
   private async reconcileProject(input: ProjectReconciliationInput): Promise<void> {
     const { project, siblings, currentGit, readCheckout, changes } = input;
+    if (project.purpose === "chat") return;
     const workspaceCheckouts = await Promise.all(
       siblings.map(async (workspace) => ({
         workspace,

@@ -51,6 +51,16 @@ function workspaceWithForge(forge: string | undefined, prUrl: string): Workspace
 }
 
 describe("createSidebarWorkspaceEntry forge threading", () => {
+  it("keeps Git metadata out of independent conversation rows", () => {
+    const descriptor: WorkspaceDescriptor = {
+      ...workspaceWithForge(undefined, "https://github.com/acme/repo/pull/42"),
+      purpose: "chat",
+      diffStat: { additions: 120, deletions: 12 },
+    };
+    const entry = createSidebarWorkspaceEntry({ serverId: "srv", workspace: descriptor });
+    expect(entry).toMatchObject({ purpose: "chat", diffStat: null, prHint: null });
+  });
+
   it("threads a gitlab summary forge onto the prHint", () => {
     const entry = createSidebarWorkspaceEntry({
       serverId: "srv",
@@ -293,6 +303,28 @@ describe("buildSidebarProjectsFromStructure", () => {
 });
 
 describe("shared sidebar workspace model", () => {
+  it("keeps independent conversations in the workspace index without showing their backing project", () => {
+    const chatProject: WorkspaceStructureProject = {
+      ...project({
+        projectKey: "private-chat",
+        projectName: "Chats",
+        workspaceKeys: ["srv:conversation"],
+      }),
+      purpose: "chat",
+    };
+    const ordinaryProject = project({ projectKey: "repo", workspaceKeys: ["srv:main"] });
+    const model = buildSidebarWorkspacePlacementModel({ projects: [ordinaryProject, chatProject] });
+
+    expect(model.projects.map((entry) => entry.viewKey)).toEqual([ordinaryProject.viewKey]);
+    expect(model).toMatchObject({
+      chats: [{ workspaceKey: "srv:conversation", purpose: "chat" }],
+    });
+    expect(model.workspaces.map((entry) => entry.workspaceKey)).toEqual([
+      "srv:main",
+      "srv:conversation",
+    ]);
+  });
+
   it("feeds project placement and status grouping from the same cross-host workspace identities", () => {
     const model = buildSidebarWorkspacePlacementModel({
       projects: [

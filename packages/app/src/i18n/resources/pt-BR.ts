@@ -1164,6 +1164,10 @@ export const ptBR: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "Conversas",
+      empty: "Suas conversas aparecerão aqui após enviar uma mensagem.",
+    },
     statusGroupAccessibility: "Grupo {{label}}",
     statusBucket: {
       needsInput: "Precisa de resposta",
@@ -1227,7 +1231,6 @@ export const ptBR: TranslationResources = {
     },
     actions: {
       addProject: "Adicionar projeto",
-      newWorkspace: "Novo workspace",
       hosts: "Hosts",
       settings: "Configurações",
       closeSidebar: "Fechar barra lateral",
@@ -1247,6 +1250,7 @@ export const ptBR: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "Projetos",
       sessions: "Histórico",
       search: "Buscar",
       schedules: "Agendamentos",
@@ -1282,7 +1286,6 @@ export const ptBR: TranslationResources = {
       },
       empty: {
         title: "Nenhum projeto ainda",
-        description: "Adicione um projeto para começar",
       },
     },
     workspace: {
@@ -1339,7 +1342,14 @@ export const ptBR: TranslationResources = {
     },
   },
   newWorkspace: {
-    title: "Novo workspace",
+    directory: {
+      title: "Diretório de trabalho",
+      placeholder: "Diretório de trabalho (opcional)",
+      none: "Sem espaço de trabalho",
+      search: "Buscar diretórios de trabalho",
+      empty: "Nenhum diretório correspondente.",
+    },
+    title: "Nova conversa",
     create: "Criar",
     isolation: {
       local: "Local",
@@ -1353,13 +1363,15 @@ export const ptBR: TranslationResources = {
     },
     titlePlaceholder: "Título (opcional)",
     errors: {
+      createFailed: "Não foi possível criar a conversa. Tente novamente.",
+      updateHost: "Atualize este host para iniciar uma conversa sem espaço de trabalho.",
+      enterMessage: "Digite uma mensagem ou adicione um anexo.",
       hostDisconnected: "Host não está conectado",
       createWorktreeFailed: "Falha ao criar worktree",
       composerStateRequired: "O estado do composer é obrigatório",
       selectModel: "Selecione um modelo",
     },
     tooltips: {
-      project: "Choose the project",
       host: "Choose the host",
       isolation: "Choose the isolation level",
       startingRef: "Escolha de onde começar",
@@ -2359,7 +2371,7 @@ export const ptBR: TranslationResources = {
       },
       help: {
         openProject: "Abrir projeto",
-        newWorkspace: "Novo workspace",
+        newWorkspace: "Nova conversa",
         newWorktree: "Novo worktree",
         archiveWorkspace: "Arquivar workspace",
         newTab: "Nova aba",

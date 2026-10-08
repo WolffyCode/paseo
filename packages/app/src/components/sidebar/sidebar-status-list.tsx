@@ -124,6 +124,7 @@ interface StatusWorkspaceListProps {
   onToggleWorkspacePin: ToggleSidebarWorkspacePin;
   onPinnedWorkspaceReorder: (workspaces: SidebarWorkspaceEntry[]) => void;
   listHeaderComponent?: ReactNode;
+  listFooterComponent?: ReactNode;
   /** Swaps the group list for the label filter's empty state. Never the header above it. */
   sidebarFilterEmpty?: boolean;
   parentGestureRef?: MutableRefObject<GestureType | undefined>;
@@ -142,6 +143,7 @@ export function SidebarStatusWorkspaceList({
   onToggleWorkspacePin,
   onPinnedWorkspaceReorder,
   listHeaderComponent,
+  listFooterComponent,
   sidebarFilterEmpty = false,
   parentGestureRef,
   dragGestureHostActive,
@@ -150,6 +152,7 @@ export function SidebarStatusWorkspaceList({
     (state) => state.collapsedWorkspaceGroupKeys,
   );
   const pinnedCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedPinned);
+  const projectsCollapsed = useSidebarCollapsedSectionsStore((state) => state.collapsedProjects);
   const togglePinnedCollapsed = useSidebarCollapsedSectionsStore(
     (state) => state.togglePinnedCollapsed,
   );
@@ -198,52 +201,52 @@ export function SidebarStatusWorkspaceList({
       supportsPinningByServerId,
     ],
   );
+  const projectBody = sidebarFilterEmpty ? (
+    <SidebarFilterEmptyState />
+  ) : (
+    <StatusGroupList
+      groups={groups}
+      collapsedWorkspaceGroupKeys={collapsedWorkspaceGroupKeys}
+      projectIconByProjectViewKey={projectIconByProjectViewKey}
+      shortcutIndex={statusShortcutIndex}
+      showShortcutBadges={showShortcutBadges}
+      onWorkspacePress={onWorkspacePress}
+      hostBadgeByServerId={hostBadgeByServerId}
+      supportsPinningByServerId={supportsPinningByServerId}
+      onToggleWorkspacePin={onToggleWorkspacePin}
+    />
+  );
   const content = (
     <>
-      {pinnedWorkspaces.length > 0 ? (
-        <View style={styles.pinnedSection} testID="sidebar-pinned-section">
-          <PinnedSectionHeader collapsed={pinnedCollapsed} onToggle={togglePinnedCollapsed} />
-          {pinnedCollapsed ? null : (
-            <>
-              <DraggableList
-                testID="sidebar-pinned-list"
-                data={visiblePinnedWorkspaces}
-                keyExtractor={statusWorkspaceKeyExtractor}
-                renderItem={renderPinnedWorkspace}
-                onDragEnd={onPinnedWorkspaceReorder}
-                scrollEnabled={false}
-                useDragHandle
-                nestable={platformIsNative}
-                simultaneousGestureRef={parentGestureRef}
-                gestureHostPresented={dragGestureHostActive}
+      <View style={styles.pinnedSection} testID="sidebar-pinned-section">
+        <PinnedSectionHeader collapsed={pinnedCollapsed} onToggle={togglePinnedCollapsed} />
+        {pinnedCollapsed ? null : (
+          <>
+            <DraggableList
+              testID="sidebar-pinned-list"
+              data={visiblePinnedWorkspaces}
+              keyExtractor={statusWorkspaceKeyExtractor}
+              renderItem={renderPinnedWorkspace}
+              onDragEnd={onPinnedWorkspaceReorder}
+              scrollEnabled={false}
+              useDragHandle
+              nestable={platformIsNative}
+              simultaneousGestureRef={parentGestureRef}
+              gestureHostPresented={dragGestureHostActive}
+            />
+            {canTogglePinnedWorkspaces ? (
+              <SidebarGroupToggleRow
+                expanded={pinnedWorkspacesExpanded}
+                onPress={togglePinnedWorkspacesExpanded}
+                testID="sidebar-pinned-show-more"
               />
-              {canTogglePinnedWorkspaces ? (
-                <SidebarGroupToggleRow
-                  expanded={pinnedWorkspacesExpanded}
-                  onPress={togglePinnedWorkspacesExpanded}
-                  testID="sidebar-pinned-show-more"
-                />
-              ) : null}
-            </>
-          )}
-        </View>
-      ) : null}
+            ) : null}
+          </>
+        )}
+      </View>
       {listHeaderComponent}
-      {sidebarFilterEmpty ? (
-        <SidebarFilterEmptyState />
-      ) : (
-        <StatusGroupList
-          groups={groups}
-          collapsedWorkspaceGroupKeys={collapsedWorkspaceGroupKeys}
-          projectIconByProjectViewKey={projectIconByProjectViewKey}
-          shortcutIndex={statusShortcutIndex}
-          showShortcutBadges={showShortcutBadges}
-          onWorkspacePress={onWorkspacePress}
-          hostBadgeByServerId={hostBadgeByServerId}
-          supportsPinningByServerId={supportsPinningByServerId}
-          onToggleWorkspacePin={onToggleWorkspacePin}
-        />
-      )}
+      {projectsCollapsed ? null : projectBody}
+      {listFooterComponent}
     </>
   );
 
@@ -381,7 +384,7 @@ function StatusGroupRows({
 
 interface StatusRowProjectPresentation {
   hostBadge: HostBadgeModel | null;
-  projectName: string;
+  projectName: string | null;
   projectIconDataUri: string | null;
 }
 
@@ -396,7 +399,7 @@ function buildStatusRowProjectPresentation({
 }): StatusRowProjectPresentation {
   return {
     hostBadge: hostBadgeByServerId.get(workspace.serverId) ?? null,
-    projectName: workspace.projectName,
+    projectName: workspace.purpose === "chat" ? null : workspace.projectName,
     projectIconDataUri: projectIconByProjectViewKey.get(workspace.projectViewKey) ?? null,
   };
 }
@@ -508,7 +511,7 @@ const StatusWorkspaceRow = memo(function StatusWorkspaceRow({
 }: {
   workspace: SidebarWorkspaceEntry;
   hostBadge: HostBadgeModel | null;
-  projectName: string;
+  projectName: string | null;
   projectIconDataUri: string | null;
   shortcutNumber: number | null;
   showShortcutBadge: boolean;
@@ -576,7 +579,7 @@ function StatusWorkspaceRowWithMenu({
 }: {
   workspace: SidebarWorkspaceEntry;
   hostBadge: HostBadgeModel | null;
-  projectName: string;
+  projectName: string | null;
   projectIconDataUri: string | null;
   selected: boolean;
   shortcutNumber: number | null;
@@ -687,7 +690,7 @@ function StatusWorkspaceRowWithMenu({
         archivePendingLabel={t("sidebar.workspace.actions.archiving")}
         onArchive={handleArchive}
         onCopyBranchName={workspace.projectKind === "git" ? handleCopyBranchName : undefined}
-        onCopyPath={handleCopyPath}
+        onCopyPath={workspace.purpose === "chat" ? undefined : handleCopyPath}
         onRename={handleOpenRename}
         onMarkAsRead={hasClearableAttention ? handleMarkAsRead : undefined}
         onMarkAsUnread={canMarkUnread ? handleMarkAsUnread : undefined}
@@ -713,7 +716,7 @@ function StatusWorkspaceRowWithMenu({
 interface StatusWorkspaceRowInnerProps {
   workspace: SidebarWorkspaceEntry;
   hostBadge: HostBadgeModel | null;
-  projectName: string;
+  projectName: string | null;
   projectIconDataUri: string | null;
   selected: boolean;
   shortcutNumber: number | null;
@@ -879,7 +882,9 @@ function StatusWorkspaceRowInnerContent({
               archiveShortcutKeys={archiveShortcutKeys}
               isPinned={isPinned}
               onTogglePin={onTogglePin}
-              openInFileManagerPath={workspace.workspaceDirectory}
+              openInFileManagerPath={
+                workspace.purpose === "chat" ? null : workspace.workspaceDirectory
+              }
               disabled={isArchiving}
               accessibilityRole="button"
               accessibilityState={accessibilityState}

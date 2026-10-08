@@ -1165,6 +1165,10 @@ export const fr: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "Conversations",
+      empty: "Vos conversations apparaîtront ici après votre premier message.",
+    },
     statusGroupAccessibility: "Groupe {{label}}",
     statusBucket: {
       needsInput: "Attend une réponse",
@@ -1229,7 +1233,6 @@ export const fr: TranslationResources = {
     },
     actions: {
       addProject: "Ajouter un projet",
-      newWorkspace: "Nouvel espace de travail",
       hosts: "Hôtes",
       settings: "Paramètres",
       closeSidebar: "Fermer la barre latérale",
@@ -1249,6 +1252,7 @@ export const fr: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "Projets",
       sessions: "Historique",
       search: "Recherche",
       schedules: "Planifications",
@@ -1284,7 +1288,6 @@ export const fr: TranslationResources = {
       },
       empty: {
         title: "Aucun projet pour l’instant",
-        description: "Ajoutez un projet pour commencer",
       },
     },
     workspace: {
@@ -1341,7 +1344,14 @@ export const fr: TranslationResources = {
     },
   },
   newWorkspace: {
-    title: "Nouvel espace de travail",
+    directory: {
+      title: "Dossier de travail",
+      placeholder: "Dossier de travail (facultatif)",
+      none: "Sans espace de travail",
+      search: "Rechercher un dossier de travail",
+      empty: "Aucun dossier correspondant.",
+    },
+    title: "Nouvelle conversation",
     create: "Créer",
     isolation: {
       local: "Local",
@@ -1355,13 +1365,15 @@ export const fr: TranslationResources = {
     },
     titlePlaceholder: "Titre (facultatif)",
     errors: {
+      createFailed: "Impossible de créer la conversation. Réessayez.",
+      updateHost: "Mettez cet hôte à jour pour démarrer une conversation sans espace de travail.",
+      enterMessage: "Saisissez un message ou ajoutez une pièce jointe.",
       hostDisconnected: "L’hôte n’est pas connecté",
       createWorktreeFailed: "Impossible de créer le worktree",
       composerStateRequired: "L’état de la zone de saisie est requis",
       selectModel: "Sélectionnez un modèle",
     },
     tooltips: {
-      project: "Choisir le projet",
       host: "Choisir l’hôte",
       isolation: "Choisir le niveau d’isolation",
       startingRef: "Choisir le point de départ",
@@ -2376,7 +2388,7 @@ export const fr: TranslationResources = {
       },
       help: {
         openProject: "Ouvrir un projet",
-        newWorkspace: "Nouvel espace de travail",
+        newWorkspace: "Nouvelle conversation",
         newWorktree: "Nouveau worktree",
         archiveWorkspace: "Archiver l’espace de travail",
         newTab: "Nouvel onglet",

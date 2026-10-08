@@ -8,6 +8,7 @@ import {
 import type {
   SidebarProjectEntry,
   SidebarWorkspaceEntry,
+  SidebarWorkspacePlacement,
 } from "@/hooks/use-sidebar-workspaces-list";
 import type { SidebarGroupMode } from "@/stores/sidebar-view-store";
 import {
@@ -38,12 +39,15 @@ export interface SidebarProjection {
 
 export interface SidebarProjectionInput {
   projects: SidebarProjectEntry[];
+  chats: SidebarWorkspacePlacement[];
   pinnedKeys: PinnedSidebarKeys;
   pinnedWorkspaceOrder: string[];
   workspaceEntriesByKey: ReadonlyMap<string, SidebarWorkspaceEntry>;
   projectNamesByViewKey: Map<string, string>;
   groupMode: SidebarGroupMode;
   pinnedCollapsed: boolean;
+  projectsCollapsed: boolean;
+  conversationsCollapsed: boolean;
   collapsedProjectKeys: ReadonlySet<string>;
   collapsedWorkspaceGroupKeys: ReadonlySet<string>;
   t: TFunction;
@@ -52,12 +56,13 @@ export interface SidebarProjectionInput {
 export function buildSidebarProjection(input: SidebarProjectionInput): SidebarProjection {
   const pinnedGroups = splitPinnedSidebarGroups({
     projects: input.projects,
+    chats: input.chats,
     keys: input.pinnedKeys,
     pinnedWorkspaceOrder: input.pinnedWorkspaceOrder,
   });
   const pinnedWorkspaceKeys = new Set(input.pinnedKeys.pinnedWorkspaceKeys);
   const unpinnedWorkspaces = Array.from(input.workspaceEntriesByKey.values()).filter(
-    (workspace) => !pinnedWorkspaceKeys.has(workspace.workspaceKey),
+    (workspace) => workspace.purpose !== "chat" && !pinnedWorkspaceKeys.has(workspace.workspaceKey),
   );
   // One switch decides both what the list groups by and what the keyboard shortcuts walk, so the
   // two cannot disagree and a new grouping mode is a compile error here rather than a silent
@@ -72,17 +77,21 @@ export function buildSidebarProjection(input: SidebarProjectionInput): SidebarPr
     sections.push(
       ...pinnedGroups.unpinnedProjects.map((project) => ({
         workspaces: project.workspaces,
-        collapsed: input.collapsedProjectKeys.has(project.viewKey),
+        collapsed: input.projectsCollapsed || input.collapsedProjectKeys.has(project.viewKey),
       })),
     );
   } else {
     sections.push(
       ...workspaceGroups.map((group) => ({
         workspaces: group.rows,
-        collapsed: input.collapsedWorkspaceGroupKeys.has(group.key),
+        collapsed: input.projectsCollapsed || input.collapsedWorkspaceGroupKeys.has(group.key),
       })),
     );
   }
+  sections.push({
+    workspaces: pinnedGroups.unpinnedChats,
+    collapsed: input.conversationsCollapsed,
+  });
 
   return {
     pinnedGroups,

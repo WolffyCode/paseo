@@ -1155,6 +1155,10 @@ export const ru: TranslationResources = {
     },
   },
   sidebar: {
+    conversations: {
+      title: "Диалоги",
+      empty: "Ваши диалоги появятся здесь после отправки сообщения.",
+    },
     statusGroupAccessibility: "Группа «{{label}}»",
     statusBucket: {
       needsInput: "Ожидает ввода",
@@ -1219,7 +1223,6 @@ export const ru: TranslationResources = {
     },
     actions: {
       addProject: "Добавить проект",
-      newWorkspace: "Новое рабочее пространство",
       hosts: "Хосты",
       settings: "Настройки",
       closeSidebar: "Закрыть боковую панель",
@@ -1239,6 +1242,7 @@ export const ru: TranslationResources = {
       appName: "Paseo",
     },
     sections: {
+      projects: "Проекты",
       sessions: "История",
       search: "Поиск",
       schedules: "Расписания",
@@ -1274,7 +1278,6 @@ export const ru: TranslationResources = {
       },
       empty: {
         title: "Пока нет проектов",
-        description: "Добавьте проект, чтобы начать работу",
       },
     },
     workspace: {
@@ -1331,7 +1334,14 @@ export const ru: TranslationResources = {
     },
   },
   newWorkspace: {
-    title: "Новое рабочее пространство",
+    directory: {
+      title: "Рабочий каталог",
+      placeholder: "Рабочий каталог (необязательно)",
+      none: "Без рабочего пространства",
+      search: "Поиск рабочих каталогов",
+      empty: "Подходящие каталоги не найдены.",
+    },
+    title: "Новый диалог",
     create: "Создать",
     isolation: {
       local: "Локально",
@@ -1345,13 +1355,15 @@ export const ru: TranslationResources = {
     },
     titlePlaceholder: "Заголовок (необязательно)",
     errors: {
+      createFailed: "Не удалось создать диалог. Повторите попытку.",
+      updateHost: "Обновите этот хост, чтобы начать диалог без рабочего пространства.",
+      enterMessage: "Введите сообщение или добавьте вложение.",
       hostDisconnected: "Хост не подключён",
       createWorktreeFailed: "Не удалось создать worktree.",
       composerStateRequired: "Редактор сообщения ещё не готов.",
       selectModel: "Выберите модель",
     },
     tooltips: {
-      project: "Выберите проект",
       host: "Выберите хост",
       isolation: "Выберите уровень изоляции",
       startingRef: "Выберите, с чего начать",
@@ -2364,7 +2376,7 @@ export const ru: TranslationResources = {
       },
       help: {
         openProject: "Открыть проект",
-        newWorkspace: "Новое рабочее пространство",
+        newWorkspace: "Новый диалог",
         newWorktree: "Новый worktree",
         archiveWorkspace: "Архивировать рабочее пространство",
         newTab: "Новая вкладка",
