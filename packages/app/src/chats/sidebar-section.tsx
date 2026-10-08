@@ -1,5 +1,4 @@
 import { useCallback, type ReactNode } from "react";
-import { router } from "expo-router";
 import { Plus } from "lucide-react-native";
 import { Text, View } from "react-native";
 import { useTranslation } from "react-i18next";
@@ -9,6 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { SidebarGroupToggleRow } from "@/components/sidebar/sidebar-group-toggle-row";
 import { useLimitedSidebarGroup } from "@/components/sidebar/use-limited-sidebar-group";
 import type { SidebarWorkspacePlacement } from "@/hooks/use-sidebar-workspaces-list";
+import { useOpenNewConversation } from "@/hooks/use-new-conversation";
 
 interface SidebarConversationsSectionProps {
   chats: SidebarWorkspacePlacement[];
@@ -22,11 +22,12 @@ export function SidebarConversationsSection({
   onBeforeNavigate,
 }: SidebarConversationsSectionProps) {
   const { t } = useTranslation();
+  const openNewConversation = useOpenNewConversation();
   const { visibleItems, expanded, canToggle, toggleExpanded } = useLimitedSidebarGroup(chats);
   const newChat = useCallback(() => {
     onBeforeNavigate?.();
-    router.navigate("/chats");
-  }, [onBeforeNavigate]);
+    openNewConversation();
+  }, [onBeforeNavigate, openNewConversation]);
 
   return (
     <View style={styles.section} testID="sidebar-conversations-section">
@@ -39,12 +40,12 @@ export function SidebarConversationsSection({
               size="xs"
               leftIcon={Plus}
               onPress={newChat}
-              accessibilityLabel={t("sidebar.conversations.new")}
+              accessibilityLabel={t("newWorkspace.title")}
               testID="sidebar-new-chat"
             />
           </TooltipTrigger>
           <TooltipContent side="bottom" align="end">
-            <Text style={styles.tooltip}>{t("sidebar.conversations.new")}</Text>
+            <Text style={styles.tooltip}>{t("newWorkspace.title")}</Text>
           </TooltipContent>
         </Tooltip>
       </View>
@@ -53,7 +54,9 @@ export function SidebarConversationsSection({
           <View key={chat.workspaceKey}>{renderChat(chat)}</View>
         ))}
       </View>
-      {chats.length === 0 ? <Text style={styles.empty}>{t("chats.empty")}</Text> : null}
+      {chats.length === 0 ? (
+        <Text style={styles.empty}>{t("sidebar.conversations.empty")}</Text>
+      ) : null}
       {canToggle ? (
         <SidebarGroupToggleRow
           expanded={expanded}

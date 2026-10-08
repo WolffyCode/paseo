@@ -8,7 +8,7 @@ export type SidebarSection = PluginSidebarSection;
  * (Add project and the Hosts, Help and support, Settings icons) is fixed.
  */
 export const BUILTIN_SIDEBAR_ITEM_IDS = {
-  header: ["chats", "new-workspace", "history", "search", "schedules"],
+  header: ["new-workspace", "history", "search", "schedules"],
   footer: ["usage"],
 } as const satisfies Record<SidebarSection, readonly string[]>;
 
@@ -41,8 +41,7 @@ export type SidebarNavItem<Section extends SidebarSection = SidebarSection> =
   | PluginSidebarNavItem;
 
 const BUILTIN_LABEL_KEYS: Record<BuiltinSidebarItemId, string> = {
-  chats: "chats.title",
-  "new-workspace": "sidebar.actions.newWorkspace",
+  "new-workspace": "newWorkspace.title",
   history: "sidebar.sections.sessions",
   search: "sidebar.sections.search",
   schedules: "sidebar.sections.schedules",
@@ -59,7 +58,6 @@ export function builtinSidebarNavLabelKey(id: BuiltinSidebarItemId): string {
  * two never disagree about which shortcut belongs to which item.
  */
 const BUILTIN_SHORTCUT_ACTIONS: Record<BuiltinSidebarItemId, string | null> = {
-  chats: null,
   "new-workspace": "new-workspace",
   history: null,
   search: "toggle-command-center",
@@ -71,12 +69,7 @@ export function builtinSidebarNavShortcutAction(id: BuiltinSidebarItemId): strin
   return BUILTIN_SHORTCUT_ACTIONS[id];
 }
 
-const HIDDEN_BY_DEFAULT: ReadonlySet<BuiltinSidebarItemId> = new Set([
-  "history",
-  "search",
-  "schedules",
-  "usage",
-]);
+const HIDDEN_BY_DEFAULT: ReadonlySet<BuiltinSidebarItemId> = new Set(["history", "usage"]);
 
 function builtinVisibleByDefault(id: BuiltinSidebarItemId): boolean {
   return !HIDDEN_BY_DEFAULT.has(id);

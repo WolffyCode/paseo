@@ -2,24 +2,6 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const fr: TranslationResources = {
-  chats: {
-    title: "Discussions",
-    new: "Nouvelle discussion",
-    description: "Commencez sans choisir de projet.",
-    recent: "Vos discussions",
-    empty: "Vos discussions apparaîtront ici après votre premier message.",
-    noHost: "Connectez un hôte pour discuter.",
-    offline: "L’hôte est hors ligne. Reconnectez-vous.",
-    updateHost: "Mettez cet hôte à jour pour utiliser les discussions indépendantes.",
-    selectModel: "Choisissez un modèle et saisissez un message.",
-    createFailed: "Impossible de créer la discussion. Réessayez.",
-    rename: "Renommer la discussion",
-    archive: "Archiver la discussion",
-    archiveConfirm:
-      "Archiver et arrêter les agents actifs ? Vous pourrez la rouvrir depuis l’historique.",
-    nameRequired: "Saisissez un nom.",
-  },
-
   paneFind: {
     connectionFailure:
       "Impossible de rechercher dans cette conversation. Vérifiez la connexion à l’hôte et réessayez.",
@@ -1185,7 +1167,7 @@ export const fr: TranslationResources = {
   sidebar: {
     conversations: {
       title: "Conversations",
-      new: "Nouvelle conversation",
+      empty: "Vos conversations apparaîtront ici après votre premier message.",
     },
     statusGroupAccessibility: "Groupe {{label}}",
     statusBucket: {
@@ -1251,7 +1233,6 @@ export const fr: TranslationResources = {
     },
     actions: {
       addProject: "Ajouter un projet",
-      newWorkspace: "Nouvel espace de travail",
       hosts: "Hôtes",
       settings: "Paramètres",
       closeSidebar: "Fermer la barre latérale",
@@ -1364,7 +1345,14 @@ export const fr: TranslationResources = {
     },
   },
   newWorkspace: {
-    title: "Nouvel espace de travail",
+    directory: {
+      title: "Dossier de travail",
+      placeholder: "Dossier de travail (facultatif)",
+      none: "Sans espace de travail",
+      search: "Rechercher un dossier de travail",
+      empty: "Aucun dossier correspondant.",
+    },
+    title: "Nouvelle conversation",
     create: "Créer",
     isolation: {
       local: "Local",
@@ -1378,13 +1366,15 @@ export const fr: TranslationResources = {
     },
     titlePlaceholder: "Titre (facultatif)",
     errors: {
+      createFailed: "Impossible de créer la conversation. Réessayez.",
+      updateHost: "Mettez cet hôte à jour pour démarrer une conversation sans espace de travail.",
+      enterMessage: "Saisissez un message ou ajoutez une pièce jointe.",
       hostDisconnected: "L’hôte n’est pas connecté",
       createWorktreeFailed: "Impossible de créer le worktree",
       composerStateRequired: "L’état de la zone de saisie est requis",
       selectModel: "Sélectionnez un modèle",
     },
     tooltips: {
-      project: "Choisir le projet",
       host: "Choisir l’hôte",
       isolation: "Choisir le niveau d’isolation",
       startingRef: "Choisir le point de départ",
@@ -2399,7 +2389,7 @@ export const fr: TranslationResources = {
       },
       help: {
         openProject: "Ouvrir un projet",
-        newWorkspace: "Nouvel espace de travail",
+        newWorkspace: "Nouvelle conversation",
         newWorktree: "Nouveau worktree",
         archiveWorkspace: "Archiver l’espace de travail",
         newTab: "Nouvel onglet",

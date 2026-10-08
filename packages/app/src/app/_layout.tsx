@@ -85,7 +85,7 @@ import { loadDesktopSettings } from "@/desktop/settings/desktop-settings";
 import { RosettaCalloutSource } from "@/desktop/updates/rosetta-callout-source";
 import { UpdateCalloutSource } from "@/desktop/updates/update-callout-source";
 import { useActiveWorktreeNewAction } from "@/hooks/use-active-worktree-new-action";
-import { useGlobalNewWorkspaceAction } from "@/hooks/use-global-new-workspace-action";
+import { useGlobalNewConversationAction } from "@/hooks/use-new-conversation";
 import { useLatchedBoolean } from "@/hooks/use-latched-boolean";
 import { useFaviconStatus } from "@/hooks/use-favicon-status";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
@@ -514,7 +514,7 @@ function AppContainer({ children, chromeEnabled: chromeEnabledOverride }: AppCon
   });
 
   useActiveWorktreeNewAction();
-  useGlobalNewWorkspaceAction();
+  useGlobalNewConversationAction();
 
   const appContentMinimumWidth = resolveDesktopAppContentMinimum({
     isSettingsRoute: pathname.includes("/settings"),
@@ -861,7 +861,6 @@ function AppWithSidebar({ children }: { children: ReactNode }) {
     storeReady &&
     (pathname === "/open-project" ||
       pathname === "/new" ||
-      pathname === "/chats" ||
       pathname === "/sessions" ||
       pathname === "/schedules" ||
       routeHasKnownHost);
@@ -893,7 +892,6 @@ function RootStack() {
         <Stack.Screen name="settings/index" />
         <Stack.Screen name="settings/[section]" />
         <Stack.Screen name="new" />
-        <Stack.Screen name="chats" />
         <Stack.Screen name="open-project" />
         <Stack.Screen name="sessions" />
         <Stack.Screen name="schedules" />

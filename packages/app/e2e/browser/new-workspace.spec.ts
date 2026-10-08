@@ -31,6 +31,7 @@ import {
   startingRefRow,
   submitNewWorkspaceEmpty,
   searchAndSelectBranchInPicker,
+  selectNewWorkspaceProject,
   selectBranchInPicker,
   selectGitHubPrInPicker,
   selectPickerOptionByKeyboard,
@@ -55,7 +56,11 @@ import {
 import { getServerId } from "../support/helpers/server-id";
 import { selectSidebarStatusGrouping } from "../support/helpers/sidebar";
 import { getE2EDaemonPort } from "../support/helpers/daemon-port";
-import { chooseAddProjectMethod, expectAddProjectPage } from "../support/helpers/add-project-flow";
+import {
+  addProjectFlowInput,
+  chooseAddProjectMethod,
+  expectAddProjectPage,
+} from "../support/helpers/add-project-flow";
 import { seedSavedSettingsHosts } from "../support/helpers/settings";
 import {
   expectSidebarWorkspaceSelected,
@@ -77,11 +82,11 @@ test("independent chat sidebar has four sections and supports create, reopen, pi
   e2eWorkerClient,
 }, testInfo) => {
   await gotoAppShell(page);
-  await expect(page.getByTestId("sidebar-chats")).toBeVisible();
+  await expect(page.getByTestId("sidebar-global-new-workspace")).toHaveText("New conversation");
   await expect(page.getByTestId("sidebar-global-new-workspace")).toBeVisible();
   await expect(page.getByTestId("sidebar-sessions")).toHaveCount(0);
-  await expect(page.getByTestId("sidebar-search")).toHaveCount(0);
-  await expect(page.getByTestId("sidebar-schedules")).toHaveCount(0);
+  await expect(page.getByTestId("sidebar-search")).toBeVisible();
+  await expect(page.getByTestId("sidebar-schedules")).toBeVisible();
   const pinned = page.getByTestId("sidebar-pinned-section");
   const projects = page.getByTestId("sidebar-projects-section-header");
   const conversations = page.getByTestId("sidebar-conversations-section");
@@ -95,10 +100,10 @@ test("independent chat sidebar has four sections and supports create, reopen, pi
   expect(projectBounds!.y).toBeLessThan(conversationBounds!.y);
 
   await page.getByTestId("sidebar-new-chat").click();
-  await expect(page.getByTestId("chats-screen")).toBeVisible();
+  await expect(page.getByTestId("new-conversation-screen")).toBeVisible();
   const message = "Conversation from the sidebar";
   await fillNewWorkspaceDraft(page, message);
-  await page.getByTestId("chat-create-submit").click();
+  await page.getByTestId("workspace-create-submit").click();
   await expect(page.getByTestId("workspace-header-title")).toHaveText(message);
   const chats = (await e2eWorkerClient.fetchWorkspaces()).entries.filter(
     (entry) => entry.purpose === "chat",
@@ -114,7 +119,7 @@ test("independent chat sidebar has four sections and supports create, reopen, pi
     await page.reload();
     await expect(conversations.getByTestId(`sidebar-workspace-row-${key}`)).toContainText(message);
     await page.getByTestId("sidebar-new-chat").click();
-    await expect(page.getByTestId("chats-screen")).toBeVisible();
+    await expect(page.getByTestId("new-conversation-screen")).toBeVisible();
     await row.click();
     await expect(page.getByTestId("workspace-header-title")).toHaveText(message);
 
@@ -156,7 +161,7 @@ test("independent chat sidebar has four sections and supports create, reopen, pi
     await page.getByTestId(`sidebar-workspace-kebab-${key}`).click();
     page.once("dialog", (dialog) => dialog.accept());
     await page.getByTestId(`sidebar-workspace-menu-archive-${key}`).click();
-    await expect(page.getByTestId("chats-screen")).toBeVisible();
+    await expect(page.getByTestId("new-conversation-screen")).toBeVisible();
     await expect(row).toHaveCount(0);
   } finally {
     await e2eWorkerClient.archiveWorkspace(chat.id);
@@ -176,11 +181,11 @@ test.describe("Independent conversations on a compact sidebar", () => {
     await expect(page.getByTestId("sidebar-projects-section-header")).toBeVisible();
     await expect(page.getByTestId("sidebar-conversations-section")).toBeVisible();
     await page.getByTestId("sidebar-new-chat").click();
-    await expect(page.getByTestId("chats-screen")).toBeVisible();
+    await expect(page.getByTestId("new-conversation-screen")).toBeVisible();
     await expect(page.getByTestId("sidebar-new-chat")).not.toBeVisible();
     const message = "Compact conversation";
     await fillNewWorkspaceDraft(page, message);
-    await page.getByTestId("chat-create-submit").click();
+    await page.getByTestId("workspace-create-submit").click();
     await expect(page.getByTestId("workspace-header-title")).toHaveText(message);
     const chats = (await e2eWorkerClient.fetchWorkspaces()).entries.filter(
       (entry) => entry.purpose === "chat",
@@ -213,14 +218,14 @@ test.describe("Independent conversations on a compact sidebar", () => {
 test("independent chat creates, continues, reloads, renames and archives without choosing a project", async ({
   page,
   e2eWorkerClient,
-}, testInfo) => {
+}) => {
   await gotoAppShell(page);
-  await page.getByTestId("sidebar-chats").click();
-  await expect(page.getByTestId("chats-screen")).toBeVisible();
+  await openGlobalNewWorkspaceComposer(page);
+  await expect(page.getByTestId("new-conversation-screen")).toBeVisible();
   await expect(page.getByTestId("project-picker-trigger")).toHaveCount(0);
   const message = "Independent chat about system design";
   await fillNewWorkspaceDraft(page, message);
-  await page.getByTestId("chat-create-submit").click();
+  await page.getByTestId("workspace-create-submit").click();
   await expect(page.getByTestId("workspace-header-title")).toHaveText(message);
   await expect(page.getByTestId("workspace-header-subtitle")).toHaveCount(0);
   const chats = (await e2eWorkerClient.fetchWorkspaces()).entries.filter(
@@ -252,22 +257,25 @@ test("independent chat creates, continues, reloads, renames and archives without
   const newWorkspaceUrl = new URL(page.url());
   expect(newWorkspaceUrl.searchParams.has("dir")).toBe(false);
   expect(newWorkspaceUrl.searchParams.has("projectId")).toBe(false);
-  await page.getByTestId("sidebar-chats").click();
-  await expect(page.getByTestId(`chat-row-${chat.id}`)).toBeVisible();
+  await openGlobalNewWorkspaceComposer(page);
+  const key = `${getServerId()}:${chat.id}`;
+  const row = page.getByTestId(`sidebar-workspace-row-${key}`);
+  await expect(row).toBeVisible();
   await page.reload();
-  await expect(page.getByTestId(`chat-row-${chat.id}`)).toBeVisible();
-  await page.getByTestId(`chat-rename-${chat.id}`).click();
-  await page.getByTestId("chat-rename-modal-input").fill("Design conversation");
-  await page.getByTestId("chat-rename-modal-submit").click();
-  await expect(page.getByTestId(`chat-open-${chat.id}`)).toHaveText("Design conversation");
-  await expect(page.getByTestId("chat-rename-modal")).not.toBeVisible();
-  await page.screenshot({ path: testInfo.outputPath("independent-chats.png"), fullPage: true });
-  await page.getByTestId(`chat-open-${chat.id}`).click();
+  await expect(row).toBeVisible();
+  await row.hover();
+  await page.getByTestId(`sidebar-workspace-kebab-${key}`).click();
+  await page.getByTestId(`sidebar-workspace-menu-rename-${key}`).click();
+  await page.getByTestId(`sidebar-workspace-rename-modal-${key}-input`).fill("Design conversation");
+  await page.getByTestId(`sidebar-workspace-rename-modal-${key}-submit`).click();
+  await expect(row).toContainText("Design conversation");
+  await row.click();
   await expect(page.getByText("Continue this discussion", { exact: true })).toBeVisible();
-  await page.getByTestId("sidebar-chats").click();
+  await row.hover();
+  await page.getByTestId(`sidebar-workspace-kebab-${key}`).click();
   page.once("dialog", (dialog) => dialog.accept());
-  await page.getByTestId(`chat-archive-${chat.id}`).click();
-  await expect(page.getByTestId(`chat-row-${chat.id}`)).toHaveCount(0);
+  await page.getByTestId(`sidebar-workspace-menu-archive-${key}`).click();
+  await expect(row).toHaveCount(0);
   expect(
     (await e2eWorkerClient.fetchWorkspaces()).entries.filter((entry) => entry.purpose === "chat"),
   ).toHaveLength(0);
@@ -287,17 +295,17 @@ test("independent chat creation failure retains the draft and can be retried", a
   let blocked = true;
   try {
     await gotoAppShell(page);
-    await page.getByTestId("sidebar-chats").click();
+    await openGlobalNewWorkspaceComposer(page);
     const text = "Keep this draft after a failed create";
     await fillNewWorkspaceDraft(page, text);
-    await page.getByTestId("chat-create-submit").click();
-    await expect(page.getByTestId("chats-error")).toContainText("mkdir");
+    await page.getByTestId("workspace-create-submit").click();
+    await expect(page.getByTestId("new-conversation-error")).toContainText("mkdir");
     await expect(page.getByRole("textbox", { name: "Message agent..." })).toHaveValue(text);
-    await expect(page.getByTestId("chat-create-submit")).toBeEnabled();
+    await expect(page.getByTestId("workspace-create-submit")).toBeEnabled();
     await rm(directory);
     if (hadDirectory) await rename(saved, directory);
     blocked = false;
-    await page.getByTestId("chat-create-submit").click();
+    await page.getByTestId("workspace-create-submit").click();
     await expect(page.getByTestId("workspace-header-title")).toHaveText(text);
     const chats = (await e2eWorkerClient.fetchWorkspaces()).entries.filter(
       (entry) => entry.purpose === "chat",
@@ -670,7 +678,92 @@ test.describe("New workspace flow", () => {
     }
   });
 
-  test("global new workspace uses the last active project and creates one agent tab", async ({
+  test("unified new conversation adds a directory without leaving the form or losing the draft", async ({
+    page,
+  }) => {
+    const repo = await createTempGitRepo("conversation-add-directory-");
+    const previousProjectIds = new Set(
+      (await client.listProjects()).projects.map((project) => project.projectId),
+    );
+    try {
+      await gotoAppShell(page);
+      await openGlobalNewWorkspaceComposer(page);
+      await fillNewWorkspaceDraft(page, "Keep my draft while choosing a new directory");
+      const before = page.url();
+      await page.getByTestId("new-workspace-project-picker-trigger").click();
+      await page.getByTestId("new-workspace-project-picker-add-project").click();
+      await chooseAddProjectMethod(page, "directory-search");
+      await addProjectFlowInput(page).fill(repo.path);
+      await addProjectFlowInput(page).press("Enter");
+      await expect(page.getByTestId("add-project-flow")).not.toBeVisible();
+      await expect(page.getByTestId("new-workspace-project-picker-trigger")).not.toContainText(
+        "Workspace directory (optional)",
+      );
+      expect(page.url()).toBe(before);
+      await expect(page.getByRole("textbox", { name: "Message agent..." })).toHaveValue(
+        "Keep my draft while choosing a new directory",
+      );
+    } finally {
+      const projects = await client.listProjects();
+      for (const project of projects.projects) {
+        if (!previousProjectIds.has(project.projectId))
+          await client.removeProject(project.projectId);
+      }
+      await repo.cleanup();
+    }
+  });
+
+  test("unified new conversation preserves the draft while selecting and clearing a directory", async ({
+    page,
+  }) => {
+    const repo = await createTempGitRepo("conversation-directory-");
+    let chatId: string | null = null;
+    try {
+      const project = await openProjectViaDaemon(client, repo.path);
+      localWorkspaceIds.add(project.workspaceId);
+      await gotoAppShell(page);
+      await waitForSidebarHydration(page);
+      await openGlobalNewWorkspaceComposer(page);
+      const directory = page.getByTestId("new-workspace-project-picker-trigger");
+      const composer = page.getByRole("textbox", { name: "Message agent..." });
+      const text = "Keep this conversation independent";
+      await expect(directory).toContainText("Workspace directory (optional)");
+      await fillNewWorkspaceDraft(page, text);
+      await selectNewWorkspaceProject(page, {
+        projectKey: project.projectKey,
+        projectDisplayName: project.projectDisplayName,
+      });
+      await expect(composer).toHaveValue(text);
+      await directory.click();
+      await page.getByTestId("new-workspace-project-picker-none").click();
+      await expect(directory).toContainText("Workspace directory (optional)");
+      await expect(composer).toHaveValue(text);
+      await expect(page.getByTestId("worktree-isolation-trigger")).toHaveCount(0);
+      await expect(page.getByTestId("new-workspace-ref-picker-trigger")).toHaveCount(0);
+      await page.getByTestId("workspace-create-submit").click();
+      await expect(page.getByTestId("workspace-header-title")).toHaveText(text);
+      const chats = (await client.fetchWorkspaces()).entries.filter(
+        (entry) => entry.purpose === "chat",
+      );
+      expect(chats).toHaveLength(1);
+      chatId = chats[0].id;
+      await expect(
+        page
+          .getByTestId("sidebar-conversations-list")
+          .getByTestId(`sidebar-workspace-row-${getServerId()}:${chatId}`),
+      ).toContainText(text);
+      const agents = (await client.fetchAgents()).entries.filter(
+        (entry) => entry.agent.workspaceId === chatId,
+      );
+      expect(agents).toHaveLength(1);
+      expect(agents[0].agent.cwd).toBe(chats[0].workspaceDirectory);
+    } finally {
+      if (chatId) await client.archiveWorkspace(chatId);
+      await repo.cleanup();
+    }
+  });
+
+  test("global new conversation starts without a directory and creates a project conversation after selection", async ({
     page,
   }) => {
     const serverId = getServerId();
@@ -695,7 +788,14 @@ test.describe("New workspace flow", () => {
       });
 
       await openGlobalNewWorkspaceComposer(page);
-      await expectNewWorkspaceProjectSelected(page, openedProject.projectDisplayName);
+      await expect(page.getByTestId("new-workspace-project-picker-trigger")).toContainText(
+        "Workspace directory (optional)",
+      );
+      expect(new URL(page.url()).searchParams.has("dir")).toBe(false);
+      await selectNewWorkspaceProject(page, {
+        projectKey: openedProject.projectKey,
+        projectDisplayName: openedProject.projectDisplayName,
+      });
       await submitNewWorkspacePrompt(page);
 
       const createdWorkspace = await assertNewWorkspaceSidebarAndHeader(page, {

@@ -1,14 +1,14 @@
-# 独立聊天：审查、修复、测试与合并方案
+# 统一新对话：审查、修复、测试与合并方案
 
 开发分支：`codex/independent-chats`。基线：本地 `develop` 的 `dbff62b9d`，版本 `0.11.1`。
-范围仅为 P0-1 独立聊天。行为与运行边界见 [独立聊天](../../chats.md)。
+范围仅为 P0-1 独立聊天。行为与运行边界见 [对话](../../chats.md)。
 
 ## 交付与验收目标
 
 | 需求                                         | 验收状态                                           |
 | -------------------------------------------- | -------------------------------------------------- |
-| 独立 Chats 入口、聊天列表                    | 已实现；浏览器验证                                 |
-| 顶部操作、置顶、项目、对话四区侧栏           | 桌面与 390px 紧凑布局浏览器验证                    |
+| 统一新对话入口，目录可选                     | 已实现；无目录/项目目录两条浏览器路径验证          |
+| 新对话/搜索/计划、置顶、项目、对话侧栏       | 桌面与 390px 紧凑布局浏览器验证                    |
 | 侧栏对话记录与右侧新建按钮                   | 新建、重开、置顶、取消置顶、重命名、归档和重载验证 |
 | 不选择项目、目录或 Git 分支即可发送首条消息  | 已实现；真实 daemon 和浏览器验证                   |
 | 继续同一聊天、停止当前 Agent                 | 继续聊天已验证；停止复用现有 composer              |
@@ -37,6 +37,7 @@
 用户管理的是独立聊天，内部执行 backing 不进入项目选择和项目侧栏。关闭视图
 与归档是两个不同动作。普通项目名叫 Chats 或路径末尾叫 chat 仍然是普通项目。
 历史聊天保留原来的 provider/session；本期没有宣称跨提供商迁移会话。
+新建时是否选择目录决定归属；顶部入口、侧栏新增图标和快捷键使用同一创建页面。
 普通项目和独立对话共享目录订阅及置顶身份，对话不会成为可选项目。
 项目筛选只限制项目；对话在项目分组和状态分组下都保留独立列表。
 
@@ -44,7 +45,8 @@
 
 使用前提是连接已有 host，并有可用的 coding-agent provider。用户无需 Git 或
 项目即可讨论和进行临时任务。实现完整的创建、继续、保存、重命名、归档及失败
-恢复流程。未引入多模型群聊、全局语音、角色配置或整体视觉重做。
+恢复流程。选择新目录或取消目录保留同一草稿。清理独立聊天首页、重复提交和列表状态模型、
+旧路由与闲置文案；复用原工作区的创建、附件、后台交接和终端流程。未引入多模型群聊、全局语音、角色配置或整体视觉重做。
 
 ### 代码质量
 
@@ -66,22 +68,20 @@
 | 后台完成的创建可能清空用户后来编辑的草稿                                | 成功后仅清除仍与提交快照相同的内容                                    | 正常提交/失败草稿流程；新版草稿保护是内容比较策略 |
 | 排除内部项目后，侧栏无法看到独立聊天                                    | 在侧栏投影源头分出对话，接入置顶与快捷键顺序                          | 结构/投影/置顶单元测试；真实浏览器操作            |
 | 聊天行显示 backing 目录和 Git 变更                                      | 对话行投影省略 Git 元数据，菜单与悬浮信息隐藏 backing 路径            | 修复前红测；修复后单元测试及调试页面截图          |
-| 从侧栏归档当前聊天后跳到私有项目的 New workspace                        | 归档导航所有者对 chat purpose 返回 Chats                              | 归档路由单元测试与真实浏览器归档                  |
+| 从侧栏归档当前聊天后跳到私有项目的 New workspace                        | 归档导航所有者对 chat purpose 返回无目录的新对话页                    | 归档路由单元测试与真实浏览器归档                  |
 
 ## 已执行验证
 
-侧栏验证原始输出为 [sidebar-validation.txt](sidebar-validation.txt)，截图为
-[四区侧栏](sidebar-web.png)和[紧凑侧栏](sidebar-compact.png)。全工作区
-`typecheck`、`lint`（0 warnings / 0 errors）和 `format` 通过；7 个定向 Vitest
-文件共 126 个不同测试通过，5 个不同浏览器场景通过。桌面侧栏场景在 Git 元数据
-修复后复验；其他覆盖为紧凑布局、普通项目创建、续聊与失败重试。
+当前验证原始输出为 [unified-validation.txt](unified-validation.txt)，界面证据为
+[统一创建页](unified-new.png)和[紧凑侧栏](sidebar-compact.png)。全工作区 `typecheck`、
+`lint` 与格式检查通过；7 个定向 Vitest 文件共 115 tests 通过。
+16 个不同的真实浏览器场景通过，覆盖创建/续聊/重开/置顶/重命名/归档/重载、注册新目录不跳页、目录选择与
+清除保留草稿、首条失败重试、普通项目创建、终端模式及主机选择。
 
-创建和协议部分的前一轮原始输出保存在同目录 `validation.txt`，截图为
-[聊天页面](chats-web.png)：`build:server` 和静态检查通过；10 个定向 Vitest
-文件共 192 tests 通过；3 个浏览器场景通过。
+创建、协议和持久化的基础验证输出保存在 `validation.txt`；对应服务端代码本轮没有改动。
 本地审查未发现未修复的阻塞项；下表的设备与真实 provider 补验仍是正式合并门槛。
 
-各 Vitest 文件分别运行，未运行全量套件。浏览器使用真实网络与隔离 daemon，
+仅运行修改涉及的定向 Vitest 文件和浏览器 spec，未运行全量套件。浏览器使用真实网络与隔离 daemon，
 Agent 使用既有 Mock fixture；服务端生命周期测试使用仓库已有 fake provider。
 测试不检查认证，不使用生产 daemon 或用户运行中的 Agent。
 
@@ -110,7 +110,7 @@ git merge --no-ff codex/independent-chats
 npm run build:server
 npm run typecheck
 npm run lint
-npm run test:e2e --workspace=@getpaseo/app -- new-workspace.spec.ts --grep 'independent chat|global new workspace uses the last active project' --max-failures=1
+npm run test:e2e --workspace=@getpaseo/app -- new-workspace.spec.ts --grep 'independent chat|unified new conversation|global new conversation' --max-failures=1
 ```
 
 5. 提交前运行 `npm run format`。合并后确认 chat source、普通工作区、缓存字段、

@@ -210,34 +210,28 @@ export function resolveHostProjectCandidate(input: {
 
 export function resolveInitialWorkspaceProject(input: {
   routeProject: HostProjectListItem | null;
-  lastActiveProject: HostProjectListItem | null;
   projects: readonly HostProjectListItem[];
   serverId: string;
   allowAllProjects: boolean;
 }): HostProjectListItem | null {
-  const candidates = [input.routeProject, input.lastActiveProject];
-  for (const candidate of candidates) {
-    if (!candidate) {
-      continue;
-    }
-    const hydratedProject =
-      resolveHostProjectCandidate({
-        candidate,
-        projects: input.projects,
-        serverId: input.serverId,
-      }) ?? candidate;
-    if (
-      canCreateWorkspaceForHostProject({
-        project: hydratedProject,
-        serverId: input.serverId,
-        allowAllProjects: input.allowAllProjects,
-      })
-    ) {
-      return hydratedProject;
-    }
+  const candidate = input.routeProject;
+  if (!candidate) return null;
+  const hydratedProject =
+    resolveHostProjectCandidate({
+      candidate,
+      projects: input.projects,
+      serverId: input.serverId,
+    }) ?? candidate;
+  if (
+    canCreateWorkspaceForHostProject({
+      project: hydratedProject,
+      serverId: input.serverId,
+      allowAllProjects: input.allowAllProjects,
+    })
+  ) {
+    return hydratedProject;
   }
-
-  return input.projects[0] ?? null;
+  return null;
 }
 
 export function resolveInitialWorktreeProject(input: {

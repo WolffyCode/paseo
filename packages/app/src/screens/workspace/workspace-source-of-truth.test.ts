@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import { hostProjectFromWorkspace } from "@/projects/host-project-model";
-import { selectChats } from "@/chats/model";
 
 vi.hoisted(() => {
   (globalThis as unknown as { __DEV__: boolean }).__DEV__ = false;
@@ -108,14 +107,6 @@ describe("workspace source of truth consumption", () => {
       purpose: "chat",
       workspaceKind: "directory",
     });
-    expect(
-      selectChats(
-        new Map([
-          [ordinary.id, ordinary],
-          [chat.id, chat],
-        ]),
-      ),
-    ).toEqual([chat]);
     expect(hostProjectFromWorkspace({ serverId: "srv", workspace: chat })).toBeNull();
     expect(hostProjectFromWorkspace({ serverId: "srv", workspace: ordinary })?.projectName).toBe(
       "Chats",

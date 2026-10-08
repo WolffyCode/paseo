@@ -2,23 +2,6 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ja: TranslationResources = {
-  chats: {
-    title: "チャット",
-    new: "新しいチャット",
-    description: "プロジェクトを選ばずに会話を始めます。",
-    recent: "チャット一覧",
-    empty: "メッセージを送信すると、ここにチャットが表示されます。",
-    noHost: "ホストに接続してチャットを開始してください。",
-    offline: "ホストはオフラインです。再接続してください。",
-    updateHost: "独立したチャットを使うにはホストを更新してください。",
-    selectModel: "モデルを選び、メッセージを入力してください。",
-    createFailed: "チャットを作成できませんでした。再試行してください。",
-    rename: "チャット名を変更",
-    archive: "チャットをアーカイブ",
-    archiveConfirm: "実行中のエージェントを停止してアーカイブしますか？履歴から再び開けます。",
-    nameRequired: "チャット名を入力してください。",
-  },
-
   paneFind: {
     connectionFailure:
       "このチャットを検索できませんでした。ホストへの接続を確認して再試行してください。",
@@ -1170,7 +1153,7 @@ export const ja: TranslationResources = {
   sidebar: {
     conversations: {
       title: "会話",
-      new: "新しい会話",
+      empty: "メッセージを送信すると会話がここに表示されます。",
     },
     statusGroupAccessibility: "{{label}} グループ",
     statusBucket: {
@@ -1236,7 +1219,6 @@ export const ja: TranslationResources = {
     },
     actions: {
       addProject: "プロジェクトを追加",
-      newWorkspace: "新しいワークスペース",
       hosts: "ホスト",
       settings: "設定",
       closeSidebar: "サイドバーを閉じる",
@@ -1349,7 +1331,14 @@ export const ja: TranslationResources = {
     },
   },
   newWorkspace: {
-    title: "新しいワークスペース",
+    directory: {
+      title: "ワークスペースのディレクトリ",
+      placeholder: "ワークスペースのディレクトリ（任意）",
+      none: "ワークスペースなし",
+      search: "ワークスペースのディレクトリを検索",
+      empty: "一致するディレクトリがありません。",
+    },
+    title: "新しい会話",
     create: "作成",
     isolation: {
       local: "ローカル",
@@ -1363,13 +1352,15 @@ export const ja: TranslationResources = {
     },
     titlePlaceholder: "タイトル（任意）",
     errors: {
+      createFailed: "会話を作成できませんでした。再試行してください。",
+      updateHost: "ワークスペースなしで会話を始めるには、このホストを更新してください。",
+      enterMessage: "メッセージを入力するか添付ファイルを追加してください。",
       hostDisconnected: "ホストが接続されていません",
       createWorktreeFailed: "ワークツリーの作成に失敗しました",
       composerStateRequired: "コンポーザーの状態が必要です",
       selectModel: "モデルを選択してください",
     },
     tooltips: {
-      project: "Choose the project",
       host: "Choose the host",
       isolation: "Choose the isolation level",
       startingRef: "開始点を選択",
@@ -2366,7 +2357,7 @@ export const ja: TranslationResources = {
       },
       help: {
         openProject: "プロジェクトを開く",
-        newWorkspace: "新しいワークスペース",
+        newWorkspace: "新しい会話",
         newWorktree: "新しいワークツリー",
         archiveWorkspace: "ワークスペースをアーカイブ",
         newTab: "新しいタブ",

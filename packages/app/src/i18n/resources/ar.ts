@@ -2,23 +2,6 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ar: TranslationResources = {
-  chats: {
-    title: "المحادثات",
-    new: "محادثة جديدة",
-    description: "ابدأ محادثة دون اختيار مشروع.",
-    recent: "محادثاتك",
-    empty: "ستظهر محادثاتك هنا بعد إرسال رسالة.",
-    noHost: "اتصل بمضيف لبدء المحادثة.",
-    offline: "المضيف غير متصل. أعد الاتصال للمتابعة.",
-    updateHost: "حدّث هذا المضيف لاستخدام المحادثات المستقلة.",
-    selectModel: "اختر نموذجًا وأدخل رسالة.",
-    createFailed: "تعذر إنشاء المحادثة. حاول مجددًا.",
-    rename: "إعادة تسمية المحادثة",
-    archive: "أرشفة المحادثة",
-    archiveConfirm: "هل تريد أرشفة المحادثة وإيقاف وكلائها؟ يمكنك فتحها من السجل.",
-    nameRequired: "أدخل اسمًا للمحادثة.",
-  },
-
   paneFind: {
     connectionFailure: "تعذر البحث في هذه المحادثة. تحقق من الاتصال بالمضيف وأعد المحاولة.",
     historyChangedFailure: "تغيّرت المحادثة أثناء البحث. أعد البحث.",
@@ -1157,7 +1140,7 @@ export const ar: TranslationResources = {
   sidebar: {
     conversations: {
       title: "المحادثات",
-      new: "محادثة جديدة",
+      empty: "ستظهر محادثاتك هنا بعد إرسال رسالة.",
     },
     statusGroupAccessibility: "مجموعة {{label}}",
     statusBucket: {
@@ -1222,7 +1205,6 @@ export const ar: TranslationResources = {
     },
     actions: {
       addProject: "إضافة مشروع",
-      newWorkspace: "مساحة عمل جديدة",
       hosts: "المضيفون",
       settings: "إعدادات",
       closeSidebar: "إغلاق الشريط الجانبي",
@@ -1335,7 +1317,14 @@ export const ar: TranslationResources = {
     },
   },
   newWorkspace: {
-    title: "مساحة عمل جديدة",
+    directory: {
+      title: "مجلد مساحة العمل",
+      placeholder: "مجلد مساحة العمل (اختياري)",
+      none: "بدون مساحة عمل",
+      search: "البحث عن مجلدات مساحة العمل",
+      empty: "لا توجد مجلدات مطابقة.",
+    },
+    title: "محادثة جديدة",
     create: "يخلق",
     isolation: {
       local: "محلي",
@@ -1349,13 +1338,15 @@ export const ar: TranslationResources = {
     },
     titlePlaceholder: "العنوان (اختياري)",
     errors: {
+      createFailed: "تعذر إنشاء المحادثة. حاول مرة أخرى.",
+      updateHost: "حدّث هذا المضيف لبدء محادثة بدون مساحة عمل.",
+      enterMessage: "أدخل رسالة أو أضف مرفقاً.",
       hostDisconnected: "Host غير متصل",
       createWorktreeFailed: "فشل في إنشاء شجرة العمل",
       composerStateRequired: "حالة الملحن مطلوبة",
       selectModel: "اختر نموذجا",
     },
     tooltips: {
-      project: "Choose the project",
       host: "Choose the host",
       isolation: "Choose the isolation level",
       startingRef: "اختر من أين تبدأ",
@@ -2346,7 +2337,7 @@ export const ar: TranslationResources = {
       },
       help: {
         openProject: "مشروع مفتوح",
-        newWorkspace: "مساحة عمل جديدة",
+        newWorkspace: "محادثة جديدة",
         newWorktree: "شجرة عمل جديدة",
         archiveWorkspace: "أرشفة مساحة العمل",
         newTab: "علامة تبويب جديدة",

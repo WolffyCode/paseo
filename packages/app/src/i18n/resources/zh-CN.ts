@@ -2,23 +2,6 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const zhCN: TranslationResources = {
-  chats: {
-    title: "聊天",
-    new: "新聊天",
-    description: "无需选择项目，直接开始对话。",
-    recent: "你的聊天",
-    empty: "发送消息后，聊天会显示在这里。",
-    noHost: "连接主机后即可开始聊天。",
-    offline: "主机已离线，请重新连接后继续。",
-    updateHost: "更新此主机后即可使用独立聊天。",
-    selectModel: "请选择模型并输入消息。",
-    createFailed: "创建聊天失败，请重试。",
-    rename: "重命名聊天",
-    archive: "归档聊天",
-    archiveConfirm: "归档此聊天并停止其中运行的智能体？你可以从历史记录重新打开。",
-    nameRequired: "请输入聊天名称。",
-  },
-
   paneFind: {
     connectionFailure: "无法搜索此聊天。请检查主机连接后重试。",
     historyChangedFailure: "搜索期间聊天已更改。请重新搜索。",
@@ -1149,7 +1132,7 @@ export const zhCN: TranslationResources = {
   sidebar: {
     conversations: {
       title: "对话",
-      new: "新建对话",
+      empty: "发送消息后，对话会显示在这里。",
     },
     statusGroupAccessibility: "{{label}} 分组",
     statusBucket: {
@@ -1214,7 +1197,6 @@ export const zhCN: TranslationResources = {
     },
     actions: {
       addProject: "添加项目",
-      newWorkspace: "新建工作区",
       hosts: "Hosts",
       settings: "设置",
       closeSidebar: "关闭侧边栏",
@@ -1324,7 +1306,14 @@ export const zhCN: TranslationResources = {
     },
   },
   newWorkspace: {
-    title: "新建 workspace",
+    directory: {
+      title: "工作区目录",
+      placeholder: "工作区目录（可选）",
+      none: "不关联工作区",
+      search: "搜索工作区目录",
+      empty: "没有匹配的工作区目录。",
+    },
+    title: "新对话",
     create: "创建",
     isolation: {
       local: "本地",
@@ -1338,13 +1327,15 @@ export const zhCN: TranslationResources = {
     },
     titlePlaceholder: "标题（可选）",
     errors: {
+      createFailed: "创建对话失败，请重试。",
+      updateHost: "请更新此主机，以使用不关联工作区的对话。",
+      enterMessage: "请输入消息或添加附件。",
       hostDisconnected: "Host 未连接",
       createWorktreeFailed: "创建 worktree 失败",
       composerStateRequired: "Composer 状态必填",
       selectModel: "请选择模型",
     },
     tooltips: {
-      project: "Choose the project",
       host: "Choose the host",
       isolation: "Choose the isolation level",
       startingRef: "选择起始位置",
@@ -2318,7 +2309,7 @@ export const zhCN: TranslationResources = {
       },
       help: {
         openProject: "打开项目",
-        newWorkspace: "新建 workspace",
+        newWorkspace: "新对话",
         newWorktree: "新建 worktree",
         archiveWorkspace: "归档工作区",
         newTab: "新建标签",

@@ -1,13 +1,17 @@
-# Independent chats
+# Conversations
 
-Open **Chats**, choose a host and model, and send your first message. You do not
-choose a project, directory, branch, or worktree. The sidebar puts Chats and New workspace
-above Pinned, Projects, and Conversations. Conversations lists active independent chats;
-its plus button opens Chats to compose a new conversation. Pinned conversations move to
-Pinned and appear once. Project filters narrow ordinary projects without hiding conversations.
-History, Search, and Schedules are optional navigation items in Sidebar settings.
+Open **New conversation**, choose a model, and send your first message. The workspace
+directory is optional: choosing one creates a project conversation; leaving it empty
+creates an independent conversation. Global creation starts without a directory. An
+entry inside a project supplies that project's context. Clearing the directory keeps
+the draft. Adding a new directory through the picker also keeps the form and draft.
 
-Chats has its own list, rename, and archive actions. Leaving the page or closing an agent tab keeps the conversation;
+The sidebar uses one creation entry above Pinned, Projects, and Conversations. Search
+and Schedules retain their normal entries. Conversations lists independent conversations;
+its plus button opens the same creation form. Pinned conversations move to Pinned and
+appear once. Project filters narrow ordinary projects without hiding conversations.
+
+Conversation rows own reopen, rename, pin, and archive actions. Leaving the page or closing an agent tab keeps the conversation;
 explicit archive stops its agents and removes it from the active list. Open archived
 conversations through History.
 
@@ -21,7 +25,8 @@ field. Names, paths, and project keys never determine whether something is a cha
 
 Exclude the backing project from project pickers and sidebar project groups. Conversation
 rows omit the backing directory and Git metadata. Archiving the active conversation returns
-to Chats. A last active chat cannot seed New workspace. Git reconciliation cannot turn a chat into a
+to New conversation without a directory. A last active chat cannot seed a project choice.
+Git reconciliation cannot turn a chat into a
 checkout when the daemon's home happens to sit inside a Git repository.
 
 ## Creation and recovery
@@ -32,15 +37,18 @@ and permit another attempt. If provider startup fails before an agent is registe
 archive the incomplete allocation before publishing failure. Replaying that operation
 can restore its backing record. An unknown outcome stays blocked from automatic replay.
 
-Clear only the consumed input after successful creation; a newer draft belongs to the
-user. Preserve failed drafts and display an actionable error. Cache the explicit purpose
+Each creation entry opens a fresh draft. The foreground draft identity owns navigation;
+a slow older creation cannot redirect a newer form. Clear only the consumed input after
+successful creation. Preserve failed drafts and display an actionable error. Known rejected
+attempts receive a new operation identity; uncertain outcomes retain theirs. Cache the explicit purpose
 with both project and workspace records so cold reads do not briefly expose chat backing
 as an ordinary project.
 
 ## Version boundaries
 
-The client checks `server_info.features.independentChats`. An older host requires an
-update. The SDK refuses unsupported creation before sending a request. New purpose
+Without a directory, the client checks `server_info.features.independentChats` and asks
+you to update an unsupported host. Choosing a project retains the existing workspace
+creation contract. The SDK refuses unsupported chat creation before sending a request. New purpose
 fields are optional and existing workspace-kind wire values stay unchanged; old clients
 can still parse directory and project updates. See [protocol compatibility](protocol-compatibility.md).
 

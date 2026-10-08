@@ -2,24 +2,6 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ko: TranslationResources = {
-  chats: {
-    title: "채팅",
-    new: "새 채팅",
-    description: "프로젝트를 선택하지 않고 대화를 시작하세요.",
-    recent: "내 채팅",
-    empty: "메시지를 보내면 여기에 채팅이 표시됩니다.",
-    noHost: "호스트에 연결하여 채팅을 시작하세요.",
-    offline: "호스트가 오프라인입니다. 다시 연결하세요.",
-    updateHost: "독립 채팅을 사용하려면 호스트를 업데이트하세요.",
-    selectModel: "모델을 선택하고 메시지를 입력하세요.",
-    createFailed: "채팅을 만들지 못했습니다. 다시 시도하세요.",
-    rename: "채팅 이름 변경",
-    archive: "채팅 보관",
-    archiveConfirm:
-      "실행 중인 에이전트를 중지하고 채팅을 보관할까요? 기록에서 다시 열 수 있습니다.",
-    nameRequired: "채팅 이름을 입력하세요.",
-  },
-
   paneFind: {
     connectionFailure: "이 채팅을 검색할 수 없습니다. 호스트 연결을 확인하고 다시 시도하세요.",
     historyChangedFailure: "검색 중에 채팅이 변경되었습니다. 다시 검색하세요.",
@@ -1165,7 +1147,7 @@ export const ko: TranslationResources = {
   sidebar: {
     conversations: {
       title: "대화",
-      new: "새 대화",
+      empty: "메시지를 보내면 대화가 여기에 표시됩니다.",
     },
     statusGroupAccessibility: "{{label}} 그룹",
     statusBucket: {
@@ -1230,7 +1212,6 @@ export const ko: TranslationResources = {
     },
     actions: {
       addProject: "프로젝트 추가",
-      newWorkspace: "새 워크스페이스",
       hosts: "호스트",
       settings: "설정",
       closeSidebar: "사이드바 닫기",
@@ -1343,7 +1324,14 @@ export const ko: TranslationResources = {
     },
   },
   newWorkspace: {
-    title: "새 워크스페이스",
+    directory: {
+      title: "작업 공간 디렉터리",
+      placeholder: "작업 공간 디렉터리(선택 사항)",
+      none: "작업 공간 없이",
+      search: "작업 공간 디렉터리 검색",
+      empty: "일치하는 디렉터리가 없습니다.",
+    },
+    title: "새 대화",
     create: "생성",
     isolation: {
       local: "로컬",
@@ -1357,13 +1345,15 @@ export const ko: TranslationResources = {
     },
     titlePlaceholder: "제목(선택 사항)",
     errors: {
+      createFailed: "대화를 만들지 못했습니다. 다시 시도하세요.",
+      updateHost: "작업 공간 없이 대화하려면 이 호스트를 업데이트하세요.",
+      enterMessage: "메시지를 입력하거나 첨부 파일을 추가하세요.",
       hostDisconnected: "호스트가 연결되어 있지 않습니다",
       createWorktreeFailed: "워크트리를 생성하지 못했습니다",
       composerStateRequired: "작성기 상태가 필요합니다",
       selectModel: "모델을 선택하세요",
     },
     tooltips: {
-      project: "Choose the project",
       host: "Choose the host",
       isolation: "Choose the isolation level",
       startingRef: "시작 위치를 선택하세요",
@@ -2357,7 +2347,7 @@ export const ko: TranslationResources = {
       },
       help: {
         openProject: "프로젝트 열기",
-        newWorkspace: "새 워크스페이스",
+        newWorkspace: "새 대화",
         newWorktree: "새 워크트리",
         archiveWorkspace: "워크스페이스 보관",
         newTab: "새 탭",

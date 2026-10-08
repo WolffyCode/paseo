@@ -5,8 +5,7 @@ import {
   type HostProjectListItem,
 } from "@/projects/host-projects";
 
-export type ProjectSelectionSource = "initial" | "manual";
-export type InitialProjectSelectionSource = "route" | "lastActive" | "fallback" | null;
+export type InitialProjectSelectionSource = "route" | null;
 
 interface InitialProjectSelection {
   contextKey: string;
@@ -21,7 +20,16 @@ interface ManualProjectSelection {
   source: "manual";
 }
 
-export type ProjectSelection = InitialProjectSelection | ManualProjectSelection;
+interface NoProjectSelection {
+  contextKey: string;
+  project: null;
+  source: "none";
+}
+
+export type ProjectSelection =
+  | InitialProjectSelection
+  | ManualProjectSelection
+  | NoProjectSelection;
 
 export interface ProjectSelectionContext {
   contextKey: string;
@@ -31,7 +39,6 @@ export interface ProjectSelectionContext {
   initialProjectSource: InitialProjectSelectionSource;
   projects: HostProjectListItem[];
   routeProject: HostProjectListItem | null;
-  lastActiveProject: HostProjectListItem | null;
   shouldPreserveMissingProject: (project: HostProjectListItem) => boolean;
 }
 
@@ -64,7 +71,6 @@ export function createProjectSelection({
 export function resolveInitialProjectSelectionSource(input: {
   initialProject: HostProjectListItem | null;
   routeProject: HostProjectListItem | null;
-  lastActiveProject: HostProjectListItem | null;
 }): InitialProjectSelectionSource {
   if (!input.initialProject) {
     return null;
@@ -82,29 +88,18 @@ export function resolveInitialProjectSelectionSource(input: {
   ) {
     return "route";
   }
-  if (
-    input.lastActiveProject?.viewKey === input.initialProject.viewKey ||
-    (input.lastActiveProject?.projectKey !== null &&
-      input.lastActiveProject?.projectKey !== undefined &&
-      input.lastActiveProject.projectKey === input.initialProject.projectKey)
-  ) {
-    return "lastActive";
-  }
-  return "fallback";
+  return null;
 }
 
 function resolveSelectedProjectFromInitialInputs(
   project: HostProjectListItem,
   context: ProjectSelectionContext,
 ): HostProjectListItem | null {
-  return (
-    (context.routeProject?.viewKey === project.viewKey ? context.routeProject : null) ??
-    (context.lastActiveProject?.viewKey === project.viewKey ? context.lastActiveProject : null)
-  );
+  return context.routeProject?.viewKey === project.viewKey ? context.routeProject : null;
 }
 
 function refreshSelectionProject(
-  selection: ProjectSelection,
+  selection: InitialProjectSelection | ManualProjectSelection,
   project: HostProjectListItem,
 ): ProjectSelection {
   if (selection.project === project) {
@@ -148,7 +143,7 @@ function shouldResetHydratedInitialSelection(
   if (
     selection.source !== "initial" ||
     !context.initialProject ||
-    (context.initialProjectSource !== "route" && context.initialProjectSource !== "lastActive")
+    context.initialProjectSource !== "route"
   ) {
     return false;
   }
@@ -205,6 +200,9 @@ export function reconcileProjectSelection(
   context: ProjectSelectionContext,
 ): ProjectSelection {
   const initialSelection = createProjectSelection(context);
+  if (current.source === "none") {
+    return current.contextKey === context.manualContextKey ? current : initialSelection;
+  }
   const currentContextKey =
     current.source === "manual" ? context.manualContextKey : context.contextKey;
   if (current.contextKey !== currentContextKey) {

@@ -2,23 +2,6 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ru: TranslationResources = {
-  chats: {
-    title: "Чаты",
-    new: "Новый чат",
-    description: "Начните разговор без выбора проекта.",
-    recent: "Ваши чаты",
-    empty: "После отправки сообщения чат появится здесь.",
-    noHost: "Подключите хост, чтобы начать чат.",
-    offline: "Хост не в сети. Подключитесь снова.",
-    updateHost: "Обновите хост для независимых чатов.",
-    selectModel: "Выберите модель и введите сообщение.",
-    createFailed: "Не удалось создать чат. Повторите попытку.",
-    rename: "Переименовать чат",
-    archive: "Архивировать чат",
-    archiveConfirm: "Архивировать чат и остановить агентов? Его можно открыть из истории.",
-    nameRequired: "Введите название чата.",
-  },
-
   paneFind: {
     connectionFailure:
       "Не удалось выполнить поиск в чате. Проверьте подключение к хосту и повторите попытку.",
@@ -1174,7 +1157,7 @@ export const ru: TranslationResources = {
   sidebar: {
     conversations: {
       title: "Диалоги",
-      new: "Новый диалог",
+      empty: "Ваши диалоги появятся здесь после отправки сообщения.",
     },
     statusGroupAccessibility: "Группа «{{label}}»",
     statusBucket: {
@@ -1240,7 +1223,6 @@ export const ru: TranslationResources = {
     },
     actions: {
       addProject: "Добавить проект",
-      newWorkspace: "Новое рабочее пространство",
       hosts: "Хосты",
       settings: "Настройки",
       closeSidebar: "Закрыть боковую панель",
@@ -1353,7 +1335,14 @@ export const ru: TranslationResources = {
     },
   },
   newWorkspace: {
-    title: "Новое рабочее пространство",
+    directory: {
+      title: "Рабочий каталог",
+      placeholder: "Рабочий каталог (необязательно)",
+      none: "Без рабочего пространства",
+      search: "Поиск рабочих каталогов",
+      empty: "Подходящие каталоги не найдены.",
+    },
+    title: "Новый диалог",
     create: "Создать",
     isolation: {
       local: "Локально",
@@ -1367,13 +1356,15 @@ export const ru: TranslationResources = {
     },
     titlePlaceholder: "Заголовок (необязательно)",
     errors: {
+      createFailed: "Не удалось создать диалог. Повторите попытку.",
+      updateHost: "Обновите этот хост, чтобы начать диалог без рабочего пространства.",
+      enterMessage: "Введите сообщение или добавьте вложение.",
       hostDisconnected: "Хост не подключён",
       createWorktreeFailed: "Не удалось создать worktree.",
       composerStateRequired: "Редактор сообщения ещё не готов.",
       selectModel: "Выберите модель",
     },
     tooltips: {
-      project: "Выберите проект",
       host: "Выберите хост",
       isolation: "Выберите уровень изоляции",
       startingRef: "Выберите, с чего начать",
@@ -2386,7 +2377,7 @@ export const ru: TranslationResources = {
       },
       help: {
         openProject: "Открыть проект",
-        newWorkspace: "Новое рабочее пространство",
+        newWorkspace: "Новый диалог",
         newWorktree: "Новый worktree",
         archiveWorkspace: "Архивировать рабочее пространство",
         newTab: "Новая вкладка",
