@@ -119,7 +119,7 @@ export function reconcileWorkspacePlacement(input: {
   checkout: ProjectCheckoutLitePayload | null;
   updatedAt: string;
 }): WorkspacePlacementUpdate | null {
-  if (!input.checkout) return null;
+  if (!input.checkout || input.workspace.purpose === "chat") return null;
   const observed = initialWorkspacePlacement({
     source: "checkout",
     cwd: input.workspace.cwd,

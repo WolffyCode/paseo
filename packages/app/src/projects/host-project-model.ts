@@ -56,6 +56,7 @@ export function hostProjectFromWorkspace(input: {
   if (!input.workspace) {
     return null;
   }
+  if (input.workspace.purpose === "chat") return null;
   const projectId = input.workspace.projectId.trim() || undefined;
   if (!projectId) {
     return null;

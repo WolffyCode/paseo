@@ -2,6 +2,23 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const zhCN: TranslationResources = {
+  chats: {
+    title: "聊天",
+    new: "新聊天",
+    description: "无需选择项目，直接开始对话。",
+    recent: "你的聊天",
+    empty: "发送消息后，聊天会显示在这里。",
+    noHost: "连接主机后即可开始聊天。",
+    offline: "主机已离线，请重新连接后继续。",
+    updateHost: "更新此主机后即可使用独立聊天。",
+    selectModel: "请选择模型并输入消息。",
+    createFailed: "创建聊天失败，请重试。",
+    rename: "重命名聊天",
+    archive: "归档聊天",
+    archiveConfirm: "归档此聊天并停止其中运行的智能体？你可以从历史记录重新打开。",
+    nameRequired: "请输入聊天名称。",
+  },
+
   paneFind: {
     connectionFailure: "无法搜索此聊天。请检查主机连接后重试。",
     historyChangedFailure: "搜索期间聊天已更改。请重新搜索。",
@@ -1246,7 +1263,7 @@ export const zhCN: TranslationResources = {
       },
       empty: {
         title: "还没有 projects",
-        description: "添加 project 以开始",
+        description: "添加的项目会显示在这里。",
       },
     },
     workspace: {

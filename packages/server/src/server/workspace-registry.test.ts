@@ -100,6 +100,20 @@ describe("workspace registries", () => {
     expect(await projectRegistry.list()).toEqual([]);
   });
 
+  test("a chat allocation cannot take over an ordinary project's root", async () => {
+    const input = {
+      rootPath: path.join(tmpDir, "existing"),
+      kind: "non_git" as const,
+      displayName: "Chats",
+      timestamp: "2026-10-08T00:00:00.000Z",
+    };
+    const ordinary = await projectRegistry.getOrCreateActiveByRoot(input);
+    await expect(
+      projectRegistry.getOrCreateActiveByRoot({ ...input, purpose: "chat" }),
+    ).rejects.toMatchObject({ code: "project_purpose_conflict", projectId: ordinary.projectId });
+    expect(await projectRegistry.get(ordinary.projectId)).toEqual(ordinary);
+  });
+
   test("preserves a concurrent project update when archiving", async () => {
     let pauseNextWrite = false;
     let releaseWrite!: () => void;

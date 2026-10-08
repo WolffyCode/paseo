@@ -319,6 +319,19 @@ describe("ReplicaCache", () => {
     expect(restoredTimeline).toEqual(timeline());
   });
 
+  it("retains independent chat identity through a cold directory-cache read", async () => {
+    const storage = new MemoryStorage();
+    const writer = createCache(storage);
+    const value = directory();
+    for (const workspace of value.workspaces.values()) workspace.purpose = "chat";
+    for (const project of value.projects.values()) project.purpose = "chat";
+    commitDirectory(writer, SERVER_ID, value);
+    await writer.flush();
+    const restored = await createCache(storage).readDirectory(SERVER_ID);
+    expect(restored.workspaces.get("workspace-1")?.purpose).toBe("chat");
+    expect(restored.projects.get("project-1")?.purpose).toBe("chat");
+  });
+
   it("preserves pending timeline updates across directory baseline replacement", async () => {
     const storage = new MemoryStorage();
     const writer = createCache(storage);

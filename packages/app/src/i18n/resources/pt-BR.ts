@@ -2,6 +2,23 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ptBR: TranslationResources = {
+  chats: {
+    title: "Conversas",
+    new: "Nova conversa",
+    description: "Comece sem escolher um projeto.",
+    recent: "Suas conversas",
+    empty: "Suas conversas aparecerão aqui após enviar uma mensagem.",
+    noHost: "Conecte um host para começar.",
+    offline: "O host está offline. Reconecte para continuar.",
+    updateHost: "Atualize este host para usar conversas independentes.",
+    selectModel: "Escolha um modelo e digite uma mensagem.",
+    createFailed: "Não foi possível criar a conversa. Tente novamente.",
+    rename: "Renomear conversa",
+    archive: "Arquivar conversa",
+    archiveConfirm: "Arquivar e parar os agentes ativos? Você pode reabrir pelo histórico.",
+    nameRequired: "Digite um nome.",
+  },
+
   paneFind: {
     connectionFailure:
       "Não foi possível pesquisar nesta conversa. Verifique a conexão com o host e tente novamente.",
@@ -1282,7 +1299,7 @@ export const ptBR: TranslationResources = {
       },
       empty: {
         title: "Nenhum projeto ainda",
-        description: "Adicione um projeto para começar",
+        description: "Seus projetos aparecerão aqui.",
       },
     },
     workspace: {

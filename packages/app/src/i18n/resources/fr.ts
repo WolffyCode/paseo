@@ -2,6 +2,24 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const fr: TranslationResources = {
+  chats: {
+    title: "Discussions",
+    new: "Nouvelle discussion",
+    description: "Commencez sans choisir de projet.",
+    recent: "Vos discussions",
+    empty: "Vos discussions apparaîtront ici après votre premier message.",
+    noHost: "Connectez un hôte pour discuter.",
+    offline: "L’hôte est hors ligne. Reconnectez-vous.",
+    updateHost: "Mettez cet hôte à jour pour utiliser les discussions indépendantes.",
+    selectModel: "Choisissez un modèle et saisissez un message.",
+    createFailed: "Impossible de créer la discussion. Réessayez.",
+    rename: "Renommer la discussion",
+    archive: "Archiver la discussion",
+    archiveConfirm:
+      "Archiver et arrêter les agents actifs ? Vous pourrez la rouvrir depuis l’historique.",
+    nameRequired: "Saisissez un nom.",
+  },
+
   paneFind: {
     connectionFailure:
       "Impossible de rechercher dans cette conversation. Vérifiez la connexion à l’hôte et réessayez.",
@@ -1284,7 +1302,7 @@ export const fr: TranslationResources = {
       },
       empty: {
         title: "Aucun projet pour l’instant",
-        description: "Ajoutez un projet pour commencer",
+        description: "Vos projets apparaîtront ici.",
       },
     },
     workspace: {

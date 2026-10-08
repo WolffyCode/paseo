@@ -2,6 +2,24 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const es: TranslationResources = {
+  chats: {
+    title: "Chats",
+    new: "Nuevo chat",
+    description: "Inicia una conversación sin elegir un proyecto.",
+    recent: "Tus chats",
+    empty: "Tus chats aparecerán aquí al enviar un mensaje.",
+    noHost: "Conecta un host para empezar.",
+    offline: "El host está desconectado. Vuelve a conectarlo.",
+    updateHost: "Actualiza este host para usar chats independientes.",
+    selectModel: "Elige un modelo y escribe un mensaje.",
+    createFailed: "No se pudo crear el chat. Inténtalo de nuevo.",
+    rename: "Renombrar chat",
+    archive: "Archivar chat",
+    archiveConfirm:
+      "¿Archivar este chat y detener sus agentes? Puedes volver a abrirlo desde el historial.",
+    nameRequired: "Escribe un nombre.",
+  },
+
   paneFind: {
     connectionFailure:
       "No se pudo buscar en este chat. Comprueba la conexión con el host y vuelve a intentarlo.",
@@ -1292,7 +1310,7 @@ export const es: TranslationResources = {
       },
       empty: {
         title: "Aún no hay proyectos",
-        description: "Añade un proyecto para empezar",
+        description: "Tus proyectos aparecerán aquí.",
       },
     },
     workspace: {

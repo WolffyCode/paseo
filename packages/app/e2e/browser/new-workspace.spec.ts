@@ -1,5 +1,7 @@
 import { existsSync } from "node:fs";
+import { rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { buildDeterministicWorkspaceTabId } from "@/workspace-tabs/identity";
 import { buildHostWorkspaceRoute } from "@/utils/host-routes";
 import { expect, test } from "../support/fixtures";
 import { gotoAppShell } from "../support/helpers/app";
@@ -69,6 +71,108 @@ const BACKGROUND_RESOLUTION_FILE = {
   mimeType: "application/json",
   buffer: Buffer.from(JSON.stringify({ composer: "background-resolution" })),
 };
+
+test("independent chat creates, continues, reloads, renames and archives without choosing a project", async ({
+  page,
+  e2eWorkerClient,
+}, testInfo) => {
+  await gotoAppShell(page);
+  await page.getByTestId("sidebar-chats").click();
+  await expect(page.getByTestId("chats-screen")).toBeVisible();
+  await expect(page.getByTestId("project-picker-trigger")).toHaveCount(0);
+  const message = "Independent chat about system design";
+  await fillNewWorkspaceDraft(page, message);
+  await page.getByTestId("chat-create-submit").click();
+  await expect(page.getByTestId("workspace-header-title")).toHaveText(message);
+  await expect(page.getByTestId("workspace-header-subtitle")).toHaveCount(0);
+  const chats = (await e2eWorkerClient.fetchWorkspaces()).entries.filter(
+    (entry) => entry.purpose === "chat",
+  );
+  expect(chats).toHaveLength(1);
+  const chat = chats[0];
+  expect(chat.workspaceKind).toBe("directory");
+  await expect(page.getByRole("textbox", { name: "Message agent..." })).toBeVisible();
+  await page.getByRole("textbox", { name: "Message agent..." }).fill("Continue this discussion");
+  await page.getByRole("textbox", { name: "Message agent..." }).press("Enter");
+  await expect(page.getByText("Continue this discussion", { exact: true })).toBeVisible();
+  const agents = (await e2eWorkerClient.fetchAgents()).entries.filter(
+    (entry) => entry.agent.workspaceId === chat.id,
+  );
+  expect(agents).toHaveLength(1);
+  const agentId = agents[0].agent.id;
+  await page
+    .getByTestId(`workspace-tab-${buildDeterministicWorkspaceTabId({ kind: "agent", agentId })}`)
+    .hover();
+  await page.getByTestId(`workspace-agent-close-${agentId}`).click();
+  const afterClose = (await e2eWorkerClient.fetchAgents()).entries.filter(
+    (entry) => entry.agent.workspaceId === chat.id,
+  );
+  expect(
+    afterClose.map((entry) => ({ id: entry.agent.id, archived: entry.agent.archivedAt ?? null })),
+  ).toEqual([{ id: agentId, archived: null }]);
+  await page.getByTestId("sidebar-global-new-workspace").click();
+  const newWorkspaceUrl = new URL(page.url());
+  expect(newWorkspaceUrl.searchParams.has("dir")).toBe(false);
+  expect(newWorkspaceUrl.searchParams.has("projectId")).toBe(false);
+  await page.getByTestId("sidebar-chats").click();
+  await expect(page.getByTestId(`chat-row-${chat.id}`)).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId(`chat-row-${chat.id}`)).toBeVisible();
+  await page.getByTestId(`chat-rename-${chat.id}`).click();
+  await page.getByTestId("chat-rename-modal-input").fill("Design conversation");
+  await page.getByTestId("chat-rename-modal-submit").click();
+  await expect(page.getByTestId(`chat-open-${chat.id}`)).toHaveText("Design conversation");
+  await expect(page.getByTestId("chat-rename-modal")).not.toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("independent-chats.png"), fullPage: true });
+  await page.getByTestId(`chat-open-${chat.id}`).click();
+  await expect(page.getByText("Continue this discussion", { exact: true })).toBeVisible();
+  await page.getByTestId("sidebar-chats").click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByTestId(`chat-archive-${chat.id}`).click();
+  await expect(page.getByTestId(`chat-row-${chat.id}`)).toHaveCount(0);
+  expect(
+    (await e2eWorkerClient.fetchWorkspaces()).entries.filter((entry) => entry.purpose === "chat"),
+  ).toHaveLength(0);
+});
+
+test("independent chat creation failure retains the draft and can be retried", async ({
+  page,
+  e2eWorkerClient,
+}) => {
+  const home = process.env.E2E_PASEO_HOME;
+  if (!home) throw new Error("Missing isolated worker home");
+  const directory = path.join(home, "chats");
+  const saved = path.join(home, "chats-before-failure-test");
+  const hadDirectory = existsSync(directory);
+  if (hadDirectory) await rename(directory, saved);
+  await writeFile(directory, "Blocks directory allocation for this test");
+  let blocked = true;
+  try {
+    await gotoAppShell(page);
+    await page.getByTestId("sidebar-chats").click();
+    const text = "Keep this draft after a failed create";
+    await fillNewWorkspaceDraft(page, text);
+    await page.getByTestId("chat-create-submit").click();
+    await expect(page.getByTestId("chats-error")).toContainText("mkdir");
+    await expect(page.getByRole("textbox", { name: "Message agent..." })).toHaveValue(text);
+    await expect(page.getByTestId("chat-create-submit")).toBeEnabled();
+    await rm(directory);
+    if (hadDirectory) await rename(saved, directory);
+    blocked = false;
+    await page.getByTestId("chat-create-submit").click();
+    await expect(page.getByTestId("workspace-header-title")).toHaveText(text);
+    const chats = (await e2eWorkerClient.fetchWorkspaces()).entries.filter(
+      (entry) => entry.purpose === "chat",
+    );
+    expect(chats).toHaveLength(1);
+    await e2eWorkerClient.archiveWorkspace(chats[0].id);
+  } finally {
+    if (blocked) {
+      await rm(directory, { force: true });
+      if (hadDirectory) await rename(saved, directory);
+    }
+  }
+});
 
 interface WorkspaceStatusGroupEvent {
   rowTestId: string;

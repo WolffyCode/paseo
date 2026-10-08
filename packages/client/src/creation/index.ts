@@ -18,7 +18,7 @@ export interface CreationResult {
   requestId?: string;
 }
 interface Dependencies {
-  supports: (feature: "creationLifecycle" | "agentRequestReceipts") => boolean;
+  supports: (feature: "creationLifecycle" | "agentRequestReceipts" | "independentChats") => boolean;
   requestId: () => string;
   request: (kind: Kind, input: Record<string, unknown>) => Promise<CreationResult>;
   observe: (
@@ -59,7 +59,12 @@ export class CreationClient {
   }
   createWorkspace(input: CreateWorkspaceRequestOptions): Promise<CreationResult> {
     const { onEvent, ...request } = input;
+    if (request.source.kind === "chat" && !this.deps.supports("independentChats")) {
+      return Promise.reject(new Error("Update the host to create independent chats."));
+    }
     return this.start("workspace", request, onEvent, async (operation) => {
+      if (request.source.kind === "chat")
+        throw new Error("Update the host to create independent chats.");
       if (request.workspaceId || request.agent?.agentId)
         throw new Error("Update the host to use caller-selected creation IDs.");
       const { agent, ...workspaceInput } = request;

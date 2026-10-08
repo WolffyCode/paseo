@@ -1,11 +1,14 @@
 import path from "node:path";
 import { readFileSync } from "node:fs";
+import type { AgentSnapshotPayload, WorkspaceDescriptorPayload } from "@getpaseo/protocol/messages";
 import type { TerminalActivity } from "@getpaseo/protocol/terminal-activity";
 import { connectDaemonClient } from "./daemon-client-loader";
 import { withProjectOwnership } from "./project-ownership";
 import { createTempDirectory, createTempGitRepo } from "./workspace";
 
 export interface SeedWorkspaceDescriptor {
+  purpose?: WorkspaceDescriptorPayload["purpose"];
+  workspaceKind?: WorkspaceDescriptorPayload["workspaceKind"];
   id: string;
   name: string;
   projectId: string;
@@ -116,6 +119,7 @@ export interface SeedDaemonClient {
   fetchAgents(options?: { scope?: "active" }): Promise<{
     entries: Array<{
       agent: {
+        archivedAt?: AgentSnapshotPayload["archivedAt"];
         id: string;
         provider: string;
         cwd: string;

@@ -12,6 +12,11 @@ import {
 import { writeFileAtomic } from "../atomic-file.js";
 import { generateWorkspaceId } from "../workspace-registry-model.js";
 
+const REJECTED_BEFORE_PROVISION = new Set<string | undefined>([
+  "directory_not_found",
+  "source_required",
+  "chat_directory_unavailable",
+]);
 type Observer = (snapshot: CreationSnapshot) => void;
 interface CreationRequest {
   key: string;
@@ -194,7 +199,7 @@ export class CreationService {
         error instanceof Error && "code" in error && typeof error.code === "string"
           ? error.code
           : undefined;
-      const rejectedBeforeProvision = code === "directory_not_found" || code === "source_required";
+      const rejectedBeforeProvision = REJECTED_BEFORE_PROVISION.has(code);
       const unknown =
         stage === "prompt" ||
         (stage === "workspace" && !rejectedBeforeProvision) ||

@@ -1,4 +1,22 @@
 export const en = {
+  chats: {
+    title: "Chats",
+    new: "New chat",
+    description: "Start a conversation without choosing a project.",
+    recent: "Your chats",
+    empty: "Your chats will appear here after you send a message.",
+    noHost: "Connect a host to start chatting.",
+    offline: "The host is offline. Reconnect to continue.",
+    updateHost: "Update this host to use independent chats.",
+    selectModel: "Choose a model and enter a message.",
+    createFailed: "Could not create the chat. Please retry.",
+    rename: "Rename chat",
+    archive: "Archive chat",
+    archiveConfirm:
+      "Archive this chat and stop its running agents? You can reopen it from History.",
+    nameRequired: "Enter a chat name.",
+  },
+
   paneFind: {
     connectionFailure: "Could not search this chat. Check the host connection and retry.",
     historyChangedFailure: "The chat changed while searching. Search again.",
@@ -1264,7 +1282,7 @@ export const en = {
       },
       empty: {
         title: "No projects yet",
-        description: "Add a project to get started",
+        description: "Your projects will appear here.",
       },
     },
     workspace: {

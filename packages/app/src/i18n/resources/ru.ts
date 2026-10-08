@@ -2,6 +2,23 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ru: TranslationResources = {
+  chats: {
+    title: "Чаты",
+    new: "Новый чат",
+    description: "Начните разговор без выбора проекта.",
+    recent: "Ваши чаты",
+    empty: "После отправки сообщения чат появится здесь.",
+    noHost: "Подключите хост, чтобы начать чат.",
+    offline: "Хост не в сети. Подключитесь снова.",
+    updateHost: "Обновите хост для независимых чатов.",
+    selectModel: "Выберите модель и введите сообщение.",
+    createFailed: "Не удалось создать чат. Повторите попытку.",
+    rename: "Переименовать чат",
+    archive: "Архивировать чат",
+    archiveConfirm: "Архивировать чат и остановить агентов? Его можно открыть из истории.",
+    nameRequired: "Введите название чата.",
+  },
+
   paneFind: {
     connectionFailure:
       "Не удалось выполнить поиск в чате. Проверьте подключение к хосту и повторите попытку.",
@@ -1274,7 +1291,7 @@ export const ru: TranslationResources = {
       },
       empty: {
         title: "Пока нет проектов",
-        description: "Добавьте проект, чтобы начать работу",
+        description: "Ваши проекты появятся здесь.",
       },
     },
     workspace: {

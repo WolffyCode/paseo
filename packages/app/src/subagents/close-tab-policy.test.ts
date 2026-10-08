@@ -8,6 +8,13 @@ describe("resolveCloseAgentTabPolicy", () => {
     });
   });
 
+  it("keeps independent chat tab closure separate from explicit chat archive", () => {
+    expect(resolveCloseAgentTabPolicy({ parentAgentId: null }, { purpose: "chat" })).toEqual({
+      kind: "layout-only",
+    });
+    expect(resolveCloseAgentTabPolicy(null, { purpose: "chat" })).toEqual({ kind: "layout-only" });
+  });
+
   it("keeps subagent tab close layout-only", () => {
     expect(resolveCloseAgentTabPolicy({ parentAgentId: "parent-agent" })).toEqual({
       kind: "layout-only",

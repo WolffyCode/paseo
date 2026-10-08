@@ -2,6 +2,24 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ko: TranslationResources = {
+  chats: {
+    title: "채팅",
+    new: "새 채팅",
+    description: "프로젝트를 선택하지 않고 대화를 시작하세요.",
+    recent: "내 채팅",
+    empty: "메시지를 보내면 여기에 채팅이 표시됩니다.",
+    noHost: "호스트에 연결하여 채팅을 시작하세요.",
+    offline: "호스트가 오프라인입니다. 다시 연결하세요.",
+    updateHost: "독립 채팅을 사용하려면 호스트를 업데이트하세요.",
+    selectModel: "모델을 선택하고 메시지를 입력하세요.",
+    createFailed: "채팅을 만들지 못했습니다. 다시 시도하세요.",
+    rename: "채팅 이름 변경",
+    archive: "채팅 보관",
+    archiveConfirm:
+      "실행 중인 에이전트를 중지하고 채팅을 보관할까요? 기록에서 다시 열 수 있습니다.",
+    nameRequired: "채팅 이름을 입력하세요.",
+  },
+
   paneFind: {
     connectionFailure: "이 채팅을 검색할 수 없습니다. 호스트 연결을 확인하고 다시 시도하세요.",
     historyChangedFailure: "검색 중에 채팅이 변경되었습니다. 다시 검색하세요.",
@@ -1263,7 +1281,7 @@ export const ko: TranslationResources = {
       },
       empty: {
         title: "아직 프로젝트가 없습니다",
-        description: "시작하려면 프로젝트를 추가하세요",
+        description: "추가한 프로젝트가 여기에 표시됩니다.",
       },
     },
     workspace: {

@@ -2,6 +2,23 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ar: TranslationResources = {
+  chats: {
+    title: "المحادثات",
+    new: "محادثة جديدة",
+    description: "ابدأ محادثة دون اختيار مشروع.",
+    recent: "محادثاتك",
+    empty: "ستظهر محادثاتك هنا بعد إرسال رسالة.",
+    noHost: "اتصل بمضيف لبدء المحادثة.",
+    offline: "المضيف غير متصل. أعد الاتصال للمتابعة.",
+    updateHost: "حدّث هذا المضيف لاستخدام المحادثات المستقلة.",
+    selectModel: "اختر نموذجًا وأدخل رسالة.",
+    createFailed: "تعذر إنشاء المحادثة. حاول مجددًا.",
+    rename: "إعادة تسمية المحادثة",
+    archive: "أرشفة المحادثة",
+    archiveConfirm: "هل تريد أرشفة المحادثة وإيقاف وكلائها؟ يمكنك فتحها من السجل.",
+    nameRequired: "أدخل اسمًا للمحادثة.",
+  },
+
   paneFind: {
     connectionFailure: "تعذر البحث في هذه المحادثة. تحقق من الاتصال بالمضيف وأعد المحاولة.",
     historyChangedFailure: "تغيّرت المحادثة أثناء البحث. أعد البحث.",
@@ -1256,7 +1273,7 @@ export const ar: TranslationResources = {
       },
       empty: {
         title: "لا توجد مشاريع حتى الآن",
-        description: "أضف مشروعًا للبدء",
+        description: "ستظهر مشاريعك هنا.",
       },
     },
     workspace: {

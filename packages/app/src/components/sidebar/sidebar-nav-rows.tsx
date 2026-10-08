@@ -1,5 +1,5 @@
 import { router, usePathname } from "expo-router";
-import { CalendarClock, History, Plus, Search } from "lucide-react-native";
+import { CalendarClock, History, MessageCircle, Plus, Search } from "lucide-react-native";
 import { memo, useCallback, useMemo, useRef, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
 import { View, type StyleProp, type ViewStyle } from "react-native";
@@ -80,6 +80,7 @@ const SidebarNewWorkspaceRow = memo(function SidebarNewWorkspaceRow({
   );
   const canUseActiveWorkspaceContext = Boolean(
     activeWorkspace &&
+    activeWorkspace.purpose !== "chat" &&
     (supportsWorkspaceMultiplicity || canCreateWorktreeForProjectKind(activeWorkspace.projectKind)),
   );
 
@@ -173,7 +174,27 @@ function SidebarSchedulesRow({ onBeforeNavigate }: SidebarNavRowProps) {
   );
 }
 
+function SidebarChatsRow({ onBeforeNavigate }: SidebarNavRowProps) {
+  const { t } = useTranslation();
+  const pathname = usePathname();
+  const openChats = useCallback(() => {
+    onBeforeNavigate?.();
+    router.push("/chats");
+  }, [onBeforeNavigate]);
+  return (
+    <SidebarHeaderRow
+      icon={MessageCircle}
+      label={t("chats.title")}
+      onPress={openChats}
+      isActive={pathname === "/chats"}
+      testID="sidebar-chats"
+      variant="compact"
+    />
+  );
+}
+
 const BUILTIN_ROWS: Record<BuiltinSidebarNavId, ComponentType<SidebarNavRowProps>> = {
+  chats: SidebarChatsRow,
   "new-workspace": SidebarNewWorkspaceRow,
   history: SidebarHistoryRow,
   search: SidebarSearchRow,

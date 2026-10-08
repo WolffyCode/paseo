@@ -12,6 +12,7 @@ export interface WorkspaceStructureHostPlacement {
 
 export interface WorkspaceStructureProject {
   viewKey: string;
+  purpose?: ProjectDescriptor["purpose"];
   projectKey: string | null;
   projectName: string;
   projectKind: WorkspaceDescriptor["projectKind"] | "unknown";
@@ -32,6 +33,7 @@ interface WorkspaceStructureSession {
 
 interface ProjectDraft {
   viewKey: string;
+  purpose?: ProjectDescriptor["purpose"];
   projectKey: string | null;
   projectName: string;
   hasCustomName: boolean;
@@ -94,6 +96,7 @@ export function buildWorkspaceStructureProjects(input: {
   return Array.from(byProject.values())
     .map((draft) => ({
       viewKey: draft.viewKey,
+      purpose: draft.purpose,
       projectKey: draft.projectKey,
       projectName: draft.projectName,
       projectKind: draft.projectKind,
@@ -167,6 +170,7 @@ function addProjectToView(input: {
   if (!draft) {
     byProject.set(viewKey, {
       viewKey,
+      purpose: project.purpose,
       projectKey: sharedKey,
       projectName:
         project.projectCustomName ??

@@ -2,6 +2,23 @@ import { en, type TranslationResources } from "./en";
 import { pluginSettings } from "./plugin-settings";
 
 export const ja: TranslationResources = {
+  chats: {
+    title: "チャット",
+    new: "新しいチャット",
+    description: "プロジェクトを選ばずに会話を始めます。",
+    recent: "チャット一覧",
+    empty: "メッセージを送信すると、ここにチャットが表示されます。",
+    noHost: "ホストに接続してチャットを開始してください。",
+    offline: "ホストはオフラインです。再接続してください。",
+    updateHost: "独立したチャットを使うにはホストを更新してください。",
+    selectModel: "モデルを選び、メッセージを入力してください。",
+    createFailed: "チャットを作成できませんでした。再試行してください。",
+    rename: "チャット名を変更",
+    archive: "チャットをアーカイブ",
+    archiveConfirm: "実行中のエージェントを停止してアーカイブしますか？履歴から再び開けます。",
+    nameRequired: "チャット名を入力してください。",
+  },
+
   paneFind: {
     connectionFailure:
       "このチャットを検索できませんでした。ホストへの接続を確認して再試行してください。",
@@ -1270,7 +1287,7 @@ export const ja: TranslationResources = {
       },
       empty: {
         title: "プロジェクトがまだありません",
-        description: "始めるにはプロジェクトを追加してください",
+        description: "追加したプロジェクトがここに表示されます。",
       },
     },
     workspace: {
