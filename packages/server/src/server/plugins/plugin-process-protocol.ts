@@ -12,6 +12,14 @@ import {
   ProviderLaunchSchema,
 } from "@getpaseo/plugin/server/provider";
 import { z } from "zod";
+import {
+  PlatformWorkerInitializationSchema,
+  PlatformWorkerRequestSchema,
+  PlatformWorkerMessageSchema,
+  type PlatformWorkerInitialization,
+  type PlatformWorkerRequest,
+  type PlatformWorkerMessage,
+} from "./platform/process-protocol.js";
 
 export interface PluginProviderMetadata {
   hasCatalogCacheKey?: boolean;
@@ -30,6 +38,7 @@ export interface PluginUsageSourceMetadata {
 }
 
 export type PluginProcessRequest =
+  | PlatformWorkerRequest
   | {
       type: "provider.status";
       requestId: string;
@@ -43,6 +52,7 @@ export type PluginProcessRequest =
       appVersion: string;
       pluginDirectory: string;
       settingsDirectory?: string;
+      platform?: PlatformWorkerInitialization;
     }
   | {
       type: "provider.catalog_key";
@@ -73,6 +83,7 @@ export type PluginProcessRequest =
   | { type: "paseo_close" };
 
 export type PluginProcessMessage =
+  | PlatformWorkerMessage
   | { type: "settings.changed"; settingsId: string }
   | { type: "hooks.changed"; hooks: { events: string[]; before: string[] } }
   | {
@@ -81,6 +92,7 @@ export type PluginProcessMessage =
       providers: PluginProviderMetadata[];
       usageSources?: PluginUsageSourceMetadata[];
       hooks?: { events: string[]; before: string[] };
+      platformProviders?: string[];
     }
   | { type: "result"; requestId: string; output: unknown }
   | { type: "error"; requestId: string; error: string }
@@ -139,6 +151,7 @@ const frameFields = {
 export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.discriminatedUnion(
   "type",
   [
+    ...PlatformWorkerRequestSchema.options,
     z
       .object({
         type: z.literal("provider.status"),
@@ -155,6 +168,7 @@ export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.dis
         appVersion: z.string(),
         pluginDirectory: z.string(),
         settingsDirectory: z.string().optional(),
+        platform: PlatformWorkerInitializationSchema.optional(),
       })
       .strict(),
     z
@@ -241,6 +255,7 @@ export const PluginProcessRequestSchema: z.ZodType<PluginProcessRequest> = z.dis
 export const PluginProcessMessageSchema: z.ZodType<PluginProcessMessage> = z.discriminatedUnion(
   "type",
   [
+    ...PlatformWorkerMessageSchema.options,
     z.object({ type: z.literal("settings.changed"), settingsId: z.string() }).strict(),
     z.object({ type: z.literal("hooks.changed"), hooks: hooksSchema }).strict(),
     z
@@ -250,6 +265,7 @@ export const PluginProcessMessageSchema: z.ZodType<PluginProcessMessage> = z.dis
         providers: z.array(providerMetadataSchema),
         usageSources: z.array(usageSourceMetadataSchema).optional(),
         hooks: hooksSchema.optional(),
+        platformProviders: z.array(z.string()).optional(),
       })
       .strict(),
     z

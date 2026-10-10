@@ -4,6 +4,11 @@ Local plugins contribute daemon RPCs, native app surfaces, workspace panels, Com
 client slash commands, timeline items, header buttons, composer pills, app themes, composer attachment sources, and settings screens.
 Paseo executes `index.server.ts` in a subprocess and `index.client.tsx` in every connected app.
 
+Packages declaring `manifestVersion: 1` use the [plugin platform](plugin-platform.md). Their
+definitions can be inspected and dependency-planned, and trusted daemon providers run as host
+services for authenticated callers; client entries do not execute yet. The runtime and installation
+workflow below describe the existing unversioned manifest format.
+
 > **Trust every plugin you add.** `paseo plugin add` and `paseo plugin install` mean “I trust this codebase.” Plugins are unsandboxed: server code and preparation commands run with the daemon user's access on the daemon host, and client contributions run inside Paseo. The repository's dependencies and future updates are part of that trust decision. With `--host`, preparation runs on that remote daemon host.
 
 ## Install a directory source

@@ -4,6 +4,9 @@ import * as pluginProviderRuntime from "@getpaseo/plugin/server/provider";
 import * as pluginAcpRuntime from "@getpaseo/plugin/server/acp";
 import * as pluginUsageRuntime from "@getpaseo/plugin/server/usage";
 import * as pluginServerRuntime from "@getpaseo/plugin/server";
+import * as pluginPlatformRuntime from "@getpaseo/plugin/v1";
+import * as pluginPlatformServerRuntime from "@getpaseo/plugin/v1/server";
+import type { ServerPluginRegistration } from "@getpaseo/plugin/v1/server";
 import type { PluginServerContribution } from "@getpaseo/plugin/server";
 import * as zod from "zod";
 import { isPluginClientOnlySdkSpecifier } from "./plugin-sdk-specifiers.js";
@@ -15,6 +18,8 @@ function runtimeRequire(name: string): unknown {
     throw new Error(`${name} is available only in plugin client code`);
   }
   if (name === "@getpaseo/plugin") return pluginSharedRuntime;
+  if (name === "@getpaseo/plugin/v1") return pluginPlatformRuntime;
+  if (name === "@getpaseo/plugin/v1/server") return pluginPlatformServerRuntime;
   if (name === "@getpaseo/plugin/server") return pluginServerRuntime;
   if (name === "@getpaseo/plugin/server/provider") return pluginProviderRuntime;
   if (name === "@getpaseo/plugin/server/acp") return pluginAcpRuntime;
@@ -25,7 +30,7 @@ function runtimeRequire(name: string): unknown {
   return nodeRequire(name);
 }
 
-export function evaluateBundle(bundle: string): PluginServerContribution {
+function evaluateDefaultExport(bundle: string): unknown {
   const evaluate: (source: string) => unknown = globalThis.eval;
   const factory = evaluate(bundle);
   if (typeof factory !== "function") throw new Error("Plugin server bundle is not executable");
@@ -35,5 +40,15 @@ export function evaluateBundle(bundle: string): PluginServerContribution {
   if (typeof setup !== "function") {
     throw new Error("Plugin server bundle must default export a function");
   }
-  return setup as PluginServerContribution;
+  return setup;
+}
+
+// The manifest version decides which contract the default export implements; the bundle itself
+// carries no type information, so each entry point states the contract it loads.
+export function evaluateBundle(bundle: string): PluginServerContribution {
+  return evaluateDefaultExport(bundle) as PluginServerContribution;
+}
+
+export function evaluatePlatformBundle(bundle: string): ServerPluginRegistration {
+  return evaluateDefaultExport(bundle) as ServerPluginRegistration;
 }

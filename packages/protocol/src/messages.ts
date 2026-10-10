@@ -1,4 +1,12 @@
 import { PluginRegistryIdentitySchema } from "./plugin-registry.js";
+import {
+  PluginPlatformDescribeRequestSchema,
+  PluginPlatformListRequestSchema,
+  PluginPlatformPlanRequestSchema,
+  PluginPlatformDescribeResponseSchema,
+  PluginPlatformListResponseSchema,
+  PluginPlatformPlanResponseSchema,
+} from "./plugin-platform-messages.js";
 import { AgentProfileSchema, AgentSkillSelectionSchema } from "./agent-profile.js";
 export {
   AgentProfileSchema,
@@ -18,6 +26,16 @@ export {
 import { TerminalProfileSchema } from "./terminal-profile.js";
 export { TerminalProfileSchema, type TerminalProfile } from "./terminal-profile.js";
 import { z } from "zod";
+import {
+  PluginPlatformHostDescribeRequestSchema,
+  PluginPlatformHostDescribeResponseSchema,
+  PluginPlatformHostResolveRequestSchema,
+  PluginPlatformHostResolveResponseSchema,
+  PluginPlatformHostCallRequestSchema,
+  PluginPlatformHostCallResponseSchema,
+  PluginPlatformHostReleaseRequestSchema,
+  PluginPlatformHostReleaseResponseSchema,
+} from "./plugin-platform-execution.js";
 import { TerminalActivitySchema } from "./terminal-activity.js";
 import { CLIENT_CAPS } from "./client-capabilities.js";
 import { AGENT_LIFECYCLE_STATUSES } from "./agent-lifecycle.js";
@@ -3216,7 +3234,14 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   HubManagementDaemonPermissionsUpdateRequestSchema,
   DiagnosticsRequestSchema,
   PluginCatalogGetRequestSchema,
+  PluginPlatformDescribeRequestSchema,
+  PluginPlatformListRequestSchema,
+  PluginPlatformPlanRequestSchema,
   PluginListRequestSchema,
+  PluginPlatformHostDescribeRequestSchema,
+  PluginPlatformHostResolveRequestSchema,
+  PluginPlatformHostCallRequestSchema,
+  PluginPlatformHostReleaseRequestSchema,
   PluginLogsGetRequestSchema,
   PluginDirectoryInstallRequestSchema,
   PluginDirectoryInspectRequestSchema,
@@ -3613,6 +3638,8 @@ export const ServerInfoStatusPayloadSchema = z
         pluginThemes: z.boolean().optional(),
         pluginSettings: z.boolean().optional(),
         pluginTimelineItems: z.boolean().optional(),
+        pluginPlatformDiscoveryV1: z.boolean().optional(),
+        pluginPlatformHostServicesV1: z.boolean().optional(),
         // COMPAT(skillManagement): added in v0.4.0, remove gate after 2027-08-16.
         skillManagement: z.boolean().optional(),
         // COMPAT(terminalRestoreModes): added in v0.1.81, remove gate after 2026-11-23.
@@ -6823,7 +6850,14 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   HubExecutionAgentStreamSchema,
   BrowserAutomationExecuteRequestSchema,
   PluginCatalogGetResponseSchema,
+  PluginPlatformDescribeResponseSchema,
+  PluginPlatformListResponseSchema,
+  PluginPlatformPlanResponseSchema,
   PluginListResponseSchema,
+  PluginPlatformHostDescribeResponseSchema,
+  PluginPlatformHostResolveResponseSchema,
+  PluginPlatformHostCallResponseSchema,
+  PluginPlatformHostReleaseResponseSchema,
   PluginLogsGetResponseSchema,
   PluginDirectoryInstallResponseSchema,
   PluginDirectoryInspectResponseSchema,

@@ -8,6 +8,16 @@
   ],
   "type": "module",
   "exports": {
+    "./v1/server": {
+      "types": "./dist/v1/server.d.ts",
+      "source": "./src/v1/server.ts",
+      "default": "./dist/v1/server.js"
+    },
+    "./v1": {
+      "types": "./dist/v1.d.ts",
+      "source": "./src/v1.ts",
+      "default": "./dist/v1.js"
+    },
     ".": {
       "types": "./dist/index.d.ts",
       "source": "./src/index.ts",

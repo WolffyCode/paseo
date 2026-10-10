@@ -23,7 +23,7 @@ import {
 } from "@getpaseo/plugin/server/provider";
 import type { PluginLogEntry } from "@getpaseo/protocol/messages";
 import { compilePlugin } from "./compiler.js";
-import { readPluginManifest } from "./manifest.js";
+import { readPluginManifest, assertPluginExecutionSupported } from "./manifest.js";
 import type { PluginRequirements } from "@getpaseo/protocol/messages";
 import { assertPluginCompatibility } from "@getpaseo/protocol/plugin-requirements";
 import type {
@@ -35,7 +35,32 @@ import type {
 import { PluginProcessMessageSchema } from "./plugin-process-protocol.js";
 import { PluginSessionSocket } from "./session-socket.js";
 import { InternalPluginChild } from "./internal-child.js";
-import { evaluateBundle } from "./bundle-evaluator.js";
+import { evaluateBundle, evaluatePlatformBundle } from "./bundle-evaluator.js";
+import type { PluginPlatformManifest } from "@getpaseo/protocol/plugin-platform";
+import {
+  PlatformBroker,
+  loadExecutablePlatformPackage,
+  type PlatformExecution,
+  type PlatformExecutionRequest,
+} from "./platform/broker.js";
+import { PlatformWorkerError, executionError } from "./platform/execution-errors.js";
+import type { LoadedPlatformPackage } from "./platform/package.js";
+import type { PlatformWorkerInitialization } from "./platform/process-protocol.js";
+
+/** A validated v1 package that has not launched yet. */
+interface PreparedPlatform {
+  initialization: PlatformWorkerInitialization;
+  loaded: LoadedPlatformPackage;
+  origin: PlatformExecution["origin"];
+}
+
+/** The legacy client catalog entry; v1 plugins are marked so the client catalog can skip them. */
+interface RuntimeCatalogEntry {
+  id: string;
+  clientBundle: string;
+  requirements?: PluginRequirements;
+  platform?: boolean;
+}
 
 const CLIENT_ENTRY_FILENAMES = ["index.client.ts", "index.client.tsx"] as const;
 const SERVER_ENTRY_FILENAMES = ["index.server.ts", "index.server.tsx"] as const;
@@ -82,6 +107,7 @@ interface LoadedPlugin {
   providerConnectionTombstones: Set<string>;
   sessionSocket: PluginSessionSocket | null;
   sessionClosed: Promise<void> | null;
+  platform: PlatformExecution | null;
 }
 
 /** The session socket a loaded plugin currently speaks through. */
@@ -122,6 +148,7 @@ interface RemoteProviderConnection {
 }
 
 interface PluginRuntimeDependencies {
+  serverId?: string;
   settingsDirectory?: string;
   onSettingsChanged?: (pluginId: string, settingsId: string) => void;
   spawnChild?: () => PluginChild;
@@ -247,6 +274,11 @@ function describeError(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+// The platform broker reports v1 plugin failures with platform error codes; legacy plugins keep plain errors.
+function pluginFailure(loaded: LoadedPlugin, code: string, message: string): Error {
+  return loaded.platform ? executionError(code, message) : new Error(message);
+}
+
 function jsonTransportValue<Value>(value: Value): Value {
   const encoded = JSON.stringify(value);
   if (encoded === undefined) throw new Error("Provider value is not JSON-serializable");
@@ -295,6 +327,7 @@ async function resolveEntryPaths(directory: string): Promise<{
 }
 
 export class PluginRuntime {
+  readonly hostServices: PlatformBroker | null;
   private readonly plugins = new Map<string, LoadedPlugin>();
   private readonly pendingEvents = new Set<Promise<void>>();
   private readonly logTails = new Map<string, PluginLogTail>();
@@ -311,6 +344,9 @@ export class PluginRuntime {
     this.logger = logger.child({ module: "plugins" });
     this.spawnChild = dependencies.spawnChild ?? spawnPluginChild;
     this.sessionHost = dependencies.sessionHost ?? null;
+    this.hostServices = dependencies.serverId
+      ? new PlatformBroker({ serverId: dependencies.serverId })
+      : null;
   }
 
   bindPaseoSessionHost(sessionHost: PluginPaseoSessionHost): void {
@@ -339,7 +375,7 @@ export class PluginRuntime {
       await this.stopPlugin(loaded);
       throw new Error(`Plugin start cancelled: ${pluginId}`);
     }
-    this.plugins.set(pluginId, loaded);
+    this.publish(loaded);
     this.appendLog(pluginId, "stdout", "[paseo] Plugin ready");
   }
 
@@ -348,28 +384,55 @@ export class PluginRuntime {
     this.appendLog(input.id, "stdout", "[paseo] Loading plugin");
     const directory = path.resolve(input.directory);
     const manifest = await readPluginManifest(directory);
+    assertPluginExecutionSupported(manifest);
     if (manifest.id !== input.id) {
       throw new Error(`Built-in plugin ${input.id} has manifest ID ${manifest.id}`);
     }
     assertPluginCompatibility({ ...manifest, version: this.daemonVersion, runtime: "daemon" });
+    const platform =
+      manifest.manifestVersion === 1
+        ? await this.preparePlatform({
+            installationId: input.id,
+            directory,
+            manifest,
+            origin: "builtin",
+          })
+        : null;
     const bundles = await compilePlugin(await resolveEntryPaths(directory));
     if (!bundles.serverBundle) throw new Error(`Built-in plugin ${input.id} needs a server entry`);
     const loaded = await this.launchPlugin({
       pluginId: input.id,
       pluginDirectory: directory,
       requirements: manifest.requirements,
-      child: new InternalPluginChild(evaluateBundle(bundles.serverBundle)),
+      child: new InternalPluginChild(
+        platform
+          ? {
+              register: evaluatePlatformBundle(bundles.serverBundle),
+              initialization: platform.initialization,
+            }
+          : evaluateBundle(bundles.serverBundle),
+      ),
       bundle: "",
       clientBundle: bundles.clientBundle ?? "",
+      platform,
     });
-    this.plugins.set(input.id, loaded);
+    this.publish(loaded);
     this.appendLog(input.id, "stdout", "[paseo] Plugin ready");
   }
 
   async validatePlugin(configuredPath: string): Promise<void> {
     const directory = path.resolve(configuredPath);
     const manifest = await readPluginManifest(directory);
+    assertPluginExecutionSupported(manifest);
     assertPluginCompatibility({ ...manifest, version: this.daemonVersion, runtime: "daemon" });
+    if (manifest.manifestVersion === 1) {
+      await this.preparePlatform({
+        installationId: manifest.id,
+        directory,
+        manifest,
+        origin: "configured",
+      });
+    }
     const entryPaths = await resolveEntryPaths(directory);
     await compilePlugin(entryPaths);
   }
@@ -377,15 +440,19 @@ export class PluginRuntime {
   async stopPluginById(pluginId: string): Promise<boolean> {
     const loaded = this.plugins.get(pluginId);
     if (!loaded) return false;
-    this.plugins.delete(pluginId);
+    this.unpublish(loaded);
     this.rejectPending(loaded, `Plugin stopped: ${pluginId}`);
     await this.stopPlugin(loaded);
     return true;
   }
 
-  catalog(): Array<{ id: string; clientBundle: string; requirements?: PluginRequirements }> {
+  catalog(): RuntimeCatalogEntry[] {
     return [...this.plugins.values()]
-      .map(({ id, clientBundle, requirements }) => ({ id, clientBundle, requirements }))
+      .map(({ id, clientBundle, requirements, platform }) => {
+        const entry: RuntimeCatalogEntry = { id, clientBundle, requirements };
+        if (platform) entry.platform = true;
+        return entry;
+      })
       .sort((left, right) => left.id.localeCompare(right.id));
   }
 
@@ -597,6 +664,7 @@ export class PluginRuntime {
   private request(
     loaded: LoadedPlugin,
     message: Extract<PluginProcessRequest, { requestId: string }>,
+    timeoutMs: number = REQUEST_TIMEOUT_MS,
   ): Promise<unknown> {
     const child = loaded.child;
     const pluginId = loaded.id;
@@ -608,20 +676,26 @@ export class PluginRuntime {
         if (message.type === "hook") {
           void send(child, { type: "hook.cancel", requestId }).catch(() => {});
         }
-        reject(new Error(`Plugin RPC timed out: ${pluginId}.${message.type}`));
-      }, REQUEST_TIMEOUT_MS);
+        reject(
+          pluginFailure(
+            loaded,
+            "DEADLINE_EXCEEDED",
+            `Plugin RPC timed out: ${pluginId}.${message.type}`,
+          ),
+        );
+      }, timeoutMs);
       loaded.pending.set(requestId, { resolve, reject, timeout });
       void send(child, message).catch((error) => {
         clearTimeout(timeout);
         loaded.pending.delete(requestId);
-        reject(error);
+        reject(pluginFailure(loaded, "PLUGIN_UNAVAILABLE", describeError(error)));
       });
     });
   }
 
   async stopAll(): Promise<void> {
     const loaded = [...this.plugins.values()];
-    this.plugins.clear();
+    for (const plugin of loaded) this.unpublish(plugin);
     for (const plugin of loaded) {
       this.rejectPending(plugin, `Plugin stopped: ${plugin.id}`);
     }
@@ -634,7 +708,17 @@ export class PluginRuntime {
   ): Promise<LoadedPlugin> {
     const directory = path.resolve(configuredPath);
     const manifest = await readPluginManifest(directory);
+    assertPluginExecutionSupported(manifest);
     assertPluginCompatibility({ ...manifest, version: this.daemonVersion, runtime: "daemon" });
+    const platform =
+      manifest.manifestVersion === 1
+        ? await this.preparePlatform({
+            installationId: pluginId,
+            directory,
+            manifest,
+            origin: "configured",
+          })
+        : null;
     const entryPaths = await resolveEntryPaths(directory);
     const bundles = await compilePlugin(entryPaths);
     const serverBundle = bundles.serverBundle;
@@ -654,6 +738,7 @@ export class PluginRuntime {
         providerConnectionTombstones: new Set(),
         sessionSocket: null,
         sessionClosed: null,
+        platform: null,
       };
     }
     return this.launchPlugin({
@@ -663,6 +748,7 @@ export class PluginRuntime {
       child: this.spawnChild(),
       bundle: serverBundle,
       clientBundle: bundles.clientBundle ?? "",
+      platform,
     });
   }
 
@@ -673,25 +759,30 @@ export class PluginRuntime {
     child: PluginChild;
     bundle: string;
     clientBundle: string;
+    platform: PreparedPlatform | null;
   }): Promise<LoadedPlugin> {
     const { pluginId, requirements, child, bundle, clientBundle } = input;
     const sessionHost = this.sessionHost;
-    if (!sessionHost) throw new Error("Plugin Paseo session host is not attached");
+    if (!sessionHost && !input.platform)
+      throw new Error("Plugin Paseo session host is not attached");
     const outputCapture = new PluginOutputCapture(child, (stream, message) => {
       this.appendLog(pluginId, stream, message);
     });
-    const session: PluginSessionBinding = {
-      socket: new PluginSessionSocket(child),
-      reattaching: false,
-      plugin: null,
-    };
+    const session: PluginSessionBinding | null = input.platform
+      ? null
+      : {
+          socket: new PluginSessionSocket(child),
+          reattaching: false,
+          plugin: null,
+        };
     const pending = new Map<string, PendingInvocation>();
-    const sessionAttachment = await sessionHost
-      .attachPluginSocket(pluginId, session.socket)
-      .catch((error) => {
-        terminatePluginChild(child);
-        throw error;
-      });
+    const sessionAttachment =
+      session && sessionHost
+        ? await sessionHost.attachPluginSocket(pluginId, session.socket).catch((error) => {
+            terminatePluginChild(child);
+            throw error;
+          })
+        : null;
     let loaded: LoadedPlugin | null = null;
     let ready: Extract<PluginProcessMessage, { type: "ready" }>;
     try {
@@ -720,6 +811,11 @@ export class PluginRuntime {
             }
             const message = parsed.data;
             if (message.type === "paseo_frame") {
+              if (!session || !sessionHost) {
+                terminatePluginChild(child);
+                fail(new Error("Owner-session traffic is forbidden for v1 plugins"));
+                return;
+              }
               this.routePluginFrame({
                 session,
                 pluginId,
@@ -729,20 +825,21 @@ export class PluginRuntime {
                 isBinary: message.isBinary,
               });
             } else if (message.type === "paseo_close") {
-              session.socket.peerClosed();
+              session?.socket.peerClosed();
             } else if (message.type === "ready") {
               if (settled) return;
               settled = true;
               clearTimeout(timeout);
               resolve(message);
             } else if (message.type === "fatal") {
+              if (loaded) terminatePluginChild(child);
               fail(new Error(message.error));
             } else if (loaded) {
               this.handleChildMessage(loaded, message);
             }
           });
           child.on("close", () => {
-            session.socket.peerClosed();
+            session?.socket.peerClosed();
             if (!loaded) {
               fail(new Error(`Plugin ${pluginId} exited during initialization`));
               return;
@@ -758,12 +855,13 @@ export class PluginRuntime {
             settingsDirectory: this.dependencies.settingsDirectory
               ? path.join(this.dependencies.settingsDirectory, pluginId)
               : undefined,
+            platform: input.platform?.initialization,
           }).catch(fail);
         },
       );
     } catch (error) {
-      session.socket.close();
-      await sessionAttachment.closed;
+      session?.socket.close();
+      await sessionAttachment?.closed;
       terminatePluginChild(child);
       throw error;
     }
@@ -780,12 +878,19 @@ export class PluginRuntime {
       pending,
       providerConnections: new Map(),
       providerConnectionTombstones: new Set(),
-      sessionSocket: session.socket,
-      sessionClosed: sessionAttachment.closed,
+      sessionSocket: session?.socket ?? null,
+      sessionClosed: sessionAttachment?.closed ?? null,
+      platform: null,
     };
-    session.plugin = loaded;
+    if (session) session.plugin = loaded;
+    if (input.platform) loaded.platform = this.createPlatformExecution(input.platform, loaded);
     this.logger.info(
-      { pluginId, methods: ready.methods, providers: ready.providers },
+      {
+        pluginId,
+        methods: ready.methods,
+        providers: ready.providers,
+        platformProviders: ready.platformProviders,
+      },
       "Loaded plugin",
     );
     return loaded;
@@ -851,6 +956,20 @@ export class PluginRuntime {
   }
 
   private handleChildMessage(loaded: LoadedPlugin, message: PluginProcessMessage): void {
+    if (
+      message.type === "platform.resolve" ||
+      message.type === "platform.call" ||
+      message.type === "platform.release"
+    ) {
+      if (!loaded.platform || !this.hostServices) {
+        terminatePluginChild(loaded.child!);
+        return;
+      }
+      this.hostServices.handleWorker(loaded.platform, message).catch((error) => {
+        this.logger.error({ err: error, pluginId: loaded.id }, "Plugin platform request failed");
+      });
+      return;
+    }
     if (message.type === "hooks.changed") {
       loaded.hooks = message.hooks;
       return;
@@ -863,12 +982,15 @@ export class PluginRuntime {
       this.handleProviderMessage(loaded, message);
       return;
     }
-    if (message.type !== "result" && message.type !== "error") return;
+    if (message.type !== "result" && message.type !== "error" && message.type !== "platform.error")
+      return;
     const pending = loaded.pending.get(message.requestId);
     if (!pending) return;
     loaded.pending.delete(message.requestId);
     clearTimeout(pending.timeout);
     if (message.type === "result") pending.resolve(message.output);
+    else if (message.type === "platform.error")
+      pending.reject(new PlatformWorkerError(message.error, message.outcomeKnown));
     else pending.reject(new Error(message.error));
   }
 
@@ -1164,9 +1286,7 @@ export class PluginRuntime {
   private async handleChildClose(loaded: LoadedPlugin): Promise<void> {
     loaded.sessionSocket?.peerClosed();
     const wasPublished = this.plugins.get(loaded.id) === loaded;
-    if (wasPublished) {
-      this.plugins.delete(loaded.id);
-    }
+    if (wasPublished) this.unpublish(loaded);
     this.rejectPending(loaded, `Plugin process exited: ${loaded.id}`);
     for (const state of loaded.providerConnections.values()) {
       this.failRemoteProviderConnection(state, new Error(`Plugin process exited: ${loaded.id}`));
@@ -1188,12 +1308,12 @@ export class PluginRuntime {
       );
     }
     const { child, sessionSocket, sessionClosed } = loaded;
-    if (!child || !sessionSocket || !sessionClosed) {
+    if (!child) {
       this.appendLog(loaded.id, "stdout", "[paseo] Plugin stopped");
       return;
     }
     if (child.killed) {
-      sessionSocket.peerClosed();
+      sessionSocket?.peerClosed();
       await sessionClosed;
       this.appendLog(loaded.id, "stdout", "[paseo] Plugin stopped");
       return;
@@ -1215,15 +1335,74 @@ export class PluginRuntime {
     await closed.finally(() => {
       if (forceTimer) clearTimeout(forceTimer);
     });
-    sessionSocket.peerClosed();
+    sessionSocket?.peerClosed();
     await sessionClosed;
     this.appendLog(loaded.id, "stdout", "[paseo] Plugin stopped");
+  }
+
+  private async preparePlatform(input: {
+    installationId: string;
+    directory: string;
+    manifest: PluginPlatformManifest;
+    origin: PreparedPlatform["origin"];
+  }): Promise<PreparedPlatform> {
+    const { installationId, directory, manifest, origin } = input;
+    const serverId = this.dependencies.serverId;
+    if (!serverId) throw new Error("Plugin host execution requires a host identity");
+    const loaded = await loadExecutablePlatformPackage({
+      directory,
+      manifest,
+      daemonVersion: this.daemonVersion,
+      origin,
+    });
+    return {
+      loaded,
+      origin,
+      initialization: {
+        manifest,
+        installation: { kind: "host", serverId, installationId },
+        runtime: { kind: "daemon", serverId, runtimeId: installationId, generation: randomUUID() },
+      },
+    };
+  }
+
+  private createPlatformExecution(
+    prepared: PreparedPlatform,
+    plugin: LoadedPlugin,
+  ): PlatformExecution {
+    const { manifest, installation, runtime } = prepared.initialization;
+    return {
+      manifest,
+      installation,
+      runtime,
+      origin: prepared.origin,
+      loaded: prepared.loaded,
+      request: (message: PlatformExecutionRequest, timeoutMs: number) =>
+        this.request(plugin, message, timeoutMs),
+      send: (message) => {
+        const child = plugin.child;
+        if (!child?.connected) return;
+        // A child that closes mid-send rejects its pending requests through the close handler.
+        void send(child, message).catch(() => undefined);
+      },
+    };
+  }
+
+  /** Publishes a started plugin; v1 plugins become callable host services. */
+  private publish(loaded: LoadedPlugin): void {
+    this.plugins.set(loaded.id, loaded);
+    if (loaded.platform) this.hostServices?.attach(loaded.platform);
+  }
+
+  private unpublish(loaded: LoadedPlugin): void {
+    this.plugins.delete(loaded.id);
+    if (loaded.platform) this.hostServices?.detach(loaded.platform.runtime.generation);
   }
 
   private rejectPending(loaded: LoadedPlugin, message: string): void {
     for (const invocation of loaded.pending.values()) {
       clearTimeout(invocation.timeout);
-      invocation.reject(new Error(message));
+      invocation.reject(pluginFailure(loaded, "PLUGIN_UNAVAILABLE", message));
     }
     loaded.pending.clear();
   }

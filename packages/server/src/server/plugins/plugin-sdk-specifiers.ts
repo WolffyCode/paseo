@@ -6,6 +6,7 @@ export const PLUGIN_CLIENT_ONLY_SDK_SPECIFIERS = [
 ] as const;
 
 const PLUGIN_SERVER_ONLY_SDK_SPECIFIERS = [
+  "@getpaseo/plugin/v1/server",
   "@getpaseo/plugin/server",
   "@getpaseo/plugin/server/provider",
   "@getpaseo/plugin/server/usage",
@@ -13,6 +14,7 @@ const PLUGIN_SERVER_ONLY_SDK_SPECIFIERS = [
 ] as const;
 
 export const PLUGIN_SDK_SPECIFIERS = [
+  "@getpaseo/plugin/v1",
   "@getpaseo/plugin",
   ...PLUGIN_SERVER_ONLY_SDK_SPECIFIERS,
   ...PLUGIN_CLIENT_ONLY_SDK_SPECIFIERS,

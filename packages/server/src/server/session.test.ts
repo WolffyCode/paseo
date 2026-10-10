@@ -23,6 +23,7 @@ import {
   type FileTransferFrame,
 } from "@getpaseo/protocol/binary-frames/index";
 import { Session } from "./session.js";
+import { PlatformBroker } from "./plugins/platform/broker.js";
 import { OWNER_PERMISSIONS, type DaemonPermission } from "./authorization/index.js";
 import { DownloadTokenStore } from "./file-download/token-store.js";
 import { StructuredAgentFallbackError } from "./agent/agent-response-loop.js";
@@ -496,6 +497,26 @@ test("routes plugin requests and releases its owned catalog subscription on clea
     status: "running" as const,
   };
   const pluginRuntime: NonNullable<SessionOptions["pluginRuntime"]> = {
+    hostServices: new PlatformBroker({ serverId: "test" }),
+    platformDiscoveryAvailable: false,
+    describePlatform: () => ({
+      apiVersion: "1.0.0",
+      definitions: true,
+      resolutionPlans: true,
+    }),
+    getPlatformCatalog: async () => ({
+      serverId: "test",
+      apiVersion: "1.0.0",
+      revision: "catalog_1",
+      entries: [],
+    }),
+    planPlatformResolution: async (input) => ({
+      catalogRevision: "catalog_1",
+      mode: input.mode,
+      candidates: [],
+      nodes: [],
+      diagnostics: [],
+    }),
     before: async (_name, request) => {
       return request;
     },
@@ -558,6 +579,17 @@ test("routes plugin requests and releases its owned catalog subscription on clea
     requestId: "remove",
     pluginId: "example",
   });
+  // This session has no authenticated principal, like a plugin's own owner session.
+  await session.handleMessage({
+    type: "plugin.platform.host.call.request",
+    requestId: "call",
+    input: {
+      binding: { bindingId: "binding", generation: "generation" },
+      method: "read",
+      target: { kind: "service" },
+      params: {},
+    },
+  });
   for (const listener of listeners) listener("example");
 
   expect(messages.map((message) => message.type)).toEqual([
@@ -567,8 +599,12 @@ test("routes plugin requests and releases its owned catalog subscription on clea
     "plugin.reload.response",
     "plugin.disable.response",
     "plugin.remove.response",
+    "plugin.platform.host.call.response",
     "status",
   ]);
+  expect(messages.at(-2)).toMatchObject({
+    payload: { requestId: "call", result: { status: "error", error: { code: "UNAUTHORIZED" } } },
+  });
   expect(messages.at(-1)).toEqual({
     type: "status",
     payload: { status: "plugin_catalog_changed", pluginId: "example" },

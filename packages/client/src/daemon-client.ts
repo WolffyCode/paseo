@@ -1,4 +1,19 @@
 import { legacyUsageIcon } from "./legacy-usage-icons.js";
+import type {
+  PlatformCatalog,
+  PlatformResolvePlanInput,
+  PlatformResolutionPlan,
+} from "@getpaseo/protocol/plugin-platform";
+import type { PluginPlatformDiscovery } from "@getpaseo/protocol/plugin-platform-messages";
+import type {
+  PlatformBindingRef,
+  PlatformHostCall,
+  PlatformHostCallResult,
+  PlatformHostCapabilities,
+  PlatformHostReleaseResult,
+  PlatformHostResolve,
+  PlatformHostResolveResult,
+} from "@getpaseo/protocol/plugin-platform-execution";
 import { subscribeTimeline, type TimelineMessage } from "./timeline-subscription/index.js";
 import { ProviderSnapshotUpdates } from "./provider-snapshots/index.js";
 import {
@@ -5410,6 +5425,97 @@ export class DaemonClient {
       responseType: "plugin.catalog.get.response",
     });
     return payload.plugins;
+  }
+
+  private requirePluginPlatformDiscovery(): void {
+    if (this.lastServerInfoMessage?.features?.pluginPlatformDiscoveryV1 !== true) {
+      throw new Error("Plugin platform discovery requires an updated host");
+    }
+  }
+
+  private requirePluginHostServices(): void {
+    if (this.lastServerInfoMessage?.features?.pluginPlatformHostServicesV1 !== true) {
+      throw new Error("Plugin host services require an updated host");
+    }
+  }
+
+  async describePluginHostServices(): Promise<PlatformHostCapabilities> {
+    this.requirePluginHostServices();
+    const requestId = this.createRequestId();
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "plugin.platform.host.describe.request", requestId },
+      responseType: "plugin.platform.host.describe.response",
+    });
+    return payload.capabilities;
+  }
+
+  async resolvePluginHostService(input: PlatformHostResolve): Promise<PlatformHostResolveResult> {
+    this.requirePluginHostServices();
+    const requestId = this.createRequestId();
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "plugin.platform.host.resolve.request", requestId, input },
+      responseType: "plugin.platform.host.resolve.response",
+    });
+    return payload.result;
+  }
+
+  async callPluginHostService(input: PlatformHostCall): Promise<PlatformHostCallResult> {
+    this.requirePluginHostServices();
+    const requestId = this.createRequestId();
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "plugin.platform.host.call.request", requestId, input },
+      responseType: "plugin.platform.host.call.response",
+    });
+    return payload.result;
+  }
+
+  async releasePluginHostService(binding: PlatformBindingRef): Promise<PlatformHostReleaseResult> {
+    this.requirePluginHostServices();
+    const requestId = this.createRequestId();
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "plugin.platform.host.release.request", requestId, binding },
+      responseType: "plugin.platform.host.release.response",
+    });
+    return payload.result;
+  }
+
+  async describePluginPlatform(): Promise<PluginPlatformDiscovery> {
+    this.requirePluginPlatformDiscovery();
+    const requestId = this.createRequestId();
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "plugin.platform.discovery.describe.request", requestId },
+      responseType: "plugin.platform.discovery.describe.response",
+    });
+    return payload.discovery;
+  }
+
+  async getPluginPlatformCatalog(): Promise<PlatformCatalog> {
+    this.requirePluginPlatformDiscovery();
+    const requestId = this.createRequestId();
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "plugin.platform.discovery.list.request", requestId },
+      responseType: "plugin.platform.discovery.list.response",
+    });
+    return payload.catalog;
+  }
+
+  async planPluginPlatformResolution(
+    input: PlatformResolvePlanInput,
+  ): Promise<PlatformResolutionPlan> {
+    this.requirePluginPlatformDiscovery();
+    const requestId = this.createRequestId();
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { ...input, type: "plugin.platform.discovery.plan_resolution.request", requestId },
+      responseType: "plugin.platform.discovery.plan_resolution.response",
+    });
+    return payload.plan;
   }
 
   async listPlugins(): Promise<PluginListItem[]> {

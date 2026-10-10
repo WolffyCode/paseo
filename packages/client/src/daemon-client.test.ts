@@ -1918,6 +1918,147 @@ test("sends and parses daemon config reload", async () => {
   });
 });
 
+test("plugin platform discovery is gated before sending to an old host", async () => {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "platform_gate",
+    logger: createMockLogger(),
+    reconnect: { enabled: false },
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+  const connected = client.connect();
+  mock.triggerOpen({ features: { plugins: true } });
+  await connected;
+  await expect(client.describePluginPlatform()).rejects.toThrow("requires an updated host");
+  await expect(client.getPluginPlatformCatalog()).rejects.toThrow("requires an updated host");
+  await expect(
+    client.planPluginPlatformResolution({
+      mode: "one",
+      serviceId: "acme.files",
+      range: "^1.0.0",
+      runtime: "daemon",
+      providerScope: "host",
+      scope: { kind: "host", serverId: "srv_test" },
+    }),
+  ).rejects.toThrow("requires an updated host");
+  expect(mock.sent).toEqual([]);
+});
+
+test("plugin host services are gated before sending to an old host", async () => {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "host_services_gate",
+    logger: createMockLogger(),
+    reconnect: { enabled: false },
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+  const connected = client.connect();
+  mock.triggerOpen({ features: { pluginPlatformDiscoveryV1: true } });
+  await connected;
+  const binding = { bindingId: "binding", generation: "generation" };
+  await expect(client.describePluginHostServices()).rejects.toThrow("require an updated host");
+  await expect(
+    client.resolvePluginHostService({
+      mode: "one",
+      serviceId: "acme.files",
+      range: "^1.0.0",
+      runtime: "daemon",
+      providerScope: "host",
+      scope: { kind: "host", serverId: "srv_test" },
+      target: { kind: "service" },
+    }),
+  ).rejects.toThrow("require an updated host");
+  await expect(
+    client.callPluginHostService({
+      binding,
+      method: "read",
+      target: { kind: "service" },
+      params: {},
+    }),
+  ).rejects.toThrow("require an updated host");
+  await expect(client.releasePluginHostService(binding)).rejects.toThrow("require an updated host");
+  expect(mock.sent).toEqual([]);
+});
+
+test("plugin platform discovery correlates metadata and resolution plans", async () => {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "platform_discovery",
+    logger: createMockLogger(),
+    reconnect: { enabled: false },
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+  const connected = client.connect();
+  mock.triggerOpen({ features: { pluginPlatformDiscoveryV1: true } });
+  await connected;
+  const discovery = {
+    apiVersion: "1.0.0",
+    definitions: true,
+    resolutionPlans: true,
+  };
+  const described = client.describePluginPlatform();
+  const describeRequest = parseSentFrame(mock.sent[0]);
+  expect(describeRequest.type).toBe("plugin.platform.discovery.describe.request");
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "plugin.platform.discovery.describe.response",
+      payload: { requestId: describeRequest.requestId, discovery },
+    }),
+  );
+  await expect(described).resolves.toEqual(discovery);
+  const catalog = {
+    serverId: "srv_test",
+    apiVersion: "1.0.0",
+    revision: "catalog_1",
+    entries: [],
+  };
+  const listed = client.getPluginPlatformCatalog();
+  const listRequest = parseSentFrame(mock.sent[1]);
+  expect(listRequest.type).toBe("plugin.platform.discovery.list.request");
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "plugin.platform.discovery.list.response",
+      payload: { requestId: listRequest.requestId, catalog },
+    }),
+  );
+  await expect(listed).resolves.toEqual(catalog);
+  const planned = client.planPluginPlatformResolution({
+    mode: "many",
+    serviceId: "acme.files",
+    range: "^1.0.0",
+    runtime: "daemon",
+    providerScope: "host",
+    scope: { kind: "host", serverId: "srv_test" },
+    expectedCatalogRevision: "catalog_1",
+  });
+  const planRequest = parseSentFrame(mock.sent[2]);
+  expect(planRequest).toMatchObject({
+    type: "plugin.platform.discovery.plan_resolution.request",
+    mode: "many",
+    expectedCatalogRevision: "catalog_1",
+  });
+  const plan = {
+    catalogRevision: "catalog_1",
+    mode: "many",
+    candidates: [],
+    nodes: [],
+    diagnostics: [{ code: "DEPENDENCY_MISSING", message: "No provider" }],
+  };
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "plugin.platform.discovery.plan_resolution.response",
+      payload: { requestId: planRequest.requestId, plan },
+    }),
+  );
+  await expect(planned).resolves.toEqual(plan);
+});
+
 test("gets a structured plugin log snapshot", async () => {
   const mock = createMockTransport();
   const client = new DaemonClient({

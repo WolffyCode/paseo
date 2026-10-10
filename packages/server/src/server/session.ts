@@ -127,6 +127,7 @@ import {
 } from "./agent/timeline-append.js";
 import { assertPluginTimelineDataSize } from "./agent/agent-timeline-content.js";
 import { parsePluginClientId } from "./plugins/plugin-session-identity.js";
+import { PlatformResolvePlanInputSchema } from "@getpaseo/protocol/plugin-platform";
 import { buildAgentForkContextAttachment } from "./agent/activity-curator.js";
 import { buildAgentPrompt } from "./agent/prompt-attachments.js";
 import type { StructuredGenerationDaemonConfig } from "./agent/structured-generation-providers.js";
@@ -261,6 +262,11 @@ import {
 import { archiveByScope, type ActiveWorkspaceRef } from "./workspace-archive-service.js";
 import { WorkspaceSetupRuntime } from "./workspace-setup-runtime.js";
 import { SessionAuthorization, type DaemonPermission } from "./authorization/index.js";
+import {
+  rejectingPlatformSession,
+  type PlatformBroker,
+  type PlatformSession,
+} from "./plugins/platform/broker.js";
 
 function resolveWorkspaceSetupRuntime(
   runtime: WorkspaceSetupRuntime | undefined,
@@ -440,6 +446,7 @@ const nodeSessionFileSystem: SessionFileSystem = {
 type AgentMcpTransportFactory = () => Promise<unknown>;
 
 export interface SessionOptions {
+  principalId?: string;
   browserToolsBroker?: BrowserToolsBroker | null;
   clientId: string;
   permissions: readonly DaemonPermission[];
@@ -478,6 +485,13 @@ export interface SessionOptions {
   workspaceAutoName: WorkspaceAutoName;
   daemonConfigStore: DaemonConfigStore;
   pluginRuntime?: {
+    readonly hostServices?: PlatformBroker | null;
+    readonly platformDiscoveryAvailable: boolean;
+    describePlatform(): import("@getpaseo/protocol/plugin-platform-messages").PluginPlatformDiscovery;
+    getPlatformCatalog(): Promise<import("@getpaseo/protocol/plugin-platform").PlatformCatalog>;
+    planPlatformResolution(
+      input: import("@getpaseo/protocol/plugin-platform").PlatformResolvePlanInput,
+    ): Promise<import("@getpaseo/protocol/plugin-platform").PlatformResolutionPlan>;
     before: import("./plugins/lifecycle/index.js").PluginLifecycle["before"];
     emit: import("./plugins/lifecycle/index.js").PluginLifecycle["emit"];
     listPlugins(): Promise<import("@getpaseo/protocol/messages").PluginListItem[]>;
@@ -699,6 +713,8 @@ export class Session {
   private readonly browserToolsBroker: SessionOptions["browserToolsBroker"];
   private readonly clientId: string;
   private readonly authorization: SessionAuthorization;
+  private readonly platformLifetime = new AbortController();
+  private readonly platformSession: PlatformSession;
   private appVersion: string | null;
   private clientCapabilities: ReadonlySet<ClientCapability>;
   private readonly sessionId: string;
@@ -860,6 +876,7 @@ export class Session {
     this.browserToolsBroker = options.browserToolsBroker;
     this.clientId = clientId;
     this.authorization = new SessionAuthorization(permissions);
+    this.platformSession = this.openPlatformSession(options);
     this.appVersion = appVersion ?? null;
     this.clientCapabilities = parseClientCapabilities(clientCapabilities);
     this.sessionId = uuidv4();
@@ -2177,6 +2194,7 @@ export class Session {
 
   public setPermissions(permissions: readonly DaemonPermission[]): void {
     this.authorization.replacePermissions(permissions);
+    this.platformSession.revalidate();
     if (!this.authorization.allowsPermission("workspace.write")) {
       void this.delivery
         .releaseFamily("browser-host")
@@ -2382,7 +2400,102 @@ export class Session {
     }
   }
 
+  private dispatchPluginPlatformMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    if (msg.type === "plugin.platform.host.describe.request") {
+      const hostServices = this.pluginRuntime?.hostServices;
+      if (!hostServices) throw new Error("Plugin host services are unavailable");
+      this.emit({
+        type: "plugin.platform.host.describe.response",
+        payload: { requestId: msg.requestId, capabilities: hostServices.describe() },
+      });
+      return Promise.resolve();
+    }
+    if (msg.type === "plugin.platform.host.resolve.request") {
+      return this.platformSession.resolve(msg.input).then((result) => {
+        this.emit({
+          type: "plugin.platform.host.resolve.response",
+          payload: { requestId: msg.requestId, result },
+        });
+        return undefined;
+      });
+    }
+    if (msg.type === "plugin.platform.host.call.request") {
+      return this.platformSession.call(msg.input, msg.requestId).then((result) => {
+        this.emit({
+          type: "plugin.platform.host.call.response",
+          payload: { requestId: msg.requestId, result },
+        });
+        return undefined;
+      });
+    }
+    if (msg.type === "plugin.platform.host.release.request") {
+      const result = this.platformSession.release(msg.binding);
+      this.emit({
+        type: "plugin.platform.host.release.response",
+        payload: { requestId: msg.requestId, result },
+      });
+      return Promise.resolve();
+    }
+    if (msg.type === "plugin.platform.discovery.describe.request") {
+      if (!this.pluginRuntime) throw new Error("Plugin service is unavailable");
+      this.emit({
+        type: "plugin.platform.discovery.describe.response",
+        payload: { requestId: msg.requestId, discovery: this.pluginRuntime.describePlatform() },
+      });
+      return Promise.resolve();
+    }
+    if (msg.type === "plugin.platform.discovery.list.request") {
+      if (!this.pluginRuntime) throw new Error("Plugin service is unavailable");
+      return this.pluginRuntime.getPlatformCatalog().then((catalog) => {
+        this.emit({
+          type: "plugin.platform.discovery.list.response",
+          payload: { requestId: msg.requestId, catalog },
+        });
+        return undefined;
+      });
+    }
+    if (msg.type === "plugin.platform.discovery.plan_resolution.request") {
+      if (!this.pluginRuntime) throw new Error("Plugin service is unavailable");
+      return this.pluginRuntime
+        .planPlatformResolution(PlatformResolvePlanInputSchema.strip().parse(msg))
+        .then((plan) => {
+          this.emit({
+            type: "plugin.platform.discovery.plan_resolution.response",
+            payload: { requestId: msg.requestId, plan },
+          });
+          return undefined;
+        });
+    }
+    return undefined;
+  }
+
+  private openPlatformSession(options: SessionOptions): PlatformSession {
+    const hostServices = options.pluginRuntime?.hostServices;
+    if (!hostServices) {
+      return rejectingPlatformSession({
+        code: "UNSUPPORTED_FEATURE",
+        message: "This host does not run plugin host services",
+        retryable: false,
+      });
+    }
+    // Plugin owner sessions carry no principal: their daemon access is not a business caller.
+    if (!options.principalId) {
+      return rejectingPlatformSession({
+        code: "UNAUTHORIZED",
+        message: "Plugin host services require an authenticated principal",
+        retryable: false,
+      });
+    }
+    return hostServices.openSession({
+      principalId: options.principalId,
+      getPermissions: () => this.authorization.listPermissions(),
+      signal: this.platformLifetime.signal,
+    });
+  }
+
   private dispatchPluginMessage(msg: SessionInboundMessage): Promise<void> | undefined {
+    const platform = this.dispatchPluginPlatformMessage(msg);
+    if (platform) return platform;
     if (msg.type === "plugin.list.request") {
       return (this.pluginRuntime?.listPlugins() ?? Promise.resolve([])).then((plugins) => {
         this.emit({
@@ -8483,6 +8596,7 @@ export class Session {
    * Clean up session resources
    */
   public async cleanup(): Promise<void> {
+    this.platformLifetime.abort();
     this.sessionLogger.trace({}, "agent.session.lifecycle.cleanup");
     this.isCleanedUp = true;
     await this.delivery.close();

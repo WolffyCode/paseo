@@ -1,5 +1,6 @@
 import { PluginHookHandlers } from "./lifecycle/index.js";
-import { evaluateBundle } from "./bundle-evaluator.js";
+import { evaluateBundle, evaluatePlatformBundle } from "./bundle-evaluator.js";
+import { createPlatformWorker } from "./platform/worker.js";
 import {
   PluginProcessRequestSchema,
   type PluginProcessMessage,
@@ -482,6 +483,11 @@ export function createPluginWorker(options: {
       handleHookMessage(message);
       return;
     }
+    if (message.type !== "invoke") {
+      send({ type: "fatal", error: "Platform requests require a v1 plugin entry" });
+      void shutdown();
+      return;
+    }
     const registered = handlers.get(message.method);
     if (!registered) {
       send({
@@ -564,7 +570,14 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
     const parsed = PluginProcessRequestSchema.safeParse(raw);
     if (!worker && parsed.success && parsed.data.type === "initialize") {
       try {
-        worker = createPluginWorker({ channel, contribute: evaluateBundle(parsed.data.bundle) });
+        const initialization = parsed.data.platform;
+        worker = initialization
+          ? createPlatformWorker({
+              channel,
+              register: evaluatePlatformBundle(parsed.data.bundle),
+              initialization,
+            })
+          : createPluginWorker({ channel, contribute: evaluateBundle(parsed.data.bundle) });
       } catch (error) {
         channel.send({ type: "fatal", error: describeError(error) });
         return;

@@ -1,6 +1,9 @@
 import { EventEmitter } from "node:events";
 import { PassThrough } from "node:stream";
 import type { PluginServerContribution } from "@getpaseo/plugin/server";
+import type { ServerPluginRegistration } from "@getpaseo/plugin/v1/server";
+import { createPlatformWorker } from "./platform/worker.js";
+import type { PlatformWorkerInitialization } from "./platform/process-protocol.js";
 import { createPluginWorker, type PluginWorkerChannel } from "./plugin-process.js";
 import type { PluginProcessMessage, PluginProcessRequest } from "./plugin-process-protocol.js";
 
@@ -13,7 +16,11 @@ export class InternalPluginChild extends EventEmitter {
   private readonly workerMessages = new Set<(message: PluginProcessRequest) => void>();
   private closing: Promise<void> | null = null;
 
-  constructor(contribute: PluginServerContribution) {
+  constructor(
+    contribution:
+      | PluginServerContribution
+      | { register: ServerPluginRegistration; initialization: PlatformWorkerInitialization },
+  ) {
     super();
     const channel: PluginWorkerChannel = {
       send: (message: PluginProcessMessage, callback?: () => void) => {
@@ -29,7 +36,10 @@ export class InternalPluginChild extends EventEmitter {
       },
       disconnect: () => this.disconnect(),
     };
-    this.worker = createPluginWorker({ channel, contribute });
+    this.worker =
+      typeof contribution === "function"
+        ? createPluginWorker({ channel, contribute: contribution })
+        : createPlatformWorker({ channel, ...contribution });
   }
 
   send(message: PluginProcessRequest, callback?: (error: Error | null) => void): boolean {

@@ -62,6 +62,31 @@ async function compileInlineSchema(sourceSchema: string): Promise<GeneratedSchem
 }
 
 describe("WS outbound zod-aot validation", () => {
+  it("preserves regex flags and resets stateful expressions between validations", async () => {
+    const schema = await compileInlineSchema(String.raw`
+const SourceSchema = z.object({
+  id: z.string().regex(/^[^\p{Cc}]+$/u),
+  insensitive: z.string().regex(/^helm$/i),
+  sensitive: z.string().regex(/^helm$/),
+  sticky: z.string().regex(/helm/y),
+  repeated: z.string().regex(/helm/g),
+});
+`);
+    const input = {
+      id: "srv_acp_\u4e2d\u6587",
+      insensitive: "HELM",
+      sensitive: "helm",
+      sticky: "helm",
+      repeated: "helm",
+    };
+    expect(schema.safeParse(input)).toEqual({ success: true, data: input });
+    expect(schema.safeParse(input)).toEqual({ success: true, data: input });
+    expect(schema.safeParse({ ...input, id: "srv_\n" }).success).toBe(false);
+    expect(schema.safeParse({ ...input, sensitive: "HELM" }).success).toBe(false);
+    expect(schema.safeParse({ ...input, sticky: "ahelm" }).success).toBe(false);
+    expect(schema.safeParse({ ...input, insensitive: "other" }).success).toBe(false);
+  });
+
   it("applies defaults inside discriminated-union branches", async () => {
     const schema = await compileInlineSchema(`
 const SourceSchema = z.discriminatedUnion("type", [
@@ -264,6 +289,51 @@ const SourceSchema = z.object({
   it("emits runtime imports with .js extensions", async () => {
     const generated = await readFile(generatedWSOutboundPath, "utf8");
     expect(generated).toContain('from "../../validation/ws-outbound-schema-metadata.js"');
+  });
+
+  it("routes plugin host resolve results by status and then by mode", () => {
+    const binding = {
+      provider: {
+        installation: { kind: "host", serverId: "srv", installationId: "files" },
+        providesId: "files",
+      },
+      serviceId: "acme.files",
+      apiVersion: "1.0.0",
+      schemaDigest: `sha256:${"0".repeat(64)}`,
+      runtime: "daemon",
+      providerScope: "host",
+      binding: { bindingId: "binding", generation: "generation" },
+      scope: { kind: "host", serverId: "srv" },
+      execution: { kind: "daemon", serverId: "srv", runtimeId: "files", generation: "generation" },
+    };
+    const envelope = (result: unknown) => ({
+      type: "session",
+      message: {
+        type: "plugin.platform.host.resolve.response",
+        payload: { requestId: "resolve", result },
+      },
+    });
+    const parse = (result: unknown) =>
+      GeneratedWSOutboundMessageSchema.safeParse(envelope(result)).success;
+
+    expect(parse({ status: "ok", value: { mode: "one", binding } })).toBe(true);
+    expect(
+      parse({
+        status: "ok",
+        value: {
+          mode: "many",
+          bindings: [binding],
+          diagnostics: [{ code: "DEPENDENCY_MISSING", message: "Absent", retryable: true }],
+        },
+      }),
+    ).toBe(true);
+    expect(
+      parse({ status: "error", error: { code: "FORBIDDEN", message: "No", retryable: false } }),
+    ).toBe(true);
+    expect(parse({ status: "ok", value: { mode: "one", bindings: [binding] } })).toBe(false);
+    expect(parse({ status: "ok", value: { mode: "many", bindings: [], diagnostics: [] } })).toBe(
+      false,
+    );
   });
 
   it("accepts a forge.search.response envelope", () => {

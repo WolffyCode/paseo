@@ -1,0 +1,36 @@
+export {
+  PlatformErrorSchema,
+  PlatformHostCapabilitiesSchema,
+  type PlatformError,
+  type PlatformHostCapabilities,
+  type PlatformHostBinding,
+  type PlatformHostResolve,
+  type PlatformHostCall,
+  type PlatformHostCallResult,
+  type PlatformHostResolveResult,
+  type PlatformHostReleaseResult,
+  type PlatformBindingRef,
+} from "@getpaseo/protocol/plugin-platform-execution";
+export {
+  PLUGIN_PLATFORM_API_VERSION,
+  PluginPlatformManifestSchema,
+  PlatformServiceSchema,
+  PlatformExtensionPointSchema,
+  type PluginPlatformManifest,
+  type PlatformService,
+  type PlatformExtensionPoint,
+  type PlatformDependency,
+  type PlatformProvider,
+  type PlatformProviderRef,
+  type PlatformScope,
+  type PlatformDiagnostic,
+  type PlatformCatalog,
+  type PlatformResolvePlanInput,
+  type PlatformResolutionPlan,
+} from "@getpaseo/protocol/plugin-platform";
+export {
+  parsePluginPlatformManifest,
+  parsePlatformService,
+  parsePlatformExtensionPoint,
+  PluginPlatformError,
+} from "@getpaseo/protocol/plugin-platform-validation";

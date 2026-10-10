@@ -9,6 +9,8 @@ import * as server from "./server/index.js";
 const sourceDirectory = path.dirname(fileURLToPath(import.meta.url));
 const entries = {
   ".": "shared",
+  "./v1": "shared",
+  "./v1/server": "server",
   "./server": "server",
   "./server/provider": "server",
   "./server/usage": "server",
@@ -19,7 +21,7 @@ const entries = {
   "./client/ui": "client",
 } as const;
 const uiDependency = /^(react(?:-dom|-native)?|use-sync-external-store)(\/|$)/;
-const serverModule = /^server\//;
+const serverModule = /^(?:v1\/)?server\//;
 const clientModule = /^client\//;
 
 function resolveLocal(importer: string, specifier: string): string {
@@ -51,7 +53,13 @@ function boundaryViolations(entry: string, runtime: "shared" | "server" | "clien
         if (runtime !== "server" && serverModule.test(module)) violations.push(label);
         pending.push(local);
       } else if (runtime === "shared") {
-        if (specifier !== "zod" && specifier !== "@getpaseo/protocol/agent-types")
+        if (
+          specifier !== "zod" &&
+          specifier !== "@getpaseo/protocol/agent-types" &&
+          specifier !== "@getpaseo/protocol/plugin-platform" &&
+          specifier !== "@getpaseo/protocol/plugin-platform-execution" &&
+          specifier !== "@getpaseo/protocol/plugin-platform-validation"
+        )
           violations.push(label);
       } else if (runtime === "server") {
         if (uiDependency.test(specifier) || /^@getpaseo\/plugin\/client(\/|$)/.test(specifier))

@@ -47,8 +47,10 @@ export class BuiltinPluginLoader {
   }
 
   async load(start: (plugin: BuiltinPlugin) => Promise<void>): Promise<void> {
-    for (const id of this.list) {
-      await start({ id, directory: path.join(this.root, id) });
-    }
+    for (const plugin of this.entries()) await start(plugin);
+  }
+
+  entries(): BuiltinPlugin[] {
+    return this.list.map((id) => ({ id, directory: path.join(this.root, id) }));
   }
 }

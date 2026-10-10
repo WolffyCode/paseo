@@ -18,9 +18,23 @@ import {
 import { parsePluginSourceReference } from "@getpaseo/protocol/plugin-source-reference";
 import { assertPluginCompatibility } from "@getpaseo/protocol/plugin-requirements";
 import { BUILTIN_PROVIDER_IDS } from "@getpaseo/protocol/provider-manifest";
+import {
+  PLUGIN_PLATFORM_API_VERSION,
+  type PlatformCatalog,
+  type PlatformResolutionPlan,
+  type PlatformResolvePlanInput,
+} from "@getpaseo/protocol/plugin-platform";
+import type { PluginPlatformDiscovery } from "@getpaseo/protocol/plugin-platform-messages";
+import { buildPlatformCatalog, type PlatformPackageSource } from "./platform/catalog.js";
+import { planPlatformResolution } from "./platform/resolution.js";
 import type { DaemonConfigStore } from "../daemon-config-store.js";
 import { type ManagedPluginCandidate, ManagedPluginSources } from "./managed-source.js";
-import { readPluginManifest } from "./manifest.js";
+import {
+  readPluginManifest,
+  assertPluginExecutionSupported,
+  type PluginManifest,
+} from "./manifest.js";
+import { loadExecutablePlatformPackage } from "./platform/broker.js";
 import { expandTilde } from "../../utils/path.js";
 import { runPluginBuild } from "./preparation.js";
 import { PluginRuntime } from "./runtime.js";
@@ -37,6 +51,7 @@ import type { PluginUsageSourceMetadata } from "./plugin-process-protocol.js";
 const BUILTIN_PROVIDER_ID_SET: ReadonlySet<string> = new Set(BUILTIN_PROVIDER_IDS);
 
 interface PluginRuntimePort {
+  readonly hostServices?: PluginRuntime["hostServices"];
   emit?: PluginLifecycle["emit"];
   drainEvents?: PluginRuntime["drainEvents"];
   before?: PluginLifecycle["before"];
@@ -61,6 +76,7 @@ interface PluginRuntimePort {
 }
 
 interface PluginServiceDependencies {
+  serverId?: string;
   usageAgents?: AgentUsageLookup;
   settingsDirectory?: string;
   runtime?: PluginRuntimePort;
@@ -111,6 +127,7 @@ export class PluginService {
     this.runtime =
       dependencies.runtime ??
       new PluginRuntime(logger, daemonVersion, {
+        serverId: dependencies.serverId,
         settingsDirectory: dependencies.settingsDirectory,
         onSettingsChanged: (pluginId, settingsId) => {
           for (const listener of this.settingsListeners) listener(pluginId, settingsId);
@@ -220,7 +237,7 @@ export class PluginService {
           item.name = manifest.name;
           item.description = manifest.description;
           item.icon = manifest.icon;
-          item.media = manifest.media;
+          if (manifest.manifestVersion !== 1) item.media = manifest.media;
         }
         item.installation = await this.managedSources
           ?.describe(id, source.path)
@@ -248,14 +265,58 @@ export class PluginService {
   }
 
   catalog(): ReturnType<PluginRuntime["catalog"]> {
-    return this.runtime.catalog();
+    return this.runtime.catalog().filter((plugin) => !plugin.platform);
+  }
+
+  get hostServices(): PluginRuntime["hostServices"] {
+    return this.runtime.hostServices ?? null;
+  }
+
+  get platformDiscoveryAvailable(): boolean {
+    return this.dependencies.serverId !== undefined;
+  }
+
+  describePlatform(): PluginPlatformDiscovery {
+    if (!this.platformDiscoveryAvailable)
+      throw new Error("Plugin platform discovery requires a host identity");
+    return {
+      apiVersion: PLUGIN_PLATFORM_API_VERSION,
+      definitions: true,
+      resolutionPlans: true,
+    };
+  }
+
+  getPlatformCatalog(): Promise<PlatformCatalog> {
+    return this.enqueue(async () => {
+      const serverId = this.dependencies.serverId;
+      if (!serverId) throw new Error("Plugin platform discovery requires a host identity");
+      const config = this.configStore.get();
+      const sources: PlatformPackageSource[] = this.builtinPlugins.entries().map((plugin) => ({
+        id: plugin.id,
+        directory: plugin.directory,
+        origin: "builtin",
+        enabled: true,
+      }));
+      for (const [id, source] of Object.entries(config.plugins ?? {})) {
+        sources.push({
+          id,
+          directory: source.path,
+          origin: "configured",
+          enabled: config.pluginsEnabled === true && source.enabled !== false,
+        });
+      }
+      return buildPlatformCatalog({ serverId, daemonVersion: this.daemonVersion, sources });
+    });
+  }
+
+  async planPlatformResolution(input: PlatformResolvePlanInput): Promise<PlatformResolutionPlan> {
+    return planPlatformResolution(await this.getPlatformCatalog(), input);
   }
 
   async installDirectory(input: { path: string; id?: string }): Promise<PluginListItem> {
     return this.enqueue(async () => {
       const directory = path.resolve(input.path);
-      const manifest = await readPluginManifest(directory);
-      assertPluginCompatibility({ ...manifest, version: this.daemonVersion, runtime: "daemon" });
+      const manifest = await this.checkRequirements(directory);
       const pluginId = PluginIdSchema.parse(input.id ?? manifest.id);
       if (this.builtinPluginIds.has(pluginId)) {
         throw new Error(`Plugin ID "${pluginId}" is reserved for a built-in plugin`);
@@ -687,9 +748,20 @@ export class PluginService {
     this.errors.set(pluginId, error instanceof Error ? error.message : String(error));
   }
 
-  private async checkRequirements(directory: string): Promise<void> {
+  /** Rejects a package this daemon cannot run before any configuration change or build. */
+  private async checkRequirements(directory: string): Promise<PluginManifest> {
     const manifest = await readPluginManifest(directory);
+    assertPluginExecutionSupported(manifest);
     assertPluginCompatibility({ ...manifest, version: this.daemonVersion, runtime: "daemon" });
+    if (manifest.manifestVersion === 1) {
+      await loadExecutablePlatformPackage({
+        directory,
+        manifest,
+        daemonVersion: this.daemonVersion,
+        origin: "configured",
+      });
+    }
+    return manifest;
   }
 
   private async updateSource(proposal: PluginUpdateProposal): Promise<PluginUpdateResult> {

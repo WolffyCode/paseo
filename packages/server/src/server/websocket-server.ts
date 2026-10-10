@@ -458,6 +458,7 @@ interface PluginSessionConnection extends SessionConnectionBase {
 type SessionConnection = ReconnectableSessionConnection | PluginSessionConnection;
 
 interface SocketSessionOptions {
+  principalId?: string;
   clientId: string;
   appVersion: string | null;
   clientCapabilities: Record<string, unknown> | null;
@@ -1380,6 +1381,7 @@ export class VoiceAssistantWebSocketServer {
     let connection: SessionConnection | null = null;
 
     const session = this.createSocketSession({
+      principalId: lifecycle.kind === "reconnectable" ? admission.principalId : undefined,
       clientId,
       appVersion,
       clientCapabilities,
@@ -1453,6 +1455,7 @@ export class VoiceAssistantWebSocketServer {
 
   private createSocketSession(options: SocketSessionOptions): Session {
     return new Session({
+      principalId: options.principalId,
       browserToolsBroker: this.browserToolsBroker,
       clientId: options.clientId,
       appVersion: options.appVersion,
@@ -1842,6 +1845,8 @@ export class VoiceAssistantWebSocketServer {
         pluginThemes: true,
         pluginSettings: true,
         pluginTimelineItems: true,
+        pluginPlatformDiscoveryV1: this.pluginRuntime?.platformDiscoveryAvailable === true,
+        pluginPlatformHostServicesV1: this.pluginRuntime?.hostServices != null,
         // COMPAT(skillManagement): added in v0.4.0, remove gate after 2027-08-16.
         skillManagement: true,
         // COMPAT(terminalRestoreModes): added in v0.1.81, remove gate after 2026-11-23.
