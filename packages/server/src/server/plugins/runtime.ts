@@ -40,6 +40,7 @@ import type { PluginPlatformManifest } from "@getpaseo/protocol/plugin-platform"
 import { PlatformBroker } from "./platform/broker.js";
 import { loadExecutablePlatformPackage } from "./platform/host-capabilities.js";
 import type { PlatformExecution, PlatformExecutionRequest } from "./platform/provider-lifecycle.js";
+import type { PlatformScopeDirectory } from "./platform/scopes.js";
 import { PlatformWorkerError, executionError } from "./platform/execution-errors.js";
 import type { LoadedPlatformPackage } from "./platform/package.js";
 import type { PlatformWorkerInitialization } from "./platform/process-protocol.js";
@@ -147,6 +148,7 @@ interface RemoteProviderConnection {
 interface PluginRuntimeDependencies {
   serverId?: string;
   settingsDirectory?: string;
+  platformScopes?: PlatformScopeDirectory;
   onSettingsChanged?: (pluginId: string, settingsId: string) => void;
   spawnChild?: () => PluginChild;
   sessionHost?: PluginPaseoSessionHost;
@@ -342,7 +344,12 @@ export class PluginRuntime {
     this.spawnChild = dependencies.spawnChild ?? spawnPluginChild;
     this.sessionHost = dependencies.sessionHost ?? null;
     this.hostServices = dependencies.serverId
-      ? new PlatformBroker({ serverId: dependencies.serverId, logger: this.logger })
+      ? new PlatformBroker({
+          serverId: dependencies.serverId,
+          logger: this.logger,
+          settingsDirectory: dependencies.settingsDirectory,
+          scopes: dependencies.platformScopes,
+        })
       : null;
   }
 

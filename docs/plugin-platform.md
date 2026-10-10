@@ -5,13 +5,14 @@ V1 plugins declare services, dependencies, and contributions in `paseo-plugin.js
 trusted daemon providers as host services for authenticated callers. The existing plugin runtime is
 documented in [plugins](plugins.md).
 
-Two `server_info.features` flags gate the client SDK. It checks them at its boundary and reports an
-unsupported host without sending a request:
+Three `server_info.features` flags gate the client SDK. It checks them at its boundary and reports
+an unsupported host without sending a request:
 
-| Flag                           | Capability                                                    |
-| ------------------------------ | ------------------------------------------------------------- |
-| `pluginPlatformDiscoveryV1`    | Catalog and dependency plans for installed v1 definitions     |
-| `pluginPlatformHostServicesV1` | Resolving and calling host-scoped daemon services as a caller |
+| Flag                            | Capability                                                    |
+| ------------------------------- | ------------------------------------------------------------- |
+| `pluginPlatformDiscoveryV1`     | Catalog and dependency plans for installed v1 definitions     |
+| `pluginPlatformHostServicesV1`  | Resolving and calling host-scoped daemon services as a caller |
+| `pluginPlatformConfigurationV1` | Reading and writing layered settings of running v1 plugins    |
 
 This document owns the implemented scope. The full v1 design, including the parts that are not
 implemented yet, lives in the planning specification under `.dev/product-planning/`.
@@ -102,8 +103,9 @@ const register: ServerPluginRegistration = (context) => {
 export default register;
 ```
 
-The factory's method names must equal the service contract's methods. Handlers receive validated
-input and an `InvocationContext` with the caller, scope, trace, an abort `signal`, and `services`.
+The factory's method names must equal the service contract's methods. It receives its provider
+settings as `context.config`. Handlers receive validated input and an `InvocationContext` with the
+caller, scope, the call's settings as `effectiveConfig`, trace, an abort `signal`, and `services`.
 Return a JSON value that matches the method's output schema. Throw `PluginPlatformError` to return a
 declared failure with your own code.
 
@@ -118,7 +120,9 @@ The daemon executes this subset of the v1 contract. Installing or updating a pac
 anything else fails with `UNSUPPORTED_FEATURE` before any configuration change or preparation
 command; starting one fails with the same error:
 
-- a trusted `index.server.ts` entry with no client entry, settings, or states;
+- a trusted `index.server.ts` entry with no client entry or states;
+- settings at host, project and conversation scope with provider or invocation fields and no
+  transitions;
 - providers in the daemon runtime and host scope with the `drain` stop policy;
 - eager dependencies consumed by providers on this host;
 - `helm.auth.permission` contributions only;
@@ -127,8 +131,8 @@ command; starting one fails with the same error:
 
 Calls follow one order: the caller owns the binding, the binding's provider generation is current
 and admits the call, the method exists, the caller holds every permission the method lists, the
-input matches its schema, the provider runs, permissions are checked again, and the output matches
-its schema. Permission arrays are AND. Plugin permissions expand to their daemon base permissions.
+input matches its schema, the call's settings are read at its scope, the provider runs, permissions
+are checked again, and the output matches its schema. Permission arrays are AND. Plugin permissions expand to their daemon base permissions.
 
 | Code                      | Meaning                                                                        |
 | ------------------------- | ------------------------------------------------------------------------------ |
@@ -140,10 +144,16 @@ its schema. Permission arrays are AND. Plugin permissions expand to their daemon
 | `OUTCOME_UNKNOWN`         | A command failed after dispatch without declaring its result; do not repeat it |
 | `DEPENDENCY_MISSING`      | No visible provider, or a required dependency is missing or not active         |
 | `PLUGIN_UNAVAILABLE`      | The provider is starting, draining or failed to start, or its process exited   |
+| `CONFIG_INVALID`          | A stored settings layer breaks the settings definition                         |
+| `CONFIG_CONFLICT`         | The settings layer changed since the revision the write expected               |
+| `RESOURCE_NOT_FOUND`      | The project, conversation or settings definition does not exist                |
 | `NO_EXECUTION_ROUTE`      | The request targets another host, runtime, or provider scope                   |
 | `UNAUTHORIZED`            | The session has no authenticated principal                                     |
 
-Resolution hides providers whose `inspectPermissions` the caller lacks; it reports them as missing.
+Resolve with a `host`, `project` or `conversation` business scope on this host; every call runs on
+the host provider. A conversation names its explicit project, and an independent conversation names
+none. Resolution hides providers whose `inspectPermissions` the caller lacks; it reports them as
+missing.
 `describePluginHostServices()` returns the supported runtimes, targets, retry policies, and limits.
 The default deadline is 30 seconds, nested calls stop at depth 16, and each session holds at most 256
 bindings.
@@ -157,22 +167,22 @@ Each declared provider is a node of the dependency graph, keyed by installation,
 provider scope. The lifecycle settles the nodes whenever a plugin starts, stops or exits, one change
 at a time:
 
-| State                  | Meaning                                                                  |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `unresolved`           | Registered and not evaluated yet                                         |
-| `pending-dependencies` | A required dependency is missing or not active; `reason` names it        |
-| `activating`           | Its factory is running                                                   |
-| `active`               | Takes calls at its current generation                                    |
-| `draining`             | Refuses new calls and finishes the ones it accepted                      |
-| `inactive`             | Its plugin is stopping                                                   |
-| `failed`               | Its factory threw or missed the activation deadline; `reason` says which |
+| State                  | Meaning                                                           |
+| ---------------------- | ----------------------------------------------------------------- |
+| `unresolved`           | Registered and not evaluated yet                                  |
+| `pending-dependencies` | A required dependency is missing or not active; `reason` names it |
+| `activating`           | Its factory is running                                            |
+| `active`               | Takes calls at its current generation                             |
+| `draining`             | Refuses new calls and finishes the ones it accepted               |
+| `inactive`             | Its plugin is stopping                                            |
+| `failed`               | Its factory or its settings failed; `reason` says which           |
 
 A node activates as soon as its plan resolves and every dependency it plans on is active. When a
 dependency stops, restarts or gets a new generation, every provider that runs against it, directly
 or transitively, retires too: dependents drain and dispose first, then the dependency. Each returns
 with a new generation once its dependencies are active again. Independent providers keep running.
-A failed factory runs again only after its dependencies change or its plugin restarts; the plugin
-keeps serving its other providers.
+A failed factory runs again only after its dependencies or restart-required settings change, or its
+plugin restarts; the plugin keeps serving its other providers.
 
 Stopping or reloading a plugin drains it. Its providers refuse new calls at once with
 `PLUGIN_UNAVAILABLE`, finish the calls they accepted, and dispose before the process stops. A
@@ -190,19 +200,56 @@ generation ended returns `STALE_BINDING`; resolve again.
 while the provider runs, and the `reason` for pending, inactive and failed providers. The state is
 an open string, so treat values you do not know as unavailable.
 
+## Configuration
+
+`manifest.settings` declares each setting's leaf fields as JSON Pointers into its packaged schema.
+`plugins/settings/` stays the single settings owner. The v1 host layer is the same
+`<settingsId>.json` document legacy plugin settings use, and the project and conversation layers sit
+beside it in the installation's directory, so removing the installation removes them all.
+
+Effective settings apply `host`, then the conversation's explicit `project`, then `conversation`.
+An independent conversation has no project layer, even though a private project backs its
+directory. A layer stores only its overrides: a missing field inherits, an explicit `false`
+overrides, and a field holds an object or array as one value. Schema defaults apply after merging
+and are never written into a layer. `writePluginConfigurationLayer` replaces a scope's whole layer,
+so a field it omits inherits again. `clearPluginConfigurationOverride` removes declared fields.
+
+Every write names the layer revision it replaces; another revision returns `CONFIG_CONFLICT` without
+merging, so reload and reapply the edit. A read reports each contributing layer's revision, the
+source of every field, and an `effectiveRevision` that changes whenever any of them changes. Reads
+never write. A broken layer stays as written: reading returns `CONFIG_INVALID` with its scope and
+revision in `details`, and writing that revision replaces it.
+
+Fields declare where they apply:
+
+| Application  | Received as                                                | Changes take effect                     |
+| ------------ | ---------------------------------------------------------- | --------------------------------------- |
+| `provider`   | `ProviderContext.config`, at the provider's lifetime scope | After the provider restarts             |
+| `invocation` | `InvocationContext.effectiveConfig`, at the call's scope   | On the next call, without a new binding |
+
+A `provider` field must be `restartRequired`, and a restart-required field is limited to the
+lifetime scopes of the providers it restarts. Changing one drains every provider using those
+settings and restarts it with a new generation; the write resolves after the restart and lists the
+restarted providers. Invalid host settings keep their providers `failed` until a write fixes them.
+
+## Client API
+
 ## Client API
 
 Connect a `DaemonClient`, then use these methods:
 
-| Method                                | Result                                                              |
-| ------------------------------------- | ------------------------------------------------------------------- |
-| `describePluginPlatform()`            | Discovery capabilities                                              |
-| `getPluginPlatformCatalog()`          | Host identity, revision, installations, definitions and diagnostics |
-| `planPluginPlatformResolution(input)` | Candidate provider references, dependency nodes and diagnostics     |
-| `describePluginHostServices()`        | Executable runtimes, targets, retry policies and limits             |
-| `resolvePluginHostService(input)`     | One binding (`mode: "one"`) or an ordered set (`mode: "many"`)      |
-| `callPluginHostService(input)`        | The method output or a platform error                               |
-| `releasePluginHostService(binding)`   | Releases a binding; idempotent                                      |
+| Method                                    | Result                                                               |
+| ----------------------------------------- | -------------------------------------------------------------------- |
+| `describePluginPlatform()`                | Discovery capabilities                                               |
+| `getPluginPlatformCatalog()`              | Host identity, revision, installations, definitions and diagnostics  |
+| `planPluginPlatformResolution(input)`     | Candidate provider references, dependency nodes and diagnostics      |
+| `describePluginHostServices()`            | Executable runtimes, targets, retry policies and limits              |
+| `resolvePluginHostService(input)`         | One binding (`mode: "one"`) or an ordered set (`mode: "many"`)       |
+| `callPluginHostService(input)`            | The method output or a platform error                                |
+| `releasePluginHostService(binding)`       | Releases a binding; idempotent                                       |
+| `readPluginConfiguration(input)`          | Effective values, provenance, layer revisions and effective revision |
+| `writePluginConfigurationLayer(input)`    | The new layer revision and the providers that restarted              |
+| `clearPluginConfigurationOverride(input)` | The new layer revision and the providers that restarted              |
 
 For example, resolve a binding and call a method:
 
@@ -236,16 +283,19 @@ daemon provider in its own package is not a package dependency cycle. Contextual
 reported separately. Cycles include the node path that caused the failure.
 
 Discovery uses `plugin.platform.discovery.describe`, `.list`, and `.plan_resolution`; host services
-use `plugin.platform.host.describe`, `.resolve`, `.call`, and `.release`, each with `.request` and
-`.response`. Discovery requires `daemon.manage` because it inspects installation metadata. Host
-service RPCs carry no fixed permission: the broker checks the selected contract's permissions
-against the caller. The legacy `plugin.rpc.invoke` permission remains `daemon.manage`.
+use `plugin.platform.host.describe`, `.resolve`, `.call`, and `.release`; configuration uses
+`plugin.platform.config.read`, `.write`, and `.clear`; each has `.request` and `.response`.
+Discovery and configuration require `daemon.manage`, like legacy plugin settings. Host service RPCs
+carry no fixed permission: the broker checks the selected contract's permissions against the caller.
+The legacy `plugin.rpc.invoke` permission remains `daemon.manage`.
 
 ## Not implemented
 
 V1 client entries do not run yet, so v1 plugins stay out of the legacy client catalog. There is no
-card mount, configuration layering, durable operation, event subscription, window lease, Agent or MCP
-caller, cross-host delegation, or marketplace publication yet. MCP's `callerAgentId` is not an
+card mount, durable operation, event subscription, window lease, Agent or MCP caller, cross-host
+delegation, or marketplace publication yet. Configuration has no observation, settings transitions,
+client scope, view fields, cross-host export, or editing for a plugin that is not running; layers of
+a removed project or conversation stay until the installation is removed. MCP's `callerAgentId` is not an
 authenticated caller, so Agent tools cannot call host services until a verified Agent identity
 exists.
 

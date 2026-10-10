@@ -233,6 +233,7 @@ import {
 } from "./hub/relationship-remote.js";
 import { DaemonExecutions } from "./hub/daemon-executions.js";
 import { PluginService } from "./plugins/index.js";
+import { createPlatformScopeDirectory } from "./plugins/platform/scopes.js";
 import { BuiltinPluginLoader } from "./plugins/builtin/index.js";
 import { ManagedPluginSources } from "./plugins/managed-source.js";
 
@@ -632,6 +633,11 @@ export async function createPaseoDaemon(
     }),
     builtinPlugins: resolveBuiltinPluginLoader(dependencies),
     settingsDirectory: path.join(config.paseoHome, "plugin-settings"),
+    // The registries are created below; plugins start, and resolve scopes, only after that.
+    platformScopes: createPlatformScopeDirectory({
+      getProject: async (projectId) => (await projectRegistry?.get(projectId)) ?? null,
+      getWorkspace: async (workspaceId) => (await workspaceRegistry?.get(workspaceId)) ?? null,
+    }),
   });
 
   const daemonKeyPair = await loadOrCreateDaemonKeyPair(config.paseoHome, logger);
@@ -668,6 +674,7 @@ export async function createPaseoDaemon(
     app.set("trust proxy", value ?? ["loopback"]);
   });
   let boundListenTarget: ListenTarget | null = null;
+  let projectRegistry: FileBackedProjectRegistry | null = null;
   let workspaceRegistry: FileBackedWorkspaceRegistry | null = null;
   const terminalManager = createConfiguredTerminalManager({
     getTerminalActivityUrl: () => createTerminalActivityUrl(boundListenTarget),
@@ -880,7 +887,7 @@ export async function createPaseoDaemon(
   }
 
   const agentStorage = new AgentStorage(config.agentStoragePath, logger);
-  const projectRegistry = new FileBackedProjectRegistry(
+  projectRegistry = new FileBackedProjectRegistry(
     path.join(config.paseoHome, "projects", "projects.json"),
     logger,
   );

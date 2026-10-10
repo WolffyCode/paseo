@@ -1984,6 +1984,46 @@ test("plugin host services are gated before sending to an old host", async () =>
   expect(mock.sent).toEqual([]);
 });
 
+test("plugin configuration is gated before sending to an old host", async () => {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "configuration_gate",
+    logger: createMockLogger(),
+    reconnect: { enabled: false },
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+  const connected = client.connect();
+  mock.triggerOpen({ features: { pluginPlatformHostServicesV1: true } });
+  await connected;
+  const settings = {
+    installation: { kind: "host" as const, serverId: "srv_test", installationId: "files" },
+    settingsId: "files",
+  };
+  const scope = { kind: "host" as const, serverId: "srv_test" };
+  await expect(client.readPluginConfiguration({ settings, scope })).rejects.toThrow(
+    "requires an updated host",
+  );
+  await expect(
+    client.writePluginConfigurationLayer({
+      settings,
+      scope,
+      expectedRevision: "missing",
+      values: {},
+    }),
+  ).rejects.toThrow("requires an updated host");
+  await expect(
+    client.clearPluginConfigurationOverride({
+      settings,
+      scope,
+      expectedRevision: "missing",
+      paths: ["/showHidden"],
+    }),
+  ).rejects.toThrow("requires an updated host");
+  expect(mock.sent).toEqual([]);
+});
+
 test("plugin platform discovery correlates metadata and resolution plans", async () => {
   const mock = createMockTransport();
   const client = new DaemonClient({

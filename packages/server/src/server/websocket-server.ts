@@ -1847,6 +1847,7 @@ export class VoiceAssistantWebSocketServer {
         pluginTimelineItems: true,
         pluginPlatformDiscoveryV1: this.pluginRuntime?.platformDiscoveryAvailable === true,
         pluginPlatformHostServicesV1: this.pluginRuntime?.hostServices != null,
+        pluginPlatformConfigurationV1: this.pluginRuntime?.hostServices?.isConfigurable === true,
         // COMPAT(skillManagement): added in v0.4.0, remove gate after 2027-08-16.
         skillManagement: true,
         // COMPAT(terminalRestoreModes): added in v0.1.81, remove gate after 2026-11-23.

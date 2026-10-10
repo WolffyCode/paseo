@@ -1,16 +1,12 @@
-import { createHash, randomUUID } from "node:crypto";
-import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
-import path from "node:path";
 import { z, type ZodType } from "zod";
 import { defineSettings, settingsRpc, type SettingsDefinition } from "@getpaseo/plugin";
 import type { PluginSettings, PluginSettingsState } from "@getpaseo/plugin/server";
+import { PluginSettingsDocuments, SettingsEnvelopeSchema, serializeSettings } from "./documents.js";
 
-const envelopeSchema = z.object({ version: z.number().int().positive(), values: z.json() });
 function message(error: unknown): string {
   if (error instanceof z.ZodError) return error.issues.map((issue) => issue.message).join("\n");
   return error instanceof Error ? error.message : String(error);
 }
-const revisionOf = (raw: string) => createHash("sha256").update(raw).digest("hex");
 
 type SettingsListener<Schema extends ZodType> = (
   state: PluginSettingsState<Schema>,
@@ -36,10 +32,10 @@ export class PluginSettingsStore {
   private readonly definitions = new Map<string, SettingsDefinition>();
   private queue: Promise<unknown> = Promise.resolve();
 
-  private readonly directory: string;
+  private readonly documents: PluginSettingsDocuments;
   private readonly changed: (id: string) => void;
   constructor(directory: string, changed: (id: string) => void) {
-    this.directory = directory;
+    this.documents = new PluginSettingsDocuments(directory);
     this.changed = changed;
   }
 
@@ -89,24 +85,14 @@ export class PluginSettingsStore {
     return pending;
   }
 
-  private async stored(id: string) {
-    try {
-      const raw = await readFile(path.join(this.directory, `${id}.json`), "utf8");
-      return { raw, revision: revisionOf(raw) };
-    } catch (error) {
-      if (error && typeof error === "object" && "code" in error && error.code === "ENOENT")
-        return { raw: null, revision: "missing" };
-      throw error;
-    }
-  }
-
   private async read<Schema extends ZodType>(
     definition: SettingsDefinition<Schema>,
     notify: (state: PluginSettingsState<Schema>) => void,
   ): Promise<PluginSettingsState<Schema>> {
-    const stored = await this.stored(definition.id);
+    const stored = await this.documents.read(`${definition.id}.json`);
     try {
-      const envelope = stored.raw === null ? null : envelopeSchema.parse(JSON.parse(stored.raw));
+      const envelope =
+        stored.raw === null ? null : SettingsEnvelopeSchema.parse(JSON.parse(stored.raw));
       let values: unknown = envelope?.values ?? {};
       if (envelope && envelope.version !== definition.version) {
         if (envelope.version > definition.version)
@@ -141,7 +127,7 @@ export class PluginSettingsStore {
     intent: "save" | "reset",
     notify: (state: PluginSettingsState<Schema>) => void,
   ): Promise<SettingsWriteState<Schema>> {
-    const stored = await this.stored(definition.id);
+    const stored = await this.documents.read(`${definition.id}.json`);
     if (stored.revision !== revision)
       return {
         status: "conflict",
@@ -150,7 +136,7 @@ export class PluginSettingsStore {
     let parsed: z.output<Schema>;
     try {
       if (intent === "save" && stored.raw !== null) {
-        const envelope = envelopeSchema.parse(JSON.parse(stored.raw));
+        const envelope = SettingsEnvelopeSchema.parse(JSON.parse(stored.raw));
         if (envelope.version !== definition.version)
           throw new Error("Reload or reset settings before saving a different schema version");
       }
@@ -165,21 +151,11 @@ export class PluginSettingsStore {
     return { status: "saved", values: parsed, revision: nextRevision };
   }
 
-  private async persist<Schema extends ZodType>(
+  private persist<Schema extends ZodType>(
     definition: SettingsDefinition<Schema>,
     values: z.output<Schema>,
-  ) {
-    const jsonValues = z.json().parse(values);
-    await mkdir(this.directory, { recursive: true });
-    const target = path.join(this.directory, `${definition.id}.json`);
-    const temporary = `${target}.${randomUUID()}.tmp`;
-    const raw = JSON.stringify({ version: definition.version, values: jsonValues });
-    try {
-      await writeFile(temporary, raw, { mode: 0o600 });
-      await rename(temporary, target);
-    } finally {
-      await rm(temporary, { force: true });
-    }
-    return revisionOf(raw);
+  ): Promise<string> {
+    const raw = serializeSettings(definition.version, values);
+    return this.documents.write(`${definition.id}.json`, raw);
   }
 }

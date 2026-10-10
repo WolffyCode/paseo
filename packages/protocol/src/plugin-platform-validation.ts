@@ -126,6 +126,12 @@ function validateStateDefinitions(manifest: PluginPlatformManifest): void {
       unique(field.allowedScopes, "field scope");
       if (field.allowedScopes.some((scope) => !settings.allowedScopes.includes(scope)))
         invalid(`Settings field ${field.path} exceeds its allowed scopes`);
+      // Fields are the leaves layers override, so one cannot contain another.
+      const nested = settings.fields.find((other) => other.path.startsWith(`${field.path}/`));
+      if (nested) invalid(`Settings field ${field.path} contains field ${nested.path}`);
+      // A provider reads its configuration once, when it is created.
+      if (field.application === "provider" && !field.restartRequired)
+        invalid(`Provider settings field ${field.path} must be restart-required`);
     }
   }
 }

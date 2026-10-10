@@ -372,6 +372,61 @@ const SourceSchema = z.object({
     expect(parse([{ providesId: "files", state: "active" }])).toBe(false);
   });
 
+  it("validates plugin configuration reads and changes", () => {
+    const host = { kind: "host", serverId: "srv" };
+    const parse = (message: unknown) =>
+      GeneratedWSOutboundMessageSchema.safeParse({ type: "session", message }).success;
+    const read = (value: unknown) =>
+      parse({
+        type: "plugin.platform.config.read.response",
+        payload: { requestId: "read", result: { status: "ok", value } },
+      });
+    const configuration = {
+      values: { showHidden: true },
+      effectiveRevision: "effective",
+      sourceRevisions: [{ scope: host, revision: "missing" }],
+      provenance: {
+        "/showHidden": { source: "layer", scope: host, revision: "layer" },
+        "/watcherLimit": { source: "inherited-from-profile" },
+      },
+    };
+
+    expect(read(configuration)).toBe(true);
+    expect(read({ ...configuration, sourceRevisions: [{ scope: host }] })).toBe(false);
+    expect(
+      parse({
+        type: "plugin.platform.config.write.response",
+        payload: {
+          requestId: "write",
+          result: {
+            status: "ok",
+            value: {
+              revision: "next",
+              restartedProviders: [
+                {
+                  installation: { kind: "host", serverId: "srv", installationId: "files" },
+                  providesId: "files",
+                },
+              ],
+            },
+          },
+        },
+      }),
+    ).toBe(true);
+    expect(
+      parse({
+        type: "plugin.platform.config.clear.response",
+        payload: {
+          requestId: "clear",
+          result: {
+            status: "error",
+            error: { code: "CONFIG_CONFLICT", message: "Changed", retryable: false },
+          },
+        },
+      }),
+    ).toBe(true);
+  });
+
   it("accepts a forge.search.response envelope", () => {
     const result = GeneratedWSOutboundMessageSchema.safeParse({
       type: "session",

@@ -25,6 +25,17 @@ export class PlatformWorkerError extends PluginPlatformError {
   }
 }
 
+/** A failure whose wire error hands the caller structured details, such as a revision to replace. */
+export class PlatformDetailedError extends PluginPlatformError {
+  readonly details: NonNullable<PlatformError["details"]>;
+
+  constructor(diagnostic: PlatformDiagnostic, details: NonNullable<PlatformError["details"]>) {
+    super(diagnostic);
+    this.name = "PlatformDetailedError";
+    this.details = details;
+  }
+}
+
 export function executionError(code: string, message: string): PluginPlatformError {
   return new PluginPlatformError({ code, message });
 }
@@ -43,7 +54,9 @@ export function toDiagnostic(error: unknown): PlatformDiagnostic {
 }
 
 export function toPlatformError(error: unknown): PlatformError {
-  return platformError(toDiagnostic(error));
+  const failure = platformError(toDiagnostic(error));
+  if (error instanceof PlatformDetailedError) return { ...failure, details: error.details };
+  return failure;
 }
 
 export function describeUnknownError(error: unknown): string {

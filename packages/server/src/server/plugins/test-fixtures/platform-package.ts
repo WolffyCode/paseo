@@ -70,6 +70,8 @@ interface FixtureInput {
   service?: PlatformService;
   /** Further contracts keyed by the package path the manifest declares for them. */
   contracts?: Record<string, PlatformService>;
+  /** Settings JSON Schemas keyed by the package path the manifest declares for them. */
+  settingsSchemas?: Record<string, object>;
   /** The daemon entry source; by default the entry throws to prove discovery never runs it. */
   serverSource?: string;
 }
@@ -91,6 +93,12 @@ export async function writePlatformPackage(input: FixtureInput): Promise<PluginP
     if (!contract) throw new Error(`The fixture has no contract for ${schema}`);
     await mkdir(path.dirname(path.join(input.directory, schema)), { recursive: true });
     await writeFile(path.join(input.directory, schema), JSON.stringify(contract));
+  }
+  for (const { schema } of manifest.settings) {
+    const settingsSchema = input.settingsSchemas?.[schema];
+    if (!settingsSchema) throw new Error(`The fixture has no settings schema for ${schema}`);
+    await mkdir(path.dirname(path.join(input.directory, schema)), { recursive: true });
+    await writeFile(path.join(input.directory, schema), JSON.stringify(settingsSchema));
   }
   for (const runtime of Object.values(manifest.runtimes)) {
     await writeFile(

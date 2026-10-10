@@ -2402,11 +2402,9 @@ export class Session {
 
   private dispatchPluginPlatformMessage(msg: SessionInboundMessage): Promise<void> | undefined {
     if (msg.type === "plugin.platform.host.describe.request") {
-      const hostServices = this.pluginRuntime?.hostServices;
-      if (!hostServices) throw new Error("Plugin host services are unavailable");
       this.emit({
         type: "plugin.platform.host.describe.response",
-        payload: { requestId: msg.requestId, capabilities: hostServices.describe() },
+        payload: { requestId: msg.requestId, capabilities: this.requireHostServices().describe() },
       });
       return Promise.resolve();
     }
@@ -2435,6 +2433,39 @@ export class Session {
         payload: { requestId: msg.requestId, result },
       });
       return Promise.resolve();
+    }
+    if (msg.type === "plugin.platform.config.read.request") {
+      return this.requireHostServices()
+        .readConfiguration(msg.input)
+        .then((result) => {
+          this.emit({
+            type: "plugin.platform.config.read.response",
+            payload: { requestId: msg.requestId, result },
+          });
+          return undefined;
+        });
+    }
+    if (msg.type === "plugin.platform.config.write.request") {
+      return this.requireHostServices()
+        .writeConfigurationLayer(msg.input)
+        .then((result) => {
+          this.emit({
+            type: "plugin.platform.config.write.response",
+            payload: { requestId: msg.requestId, result },
+          });
+          return undefined;
+        });
+    }
+    if (msg.type === "plugin.platform.config.clear.request") {
+      return this.requireHostServices()
+        .clearConfigurationOverride(msg.input)
+        .then((result) => {
+          this.emit({
+            type: "plugin.platform.config.clear.response",
+            payload: { requestId: msg.requestId, result },
+          });
+          return undefined;
+        });
     }
     if (msg.type === "plugin.platform.discovery.describe.request") {
       if (!this.pluginRuntime) throw new Error("Plugin service is unavailable");
@@ -2467,6 +2498,12 @@ export class Session {
         });
     }
     return undefined;
+  }
+
+  private requireHostServices(): PlatformBroker {
+    const hostServices = this.pluginRuntime?.hostServices;
+    if (!hostServices) throw new Error("Plugin host services are unavailable");
+    return hostServices;
   }
 
   private openPlatformSession(options: SessionOptions): PlatformSession {

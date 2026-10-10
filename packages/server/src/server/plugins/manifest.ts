@@ -52,7 +52,16 @@ function unsupportedExecution(manifest: PluginPlatformManifest): string | null {
   if (manifest.kind !== "code" || !daemon) return "packages without a daemon entry";
   if (daemon.execution !== "trusted") return "isolated execution";
   if (manifest.runtimes.client) return "client entries";
-  if (manifest.settings.length) return "settings";
+  const migrating = manifest.settings.find((settings) => settings.transitions.length > 0);
+  if (migrating) return `transitions of settings ${migrating.id}`;
+  const clientScoped = manifest.settings.find((settings) =>
+    settings.allowedScopes.includes("client"),
+  );
+  if (clientScoped) return `client-scoped settings ${clientScoped.id}`;
+  const viewField = manifest.settings
+    .flatMap((settings) => settings.fields)
+    .find((field) => field.application === "view");
+  if (viewField) return `the view settings field ${viewField.path}`;
   if (manifest.states.length) return "state definitions";
   const feature = manifest.requirements.features?.find(
     (item) => item !== PLUGIN_PLATFORM_HOST_SERVICES_FEATURE,

@@ -14,17 +14,31 @@ import {
 } from "@getpaseo/protocol/plugin-platform-validation";
 import { assertPluginCompatibility } from "@getpaseo/protocol/plugin-requirements";
 import { STANDARD_PLATFORM_EXTENSION_POINTS } from "@getpaseo/protocol/plugin-platform-contributions";
-import { PluginSchemaFiles } from "./schema-files.js";
+import { PluginSchemaFiles, platformDigest } from "./schema-files.js";
 
 interface LoadedExtension {
   definition: PlatformExtensionPoint;
   schemaDigest: string;
   validate(value: unknown): void;
 }
+type SettingsDeclaration = PluginPlatformManifest["settings"][number];
+/** A settings declaration with the validators of its packaged schema. */
+export interface LoadedSettings {
+  readonly declaration: SettingsDeclaration;
+  /** Changes whenever the declaration or the schema documents it references change. */
+  readonly digest: string;
+  /** Returns why a complete settings value breaks the schema, or null when it conforms. */
+  checkValue(value: unknown): string | null;
+  /** Returns why a value breaks one declared field's schema, or null when it conforms. */
+  checkField(path: string, value: unknown): string | null;
+  /** The schema default of a declared field, or undefined when it has none. */
+  defaultOf(path: string): unknown;
+}
 export interface LoadedPlatformPackage {
   package: NonNullable<PlatformCatalogEntry["package"]>;
   services: PlatformCatalogEntry["services"];
   extensions: LoadedExtension[];
+  settings: ReadonlyMap<string, LoadedSettings>;
   /** Returns why a method input or output breaks its contract, or null when it conforms. */
   checkMethodValue(value: MethodValue): string | null;
 }
@@ -81,36 +95,79 @@ function checkEnvironment(input: PlatformPackageInput): void {
   }
 }
 
-function checkSettingsSchema(
-  manifest: PluginPlatformManifest,
-  settings: PluginPlatformManifest["settings"][number],
+const SchemaObjectSchema = z.record(z.string(), z.unknown());
+
+/** The schema of a declared field, reached through nested `properties`, or null when undeclared. */
+function fieldSchema(
   schema: Record<string, unknown>,
-): void {
-  const providers = manifest.provides.filter((provider) => provider.settingsId === settings.id);
+  path: string,
+): Record<string, unknown> | null {
+  let cursor: unknown = schema;
+  for (const segment of path.slice(1).split("/")) {
+    const properties = SchemaObjectSchema.safeParse(
+      SchemaObjectSchema.safeParse(cursor).data?.properties,
+    );
+    if (!properties.success) return null;
+    cursor = properties.data[segment.replaceAll("~1", "/").replaceAll("~0", "~")];
+  }
+  return SchemaObjectSchema.safeParse(cursor).data ?? null;
+}
+
+function loadSettings(input: {
+  manifest: PluginPlatformManifest;
+  declaration: SettingsDeclaration;
+  document: SchemaDocument;
+  files: PluginSchemaFiles;
+}): LoadedSettings {
+  const { manifest, declaration, document, files } = input;
+  const providers = manifest.provides.filter((provider) => provider.settingsId === declaration.id);
   const providerScopes = new Set(providers.flatMap((provider) => provider.scopes));
-  for (const field of settings.fields) {
-    let cursor: unknown = schema;
-    const segments = field.path.slice(1).split("/");
-    for (const segment of segments) {
-      const node = z.record(z.string(), z.unknown()).parse(cursor);
-      const properties = z.record(z.string(), z.unknown()).parse(node.properties);
-      cursor = properties[segment.replaceAll("~1", "/").replaceAll("~0", "~")];
-    }
-    if (!cursor)
+  const fieldSchemas = new Map<string, Record<string, unknown>>();
+  const fieldIds = new Map<string, string>();
+  for (const field of declaration.fields) {
+    const schema = fieldSchema(document.value, field.path);
+    if (!schema)
       throw new PluginPlatformError({
         code: "MANIFEST_MISMATCH",
         message: `Undeclared settings field ${field.path}`,
       });
-    if (
-      field.application === "provider" &&
-      field.allowedScopes.some((scope) => !providerScopes.has(scope))
-    ) {
+    // Restarting is per provider, so a field that restarts one cannot vary by a narrower scope.
+    const restartsProvider = field.application === "provider" || field.restartRequired;
+    if (restartsProvider && field.allowedScopes.some((scope) => !providerScopes.has(scope))) {
       throw new PluginPlatformError({
         code: "MANIFEST_MISMATCH",
-        message: `Settings field ${field.path} exceeds its provider's lifetime scopes`,
+        message: `Settings field ${field.path} exceeds the lifetime scopes of the providers it restarts`,
       });
     }
+    const pointer = field.path
+      .slice(1)
+      .split("/")
+      .map((segment) => `/properties/${encodeURIComponent(segment)}`)
+      .join("");
+    const id = `${document.id}#${pointer}`;
+    files.compile(id);
+    fieldSchemas.set(field.path, schema);
+    fieldIds.set(field.path, id);
   }
+  function requireField(path: string): string {
+    const id = fieldIds.get(path);
+    if (id) return id;
+    throw new PluginPlatformError({
+      code: "INVALID_ARGUMENT",
+      message: `Settings ${declaration.id} do not declare field ${path}`,
+    });
+  }
+  return {
+    declaration,
+    digest: platformDigest({ declaration, schema: files.digest(document) }),
+    checkValue: (value) => files.check(document.id, value),
+    checkField: (path, value) => files.check(requireField(path), value),
+    defaultOf(path) {
+      requireField(path);
+      const schema = fieldSchemas.get(path)!;
+      return "default" in schema ? structuredClone(schema.default) : undefined;
+    },
+  };
 }
 
 const ContributionReferencesSchema = z.object({
@@ -317,15 +374,19 @@ export async function loadPlatformPackage(
       validate: (value) => files.validate(schemaId, value),
     });
   }
-  for (const [index, document] of settingsFiles.entries())
-    checkSettingsSchema(manifest, manifest.settings[index]!, document.value);
   for (const document of [...settingsFiles, ...stateFiles, ...extraSchemas])
     files.compile(document.id);
+  const settings = new Map<string, LoadedSettings>();
+  for (const [index, document] of settingsFiles.entries()) {
+    const declaration = manifest.settings[index]!;
+    settings.set(declaration.id, loadSettings({ manifest, declaration, document, files }));
+  }
   validateContributionReferences(manifest);
   return {
     package: metadata,
     services,
     extensions,
+    settings,
     checkMethodValue({ serviceId, apiVersion, method, field, value }) {
       const schema = methodSchemas.get(methodKey(serviceId, apiVersion, method));
       if (!schema)

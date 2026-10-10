@@ -205,6 +205,7 @@ export function createPlatformWorker(options: {
         provider: { installation, providesId: message.providesId },
         scope: { kind: "host", serverId: runtime.serverId },
         runtime,
+        config: message.config,
         effects: scope,
       });
       assertProviderShape(provider, message.providesId);

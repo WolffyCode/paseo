@@ -37,6 +37,14 @@ import {
   PluginPlatformHostReleaseResponseSchema,
   PlatformProviderStatusSchema,
 } from "./plugin-platform-execution.js";
+import {
+  PluginPlatformConfigClearRequestSchema,
+  PluginPlatformConfigClearResponseSchema,
+  PluginPlatformConfigReadRequestSchema,
+  PluginPlatformConfigReadResponseSchema,
+  PluginPlatformConfigWriteRequestSchema,
+  PluginPlatformConfigWriteResponseSchema,
+} from "./plugin-platform-configuration.js";
 import { TerminalActivitySchema } from "./terminal-activity.js";
 import { CLIENT_CAPS } from "./client-capabilities.js";
 import { AGENT_LIFECYCLE_STATUSES } from "./agent-lifecycle.js";
@@ -3243,6 +3251,9 @@ export const SessionInboundMessageSchema = z.discriminatedUnion("type", [
   PluginPlatformHostResolveRequestSchema,
   PluginPlatformHostCallRequestSchema,
   PluginPlatformHostReleaseRequestSchema,
+  PluginPlatformConfigReadRequestSchema,
+  PluginPlatformConfigWriteRequestSchema,
+  PluginPlatformConfigClearRequestSchema,
   PluginLogsGetRequestSchema,
   PluginDirectoryInstallRequestSchema,
   PluginDirectoryInspectRequestSchema,
@@ -3641,6 +3652,7 @@ export const ServerInfoStatusPayloadSchema = z
         pluginTimelineItems: z.boolean().optional(),
         pluginPlatformDiscoveryV1: z.boolean().optional(),
         pluginPlatformHostServicesV1: z.boolean().optional(),
+        pluginPlatformConfigurationV1: z.boolean().optional(),
         // COMPAT(skillManagement): added in v0.4.0, remove gate after 2027-08-16.
         skillManagement: z.boolean().optional(),
         // COMPAT(terminalRestoreModes): added in v0.1.81, remove gate after 2026-11-23.
@@ -6862,6 +6874,9 @@ export const SessionOutboundMessageSchema = z.discriminatedUnion("type", [
   PluginPlatformHostResolveResponseSchema,
   PluginPlatformHostCallResponseSchema,
   PluginPlatformHostReleaseResponseSchema,
+  PluginPlatformConfigReadResponseSchema,
+  PluginPlatformConfigWriteResponseSchema,
+  PluginPlatformConfigClearResponseSchema,
   PluginLogsGetResponseSchema,
   PluginDirectoryInstallResponseSchema,
   PluginDirectoryInspectResponseSchema,

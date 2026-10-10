@@ -3,11 +3,21 @@ import type pino from "pino";
 import satisfies from "semver/functions/satisfies.js";
 import {
   PlatformIdSchema,
+  type PlatformProvider,
   type PlatformProviderCandidate,
   type PlatformService,
 } from "@getpaseo/protocol/plugin-platform";
 import type {
+  PlatformConfigurationChangeResult,
+  PlatformConfigurationClear,
+  PlatformConfigurationRead,
+  PlatformConfigurationReadResult,
+  PlatformConfigurationWrite,
+  PlatformSettingsRef,
+} from "@getpaseo/protocol/plugin-platform-configuration";
+import type {
   PlatformBindingRef,
+  PlatformEffectiveConfiguration,
   PlatformError,
   PlatformHostBinding,
   PlatformHostCall,
@@ -23,6 +33,7 @@ import type {
   PlatformProviderStatus,
 } from "@getpaseo/protocol/plugin-platform-execution";
 import { PluginPlatformError } from "@getpaseo/protocol/plugin-platform-validation";
+import { PlatformConfiguration, type ConfigurationChange } from "./configuration.js";
 import type { LoadedPlatformPackage, MethodValue } from "./package.js";
 import { planPlatformResolution } from "./resolution.js";
 import {
@@ -39,6 +50,7 @@ import {
   type ProviderAdmission,
 } from "./provider-lifecycle.js";
 import type { PlatformNestedMessage } from "./process-protocol.js";
+import { PlatformScopes, type PlatformScopeDirectory } from "./scopes.js";
 
 const { limits } = PLATFORM_HOST_CAPABILITIES;
 
@@ -59,6 +71,10 @@ export interface PlatformSession {
 interface BrokerDependencies {
   serverId: string;
   logger: pino.Logger;
+  /** Where installations keep settings documents; without it, this host stores no settings. */
+  settingsDirectory?: string;
+  /** Resolves projects and conversations; without it, only host scopes are routable. */
+  scopes?: PlatformScopeDirectory;
 }
 interface Binding {
   readonly ref: PlatformHostBinding;
@@ -92,8 +108,8 @@ interface ResolveRequest {
   readonly authority: PlatformAuthority;
   readonly owner: symbol;
   readonly input: PlatformHostResolve;
-  /** Nested resolution serves calls already in flight, which a draining provider still takes. */
-  readonly isNested: boolean;
+  /** The call resolving for its nested calls; a draining provider still serves those. */
+  readonly parent: Invocation | null;
 }
 
 /** A session that cannot call host services, answering every request with one fixed error. */
@@ -105,6 +121,12 @@ export function rejectingPlatformSession(error: PlatformError): PlatformSession 
     release: () => failure,
     revalidate: () => undefined,
   };
+}
+
+function declaredProvider(execution: PlatformExecution, providesId: string): PlatformProvider {
+  const provider = execution.manifest.provides.find((item) => item.id === providesId);
+  if (provider) return provider;
+  throw executionError("MANIFEST_MISMATCH", `The plugin does not declare provider ${providesId}`);
 }
 
 function missingProvider(serviceId: string): PluginPlatformError {
@@ -158,17 +180,76 @@ export class PlatformBroker {
   private readonly bindings = new Map<string, Binding>();
   private readonly invocations = new Map<string, Invocation>();
   private readonly lifecycle: ProviderLifecycle;
+  private readonly scopes: PlatformScopes;
+  private readonly configuration: PlatformConfiguration;
 
   constructor(private readonly dependencies: BrokerDependencies) {
+    this.scopes = new PlatformScopes({
+      serverId: dependencies.serverId,
+      directory: dependencies.scopes ?? null,
+    });
+    this.configuration = new PlatformConfiguration({
+      directory: dependencies.settingsDirectory ?? null,
+      scopes: this.scopes,
+    });
     this.lifecycle = new ProviderLifecycle({
       serverId: dependencies.serverId,
       logger: dependencies.logger,
+      configuration: this.configuration,
       onGenerationEnded: (generation) => this.expireGeneration(generation),
     });
   }
 
   describe(): PlatformHostCapabilities {
     return PLATFORM_HOST_CAPABILITIES;
+  }
+
+  /** Whether this host stores the configuration v1 plugins declare. */
+  get isConfigurable(): boolean {
+    return this.configuration.isAvailable;
+  }
+
+  async readConfiguration(
+    input: PlatformConfigurationRead,
+  ): Promise<PlatformConfigurationReadResult> {
+    try {
+      const value = await this.configuration.read({
+        owner: this.settingsOwner(input.settings),
+        settingsId: input.settings.settingsId,
+        scope: input.scope,
+      });
+      return { status: "ok", value };
+    } catch (error) {
+      return { status: "error", error: toPlatformError(error) };
+    }
+  }
+
+  writeConfigurationLayer(
+    input: PlatformConfigurationWrite,
+  ): Promise<PlatformConfigurationChangeResult> {
+    return this.changeConfiguration(input.settings, (owner) =>
+      this.configuration.write({
+        owner,
+        settingsId: input.settings.settingsId,
+        scope: input.scope,
+        expectedRevision: input.expectedRevision,
+        values: input.values,
+      }),
+    );
+  }
+
+  clearConfigurationOverride(
+    input: PlatformConfigurationClear,
+  ): Promise<PlatformConfigurationChangeResult> {
+    return this.changeConfiguration(input.settings, (owner) =>
+      this.configuration.clear({
+        owner,
+        settingsId: input.settings.settingsId,
+        scope: input.scope,
+        expectedRevision: input.expectedRevision,
+        paths: input.paths,
+      }),
+    );
   }
 
   /** Publishes a started plugin; resolves once its providers have settled. */
@@ -194,7 +275,7 @@ export class PlatformBroker {
     const owner = Symbol("platform-session");
     authority.signal.addEventListener("abort", () => this.releaseOwner(owner), { once: true });
     return {
-      resolve: async (input) => this.resolveResult({ authority, owner, input, isNested: false }),
+      resolve: (input) => this.resolveResult({ authority, owner, input, parent: null }),
       call: (input, requestId) => this.call({ owner, input, requestId, parent: null }),
       release: (binding) => this.release(owner, binding),
       revalidate: () => this.revalidate(authority),
@@ -237,8 +318,36 @@ export class PlatformBroker {
     execution.send({
       type: "platform.resolved",
       requestId: message.requestId,
-      result: this.resolveNested(invocation, message.input),
+      result: await this.resolveNested(invocation, message.input),
     });
+  }
+
+  private async changeConfiguration(
+    settings: PlatformSettingsRef,
+    change: (owner: PlatformExecution) => Promise<ConfigurationChange>,
+  ): Promise<PlatformConfigurationChangeResult> {
+    try {
+      const owner = this.settingsOwner(settings);
+      const { revision, restartsProviders } = await change(owner);
+      const restartedProviders = restartsProviders
+        ? await this.lifecycle.reconfigure({
+            installationId: owner.installation.installationId,
+            settingsId: settings.settingsId,
+          })
+        : [];
+      return { status: "ok", value: { revision, restartedProviders } };
+    } catch (error) {
+      return { status: "error", error: toPlatformError(error) };
+    }
+  }
+
+  /** Settings are edited through the running plugin that declares them. */
+  private settingsOwner(settings: PlatformSettingsRef): PlatformExecution {
+    const { installation } = settings;
+    if (installation.kind !== "host" || installation.serverId !== this.dependencies.serverId) {
+      throw executionError("NO_EXECUTION_ROUTE", "The settings belong to another host or a client");
+    }
+    return this.lifecycle.executionOf(installation.installationId);
   }
 
   /** Bindings to an ended provider generation go; calls with them are stale from now on. */
@@ -291,19 +400,22 @@ export class PlatformBroker {
     );
   }
 
-  private resolveResult(request: ResolveRequest): PlatformHostResolveResult {
+  private async resolveResult(request: ResolveRequest): Promise<PlatformHostResolveResult> {
     try {
-      return { status: "ok", value: this.resolve(request) };
+      return { status: "ok", value: await this.resolve(request) };
     } catch (error) {
       return { status: "error", error: toPlatformError(error) };
     }
   }
 
-  private resolve(request: ResolveRequest): PlatformHostResolutionOne | PlatformHostResolutionMany {
-    const { authority, owner, input, isNested } = request;
+  private async resolve(
+    request: ResolveRequest,
+  ): Promise<PlatformHostResolutionOne | PlatformHostResolutionMany> {
+    const { authority, owner, input, parent } = request;
+    const isNested = parent !== null;
     this.requireActiveCaller(authority);
     const isLocalHostRoute =
-      input.scope.kind === "host" &&
+      input.scope.kind !== "client" &&
       input.scope.serverId === this.dependencies.serverId &&
       input.runtime === "daemon" &&
       input.providerScope === "host";
@@ -312,6 +424,12 @@ export class PlatformBroker {
         "NO_EXECUTION_ROUTE",
         "This host executes only its own host-scoped daemon services",
       );
+    }
+    // The business scope must exist on this host; calls read their settings through it.
+    await this.scopes.layers(input.scope);
+    // Bindings belong to their owner, so none are created for a caller or call that ended.
+    if ((parent?.signal ?? authority.signal).aborted) {
+      throw executionError("CANCELLED", "The caller ended while resolving");
     }
     const current = this.lifecycle.current();
     const plan = planPlatformResolution(current.catalog, input, (candidate) => {
@@ -346,7 +464,10 @@ export class PlatformBroker {
     request: ResolveRequest;
   }): PlatformHostBinding {
     const { candidate, request } = input;
-    const availability = this.lifecycle.availability({ candidate, isNested: request.isNested });
+    const availability = this.lifecycle.availability({
+      candidate,
+      isNested: request.parent !== null,
+    });
     // The plan kept only available candidates during this same synchronous pass.
     if (availability.status === "unavailable") throw new PluginPlatformError(availability.reason);
     const ref: PlatformHostBinding = {
@@ -366,7 +487,7 @@ export class PlatformBroker {
   private resolveNested(
     invocation: Invocation,
     input: PlatformNestedResolve,
-  ): PlatformHostResolveResult {
+  ): Promise<PlatformHostResolveResult> {
     const dependency = invocation.execution.manifest.requires.find(
       (item) =>
         item.consumer.kind === "provider" &&
@@ -374,7 +495,7 @@ export class PlatformBroker {
         item.bindingKey === input.bindingKey,
     );
     if (!dependency) {
-      return {
+      return Promise.resolve({
         status: "error",
         error: toPlatformError(
           executionError(
@@ -382,7 +503,7 @@ export class PlatformBroker {
             `Provider ${invocation.providesId} does not declare dependency ${input.bindingKey}`,
           ),
         ),
-      };
+      });
     }
     const resolve: PlatformHostResolve = {
       mode: input.mode,
@@ -399,7 +520,7 @@ export class PlatformBroker {
       authority: invocation.authority,
       owner: invocation.owner,
       input: resolve,
-      isNested: true,
+      parent: invocation,
     });
   }
 
@@ -448,6 +569,7 @@ export class PlatformBroker {
     let method: PlatformMethod | null = null;
     let admission: ProviderAdmission | null = null;
     let invocation: Invocation | null = null;
+    let isDispatched = false;
     try {
       if (!PlatformIdSchema.safeParse(requestId).success) {
         throw executionError("INVALID_ARGUMENT", "requestId must be a non-empty opaque ID");
@@ -488,13 +610,30 @@ export class PlatformBroker {
         path,
         requestId,
       });
-      const output = await this.dispatchInvocation(invocation, input, deadlineMs);
+      // The deadline covers reading the call's settings as well as running the method.
+      const deadline = performance.now() + deadlineMs;
+      const effectiveConfig = await settleWithin({
+        work: this.configuration.invocationConfiguration({
+          owner: invocation.execution,
+          provider: declaredProvider(invocation.execution, invocation.providesId),
+          scope: invocation.scope,
+        }),
+        signal: invocation.signal,
+        deadlineMs,
+      });
+      isDispatched = true;
+      const output = await this.dispatchInvocation({
+        invocation,
+        input,
+        effectiveConfig,
+        deadlineMs: Math.max(1, Math.ceil(deadline - performance.now())),
+      });
       // Revocation during the call withholds the result as well.
       this.requirePermissions(binding.authority, required);
       this.requireConforming(contract.definer, { ...methodRef, field: "output", value: output });
       return { status: "ok", value: output };
     } catch (error) {
-      const isDispatchedCommand = invocation !== null && method?.mode === "command";
+      const isDispatchedCommand = isDispatched && method?.mode === "command";
       return { status: "error", error: callFailure({ error, isDispatchedCommand }) };
     } finally {
       if (invocation) this.finishInvocation(invocation.handle);
@@ -573,11 +712,13 @@ export class PlatformBroker {
     return invocation;
   }
 
-  private dispatchInvocation(
-    invocation: Invocation,
-    input: PlatformHostCall,
-    deadlineMs: number,
-  ): Promise<unknown> {
+  private dispatchInvocation(dispatch: {
+    invocation: Invocation;
+    input: PlatformHostCall;
+    effectiveConfig: PlatformEffectiveConfiguration;
+    deadlineMs: number;
+  }): Promise<unknown> {
+    const { invocation, input, effectiveConfig, deadlineMs } = dispatch;
     const work = invocation.execution.request(
       {
         type: "platform.invoke",
@@ -597,6 +738,7 @@ export class PlatformBroker {
           execution: invocation.execution.runtime,
           target: input.target,
           scope: invocation.scope,
+          effectiveConfig,
           trace: invocation.trace,
         },
       },

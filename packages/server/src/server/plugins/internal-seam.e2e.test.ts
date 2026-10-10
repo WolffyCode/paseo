@@ -8,7 +8,7 @@ import { DaemonClient } from "../test-utils/daemon-client.js";
 import { createTestPaseoDaemon } from "../test-utils/paseo-daemon.js";
 import { BuiltinPluginLoader } from "./builtin/index.js";
 import { platformManifest, writePlatformPackage } from "./test-fixtures/platform-package.js";
-import { writeHostServicePackage } from "./test-fixtures/platform-host-package.js";
+import { filesSettings, writeHostServicePackage } from "./test-fixtures/platform-host-package.js";
 import { DAEMON_PERMISSIONS } from "@getpaseo/protocol/messages";
 
 const directory = fileURLToPath(new URL("./test-fixtures/internal-seam/", import.meta.url));
@@ -125,6 +125,62 @@ test("plugin host services run a built-in v1 provider for the connected principa
     await client.close();
     await daemon.close();
     await rm(root, { recursive: true, force: true });
+  }
+}, 60_000);
+
+test("plugin configuration layers are written and read through the daemon", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "paseo-plugin-config-wire-"));
+  const projectDirectory = await mkdtemp(path.join(tmpdir(), "paseo-plugin-config-project-"));
+  await writeHostServicePackage({
+    directory: path.join(root, "files"),
+    disposeLog: path.join(root, "disposed.log"),
+    providers: ["files", "store"],
+    settings: filesSettings(),
+  });
+  const daemon = await createTestPaseoDaemon({
+    daemonVersion: "0.11.1",
+    pluginsEnabled: false,
+    builtinPlugins: new BuiltinPluginLoader(root, ["files"]),
+  });
+  const client = new DaemonClient({ url: `ws://127.0.0.1:${daemon.port}/ws` });
+  try {
+    await client.connect();
+    const serverId = daemon.daemon.getServerId();
+    const created = await client.createWorkspace({
+      idempotencyKey: "plugin-config-workspace",
+      source: { kind: "directory", path: projectDirectory },
+    });
+    if (!created.workspace) throw new Error("Expected a workspace");
+    const { id: conversationId, projectId } = created.workspace;
+    const settings = {
+      installation: { kind: "host" as const, serverId, installationId: "files" },
+      settingsId: "files",
+    };
+    const project = { kind: "project" as const, serverId, projectId };
+    expect(
+      await client.writePluginConfigurationLayer({
+        settings,
+        scope: project,
+        expectedRevision: "missing",
+        values: { showHidden: true },
+      }),
+    ).toMatchObject({ status: "ok", value: { restartedProviders: [] } });
+    const read = await client.readPluginConfiguration({
+      settings,
+      scope: { kind: "conversation", serverId, conversationId, projectId },
+    });
+    expect(read).toMatchObject({
+      status: "ok",
+      value: {
+        values: { showHidden: true, watcherLimit: 512 },
+        provenance: { "/showHidden": { source: "layer", scope: project } },
+      },
+    });
+  } finally {
+    await client.close();
+    await daemon.close();
+    await rm(root, { recursive: true, force: true });
+    await rm(projectDirectory, { recursive: true, force: true });
   }
 }, 60_000);
 

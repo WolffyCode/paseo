@@ -97,6 +97,26 @@ export const PlatformNestedResolveSchema = z
     selectionKey: PlatformIdSchema.optional(),
   })
   .strict();
+// Provenance sources are open strings so a newer host can report sources older clients do not know.
+export const PlatformEffectiveConfigurationSchema = z
+  .object({
+    values: PlatformJsonSchema,
+    effectiveRevision: PlatformIdSchema,
+    sourceRevisions: z.array(
+      z.object({ scope: PlatformScopeSchema, revision: PlatformIdSchema }).strict(),
+    ),
+    provenance: z.record(
+      z.string(),
+      z
+        .object({
+          source: z.string(),
+          scope: PlatformScopeSchema.optional(),
+          revision: PlatformIdSchema.optional(),
+        })
+        .strict(),
+    ),
+  })
+  .strict();
 export const PlatformInvocationProjectionSchema = z
   .object({
     actor: z
@@ -110,6 +130,8 @@ export const PlatformInvocationProjectionSchema = z
     execution: PlatformDaemonRuntimeSchema,
     target: PlatformServiceTargetSchema,
     scope: PlatformScopeSchema,
+    /** The invocation settings of the call's own scope, read when the call starts. */
+    effectiveConfig: PlatformEffectiveConfigurationSchema,
     trace: z
       .object({
         requestId: PlatformIdSchema,
@@ -198,6 +220,7 @@ export type PlatformHostBinding = z.infer<typeof PlatformHostBindingSchema>;
 export type PlatformHostResolve = z.infer<typeof PlatformHostResolveSchema>;
 export type PlatformHostCall = z.infer<typeof PlatformHostCallSchema>;
 export type PlatformNestedResolve = z.infer<typeof PlatformNestedResolveSchema>;
+export type PlatformEffectiveConfiguration = z.infer<typeof PlatformEffectiveConfigurationSchema>;
 export type PlatformInvocationProjection = z.infer<typeof PlatformInvocationProjectionSchema>;
 export type PlatformHostResolutionOne = z.infer<typeof PlatformHostResolutionOneSchema>;
 export type PlatformHostResolutionMany = z.infer<typeof PlatformHostResolutionManySchema>;

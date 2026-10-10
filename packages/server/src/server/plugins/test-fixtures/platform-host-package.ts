@@ -2,10 +2,12 @@ import {
   PlatformServiceSchema,
   type PlatformProvider,
   type PlatformService,
+  type PluginPlatformManifest,
 } from "@getpaseo/protocol/plugin-platform";
 import { platformManifest, writePlatformPackage } from "./platform-package.js";
 
 export type HostProvider = "files" | "store" | "search";
+export type PlatformSettings = PluginPlatformManifest["settings"][number];
 /** The service each provider requires, under the binding key named after that provider. */
 const DEPENDENCIES: Partial<Record<HostProvider, HostProvider>> = {
   files: "store",
@@ -79,6 +81,7 @@ function filesService(): PlatformService {
         okOutput,
       ),
       crash: query(["workspace.read"], emptyInput, okOutput),
+      config: query(["workspace.read"], emptyInput, { type: "object" }),
       relay: query(
         ["workspace.read"],
         {
@@ -133,21 +136,75 @@ function searchService(): PlatformService {
   });
 }
 
+const FILES_SETTINGS_SCHEMA = "shared/files-settings.json";
+
+/** The settings the files provider declares when a fixture asks for them. */
+export function filesSettings(): PlatformSettings {
+  return {
+    id: "files",
+    schemaVersion: 1,
+    schema: FILES_SETTINGS_SCHEMA,
+    migrationRuntime: "daemon",
+    allowedScopes: ["host", "project", "conversation"],
+    fields: [
+      {
+        path: "/showHidden",
+        allowedScopes: ["host", "project", "conversation"],
+        application: "invocation",
+        restartRequired: false,
+      },
+      {
+        path: "/tree/depth",
+        allowedScopes: ["host", "project", "conversation"],
+        application: "invocation",
+        restartRequired: false,
+      },
+      {
+        path: "/watcherLimit",
+        allowedScopes: ["host"],
+        application: "provider",
+        restartRequired: true,
+      },
+    ],
+    transitions: [],
+  };
+}
+
+const filesSettingsSchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    showHidden: { type: "boolean", default: false },
+    tree: {
+      type: "object",
+      additionalProperties: false,
+      properties: { depth: { type: "integer", minimum: 1 } },
+    },
+    watcherLimit: { type: "integer", minimum: 1, default: 512 },
+  },
+};
+
 interface SourceInput {
   providers: readonly HostProvider[];
   /** Each provider appends its ID to this file when it is disposed. */
   disposeLog: string;
   factoryFailure?: string;
+  /** Settings the files provider declares; their schema is `filesSettingsSchema`. */
+  settings?: PlatformSettings;
 }
 
 function filesSource(input: SourceInput): string {
   const failure = input.factoryFailure
     ? `throw new Error(${JSON.stringify(input.factoryFailure)});`
     : "";
-  return `  context.providers.provide("files", () => {
+  return `  context.providers.provide("files", (providerContext) => {
     ${failure}
     return {
     methods: {
+      config: (_input, invocation) => ({
+        invocation: invocation.effectiveConfig,
+        provider: providerContext.config,
+      }),
       whoami: (_input, invocation) => ({
         principalId: invocation.actor.principalId,
         permissions: invocation.actor.permissions,
@@ -268,6 +325,7 @@ export async function writeHostServicePackage(
     runtime: "daemon",
     scopes: ["host"],
     stopPolicy: "drain",
+    ...(provider === "files" && input.settings ? { settingsId: input.settings.id } : {}),
   });
   const manifest = platformManifest({
     packageId: `acme/${first}`,
@@ -279,6 +337,7 @@ export async function writeHostServicePackage(
       schema: `shared/${provider}.json`,
     })),
     provides: input.providers.map(declare),
+    settings: input.settings ? [input.settings] : [],
     requires: input.providers.flatMap((provider) => {
       const dependency = DEPENDENCIES[provider];
       if (!dependency) return [];
@@ -304,6 +363,7 @@ export async function writeHostServicePackage(
       "shared/store.json": storeService(),
       "shared/search.json": searchService(),
     },
+    settingsSchemas: { [FILES_SETTINGS_SCHEMA]: filesSettingsSchema },
     serverSource: serverSource(input),
   });
 }

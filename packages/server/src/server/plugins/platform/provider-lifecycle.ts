@@ -5,16 +5,19 @@ import type {
   PlatformDiagnostic,
   PlatformProvider,
   PlatformProviderCandidate,
+  PlatformProviderRef,
   PlatformService,
   PluginPlatformManifest,
 } from "@getpaseo/protocol/plugin-platform";
 import type {
   PlatformDaemonRuntime,
+  PlatformEffectiveConfiguration,
   PlatformHostBinding,
   PlatformProviderStatus,
 } from "@getpaseo/protocol/plugin-platform-execution";
 import type { PluginPlatformError } from "@getpaseo/protocol/plugin-platform-validation";
 import { assemblePlatformCatalog, loadedCatalogEntry } from "./catalog.js";
+import type { PlatformConfiguration, ProviderConfiguration } from "./configuration.js";
 import { executionError, platformError, toDiagnostic } from "./execution-errors.js";
 import { PLATFORM_HOST_CAPABILITIES } from "./host-capabilities.js";
 import type { LoadedPlatformPackage } from "./package.js";
@@ -24,8 +27,11 @@ import {
 } from "./permissions.js";
 import type { PlatformWorkerRequest } from "./process-protocol.js";
 import { planPlatformGraph, providerNodeId, type PlanNode } from "./resolution.js";
+import { platformDigest } from "./schema-files.js";
 
 const { limits } = PLATFORM_HOST_CAPABILITIES;
+// Never equal to a digest, so a node failed by its settings runs again once they are valid.
+const INVALID_SETTINGS_SIGNATURE = "invalid-settings";
 
 export type PlatformExecutionRequest = Extract<
   PlatformWorkerRequest,
@@ -66,6 +72,7 @@ export type ProviderAvailability =
 interface LifecycleDependencies {
   serverId: string;
   logger: pino.Logger;
+  configuration: PlatformConfiguration;
   /** Runs once a provider generation takes no more calls, so its bindings can go. */
   onGenerationEnded(generation: string): void;
 }
@@ -77,12 +84,21 @@ type NodeStatus =
   | { readonly state: "failed"; readonly reason: PlatformDiagnostic; readonly signature: string };
 type DesiredState =
   | { readonly state: "pending-dependencies" | "inactive"; readonly reason: PlatformDiagnostic }
+  | { readonly state: "failed"; readonly reason: PlatformDiagnostic; readonly signature: string }
   | {
       readonly state: "active";
-      /** The dependency nodes and generations this activation runs against. */
+      /** The dependency generations and restart-required settings this activation runs with. */
       readonly signature: string;
       readonly dependencies: readonly string[];
+      readonly config: PlatformEffectiveConfiguration;
     };
+type SettingsState =
+  | { readonly status: "ok"; readonly configuration: ProviderConfiguration }
+  | { readonly status: "invalid"; readonly reason: PlatformDiagnostic };
+interface EvaluatedNode {
+  readonly node: ProviderNode;
+  readonly settings: SettingsState;
+}
 interface ProviderNode {
   readonly nodeId: string;
   readonly execution: PlatformExecution;
@@ -281,6 +297,14 @@ export class ProviderLifecycle {
     return this.cache;
   }
 
+  /** The running execution of an installation; a stopped plugin has none. */
+  executionOf(installationId: string): PlatformExecution {
+    for (const execution of this.executions.values()) {
+      if (execution.installation.installationId === installationId) return execution;
+    }
+    throw executionError("PLUGIN_UNAVAILABLE", `Plugin ${installationId} is not running`);
+  }
+
   contract(ref: { serviceId: string; schemaDigest: string }): Contract {
     for (const entry of this.current().catalog.entries) {
       const service = entry.services.find(
@@ -288,7 +312,7 @@ export class ProviderLifecycle {
           item.definition.serviceId === ref.serviceId && item.schemaDigest === ref.schemaDigest,
       );
       if (!service) continue;
-      const definer = this.executionFor(entry.installation.installationId).loaded;
+      const definer = this.executionOf(entry.installation.installationId).loaded;
       return { service: service.definition, definer };
     }
     throw executionError(
@@ -345,6 +369,35 @@ export class ProviderLifecycle {
     return { execution: node.execution, signal: run.signal, release };
   }
 
+  /**
+   * Applies changed settings: the providers using them are evaluated again, and those whose
+   * restart-required values changed drain and restart. Resolves to the providers that restarted.
+   */
+  async reconfigure(input: {
+    installationId: string;
+    settingsId: string;
+  }): Promise<PlatformProviderRef[]> {
+    const before = new Map<ProviderNode, ProviderRun | null>();
+    for (const node of this.nodes.values()) {
+      const isUser =
+        node.execution.installation.installationId === input.installationId &&
+        node.declaration.settingsId === input.settingsId;
+      if (isUser) before.set(node, runOf(node.status));
+    }
+    await this.enqueue(() => this.settle());
+    const restarted: PlatformProviderRef[] = [];
+    for (const [node, run] of before) {
+      const isRestarted = this.nodes.get(node.nodeId) === node && runOf(node.status) !== run;
+      if (isRestarted) {
+        restarted.push({
+          installation: node.execution.installation,
+          providesId: node.declaration.id,
+        });
+      }
+    }
+    return restarted;
+  }
+
   /** The lifecycle state of each provider a running plugin declares. */
   statuses(installationId: string): PlatformProviderStatus[] {
     return [...this.nodes.values()]
@@ -358,13 +411,6 @@ export class ProviderLifecycle {
     // The caller observes a failure through `next`; the queue keeps serving later tasks.
     this.queue = next.catch(() => undefined);
     return next;
-  }
-
-  private executionFor(installationId: string): PlatformExecution {
-    for (const execution of this.executions.values()) {
-      if (execution.installation.installationId === installationId) return execution;
-    }
-    throw executionError("PLUGIN_UNAVAILABLE", `Plugin ${installationId} is not running`);
   }
 
   private nodesOf(runtimeGeneration: string): ProviderNode[] {
@@ -390,10 +436,15 @@ export class ProviderLifecycle {
    * ends there, so dependents see the new states before anything activates again.
    */
   private async settleRound(): Promise<boolean> {
+    const evaluated = await this.readSettings([...this.nodes.values()]);
     const { serverId } = this.dependencies;
     const graph = planPlatformGraph(this.current().catalog, { kind: "host", serverId });
     const desired = new Map<ProviderNode, DesiredState>();
-    for (const node of this.nodes.values()) desired.set(node, this.desiredState(node, graph));
+    for (const { node, settings } of evaluated) {
+      // A process that exited while the settings were read took its nodes with it.
+      if (this.nodes.get(node.nodeId) !== node) continue;
+      desired.set(node, this.desiredState({ node, graph, settings }));
+    }
     const retiring = this.retiringNodes(desired);
     if (retiring.length) {
       await this.retire(retiring);
@@ -412,7 +463,7 @@ export class ProviderLifecycle {
         status.state === "unresolved" ||
         status.state === "pending-dependencies" ||
         status.state === "inactive";
-      // A failed factory runs again only against other dependency generations.
+      // A failed provider runs again only against other dependency generations or settings.
       const isRetryDue = status.state === "failed" && status.signature !== target.signature;
       if (!isWaiting && !isRetryDue) continue;
       await this.activate(node, target);
@@ -421,8 +472,36 @@ export class ProviderLifecycle {
     return isChanged;
   }
 
-  /** A node should be active once its plan resolves and every dependency it plans on is active. */
-  private desiredState(node: ProviderNode, graph: Map<string, PlanNode>): DesiredState {
+  private async readSettings(nodes: readonly ProviderNode[]): Promise<EvaluatedNode[]> {
+    const { configuration, serverId } = this.dependencies;
+    return Promise.all(
+      nodes.map(async (node): Promise<EvaluatedNode> => {
+        try {
+          const provided = await configuration.providerConfiguration({
+            owner: node.execution,
+            provider: node.declaration,
+            // v1 runs host providers only, so the host is every provider's lifetime scope.
+            scope: { kind: "host", serverId },
+          });
+          return { node, settings: { status: "ok", configuration: provided } };
+        } catch (error) {
+          // The failed provider's status carries the reason.
+          return { node, settings: { status: "invalid", reason: toDiagnostic(error) } };
+        }
+      }),
+    );
+  }
+
+  /**
+   * A node should be active once its plan resolves, every dependency it plans on is active, and
+   * its settings are valid.
+   */
+  private desiredState(input: {
+    node: ProviderNode;
+    graph: Map<string, PlanNode>;
+    settings: SettingsState;
+  }): DesiredState {
+    const { node, graph, settings } = input;
     const installationId = node.execution.installation.installationId;
     if (this.stopping.has(node.execution.runtime.generation)) {
       const message = `Plugin ${installationId} is stopping`;
@@ -462,10 +541,15 @@ export class ProviderLifecycle {
       }
       generations.push(`${dependencyId}@${status.run.generation}`);
     }
+    if (settings.status === "invalid") {
+      return { state: "failed", reason: settings.reason, signature: INVALID_SETTINGS_SIGNATURE };
+    }
+    const { config, restartDigest } = settings.configuration;
     return {
       state: "active",
-      signature: generations.sort().join(" "),
+      signature: platformDigest({ dependencies: generations.sort(), settings: restartDigest }),
       dependencies: planned.dependencies,
+      config,
     };
   }
 
@@ -530,6 +614,7 @@ export class ProviderLifecycle {
           providesId: node.declaration.id,
           generation: run.generation,
           methods: this.methodsOf(node.declaration),
+          config: target.config,
         },
         limits.deadlineMs,
       );

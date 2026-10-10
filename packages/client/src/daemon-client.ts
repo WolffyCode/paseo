@@ -6,6 +6,13 @@ import type {
 } from "@getpaseo/protocol/plugin-platform";
 import type { PluginPlatformDiscovery } from "@getpaseo/protocol/plugin-platform-messages";
 import type {
+  PlatformConfigurationChangeResult,
+  PlatformConfigurationClear,
+  PlatformConfigurationRead,
+  PlatformConfigurationReadResult,
+  PlatformConfigurationWrite,
+} from "@getpaseo/protocol/plugin-platform-configuration";
+import type {
   PlatformBindingRef,
   PlatformHostCall,
   PlatformHostCallResult,
@@ -5479,6 +5486,52 @@ export class DaemonClient {
       requestId,
       message: { type: "plugin.platform.host.release.request", requestId, binding },
       responseType: "plugin.platform.host.release.response",
+    });
+    return payload.result;
+  }
+
+  private requirePluginConfiguration(): void {
+    if (this.lastServerInfoMessage?.features?.pluginPlatformConfigurationV1 !== true) {
+      throw new Error("Plugin configuration requires an updated host");
+    }
+  }
+
+  async readPluginConfiguration(
+    input: PlatformConfigurationRead,
+  ): Promise<PlatformConfigurationReadResult> {
+    this.requirePluginConfiguration();
+    const requestId = this.createRequestId();
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "plugin.platform.config.read.request", requestId, input },
+      responseType: "plugin.platform.config.read.response",
+    });
+    return payload.result;
+  }
+
+  /** Replaces the override layer of one scope; fields it omits inherit again. */
+  async writePluginConfigurationLayer(
+    input: PlatformConfigurationWrite,
+  ): Promise<PlatformConfigurationChangeResult> {
+    this.requirePluginConfiguration();
+    const requestId = this.createRequestId();
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "plugin.platform.config.write.request", requestId, input },
+      responseType: "plugin.platform.config.write.response",
+    });
+    return payload.result;
+  }
+
+  async clearPluginConfigurationOverride(
+    input: PlatformConfigurationClear,
+  ): Promise<PlatformConfigurationChangeResult> {
+    this.requirePluginConfiguration();
+    const requestId = this.createRequestId();
+    const payload = await this.sendCorrelatedSessionRequest({
+      requestId,
+      message: { type: "plugin.platform.config.clear.request", requestId, input },
+      responseType: "plugin.platform.config.clear.response",
     });
     return payload.result;
   }

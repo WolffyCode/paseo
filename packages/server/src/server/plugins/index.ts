@@ -35,6 +35,7 @@ import {
   type PluginManifest,
 } from "./manifest.js";
 import { loadExecutablePlatformPackage } from "./platform/host-capabilities.js";
+import type { PlatformScopeDirectory } from "./platform/scopes.js";
 import { expandTilde } from "../../utils/path.js";
 import { runPluginBuild } from "./preparation.js";
 import { PluginRuntime } from "./runtime.js";
@@ -77,6 +78,8 @@ interface PluginRuntimePort {
 
 interface PluginServiceDependencies {
   serverId?: string;
+  /** Resolves this host's projects and conversations for v1 business scopes. */
+  platformScopes?: PlatformScopeDirectory;
   usageAgents?: AgentUsageLookup;
   settingsDirectory?: string;
   runtime?: PluginRuntimePort;
@@ -129,6 +132,7 @@ export class PluginService {
       new PluginRuntime(logger, daemonVersion, {
         serverId: dependencies.serverId,
         settingsDirectory: dependencies.settingsDirectory,
+        platformScopes: dependencies.platformScopes,
         onSettingsChanged: (pluginId, settingsId) => {
           for (const listener of this.settingsListeners) listener(pluginId, settingsId);
         },

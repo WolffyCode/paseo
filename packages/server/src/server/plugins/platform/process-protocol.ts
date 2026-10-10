@@ -8,6 +8,7 @@ import {
 import {
   PlatformBindingRefSchema,
   PlatformDaemonRuntimeSchema,
+  PlatformEffectiveConfigurationSchema,
   PlatformHostCallSchema,
   PlatformHostCallResultSchema,
   PlatformHostResolveResultSchema,
@@ -30,6 +31,7 @@ export const PlatformWorkerRequestSchema = z.discriminatedUnion("type", [
       providesId: PlatformLocalIdSchema,
       generation: z.string(),
       methods: z.array(z.string()),
+      config: PlatformEffectiveConfigurationSchema,
     })
     .strict(),
   z

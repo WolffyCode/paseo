@@ -1,5 +1,6 @@
 import type {
   PlatformDaemonRuntime,
+  PlatformEffectiveConfiguration,
   PlatformError,
   PlatformHostBinding,
   PlatformHostCall,
@@ -49,6 +50,8 @@ export interface ProviderContext {
   readonly provider: PlatformProviderRef;
   readonly scope: PlatformScope;
   readonly runtime: PlatformDaemonRuntime;
+  /** The provider-application settings of the provider's lifetime scope; changes restart it. */
+  readonly config: PlatformEffectiveConfiguration;
   readonly effects: EffectScope;
 }
 export type ProviderFactory = (context: ProviderContext) => Provider | Promise<Provider>;
@@ -63,6 +66,7 @@ export interface ServerPluginContext {
 export type ServerPluginRegistration = (context: ServerPluginContext) => Disposer;
 export type {
   PlatformBindingRef,
+  PlatformEffectiveConfiguration,
   PlatformError,
   PlatformHostBinding,
   PlatformHostCall,

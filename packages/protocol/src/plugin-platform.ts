@@ -112,6 +112,8 @@ const TransitionSchema = z
     handler: PlatformLocalIdSchema,
   })
   .strict();
+/** A JSON Pointer naming one declared settings field. */
+export const PlatformSettingsFieldPathSchema = z.string().regex(/^(?:\/(?:[^~/]|~0|~1)*)+$/);
 export const PlatformSettingsSchema = z
   .object({
     id: PlatformLocalIdSchema,
@@ -123,7 +125,7 @@ export const PlatformSettingsSchema = z
       .array(
         z
           .object({
-            path: z.string().regex(/^(?:\/(?:[^~/]|~0|~1)*)+$/),
+            path: PlatformSettingsFieldPathSchema,
             allowedScopes: z.array(PlatformScopeKindSchema).min(1),
             application: z.enum(["provider", "invocation", "view"]),
             restartRequired: z.boolean(),

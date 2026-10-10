@@ -41,8 +41,14 @@ import type {
   PlatformHostCallResult,
   PlatformHostResolve,
 } from "@getpaseo/protocol/plugin-platform-execution";
+import type { PlatformEffectiveConfiguration } from "@getpaseo/protocol/plugin-platform-execution";
 import type { PlatformSession } from "./platform/broker.js";
-import { writeHostServicePackage } from "./test-fixtures/platform-host-package.js";
+import { createPlatformScopeDirectory } from "./platform/scopes.js";
+import {
+  filesSettings,
+  writeHostServicePackage,
+  type PlatformSettings,
+} from "./test-fixtures/platform-host-package.js";
 
 const roots: string[] = [];
 type TestPluginRuntime = NonNullable<ConstructorParameters<typeof PluginService>[3]["runtime"]>;
@@ -575,17 +581,59 @@ describe("plugin platform discovery", () => {
   });
 });
 
-describe("plugin platform host services", () => {
-  const resolveFiles: PlatformHostResolve = {
-    mode: "one",
-    serviceId: "acme.files",
-    range: "^1.0.0",
-    runtime: "daemon",
-    providerScope: "host",
-    scope: { kind: "host", serverId: "srv_test" },
-    target: { kind: "service" },
-  };
+const resolveFiles: PlatformHostResolve = {
+  mode: "one",
+  serviceId: "acme.files",
+  range: "^1.0.0",
+  runtime: "daemon",
+  providerScope: "host",
+  scope: { kind: "host", serverId: "srv_test" },
+  target: { kind: "service" },
+};
 
+function openCaller(service: PluginService, permissions: string[]) {
+  const granted = [...permissions];
+  const lifetime = new AbortController();
+  const session: PlatformSession = service.hostServices!.openSession({
+    principalId: "user-1",
+    getPermissions: () => granted,
+    signal: lifetime.signal,
+  });
+  return { session, granted, close: () => lifetime.abort() };
+}
+
+async function resolveOne(session: PlatformSession): Promise<PlatformHostBinding> {
+  const result = await session.resolve(resolveFiles);
+  if (result.status !== "ok" || result.value.mode !== "one") {
+    throw new Error(`Expected one binding: ${JSON.stringify(result)}`);
+  }
+  return result.value.binding;
+}
+
+function call(input: {
+  session: PlatformSession;
+  binding: PlatformHostBinding;
+  method: string;
+  params?: Record<string, unknown>;
+  deadlineMs?: number;
+}): Promise<PlatformHostCallResult> {
+  return input.session.call(
+    {
+      binding: input.binding.binding,
+      method: input.method,
+      target: { kind: "service" },
+      params: input.params ?? {},
+      ...(input.deadlineMs ? { deadlineMs: input.deadlineMs } : {}),
+    },
+    randomUUID(),
+  );
+}
+
+function errorCode(result: PlatformHostCallResult): string | null {
+  return result.status === "error" ? result.error.code : null;
+}
+
+describe("plugin platform host services", () => {
   async function startHostServices(runtime: "builtin" | "subprocess" = "subprocess") {
     const home = await mkdtemp(path.join(tmpdir(), "paseo-host-services-"));
     roots.push(home);
@@ -610,48 +658,6 @@ describe("plugin platform host services", () => {
     });
     await service.start();
     return { home, service, disposeLog, ownerSessions: () => ownerSessions };
-  }
-
-  function openCaller(service: PluginService, permissions: string[]) {
-    const granted = [...permissions];
-    const lifetime = new AbortController();
-    const session: PlatformSession = service.hostServices!.openSession({
-      principalId: "user-1",
-      getPermissions: () => granted,
-      signal: lifetime.signal,
-    });
-    return { session, granted, close: () => lifetime.abort() };
-  }
-
-  async function resolveOne(session: PlatformSession): Promise<PlatformHostBinding> {
-    const result = await session.resolve(resolveFiles);
-    if (result.status !== "ok" || result.value.mode !== "one") {
-      throw new Error(`Expected one binding: ${JSON.stringify(result)}`);
-    }
-    return result.value.binding;
-  }
-
-  function call(input: {
-    session: PlatformSession;
-    binding: PlatformHostBinding;
-    method: string;
-    params?: Record<string, unknown>;
-    deadlineMs?: number;
-  }): Promise<PlatformHostCallResult> {
-    return input.session.call(
-      {
-        binding: input.binding.binding,
-        method: input.method,
-        target: { kind: "service" },
-        params: input.params ?? {},
-        ...(input.deadlineMs ? { deadlineMs: input.deadlineMs } : {}),
-      },
-      randomUUID(),
-    );
-  }
-
-  function errorCode(result: PlatformHostCallResult): string | null {
-    return result.status === "error" ? result.error.code : null;
   }
 
   it.each(["builtin", "subprocess"] as const)(
@@ -1127,6 +1133,516 @@ describe("plugin platform host services", () => {
     } finally {
       await service.stopAllPlugins();
     }
+  });
+});
+
+describe("plugin platform configuration", () => {
+  async function startConfiguredFiles(declaration: PlatformSettings = filesSettings()) {
+    const home = await mkdtemp(path.join(tmpdir(), "paseo-platform-config-"));
+    roots.push(home);
+    const directory = path.join(home, "files");
+    await writeHostServicePackage({
+      directory,
+      disposeLog: path.join(home, "disposed.log"),
+      providers: ["files", "store"],
+      settings: declaration,
+    });
+    const store = createStore(home, { files: { source: "directory", path: directory } });
+    const settingsDirectory = path.join(home, "plugin-settings");
+    const service = new PluginService(pino({ level: "silent" }), store, "0.11.1", {
+      serverId: "srv_test",
+      settingsDirectory,
+      platformScopes: createPlatformScopeDirectory({
+        getProject: async (projectId) => projects.get(projectId) ?? null,
+        getWorkspace: async (workspaceId) => workspaces.get(workspaceId) ?? null,
+      }),
+    });
+    return { home, directory, store, service, settingsDirectory };
+  }
+
+  // The independent conversation's private backing project is execution storage, not a project.
+  const projects = new Map([
+    ["prj_app", {}],
+    ["prj_chat", { purpose: "chat" as const }],
+  ]);
+  const workspaces = new Map([
+    ["ws_app", { projectId: "prj_app" }],
+    ["ws_chat", { projectId: "prj_chat", purpose: "chat" as const }],
+  ]);
+  const settingsRef = {
+    installation: { kind: "host", serverId: "srv_test", installationId: "files" },
+    settingsId: "files",
+  } as const;
+  const host = { kind: "host", serverId: "srv_test" } as const;
+  const project = { kind: "project", serverId: "srv_test", projectId: "prj_app" } as const;
+  const conversation = {
+    kind: "conversation",
+    serverId: "srv_test",
+    conversationId: "ws_app",
+    projectId: "prj_app",
+  } as const;
+  const chat = { kind: "conversation", serverId: "srv_test", conversationId: "ws_chat" } as const;
+  type BusinessScope = typeof host | typeof project | typeof conversation | typeof chat;
+
+  async function startConfiguration() {
+    const started = await startConfiguredFiles();
+    await started.service.start();
+    const hostServices = started.service.hostServices!;
+    async function read(scope: BusinessScope) {
+      const result = await hostServices.readConfiguration({ settings: settingsRef, scope });
+      if (result.status !== "ok")
+        throw new Error(`Expected a configuration: ${JSON.stringify(result)}`);
+      return result.value;
+    }
+    async function revision(scope: BusinessScope): Promise<string> {
+      const layer = (await read(scope)).sourceRevisions.at(-1)!;
+      expect(layer.scope).toEqual(scope);
+      return layer.revision;
+    }
+    async function write(scope: BusinessScope, values: Record<string, unknown>) {
+      return hostServices.writeConfigurationLayer({
+        settings: settingsRef,
+        scope,
+        expectedRevision: await revision(scope),
+        values,
+      });
+    }
+    async function clear(scope: BusinessScope, paths: string[]) {
+      return hostServices.clearConfigurationOverride({
+        settings: settingsRef,
+        scope,
+        expectedRevision: await revision(scope),
+        paths,
+      });
+    }
+    return { ...started, hostServices, read, revision, write, clear };
+  }
+
+  async function resolveAt(session: PlatformSession, scope: BusinessScope) {
+    const result = await session.resolve({ ...resolveFiles, scope });
+    if (result.status !== "ok" || result.value.mode !== "one") {
+      throw new Error(`Expected one binding: ${JSON.stringify(result)}`);
+    }
+    return result.value.binding;
+  }
+
+  async function configOf(session: PlatformSession, binding: PlatformHostBinding) {
+    const result = await call({ session, binding, method: "config" });
+    if (result.status !== "ok") throw new Error(`Expected settings: ${JSON.stringify(result)}`);
+    return result.value as {
+      invocation: PlatformEffectiveConfiguration;
+      provider: PlatformEffectiveConfiguration;
+    };
+  }
+
+  function withField(
+    fieldPath: string,
+    change: Partial<PlatformSettings["fields"][number]>,
+  ): PlatformSettings {
+    const declaration = filesSettings();
+    const field = declaration.fields.find((item) => item.path === fieldPath);
+    if (!field) throw new Error(`The fixture settings have no field ${fieldPath}`);
+    Object.assign(field, change);
+    return declaration;
+  }
+
+  it("inherits missing fields, keeps an explicit false, and clears only its own layer", async () => {
+    const { service, read, write, clear, revision } = await startConfiguration();
+    try {
+      expect(await write(host, { showHidden: true, tree: { depth: 3 } })).toMatchObject({
+        status: "ok",
+      });
+      expect(await write(project, { showHidden: false })).toMatchObject({ status: "ok" });
+      const inherited = await read(conversation);
+      expect(inherited.values).toEqual({
+        showHidden: false,
+        tree: { depth: 3 },
+        watcherLimit: 512,
+      });
+      expect(inherited.provenance).toEqual({
+        "/showHidden": { source: "layer", scope: project, revision: await revision(project) },
+        "/tree/depth": { source: "layer", scope: host, revision: await revision(host) },
+        "/watcherLimit": { source: "schema-default" },
+      });
+
+      expect(await clear(project, ["/showHidden"])).toEqual({
+        status: "ok",
+        value: { revision: "missing", restartedProviders: [] },
+      });
+      expect((await read(conversation)).values).toMatchObject({ showHidden: true });
+    } finally {
+      await service.stopAllPlugins();
+    }
+  });
+
+  it("applies schema defaults after merging without writing them into layers", async () => {
+    const { service, read, write, settingsDirectory } = await startConfiguration();
+    try {
+      expect(await read(project)).toMatchObject({
+        values: { showHidden: false, watcherLimit: 512 },
+        provenance: {
+          "/showHidden": { source: "schema-default" },
+          "/watcherLimit": { source: "schema-default" },
+        },
+        sourceRevisions: [
+          { scope: host, revision: "missing" },
+          { scope: project, revision: "missing" },
+        ],
+      });
+      await write(project, { tree: { depth: 2 } });
+      const stored = await readFile(
+        path.join(settingsDirectory, "files", "files", "projects", "prj_app.json"),
+        "utf8",
+      );
+      expect(JSON.parse(stored)).toEqual({ version: 1, values: { tree: { depth: 2 } } });
+      expect(existsSync(path.join(settingsDirectory, "files", "files.json"))).toBe(false);
+    } finally {
+      await service.stopAllPlugins();
+    }
+  });
+
+  it("lets only the first of two writers holding the same revision save", async () => {
+    const { service, hostServices, read } = await startConfiguration();
+    try {
+      const results = await Promise.all(
+        [true, false].map((showHidden) =>
+          hostServices.writeConfigurationLayer({
+            settings: settingsRef,
+            scope: host,
+            expectedRevision: "missing",
+            values: { showHidden },
+          }),
+        ),
+      );
+      expect(results.map((result) => result.status).sort()).toEqual(["error", "ok"]);
+      const rejected = results.find((result) => result.status === "error");
+      expect(rejected).toMatchObject({
+        error: { code: "CONFIG_CONFLICT", retryable: false },
+      });
+      const saved = results.findIndex((result) => result.status === "ok");
+      expect((await read(host)).values).toMatchObject({ showHidden: saved === 0 });
+    } finally {
+      await service.stopAllPlugins();
+    }
+  });
+
+  it("reports every contributing document and a combined effective revision", async () => {
+    const { service, read, write, revision } = await startConfiguration();
+    try {
+      await write(host, { showHidden: true });
+      await write(project, { tree: { depth: 2 } });
+      const before = await read(conversation);
+      expect(before.sourceRevisions).toEqual([
+        { scope: host, revision: await revision(host) },
+        { scope: project, revision: await revision(project) },
+        { scope: conversation, revision: "missing" },
+      ]);
+      expect((await read(conversation)).effectiveRevision).toBe(before.effectiveRevision);
+      await write(project, { tree: { depth: 5 } });
+      expect((await read(conversation)).effectiveRevision).not.toBe(before.effectiveRevision);
+    } finally {
+      await service.stopAllPlugins();
+    }
+  });
+
+  it("replaces the whole layer on write instead of patching it", async () => {
+    const { service, read, write } = await startConfiguration();
+    try {
+      await write(host, { showHidden: true, tree: { depth: 3 } });
+      await write(host, { tree: { depth: 4 } });
+      expect(await read(host)).toMatchObject({
+        values: { showHidden: false, tree: { depth: 4 } },
+        provenance: { "/showHidden": { source: "schema-default" } },
+      });
+    } finally {
+      await service.stopAllPlugins();
+    }
+  });
+
+  it("gives an independent conversation no project layer", async () => {
+    const { service, hostServices, read, write } = await startConfiguration();
+    try {
+      await write(chat, { showHidden: true });
+      expect((await read(chat)).sourceRevisions.map((layer) => layer.scope)).toEqual([host, chat]);
+      const misplaced = await hostServices.readConfiguration({
+        settings: settingsRef,
+        scope: { ...chat, projectId: "prj_chat" },
+      });
+      expect(misplaced).toMatchObject({ status: "error", error: { code: "INVALID_ARGUMENT" } });
+      const backing = await hostServices.readConfiguration({
+        settings: settingsRef,
+        scope: { kind: "project", serverId: "srv_test", projectId: "prj_chat" },
+      });
+      expect(backing).toMatchObject({ status: "error", error: { code: "RESOURCE_NOT_FOUND" } });
+    } finally {
+      await service.stopAllPlugins();
+    }
+  });
+
+  it("rejects undeclared fields, fields outside their scopes and values breaking their schema", async () => {
+    const { service, hostServices, read, write, clear } = await startConfiguration();
+    try {
+      for (const [scope, values] of [
+        [project, { watcherLimit: 5 }],
+        [host, { unknown: 1 }],
+        [host, { showHidden: "yes" }],
+        [host, { tree: { depth: 0 } }],
+      ] as const) {
+        expect(await write(scope, values)).toMatchObject({
+          status: "error",
+          error: { code: "INVALID_ARGUMENT" },
+        });
+      }
+      expect(await clear(host, ["/unknown"])).toMatchObject({
+        status: "error",
+        error: { code: "INVALID_ARGUMENT" },
+      });
+      expect((await read(host)).sourceRevisions).toEqual([{ scope: host, revision: "missing" }]);
+      expect(
+        await hostServices.readConfiguration({
+          settings: { ...settingsRef, settingsId: "other" },
+          scope: host,
+        }),
+      ).toMatchObject({ status: "error", error: { code: "RESOURCE_NOT_FOUND" } });
+      await service.stopAllPlugins();
+      expect(
+        await hostServices.readConfiguration({ settings: settingsRef, scope: host }),
+      ).toMatchObject({
+        status: "error",
+        error: { code: "PLUGIN_UNAVAILABLE" },
+      });
+    } finally {
+      await service.stopAllPlugins();
+    }
+  });
+
+  it("keeps a broken layer as written and names the revision that replaces it", async () => {
+    const { service, hostServices, read, settingsDirectory } = await startConfiguration();
+    try {
+      const layer = path.join(settingsDirectory, "files", "files.json");
+      const broken = JSON.stringify({ version: 1, values: { showHidden: "yes" } });
+      await mkdir(path.dirname(layer), { recursive: true });
+      await writeFile(layer, broken);
+      const failure = await hostServices.readConfiguration({ settings: settingsRef, scope: host });
+      expect(failure).toMatchObject({
+        status: "error",
+        error: { code: "CONFIG_INVALID", details: { scope: host } },
+      });
+      expect(await readFile(layer, "utf8")).toBe(broken);
+      const brokenRevision =
+        failure.status === "error" ? (failure.error.details as { revision: string }).revision : "";
+      expect(
+        await hostServices.writeConfigurationLayer({
+          settings: settingsRef,
+          scope: host,
+          expectedRevision: brokenRevision,
+          values: { showHidden: true },
+        }),
+      ).toMatchObject({ status: "ok" });
+      expect((await read(host)).values).toMatchObject({ showHidden: true });
+    } finally {
+      await service.stopAllPlugins();
+    }
+  });
+
+  it("gives the factory its provider settings and every call the settings of its scope", async () => {
+    const { service, write } = await startConfiguration();
+    try {
+      await write(host, { showHidden: true, watcherLimit: 64 });
+      await write(conversation, { showHidden: false });
+      const { session } = openCaller(service, ["workspace.read"]);
+      const atHost = await resolveAt(session, host);
+      const atConversation = await resolveAt(session, conversation);
+      const atChat = await resolveAt(session, chat);
+      // One host provider serves every business scope.
+      expect(atConversation).toMatchObject({ providerScope: "host", scope: conversation });
+      expect(atConversation.binding.generation).toBe(atHost.binding.generation);
+
+      const fromHost = await configOf(session, atHost);
+      expect(fromHost.provider.values).toEqual({ watcherLimit: 64 });
+      expect(fromHost.invocation.values).toEqual({ showHidden: true });
+      expect((await configOf(session, atConversation)).invocation).toMatchObject({
+        values: { showHidden: false },
+        provenance: { "/showHidden": { source: "layer", scope: conversation } },
+      });
+      expect((await configOf(session, atChat)).invocation.values).toEqual({ showHidden: true });
+      expect(
+        await session.resolve({
+          ...resolveFiles,
+          scope: { kind: "conversation", serverId: "srv_test", conversationId: "ws_unknown" },
+        }),
+      ).toMatchObject({ status: "error", error: { code: "RESOURCE_NOT_FOUND" } });
+    } finally {
+      await service.stopAllPlugins();
+    }
+  });
+
+  it("reads the latest invocation settings on every call without a new binding", async () => {
+    const { service, write } = await startConfiguration();
+    try {
+      const { session } = openCaller(service, ["workspace.read"]);
+      const binding = await resolveAt(session, project);
+      expect((await configOf(session, binding)).invocation.values).toEqual({ showHidden: false });
+      expect(await write(project, { showHidden: true, tree: { depth: 2 } })).toMatchObject({
+        status: "ok",
+        value: { restartedProviders: [] },
+      });
+      expect((await configOf(session, binding)).invocation.values).toEqual({
+        showHidden: true,
+        tree: { depth: 2 },
+      });
+    } finally {
+      await service.stopAllPlugins();
+    }
+  });
+
+  it("keeps a provider whose settings layer is invalid failed until the layer is fixed", async () => {
+    const started = await startConfiguredFiles();
+    const layer = path.join(started.settingsDirectory, "files", "files.json");
+    await mkdir(path.dirname(layer), { recursive: true });
+    await writeFile(layer, JSON.stringify({ version: 1, values: { watcherLimit: 0 } }));
+    await started.service.start();
+    const hostServices = started.service.hostServices!;
+    try {
+      expect(hostServices.providerStatuses("files")).toMatchObject([
+        { providesId: "files", state: "failed", reason: { code: "CONFIG_INVALID" } },
+        { providesId: "store", state: "active" },
+      ]);
+      const failure = await hostServices.readConfiguration({ settings: settingsRef, scope: host });
+      if (failure.status !== "error") throw new Error("Expected an invalid layer");
+      const { revision } = failure.error.details as { revision: string };
+      expect(
+        await hostServices.writeConfigurationLayer({
+          settings: settingsRef,
+          scope: host,
+          expectedRevision: revision,
+          values: { watcherLimit: 8 },
+        }),
+      ).toMatchObject({
+        status: "ok",
+        value: {
+          restartedProviders: [{ installation: { installationId: "files" }, providesId: "files" }],
+        },
+      });
+      expect(hostServices.providerStatuses("files")).toMatchObject([
+        { providesId: "files", state: "active" },
+        { providesId: "store", state: "active" },
+      ]);
+    } finally {
+      await started.service.stopAllPlugins();
+    }
+  });
+
+  it("drains and restarts its providers when a restart-required setting changes", async () => {
+    const { service, write, hostServices } = await startConfiguration();
+    try {
+      const { session } = openCaller(service, ["workspace.read"]);
+      const before = await resolveAt(session, host);
+      const accepted = call({ session, binding: before, method: "wait", params: { ms: 1_000 } });
+      const changed = write(host, { watcherLimit: 32 });
+      await vi.waitFor(() =>
+        expect(hostServices.providerStatuses("files")).toMatchObject([
+          { providesId: "files", state: "draining" },
+          { providesId: "store", state: "active" },
+        ]),
+      );
+      // The accepted call finishes on the old generation; an aborted one would report ok: false.
+      expect(await accepted).toEqual({ status: "ok", value: { ok: true } });
+      expect(await changed).toMatchObject({
+        status: "ok",
+        value: { restartedProviders: [{ providesId: "files" }] },
+      });
+      expect(errorCode(await call({ session, binding: before, method: "whoami" }))).toBe(
+        "STALE_BINDING",
+      );
+      const after = await resolveAt(session, host);
+      expect(after.binding.generation).not.toBe(before.binding.generation);
+      expect(after.execution.generation).toBe(before.execution.generation);
+      expect((await configOf(session, after)).provider.values).toEqual({ watcherLimit: 32 });
+
+      expect(await write(host, { watcherLimit: 32, showHidden: true })).toMatchObject({
+        status: "ok",
+        value: { restartedProviders: [] },
+      });
+      expect(await call({ session, binding: after, method: "whoami" })).toMatchObject({
+        status: "ok",
+      });
+    } finally {
+      await service.stopAllPlugins();
+    }
+  });
+
+  it("runs providers whose package declares settings", async () => {
+    const { service } = await startConfiguredFiles();
+    await service.start();
+    try {
+      expect(service.hostServices!.providerStatuses("files")).toMatchObject([
+        { providesId: "files", state: "active" },
+        { providesId: "store", state: "active" },
+      ]);
+    } finally {
+      await service.stopAllPlugins();
+    }
+  });
+
+  it.each([
+    ["view settings", withField("/showHidden", { application: "view" })],
+    [
+      "client-scoped settings",
+      {
+        ...withField("/showHidden", { allowedScopes: ["host", "client"] }),
+        allowedScopes: ["host", "project", "conversation", "client"],
+      } satisfies PlatformSettings,
+    ],
+    [
+      "settings transitions",
+      {
+        ...filesSettings(),
+        schemaVersion: 2,
+        transitions: [{ from: 1, to: 2, handler: "upgrade" }],
+      } satisfies PlatformSettings,
+    ],
+  ])("refuses %s before changing installation configuration", async (_name, declaration) => {
+    const { directory, store, service } = await startConfiguredFiles(declaration);
+    const before = store.get().plugins;
+    await expect(
+      service.installDirectory({ path: directory, id: "configured" }),
+    ).rejects.toMatchObject({ diagnostic: { code: "UNSUPPORTED_FEATURE" } });
+    expect(store.get().plugins).toEqual(before);
+  });
+
+  it.each([
+    [
+      "overlapping field paths",
+      "INVALID_MANIFEST",
+      {
+        ...filesSettings(),
+        fields: [
+          ...filesSettings().fields,
+          {
+            path: "/tree",
+            allowedScopes: ["host"],
+            application: "invocation",
+            restartRequired: false,
+          },
+        ],
+      } satisfies PlatformSettings,
+    ],
+    [
+      "a provider field that does not restart its provider",
+      "INVALID_MANIFEST",
+      withField("/watcherLimit", { restartRequired: false }),
+    ],
+    [
+      "a restart-required field outside its provider's lifetime scopes",
+      "MANIFEST_MISMATCH",
+      withField("/showHidden", { restartRequired: true }),
+    ],
+  ])("rejects %s", async (_name, code, declaration) => {
+    const { directory, service } = await startConfiguredFiles(declaration);
+    await expect(
+      service.installDirectory({ path: directory, id: "configured" }),
+    ).rejects.toMatchObject({ diagnostic: { code } });
   });
 });
 
