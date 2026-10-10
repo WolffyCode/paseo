@@ -28,7 +28,16 @@ export const PlatformWorkerRequestSchema = z.discriminatedUnion("type", [
       type: z.literal("platform.activate"),
       requestId: z.string(),
       providesId: PlatformLocalIdSchema,
+      generation: z.string(),
       methods: z.array(z.string()),
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal("platform.deactivate"),
+      requestId: z.string(),
+      providesId: PlatformLocalIdSchema,
+      generation: z.string(),
     })
     .strict(),
   z
@@ -37,6 +46,7 @@ export const PlatformWorkerRequestSchema = z.discriminatedUnion("type", [
       requestId: z.string(),
       invocationHandle: z.string(),
       providesId: PlatformLocalIdSchema,
+      generation: z.string(),
       method: z.string(),
       input: z.record(z.string(), z.unknown()),
       context: PlatformInvocationProjectionSchema,

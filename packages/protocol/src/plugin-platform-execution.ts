@@ -5,6 +5,7 @@ import {
   PlatformLocalIdSchema,
   PlatformProviderCandidateSchema,
   PlatformProviderRefSchema,
+  PlatformQualifiedIdSchema,
   PlatformResolvePlanInputSchema,
   PlatformScopeSchema,
   PlatformVersionSchema,
@@ -50,6 +51,17 @@ export const PlatformDaemonRuntimeSchema = z
     serverId: PlatformIdSchema,
     runtimeId: PlatformIdSchema,
     generation: PlatformIdSchema,
+  })
+  .strict();
+// The state is an open string so a newer host can report lifecycle states older clients do not know.
+export const PlatformProviderStatusSchema = z
+  .object({
+    providesId: PlatformLocalIdSchema,
+    serviceId: PlatformQualifiedIdSchema,
+    apiVersion: PlatformVersionSchema,
+    state: z.string(),
+    generation: PlatformIdSchema.optional(),
+    reason: PlatformErrorSchema.optional(),
   })
   .strict();
 export const PlatformServiceTargetSchema = z.object({ kind: z.literal("service") }).strict();
@@ -181,6 +193,7 @@ export type PlatformError = z.infer<typeof PlatformErrorSchema>;
 export type PlatformHostCapabilities = z.infer<typeof PlatformHostCapabilitiesSchema>;
 export type PlatformBindingRef = z.infer<typeof PlatformBindingRefSchema>;
 export type PlatformDaemonRuntime = z.infer<typeof PlatformDaemonRuntimeSchema>;
+export type PlatformProviderStatus = z.infer<typeof PlatformProviderStatusSchema>;
 export type PlatformHostBinding = z.infer<typeof PlatformHostBindingSchema>;
 export type PlatformHostResolve = z.infer<typeof PlatformHostResolveSchema>;
 export type PlatformHostCall = z.infer<typeof PlatformHostCallSchema>;

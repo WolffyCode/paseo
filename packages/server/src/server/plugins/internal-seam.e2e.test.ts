@@ -74,7 +74,8 @@ test("plugin host services run a built-in v1 provider for the connected principa
   const root = await mkdtemp(path.join(tmpdir(), "paseo-host-services-wire-"));
   await writeHostServicePackage({
     directory: path.join(root, "files"),
-    disposeMarker: path.join(root, "disposed"),
+    disposeLog: path.join(root, "disposed.log"),
+    providers: ["files", "store"],
   });
   const daemon = await createTestPaseoDaemon({
     daemonVersion: "0.11.1",

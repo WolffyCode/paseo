@@ -11,11 +11,16 @@ import {
   type PlatformProviderCandidate,
   type PlatformResolutionPlan,
   type PlatformResolvePlanInput,
+  type PlatformScope,
   type PlatformService,
 } from "@getpaseo/protocol/plugin-platform";
 import { platformDigest } from "./schema-files.js";
 
-type PlanNode = PlatformResolutionPlan["nodes"][number];
+export type PlanNode = PlatformResolutionPlan["nodes"][number];
+/** Why a declaratively resolved provider cannot take calls now, or null when it can. */
+export type ProviderAvailability = (
+  candidate: PlatformProviderCandidate,
+) => PlatformDiagnostic | null;
 interface Candidate {
   value: PlatformProviderCandidate;
   definition: PlatformService;
@@ -39,6 +44,18 @@ function nodeId(installationId: string, consumer: PlatformConsumer, scope?: stri
   const segments = [installationId, consumer.kind, id];
   if (scope) segments.push(scope);
   return segments.map(encodeURIComponent).join("/");
+}
+
+export function providerNodeId(input: {
+  installationId: string;
+  providesId: string;
+  providerScope: string;
+}): string {
+  return nodeId(
+    input.installationId,
+    { kind: "provider", id: input.providesId },
+    input.providerScope,
+  );
 }
 
 function scopeAvailable(
@@ -77,11 +94,11 @@ function collectCandidates(catalog: PlatformCatalog): Candidate[] {
           },
           definition: service.definition,
           entry,
-          nodeId: nodeId(
-            entry.installation.installationId,
-            { kind: "provider", id: provider.id },
-            scope,
-          ),
+          nodeId: providerNodeId({
+            installationId: entry.installation.installationId,
+            providesId: provider.id,
+            providerScope: scope,
+          }),
         });
       }
     }
@@ -277,7 +294,7 @@ function missingExtension(node: DependencyNode, catalog: PlatformCatalog): Platf
 
 interface GraphInput {
   catalog: PlatformCatalog;
-  input: PlatformResolvePlanInput;
+  scope: PlatformScope;
   candidates: Candidate[];
   nodes: Map<string, DependencyNode>;
 }
@@ -342,7 +359,7 @@ function resolveGraph(graph: GraphInput): Map<string, PlanNode> {
           range: dependency.range,
           runtime: dependency.runtime,
           providerScope: dependency.scope,
-          scope: graph.input.scope,
+          scope: graph.scope,
         },
         availability: (candidate) => dependencyState(candidate.nodeId),
       });
@@ -379,9 +396,23 @@ function resolveGraph(graph: GraphInput): Map<string, PlanNode> {
   return completed;
 }
 
+/** Evaluates every dependency node of the catalog for calls made in one business scope. */
+export function planPlatformGraph(
+  catalog: PlatformCatalog,
+  scope: PlatformScope,
+): Map<string, PlanNode> {
+  const candidates = collectCandidates(catalog);
+  return resolveGraph({ catalog, scope, candidates, nodes: collectNodes(catalog) });
+}
+
+/**
+ * Chooses providers for one request. `availability` adds the runtime state of declaratively
+ * resolved providers, so an unavailable provider is filtered before choosing, not after.
+ */
 export function planPlatformResolution(
   catalog: PlatformCatalog,
   input: PlatformResolvePlanInput,
+  availability?: ProviderAvailability,
 ): PlatformResolutionPlan {
   const plan: PlatformResolutionPlan = {
     catalogRevision: catalog.revision,
@@ -409,26 +440,25 @@ export function planPlatformResolution(
     return plan;
   }
   const candidates = collectCandidates(catalog);
-  const nodes = collectNodes(catalog);
-  const graph = resolveGraph({ catalog, input, candidates, nodes });
+  const graph = resolveGraph({
+    catalog,
+    scope: input.scope,
+    candidates,
+    nodes: collectNodes(catalog),
+  });
   plan.nodes = [...graph.values()].sort((left, right) => left.nodeId.localeCompare(right.nodeId));
   const selection = select({
     catalog,
     candidates,
     input,
-    availability: (candidate) => graph.get(candidate.nodeId)!,
+    availability(candidate) {
+      const node = graph.get(candidate.nodeId)!;
+      if (node.state !== "resolved" || !availability) return node;
+      const reason = availability(candidate.value);
+      return reason ? { ...node, state: "blocked", diagnostics: [reason] } : node;
+    },
   });
   plan.diagnostics.push(...selection.diagnostics);
-  for (const candidate of selection.candidates) {
-    const node = graph.get(candidate.nodeId)!;
-    if (node.state === "resolved") plan.candidates.push(candidate.value);
-    else if (node.state === "configuring")
-      plan.diagnostics.push({
-        code: "DEPENDENCY_MISSING",
-        nodeId: node.nodeId,
-        message: "Provider dependencies require instance configuration",
-      });
-    else plan.diagnostics.push(...node.diagnostics);
-  }
+  plan.candidates.push(...selection.candidates.map((candidate) => candidate.value));
   return plan;
 }

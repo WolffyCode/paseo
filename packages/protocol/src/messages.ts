@@ -35,6 +35,7 @@ import {
   PluginPlatformHostCallResponseSchema,
   PluginPlatformHostReleaseRequestSchema,
   PluginPlatformHostReleaseResponseSchema,
+  PlatformProviderStatusSchema,
 } from "./plugin-platform-execution.js";
 import { TerminalActivitySchema } from "./terminal-activity.js";
 import { CLIENT_CAPS } from "./client-capabilities.js";
@@ -6677,6 +6678,9 @@ export const PluginListItemSchema = z.object({
   ref: z.string().optional(),
   commit: z.string().optional(),
   error: z.string().optional(),
+  // The closed `status` enum cannot carry v1 lifecycle states to older clients, so a running v1
+  // plugin reports its providers' states here instead.
+  platformProviders: z.array(PlatformProviderStatusSchema).optional(),
 });
 export type PluginListItem = z.infer<typeof PluginListItemSchema>;
 

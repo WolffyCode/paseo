@@ -66,28 +66,31 @@ export function platformService(): PlatformService {
 interface FixtureInput {
   directory: string;
   manifest?: PluginPlatformManifest;
+  /** The contract written to `shared/files.json`, the default manifest's only contract. */
   service?: PlatformService;
+  /** Further contracts keyed by the package path the manifest declares for them. */
+  contracts?: Record<string, PlatformService>;
   /** The daemon entry source; by default the entry throws to prove discovery never runs it. */
   serverSource?: string;
-  /** Additional package files, such as more service contracts, keyed by relative path. */
-  files?: Record<string, unknown>;
 }
 
 export async function writePlatformPackage(input: FixtureInput): Promise<PluginPlatformManifest> {
   const manifest = input.manifest ?? platformManifest();
-  await mkdir(path.join(input.directory, "shared"), { recursive: true });
+  const contracts: Record<string, PlatformService> = {
+    "shared/files.json": input.service ?? platformService(),
+    ...input.contracts,
+  };
+  await mkdir(input.directory, { recursive: true });
   await writeFile(path.join(input.directory, "paseo-plugin.json"), JSON.stringify(manifest));
   await writeFile(
     path.join(input.directory, "package.json"),
-    JSON.stringify({ name: "@acme/files", version: "1.0.0" }),
+    JSON.stringify({ name: `@${manifest.packageId}`, version: "1.0.0" }),
   );
-  await writeFile(
-    path.join(input.directory, "shared/files.json"),
-    JSON.stringify(input.service ?? platformService()),
-  );
-  for (const [file, value] of Object.entries(input.files ?? {})) {
-    await mkdir(path.dirname(path.join(input.directory, file)), { recursive: true });
-    await writeFile(path.join(input.directory, file), JSON.stringify(value));
+  for (const { schema } of manifest.contracts) {
+    const contract = contracts[schema];
+    if (!contract) throw new Error(`The fixture has no contract for ${schema}`);
+    await mkdir(path.dirname(path.join(input.directory, schema)), { recursive: true });
+    await writeFile(path.join(input.directory, schema), JSON.stringify(contract));
   }
   for (const runtime of Object.values(manifest.runtimes)) {
     await writeFile(

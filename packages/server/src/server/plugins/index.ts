@@ -34,7 +34,7 @@ import {
   assertPluginExecutionSupported,
   type PluginManifest,
 } from "./manifest.js";
-import { loadExecutablePlatformPackage } from "./platform/broker.js";
+import { loadExecutablePlatformPackage } from "./platform/host-capabilities.js";
 import { expandTilde } from "../../utils/path.js";
 import { runPluginBuild } from "./preparation.js";
 import { PluginRuntime } from "./runtime.js";
@@ -218,7 +218,11 @@ export class PluginService {
 
   async listPlugins(): Promise<PluginListItem[]> {
     const config = this.configStore.get();
-    const running = new Set(this.runtime.catalog().map((plugin) => plugin.id));
+    const runtimeCatalog = this.runtime.catalog();
+    const running = new Set(runtimeCatalog.map((plugin) => plugin.id));
+    const runningPlatform = new Set(
+      runtimeCatalog.filter((plugin) => plugin.platform).map((plugin) => plugin.id),
+    );
     const plugins = await Promise.all(
       Object.entries(config.plugins ?? {}).map(async ([id, source]) => {
         const enabled = source.enabled !== false;
@@ -251,6 +255,9 @@ export class PluginService {
         }
         const error = this.errors.get(id);
         if (error && item.status === "failed") item.error = error;
+        if (this.hostServices && runningPlatform.has(id)) {
+          item.platformProviders = this.hostServices.providerStatuses(id);
+        }
         return item;
       }),
     );

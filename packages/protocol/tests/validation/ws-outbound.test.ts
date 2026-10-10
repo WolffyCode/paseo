@@ -336,6 +336,42 @@ const SourceSchema = z.object({
     );
   });
 
+  it("validates v1 provider states in plugin list items, including states it does not know", () => {
+    const parse = (platformProviders: unknown[]) =>
+      GeneratedWSOutboundMessageSchema.safeParse({
+        type: "session",
+        message: {
+          type: "plugin.list.response",
+          payload: {
+            requestId: "list",
+            plugins: [
+              {
+                id: "files",
+                path: "/plugins/files",
+                enabled: true,
+                status: "running",
+                platformProviders,
+              },
+            ],
+          },
+        },
+      }).success;
+    const provider = { providesId: "files", serviceId: "acme.files", apiVersion: "1.0.0" };
+
+    expect(
+      parse([
+        { ...provider, state: "active", generation: "generation" },
+        {
+          ...provider,
+          state: "pending-dependencies",
+          reason: { code: "DEPENDENCY_MISSING", message: "Waiting", retryable: true },
+        },
+        { ...provider, state: "suspended" },
+      ]),
+    ).toBe(true);
+    expect(parse([{ providesId: "files", state: "active" }])).toBe(false);
+  });
+
   it("accepts a forge.search.response envelope", () => {
     const result = GeneratedWSOutboundMessageSchema.safeParse({
       type: "session",

@@ -1,5 +1,16 @@
-import { PlatformServiceSchema, type PlatformService } from "@getpaseo/protocol/plugin-platform";
+import {
+  PlatformServiceSchema,
+  type PlatformProvider,
+  type PlatformService,
+} from "@getpaseo/protocol/plugin-platform";
 import { platformManifest, writePlatformPackage } from "./platform-package.js";
+
+export type HostProvider = "files" | "store" | "search";
+/** The service each provider requires, under the binding key named after that provider. */
+const DEPENDENCIES: Partial<Record<HostProvider, HostProvider>> = {
+  files: "store",
+  search: "files",
+};
 
 const pathInput = {
   type: "object",
@@ -57,6 +68,17 @@ function filesService(): PlatformService {
       explode: command(["workspace.read"], emptyInput, okOutput),
       invalid: query(["workspace.read"], emptyInput, okOutput),
       slow: query(["workspace.read"], pathInput, okOutput),
+      wait: query(
+        ["workspace.read"],
+        {
+          type: "object",
+          required: ["ms"],
+          additionalProperties: false,
+          properties: { ms: { type: "integer", minimum: 1, maximum: 10_000 } },
+        },
+        okOutput,
+      ),
+      crash: query(["workspace.read"], emptyInput, okOutput),
       relay: query(
         ["workspace.read"],
         {
@@ -97,12 +119,34 @@ function storeService(): PlatformService {
   });
 }
 
-function serverSource(disposeMarker: string): string {
-  return `import { writeFileSync } from "node:fs";
-import { PluginPlatformError } from "@getpaseo/plugin/v1";
+function searchService(): PlatformService {
+  return PlatformServiceSchema.parse({
+    schemaVersion: 1,
+    serviceId: "acme.search",
+    apiVersion: "1.0.0",
+    ownerNamespace: "acme",
+    cardinality: "single",
+    inspectPermissions: ["workspace.read"],
+    methods: { find: query(["workspace.read"], emptyInput, okOutput) },
+    events: {},
+    interceptors: {},
+  });
+}
 
-export default function register(context) {
-  context.providers.provide("files", () => ({
+interface SourceInput {
+  providers: readonly HostProvider[];
+  /** Each provider appends its ID to this file when it is disposed. */
+  disposeLog: string;
+  factoryFailure?: string;
+}
+
+function filesSource(input: SourceInput): string {
+  const failure = input.factoryFailure
+    ? `throw new Error(${JSON.stringify(input.factoryFailure)});`
+    : "";
+  return `  context.providers.provide("files", () => {
+    ${failure}
+    return {
     methods: {
       whoami: (_input, invocation) => ({
         principalId: invocation.actor.principalId,
@@ -133,6 +177,16 @@ export default function register(context) {
             resolve({ ok: true });
           });
         }),
+      wait: (input, invocation) =>
+        new Promise((resolve) => {
+          const timer = setTimeout(() => resolve({ ok: true }), input.ms);
+          invocation.signal.addEventListener("abort", () => {
+            clearTimeout(timer);
+            resolve({ ok: false });
+          });
+        }),
+      // Exits the plugin process; only subprocess plugins may call it.
+      crash: () => process.exit(1),
       relay: async (input, invocation) => {
         const store = await invocation.services.resolveOne(input.bindingKey, {
           target: { kind: "service" },
@@ -148,52 +202,108 @@ export default function register(context) {
       },
     },
     dispose() {
-      writeFileSync(${JSON.stringify(disposeMarker)}, "disposed");
+      appendFileSync(${JSON.stringify(input.disposeLog)}, "files\\n");
     },
-  }));
-  context.providers.provide("store", () => ({
+    };
+  });
+`;
+}
+
+function storeSource(input: SourceInput): string {
+  return `  context.providers.provide("store", () => ({
     methods: {
       put: (input, invocation) => {
         writeFileSync(input.path, "stored");
         return { depth: invocation.trace.depth, parentCallId: invocation.trace.parentCallId };
       },
     },
-    dispose() {},
+    dispose() {
+      appendFileSync(${JSON.stringify(input.disposeLog)}, "store\\n");
+    },
   }));
-  return () => {};
+`;
+}
+
+function searchSource(input: SourceInput): string {
+  return `  context.providers.provide("search", () => ({
+    methods: { find: () => ({ ok: true }) },
+    dispose() {
+      appendFileSync(${JSON.stringify(input.disposeLog)}, "search\\n");
+    },
+  }));
+`;
+}
+
+const SOURCES: Record<HostProvider, (input: SourceInput) => string> = {
+  files: filesSource,
+  store: storeSource,
+  search: searchSource,
+};
+
+function serverSource(input: SourceInput): string {
+  const providers = input.providers.map((provider) => SOURCES[provider](input)).join("");
+  return `import { appendFileSync, writeFileSync } from "node:fs";
+import { PluginPlatformError } from "@getpaseo/plugin/v1";
+
+export default function register(context) {
+${providers}  return () => {};
 }
 `;
 }
 
-/** Writes an executable v1 package whose `files` provider depends on its own `store` provider. */
-export async function writeHostServicePackage(input: {
-  directory: string;
-  disposeMarker: string;
-}): Promise<void> {
-  const manifest = platformManifest({
-    contracts: [
-      { serviceId: "acme.files", apiVersion: "1.0.0", schema: "shared/files.json" },
-      { serviceId: "acme.store", apiVersion: "1.0.0", schema: "shared/store.json" },
-    ],
+/**
+ * Writes an executable v1 package declaring the given providers. `files` depends on `acme.store`
+ * and `search` on `acme.files`, provided by this package or by separately installed ones. The
+ * package takes its ID from its first provider.
+ */
+export async function writeHostServicePackage(
+  input: SourceInput & { directory: string },
+): Promise<void> {
+  const [first] = input.providers;
+  if (!first) throw new Error("A host service package needs at least one provider");
+  const declare = (provider: HostProvider): PlatformProvider => ({
+    id: provider,
+    serviceId: `acme.${provider}`,
+    apiVersion: "1.0.0",
+    runtime: "daemon",
+    scopes: ["host"],
+    stopPolicy: "drain",
   });
-  manifest.provides.push({ ...manifest.provides[0]!, id: "store", serviceId: "acme.store" });
-  manifest.requires = [
-    {
-      bindingKey: "store",
-      serviceId: "acme.store",
-      range: "^1.0.0",
-      optional: false,
-      runtime: "daemon",
-      scope: "host",
-      consumer: { kind: "provider", id: "files" },
-      activation: "eager",
-    },
-  ];
+  const manifest = platformManifest({
+    packageId: `acme/${first}`,
+    id: first,
+    name: first,
+    contracts: input.providers.map((provider) => ({
+      serviceId: `acme.${provider}`,
+      apiVersion: "1.0.0",
+      schema: `shared/${provider}.json`,
+    })),
+    provides: input.providers.map(declare),
+    requires: input.providers.flatMap((provider) => {
+      const dependency = DEPENDENCIES[provider];
+      if (!dependency) return [];
+      return [
+        {
+          bindingKey: dependency,
+          serviceId: `acme.${dependency}`,
+          range: "^1.0.0",
+          optional: false,
+          runtime: "daemon" as const,
+          scope: "host" as const,
+          consumer: { kind: "provider" as const, id: provider },
+          activation: "eager" as const,
+        },
+      ];
+    }),
+  });
   await writePlatformPackage({
     directory: input.directory,
     manifest,
-    service: filesService(),
-    files: { "shared/store.json": storeService() },
-    serverSource: serverSource(input.disposeMarker),
+    contracts: {
+      "shared/files.json": filesService(),
+      "shared/store.json": storeService(),
+      "shared/search.json": searchService(),
+    },
+    serverSource: serverSource(input),
   });
 }

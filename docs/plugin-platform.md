@@ -23,9 +23,10 @@ snapshot from the same built-in registry and configured sources. There is no sec
 store. Disabled sources remain visible but cannot satisfy a resolution plan.
 
 `PluginRuntime` launches v1 packages through the same built-in and subprocess paths as other
-plugins. A started v1 plugin is published to the `PlatformBroker`, which owns bindings, invocations,
-and provider activations. Stopping, reloading, or a crashed process detaches only that plugin's
-runtime generation.
+plugins and publishes each started one to the `PlatformBroker`. The broker owns sessions, bindings
+and invocations. Its `ProviderLifecycle` owns the running executions and their provider nodes; see
+[provider lifecycle](#provider-lifecycle). Stopping, reloading or a crashed process changes only
+that plugin's providers and the providers that depend on them.
 
 Both source kinds use the same manifest, asset and contract checks. A built-in installation must
 match its manifest ID; configured aliases may differ. A failed package produces a diagnostic entry
@@ -70,8 +71,8 @@ dependency planning to 10,000 evaluations and 64 levels. Exceeding a limit produ
 
 The daemon entry default-exports a registration function from `@getpaseo/plugin/v1/server`. It
 registers one factory per declared provider synchronously and returns a disposer. The daemon creates
-a provider on its first call, after the provider's declared dependencies are active, and disposes it
-when the plugin stops:
+each provider as soon as its declared dependencies are active, and disposes it when the plugin stops
+or a dependency goes away:
 
 ```ts
 import type { ServerPluginRegistration } from "@getpaseo/plugin/v1/server";
@@ -124,21 +125,21 @@ command; starting one fails with the same error:
 - methods targeting the service, with `read` or `no-replay` retry policies, and no events,
   interceptors, or revision envelopes.
 
-Calls follow one order: the caller owns the binding and its runtime generation is current, the
-method exists, the caller holds every permission the method lists, the input matches its schema, the
-provider and its dependencies are available and active, the provider runs, permissions are checked
-again, and the output matches its schema. Permission arrays are AND. Plugin permissions expand to
-their daemon base permissions.
+Calls follow one order: the caller owns the binding, the binding's provider generation is current
+and admits the call, the method exists, the caller holds every permission the method lists, the
+input matches its schema, the provider runs, permissions are checked again, and the output matches
+its schema. Permission arrays are AND. Plugin permissions expand to their daemon base permissions.
 
 | Code                      | Meaning                                                                        |
 | ------------------------- | ------------------------------------------------------------------------------ |
 | `FORBIDDEN`               | The caller lacks a required permission, including a revocation during a call   |
-| `STALE_BINDING`           | The binding was released, belongs to another caller, or its provider restarted |
+| `STALE_BINDING`           | The binding was released, belongs to another caller, or its generation ended   |
 | `INVALID_ARGUMENT`        | Unknown method, input that breaks the contract, or a deadline over the limit   |
 | `PROVIDER_RESULT_INVALID` | The provider returned output that breaks the contract                          |
 | `DEADLINE_EXCEEDED`       | No result within the deadline; the provider's `signal` aborts                  |
 | `OUTCOME_UNKNOWN`         | A command failed after dispatch without declaring its result; do not repeat it |
-| `DEPENDENCY_MISSING`      | No visible provider, or a required dependency is unavailable                   |
+| `DEPENDENCY_MISSING`      | No visible provider, or a required dependency is missing or not active         |
+| `PLUGIN_UNAVAILABLE`      | The provider is starting, draining or failed to start, or its process exited   |
 | `NO_EXECUTION_ROUTE`      | The request targets another host, runtime, or provider scope                   |
 | `UNAUTHORIZED`            | The session has no authenticated principal                                     |
 
@@ -147,10 +148,47 @@ Resolution hides providers whose `inspectPermissions` the caller lacks; it repor
 The default deadline is 30 seconds, nested calls stop at depth 16, and each session holds at most 256
 bindings.
 
-A provider's process generation is part of every binding. Reloading creates a new generation, so old
-bindings return `STALE_BINDING` and callers resolve again. Closing a session releases its bindings
-and cancels its calls. Command handlers must tolerate the abort signal; the daemon never retries a
-command.
+Closing a session releases its bindings and cancels its calls. Command handlers must tolerate the
+abort signal; the daemon never retries a command.
+
+## Provider lifecycle
+
+Each declared provider is a node of the dependency graph, keyed by installation, provider ID and
+provider scope. The lifecycle settles the nodes whenever a plugin starts, stops or exits, one change
+at a time:
+
+| State                  | Meaning                                                                  |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `unresolved`           | Registered and not evaluated yet                                         |
+| `pending-dependencies` | A required dependency is missing or not active; `reason` names it        |
+| `activating`           | Its factory is running                                                   |
+| `active`               | Takes calls at its current generation                                    |
+| `draining`             | Refuses new calls and finishes the ones it accepted                      |
+| `inactive`             | Its plugin is stopping                                                   |
+| `failed`               | Its factory threw or missed the activation deadline; `reason` says which |
+
+A node activates as soon as its plan resolves and every dependency it plans on is active. When a
+dependency stops, restarts or gets a new generation, every provider that runs against it, directly
+or transitively, retires too: dependents drain and dispose first, then the dependency. Each returns
+with a new generation once its dependencies are active again. Independent providers keep running.
+A failed factory runs again only after its dependencies change or its plugin restarts; the plugin
+keeps serving its other providers.
+
+Stopping or reloading a plugin drains it. Its providers refuse new calls at once with
+`PLUGIN_UNAVAILABLE`, finish the calls they accepted, and dispose before the process stops. A
+draining provider still takes nested calls from work in flight, so its dependents can finish
+against it. Every accepted call ends within its own deadline, so a drain ends within the longest
+one. A process that exits ends its providers at once: in-flight calls fail with
+`PLUGIN_UNAVAILABLE`, or `OUTCOME_UNKNOWN` for a dispatched command, and dependents retire.
+
+The two generations have separate owners. `binding.generation` is the provider generation and
+changes on every activation, including a rebuild after a dependency change. `execution.generation`
+is the runtime generation and changes only when the process restarts. A binding whose provider
+generation ended returns `STALE_BINDING`; resolve again.
+
+`listPlugins()` reports `platformProviders` for each running v1 plugin: the state, the generation
+while the provider runs, and the `reason` for pending, inactive and failed providers. The state is
+an open string, so treat values you do not know as unavailable.
 
 ## Client API
 

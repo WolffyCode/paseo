@@ -47,6 +47,7 @@ import {
 interface ActiveProvider {
   provider: Provider;
   effects: EffectScope;
+  generation: string;
 }
 interface NestedRequest {
   handle: string;
@@ -54,6 +55,7 @@ interface NestedRequest {
   reject(error: Error): void;
 }
 type ActivateRequest = Extract<PlatformWorkerRequest, { type: "platform.activate" }>;
+type DeactivateRequest = Extract<PlatformWorkerRequest, { type: "platform.deactivate" }>;
 type InvokeRequest = Extract<PlatformWorkerRequest, { type: "platform.invoke" }>;
 type NestedRequestMessage = Extract<
   PlatformWorkerMessage,
@@ -165,13 +167,13 @@ export function createPlatformWorker(options: {
   let isRegistering = false;
   let isInitialized = false;
   let isStopping = false;
-  let activations = Promise.resolve();
+  let providerChanges = Promise.resolve();
   let closing: Promise<void> | null = null;
 
   function serialize(task: () => Promise<void>): Promise<void> {
-    const next = activations.then(task);
+    const next = providerChanges.then(task);
     // The caller observes the failure through `next`; the queue keeps serving later tasks.
-    activations = next.catch(() => undefined);
+    providerChanges = next.catch(() => undefined);
     return next;
   }
 
@@ -183,7 +185,13 @@ export function createPlatformWorker(options: {
   }
 
   async function createProvider(message: ActivateRequest): Promise<void> {
-    if (active.has(message.providesId)) return;
+    // The daemon deactivates a generation before it activates the next one.
+    if (active.has(message.providesId)) {
+      throw executionError(
+        "REGISTRATION_CONFLICT",
+        `Provider ${message.providesId} is already active`,
+      );
+    }
     const factory = factories.get(message.providesId);
     if (!factory) {
       throw executionError(
@@ -203,11 +211,22 @@ export function createPlatformWorker(options: {
       scope.use(() => provider.dispose());
       assertContractMethods(provider, message.providesId, message.methods);
       if (isStopping) throw executionError("PLUGIN_UNAVAILABLE", "Plugin is stopping");
-      active.set(message.providesId, { provider, effects: scope });
+      active.set(message.providesId, {
+        provider,
+        effects: scope,
+        generation: message.generation,
+      });
     } catch (error) {
       await scope.dispose();
       throw error;
     }
+  }
+
+  async function deactivateProvider(message: DeactivateRequest): Promise<void> {
+    const current = active.get(message.providesId);
+    if (current?.generation !== message.generation) return;
+    active.delete(message.providesId);
+    await current.effects.dispose();
   }
 
   function cancel(handle: string): void {
@@ -325,10 +344,13 @@ export function createPlatformWorker(options: {
   }
 
   async function invoke(message: InvokeRequest): Promise<unknown> {
-    await activations;
+    // The daemon admits calls only after this process confirmed the generation's activation.
     const current = active.get(message.providesId);
-    if (!current) {
-      throw executionError("PLUGIN_UNAVAILABLE", `Provider ${message.providesId} is not active`);
+    if (current?.generation !== message.generation) {
+      throw executionError(
+        "PLUGIN_UNAVAILABLE",
+        `Provider ${message.providesId} is not active at this generation`,
+      );
     }
     const handler = current.provider.methods[message.method];
     if (!handler) {
@@ -457,6 +479,13 @@ export function createPlatformWorker(options: {
       reply(
         message.requestId,
         serialize(() => createProvider(message)).then(() => null),
+      );
+      return;
+    }
+    if (message.type === "platform.deactivate") {
+      reply(
+        message.requestId,
+        serialize(() => deactivateProvider(message)).then(() => null),
       );
       return;
     }

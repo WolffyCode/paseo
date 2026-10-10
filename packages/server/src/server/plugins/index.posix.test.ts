@@ -33,6 +33,7 @@ import {
 } from "./test-fixtures/platform-package.js";
 import {
   type PlatformResolvePlanInput,
+  type PlatformService,
   type PluginPlatformManifest,
 } from "@getpaseo/protocol/plugin-platform";
 import type {
@@ -134,11 +135,14 @@ describe("plugin platform discovery", () => {
     scope: { kind: "host", serverId: "srv_test" },
   };
 
-  async function fixture(manifest: PluginPlatformManifest = platformManifest()) {
+  async function fixture(
+    manifest: PluginPlatformManifest = platformManifest(),
+    contracts: Record<string, PlatformService> = {},
+  ) {
     const home = await mkdtemp(path.join(tmpdir(), "paseo-platform-"));
     roots.push(home);
     const directory = path.join(home, "external");
-    await writePlatformPackage({ directory, manifest });
+    await writePlatformPackage({ directory, manifest, contracts });
     const store = createStore(home, { external: { source: "directory", path: directory } });
     const service = new PluginService(pino({ level: "silent" }), store, "0.11.1", {
       serverId: "srv_test",
@@ -321,11 +325,9 @@ describe("plugin platform discovery", () => {
         activation: "eager",
       },
     ];
-    const { directory, service } = await fixture(manifest);
-    await writeFile(
-      path.join(directory, "shared/other.json"),
-      JSON.stringify({ ...fileServiceContract(), serviceId: "acme.other" }),
-    );
+    const { service } = await fixture(manifest, {
+      "shared/other.json": { ...fileServiceContract(), serviceId: "acme.other" },
+    });
     const plan = await service.planPlatformResolution(input);
     expect(plan.candidates).toEqual([]);
     expect(plan.diagnostics).toEqual([
@@ -588,8 +590,8 @@ describe("plugin platform host services", () => {
     const home = await mkdtemp(path.join(tmpdir(), "paseo-host-services-"));
     roots.push(home);
     const directory = path.join(home, "files");
-    const disposeMarker = path.join(home, "disposed");
-    await writeHostServicePackage({ directory, disposeMarker });
+    const disposeLog = path.join(home, "disposed.log");
+    await writeHostServicePackage({ directory, disposeLog, providers: ["files", "store"] });
     const isBuiltin = runtime === "builtin";
     const store = createStore(
       home,
@@ -607,7 +609,7 @@ describe("plugin platform host services", () => {
       },
     });
     await service.start();
-    return { home, service, disposeMarker, ownerSessions: () => ownerSessions };
+    return { home, service, disposeLog, ownerSessions: () => ownerSessions };
   }
 
   function openCaller(service: PluginService, permissions: string[]) {
@@ -811,8 +813,291 @@ describe("plugin platform host services", () => {
     }
   });
 
+  describe("provider lifecycle", () => {
+    function providerStatuses(service: PluginService, pluginId: string) {
+      return service.hostServices!.providerStatuses(pluginId);
+    }
+
+    async function startSplitPackages() {
+      const home = await mkdtemp(path.join(tmpdir(), "paseo-provider-lifecycle-"));
+      roots.push(home);
+      const filesDirectory = path.join(home, "files");
+      const storeDirectory = path.join(home, "store");
+      const disposeLog = path.join(home, "disposed.log");
+      await writeHostServicePackage({
+        directory: filesDirectory,
+        disposeLog,
+        providers: ["files"],
+      });
+      await writeHostServicePackage({
+        directory: storeDirectory,
+        disposeLog,
+        providers: ["store"],
+      });
+      const service = new PluginService(
+        pino({ level: "silent" }),
+        createStore(home, { files: { source: "directory", path: filesDirectory } }),
+        "0.11.1",
+        { serverId: "srv_test" },
+      );
+      await service.start();
+      return { home, service, storeDirectory, disposeLog };
+    }
+
+    it("activates a provider as soon as its dependency arrives", async () => {
+      const { service, storeDirectory } = await startSplitPackages();
+      try {
+        expect(providerStatuses(service, "files")).toEqual([
+          {
+            providesId: "files",
+            serviceId: "acme.files",
+            apiVersion: "1.0.0",
+            state: "pending-dependencies",
+            reason: expect.objectContaining({
+              code: "DEPENDENCY_MISSING",
+              message: expect.stringContaining("acme.store"),
+            }),
+          },
+        ]);
+        const { session } = openCaller(service, ["workspace.read"]);
+        expect(await session.resolve(resolveFiles)).toMatchObject({
+          status: "error",
+          error: { code: "DEPENDENCY_MISSING", message: expect.stringContaining("acme.store") },
+        });
+
+        await service.installDirectory({ path: storeDirectory });
+        expect(providerStatuses(service, "files")).toMatchObject([
+          { state: "active", generation: expect.any(String) },
+        ]);
+        const binding = await resolveOne(session);
+        expect(await call({ session, binding, method: "whoami" })).toMatchObject({
+          status: "ok",
+        });
+      } finally {
+        await service.stopAllPlugins();
+      }
+    });
+
+    it("keeps the plugin running and reports a provider whose factory fails", async () => {
+      const home = await mkdtemp(path.join(tmpdir(), "paseo-provider-failure-"));
+      roots.push(home);
+      const directory = path.join(home, "files");
+      await writeHostServicePackage({
+        directory,
+        disposeLog: path.join(home, "disposed.log"),
+        providers: ["files", "store"],
+        factoryFailure: "missing credentials",
+      });
+      const service = new PluginService(
+        pino({ level: "silent" }),
+        createStore(home, { files: { source: "directory", path: directory } }),
+        "0.11.1",
+        { serverId: "srv_test" },
+      );
+      await service.start();
+      try {
+        expect(providerStatuses(service, "files")).toEqual([
+          {
+            providesId: "files",
+            serviceId: "acme.files",
+            apiVersion: "1.0.0",
+            state: "failed",
+            reason: expect.objectContaining({
+              code: "PLUGIN_UNAVAILABLE",
+              message: expect.stringContaining("missing credentials"),
+            }),
+          },
+          {
+            providesId: "store",
+            serviceId: "acme.store",
+            apiVersion: "1.0.0",
+            state: "active",
+            generation: expect.any(String),
+          },
+        ]);
+        expect(await service.listPlugins()).toMatchObject([
+          {
+            id: "files",
+            status: "running",
+            platformProviders: [
+              { providesId: "files", state: "failed" },
+              { providesId: "store", state: "active" },
+            ],
+          },
+        ]);
+        const { session } = openCaller(service, ["workspace.read"]);
+        expect(await session.resolve(resolveFiles)).toMatchObject({
+          status: "error",
+          error: {
+            code: "PLUGIN_UNAVAILABLE",
+            message: expect.stringContaining("missing credentials"),
+          },
+        });
+      } finally {
+        await service.stopAllPlugins();
+      }
+    });
+
+    it("retires a provider whose dependency stops and rebuilds it when the dependency returns", async () => {
+      const { service, storeDirectory, disposeLog } = await startSplitPackages();
+      try {
+        await service.installDirectory({ path: storeDirectory });
+        const { session } = openCaller(service, ["workspace.read"]);
+        const before = await resolveOne(session);
+
+        await service.disablePlugin("store");
+        // The dependent retires before the dependency it runs against.
+        expect(await readFile(disposeLog, "utf8")).toBe("files\nstore\n");
+        expect(errorCode(await call({ session, binding: before, method: "whoami" }))).toBe(
+          "STALE_BINDING",
+        );
+        expect(providerStatuses(service, "files")).toMatchObject([
+          {
+            state: "pending-dependencies",
+            reason: { code: "DEPENDENCY_MISSING", message: expect.stringContaining("acme.store") },
+          },
+        ]);
+        expect(await session.resolve(resolveFiles)).toMatchObject({
+          status: "error",
+          error: { code: "DEPENDENCY_MISSING", message: expect.stringContaining("acme.store") },
+        });
+
+        await service.enablePlugin("store");
+        const recovered = await resolveOne(session);
+        expect(recovered.binding.generation).not.toBe(before.binding.generation);
+        // Only the provider was rebuilt; its plugin process kept running.
+        expect(recovered.execution.generation).toBe(before.execution.generation);
+        expect(await call({ session, binding: recovered, method: "whoami" })).toMatchObject({
+          status: "ok",
+        });
+
+        await service.reloadPlugin("store");
+        const rebuilt = await resolveOne(session);
+        expect(rebuilt.binding.generation).not.toBe(recovered.binding.generation);
+        expect(rebuilt.execution.generation).toBe(before.execution.generation);
+      } finally {
+        await service.stopAllPlugins();
+      }
+    });
+
+    it("retires every transitive dependent before the provider it runs against", async () => {
+      const { home, service, storeDirectory, disposeLog } = await startSplitPackages();
+      try {
+        const searchDirectory = path.join(home, "search");
+        await writeHostServicePackage({
+          directory: searchDirectory,
+          disposeLog,
+          providers: ["search"],
+        });
+        await service.installDirectory({ path: storeDirectory });
+        await service.installDirectory({ path: searchDirectory });
+        expect(providerStatuses(service, "search")).toMatchObject([{ state: "active" }]);
+
+        await service.reloadPlugin("store");
+        expect(await readFile(disposeLog, "utf8")).toBe("search\nfiles\nstore\n");
+        expect(providerStatuses(service, "search")).toMatchObject([{ state: "active" }]);
+      } finally {
+        await service.stopAllPlugins();
+      }
+    });
+
+    it("finishes accepted calls before a stopping plugin disposes its providers", async () => {
+      const { service, disposeLog } = await startHostServices();
+      try {
+        const { session } = openCaller(service, ["workspace.read"]);
+        const binding = await resolveOne(session);
+        const accepted = call({ session, binding, method: "wait", params: { ms: 500 } });
+
+        const stopping = service.disablePlugin("files");
+        expect(providerStatuses(service, "files")).toMatchObject([
+          { providesId: "files", state: "draining" },
+          { providesId: "store", state: "draining" },
+        ]);
+        expect(await call({ session, binding, method: "whoami" })).toMatchObject({
+          status: "error",
+          error: { code: "PLUGIN_UNAVAILABLE", retryable: true },
+        });
+        expect(existsSync(disposeLog)).toBe(false);
+        // The accepted call runs to completion; an aborted one would report ok: false.
+        expect(await accepted).toEqual({ status: "ok", value: { ok: true } });
+
+        await stopping;
+        expect(await readFile(disposeLog, "utf8")).toBe("files\nstore\n");
+        expect(providerStatuses(service, "files")).toEqual([]);
+      } finally {
+        await service.stopAllPlugins();
+      }
+    });
+
+    it("ends the calls and providers of a plugin process that exits", async () => {
+      const { service } = await startHostServices();
+      try {
+        const { session } = openCaller(service, ["workspace.read"]);
+        const binding = await resolveOne(session);
+        const accepted = call({ session, binding, method: "wait", params: { ms: 10_000 } });
+
+        expect(errorCode(await call({ session, binding, method: "crash" }))).toBe(
+          "PLUGIN_UNAVAILABLE",
+        );
+        expect(errorCode(await accepted)).toBe("PLUGIN_UNAVAILABLE");
+        expect(providerStatuses(service, "files")).toEqual([]);
+        expect(await session.resolve(resolveFiles)).toMatchObject({
+          status: "error",
+          error: { code: "DEPENDENCY_MISSING" },
+        });
+      } finally {
+        await service.stopAllPlugins();
+      }
+    });
+
+    it("lists the provider states of each running v1 plugin", async () => {
+      const { service, storeDirectory } = await startSplitPackages();
+      try {
+        expect(await service.listPlugins()).toMatchObject([
+          {
+            id: "files",
+            status: "running",
+            platformProviders: [
+              {
+                providesId: "files",
+                state: "pending-dependencies",
+                reason: { code: "DEPENDENCY_MISSING", retryable: true },
+              },
+            ],
+          },
+        ]);
+        await service.installDirectory({ path: storeDirectory });
+        expect(await service.listPlugins()).toMatchObject([
+          { id: "files", platformProviders: [{ state: "active", generation: expect.any(String) }] },
+          { id: "store", platformProviders: [{ state: "active", generation: expect.any(String) }] },
+        ]);
+        await service.disablePlugin("store");
+        const [, disabled] = await service.listPlugins();
+        expect(disabled).toMatchObject({ id: "store", status: "disabled" });
+        expect(disabled).not.toHaveProperty("platformProviders");
+      } finally {
+        await service.stopAllPlugins();
+      }
+    });
+
+    it("gives every provider activation a generation of its own", async () => {
+      const { service } = await startHostServices();
+      try {
+        const { session } = openCaller(service, ["workspace.read"]);
+        const before = await resolveOne(session);
+        expect(before.binding.generation).not.toBe(before.execution.generation);
+        await service.reloadPlugin("files");
+        const after = await resolveOne(session);
+        expect(after.binding.generation).not.toBe(before.binding.generation);
+        expect(after.execution.generation).not.toBe(before.execution.generation);
+      } finally {
+        await service.stopAllPlugins();
+      }
+    });
+  });
+
   it("expires bindings when the provider restarts or the caller's session ends", async () => {
-    const { service, disposeMarker } = await startHostServices();
+    const { service, disposeLog } = await startHostServices();
     try {
       const { session, close } = openCaller(service, ["workspace.read"]);
       const before = await resolveOne(session);
@@ -821,7 +1106,7 @@ describe("plugin platform host services", () => {
       });
 
       await service.reloadPlugin("files");
-      expect(existsSync(disposeMarker)).toBe(true);
+      expect(await readFile(disposeLog, "utf8")).toBe("files\nstore\n");
       expect(errorCode(await call({ session, binding: before, method: "whoami" }))).toBe(
         "STALE_BINDING",
       );

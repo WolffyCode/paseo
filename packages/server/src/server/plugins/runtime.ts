@@ -37,12 +37,9 @@ import { PluginSessionSocket } from "./session-socket.js";
 import { InternalPluginChild } from "./internal-child.js";
 import { evaluateBundle, evaluatePlatformBundle } from "./bundle-evaluator.js";
 import type { PluginPlatformManifest } from "@getpaseo/protocol/plugin-platform";
-import {
-  PlatformBroker,
-  loadExecutablePlatformPackage,
-  type PlatformExecution,
-  type PlatformExecutionRequest,
-} from "./platform/broker.js";
+import { PlatformBroker } from "./platform/broker.js";
+import { loadExecutablePlatformPackage } from "./platform/host-capabilities.js";
+import type { PlatformExecution, PlatformExecutionRequest } from "./platform/provider-lifecycle.js";
 import { PlatformWorkerError, executionError } from "./platform/execution-errors.js";
 import type { LoadedPlatformPackage } from "./platform/package.js";
 import type { PlatformWorkerInitialization } from "./platform/process-protocol.js";
@@ -345,7 +342,7 @@ export class PluginRuntime {
     this.spawnChild = dependencies.spawnChild ?? spawnPluginChild;
     this.sessionHost = dependencies.sessionHost ?? null;
     this.hostServices = dependencies.serverId
-      ? new PlatformBroker({ serverId: dependencies.serverId })
+      ? new PlatformBroker({ serverId: dependencies.serverId, logger: this.logger })
       : null;
   }
 
@@ -375,7 +372,7 @@ export class PluginRuntime {
       await this.stopPlugin(loaded);
       throw new Error(`Plugin start cancelled: ${pluginId}`);
     }
-    this.publish(loaded);
+    await this.publish(loaded);
     this.appendLog(pluginId, "stdout", "[paseo] Plugin ready");
   }
 
@@ -416,7 +413,7 @@ export class PluginRuntime {
       clientBundle: bundles.clientBundle ?? "",
       platform,
     });
-    this.publish(loaded);
+    await this.publish(loaded);
     this.appendLog(input.id, "stdout", "[paseo] Plugin ready");
   }
 
@@ -440,7 +437,8 @@ export class PluginRuntime {
   async stopPluginById(pluginId: string): Promise<boolean> {
     const loaded = this.plugins.get(pluginId);
     if (!loaded) return false;
-    this.unpublish(loaded);
+    this.plugins.delete(pluginId);
+    await this.drainPlatform(loaded);
     this.rejectPending(loaded, `Plugin stopped: ${pluginId}`);
     await this.stopPlugin(loaded);
     return true;
@@ -695,7 +693,8 @@ export class PluginRuntime {
 
   async stopAll(): Promise<void> {
     const loaded = [...this.plugins.values()];
-    for (const plugin of loaded) this.unpublish(plugin);
+    this.plugins.clear();
+    await Promise.all(loaded.map((plugin) => this.drainPlatform(plugin)));
     for (const plugin of loaded) {
       this.rejectPending(plugin, `Plugin stopped: ${plugin.id}`);
     }
@@ -1286,7 +1285,9 @@ export class PluginRuntime {
   private async handleChildClose(loaded: LoadedPlugin): Promise<void> {
     loaded.sessionSocket?.peerClosed();
     const wasPublished = this.plugins.get(loaded.id) === loaded;
-    if (wasPublished) this.unpublish(loaded);
+    if (wasPublished) this.plugins.delete(loaded.id);
+    // An exit also ends a drain in progress; after a completed stop there is nothing left to detach.
+    if (loaded.platform) this.hostServices?.detach(loaded.platform.runtime.generation);
     this.rejectPending(loaded, `Plugin process exited: ${loaded.id}`);
     for (const state of loaded.providerConnections.values()) {
       this.failRemoteProviderConnection(state, new Error(`Plugin process exited: ${loaded.id}`));
@@ -1388,15 +1389,15 @@ export class PluginRuntime {
     };
   }
 
-  /** Publishes a started plugin; v1 plugins become callable host services. */
-  private publish(loaded: LoadedPlugin): void {
+  /** Publishes a started plugin; a v1 plugin's providers have settled when this resolves. */
+  private async publish(loaded: LoadedPlugin): Promise<void> {
     this.plugins.set(loaded.id, loaded);
-    if (loaded.platform) this.hostServices?.attach(loaded.platform);
+    if (loaded.platform) await this.hostServices?.attach(loaded.platform);
   }
 
-  private unpublish(loaded: LoadedPlugin): void {
-    this.plugins.delete(loaded.id);
-    if (loaded.platform) this.hostServices?.detach(loaded.platform.runtime.generation);
+  /** Lets a v1 plugin's providers finish their accepted calls before its process stops. */
+  private async drainPlatform(loaded: LoadedPlugin): Promise<void> {
+    if (loaded.platform) await this.hostServices?.drain(loaded.platform.runtime.generation);
   }
 
   private rejectPending(loaded: LoadedPlugin, message: string): void {

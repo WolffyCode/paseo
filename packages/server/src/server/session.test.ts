@@ -497,7 +497,7 @@ test("routes plugin requests and releases its owned catalog subscription on clea
     status: "running" as const,
   };
   const pluginRuntime: NonNullable<SessionOptions["pluginRuntime"]> = {
-    hostServices: new PlatformBroker({ serverId: "test" }),
+    hostServices: new PlatformBroker({ serverId: "test", logger: pino({ level: "silent" }) }),
     platformDiscoveryAvailable: false,
     describePlatform: () => ({
       apiVersion: "1.0.0",
