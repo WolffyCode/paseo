@@ -63,7 +63,7 @@ export function openBrowserStartPage(input: { browserId: string; url: string }) 
 
   return {
     browserId: input.browserId,
-    getState(): BrowserStartSnapshot {
+    getSnapshot(): BrowserStartSnapshot {
       return snapshot;
     },
     subscribe(listener: () => void) {

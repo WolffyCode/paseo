@@ -578,7 +578,7 @@ export const zhCN: TranslationResources = {
         stopLoading: "停止加载",
         refresh: "刷新",
         browserUrl: "浏览器 URL",
-        enterUrl: "输入 URL",
+        enterUrl: "搜索或输入网址",
         openDevTools: "打开浏览器开发者工具",
         cancelSelector: "取消元素选择器",
         annotateElement: "标注元素",
@@ -1131,7 +1131,7 @@ export const zhCN: TranslationResources = {
   },
   sidebar: {
     conversations: {
-      title: "对话",
+      title: "独立对话",
       empty: "发送消息后，对话会显示在这里。",
     },
     statusGroupAccessibility: "{{label}} 分组",
@@ -1312,7 +1312,7 @@ export const zhCN: TranslationResources = {
       search: "搜索工作区目录",
       empty: "没有匹配的工作区目录。",
     },
-    title: "新聊天",
+    title: "新对话",
     create: "创建",
     isolation: {
       local: "本地",
@@ -1885,7 +1885,7 @@ export const zhCN: TranslationResources = {
   },
   panels: {
     draft: {
-      newAgent: "新建 Agent",
+      newAgent: "新对话",
       creatingAgent: "正在创建 Agent",
     },
     file: {

@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type ReactNode,
   createElement,
@@ -64,6 +65,11 @@ import {
   RESPONSIVE_BROWSER_VIEWPORT,
   useBrowserStore,
 } from "@/desktop/browser/store";
+import {
+  isBrowserStartUrl,
+  openBrowserStartPage,
+  type BrowserNavigationIntent,
+} from "@/desktop/browser/start-page";
 import {
   applyInactiveBrowserWebviewViewport,
   prepareBrowserWebview,
@@ -597,6 +603,15 @@ export function BrowserPane({
   const { theme } = useUnistyles();
   const { t } = useTranslation();
   const browser = useBrowserStore((state) => state.browsersById[browserId] ?? null);
+  const [startPage] = useState(() =>
+    openBrowserStartPage({ browserId, url: browser?.url ?? "paseo://start" }),
+  );
+  const startSnapshot = useSyncExternalStore(
+    startPage.subscribe,
+    startPage.getSnapshot,
+    startPage.getSnapshot,
+  );
+  const pendingRequestIdRef = useRef<number | null>(null);
   const updateBrowser = useBrowserStore((state) => state.updateBrowser);
   const setBrowserViewport = useBrowserStore((state) => state.setBrowserViewport);
   const browserViewport = browser?.viewport ?? RESPONSIVE_BROWSER_VIEWPORT;
@@ -720,7 +735,7 @@ export function BrowserPane({
   }, []);
 
   useEffect(() => {
-    if (!isElectronRuntime()) {
+    if (!isElectronRuntime() || isBrowserStartUrl(initialUrlRef.current)) {
       return;
     }
 
@@ -790,6 +805,11 @@ export function BrowserPane({
         url: normalized,
         ...(normalized !== previousUrl ? { faviconUrl: null } : {}),
         lastError: null,
+      });
+      startPage.observeNavigation({
+        requestId: pendingRequestIdRef.current ?? undefined,
+        url: normalized,
+        isLoading: false,
       });
       setDraftUrl((current) => {
         return current === normalized ? current : normalized;
@@ -975,15 +995,29 @@ export function BrowserPane({
     [browserErrorLabels],
   );
 
+  const applyNavigationIntent = useCallback(
+    (intent: BrowserNavigationIntent | null) => {
+      if (!intent) return;
+      pendingRequestIdRef.current = intent.requestId;
+      if (intent.kind === "load") {
+        navigate(intent.url);
+        return;
+      }
+      if (intent.kind === "back") webviewRef.current?.goBack?.();
+      if (intent.kind === "forward") webviewRef.current?.goForward?.();
+      if (intent.kind === "reload") webviewRef.current?.reload?.();
+      syncNavigationState();
+    },
+    [navigate, syncNavigationState],
+  );
+
   const handleBack = useCallback(() => {
-    webviewRef.current?.goBack?.();
-    syncNavigationState();
-  }, [syncNavigationState]);
+    applyNavigationIntent(startPage.goBack());
+  }, [applyNavigationIntent, startPage]);
 
   const handleForward = useCallback(() => {
-    webviewRef.current?.goForward?.();
-    syncNavigationState();
-  }, [syncNavigationState]);
+    applyNavigationIntent(startPage.goForward());
+  }, [applyNavigationIntent, startPage]);
 
   const handleRefresh = useCallback(() => {
     if (browser?.isLoading) {
@@ -991,8 +1025,8 @@ export function BrowserPane({
       updateBrowser(browserId, { isLoading: false });
       return;
     }
-    webviewRef.current?.reload?.();
-  }, [browser?.isLoading, browserId, updateBrowser]);
+    applyNavigationIntent(startPage.reload());
+  }, [applyNavigationIntent, browser?.isLoading, browserId, startPage, updateBrowser]);
 
   useEffect(() => {
     if (!isElectronRuntime() || !isInteractive) {
@@ -1051,8 +1085,8 @@ export function BrowserPane({
   }, [focusUrlBar, isInteractive]);
 
   const handleNavigateDraftUrl = useCallback(() => {
-    navigate(draftUrl);
-  }, [draftUrl, navigate]);
+    applyNavigationIntent(startPage.submitDraft());
+  }, [applyNavigationIntent, startPage]);
 
   const addElementAttachment = useCallback(
     (
@@ -1438,7 +1472,7 @@ export function BrowserPane({
         <View style={styles.chromeLeft}>
           <ToolbarButton
             label={t("workspace.browser.controls.back")}
-            disabled={!browser?.canGoBack}
+            disabled={!startSnapshot.canGoBack}
             onPress={handleBack}
             style={backIconButtonStyle}
           >
@@ -1446,7 +1480,7 @@ export function BrowserPane({
           </ToolbarButton>
           <ToolbarButton
             label={t("workspace.browser.controls.forward")}
-            disabled={!browser?.canGoForward}
+            disabled={!startSnapshot.canGoForward}
             onPress={handleForward}
             style={forwardIconButtonStyle}
           >
@@ -1469,14 +1503,14 @@ export function BrowserPane({
             accessibilityLabel={t("workspace.browser.controls.browserUrl")}
             autoCapitalize="none"
             autoCorrect={false}
-            onChangeText={setDraftUrl}
+            onChangeText={startPage.editDraft}
             onFocus={handleUrlBarFocus}
             onSubmitEditing={handleNavigateDraftUrl}
             placeholder={t("workspace.browser.controls.enterUrl")}
             placeholderTextColor={theme.colors.foregroundMuted}
             ref={urlInputRef}
             style={urlInputStyle}
-            initialValue={draftUrl}
+            initialValue={startSnapshot.draft}
           />
         </View>
         <View style={styles.chromeRight}>
@@ -1535,24 +1569,28 @@ export function BrowserPane({
           </Text>
         </View>
       ) : null}
-      <View
-        ref={setWebviewClipNode}
-        style={webviewWrapStyle}
-        testID={`browser-webview-clip-${browserId}`}
-      >
-        {createElement("div", {
-          ref: setWebviewHostNode,
-          style: webviewHostStyle,
-        })}
-        {pendingSelection ? (
-          <BrowserElementAnnotationCard
-            anchor={webviewClipRef.current}
-            selection={pendingSelection}
-            onSubmit={submitAnnotation}
-            onCancel={cancelAnnotation}
-          />
-        ) : null}
-      </View>
+      {startSnapshot.phase === "start" ? (
+        <View style={styles.webviewWrap} testID={`browser-start-${browserId}`} />
+      ) : (
+        <View
+          ref={setWebviewClipNode}
+          style={webviewWrapStyle}
+          testID={`browser-webview-clip-${browserId}`}
+        >
+          {createElement("div", {
+            ref: setWebviewHostNode,
+            style: webviewHostStyle,
+          })}
+          {pendingSelection ? (
+            <BrowserElementAnnotationCard
+              anchor={webviewClipRef.current}
+              selection={pendingSelection}
+              onSubmit={submitAnnotation}
+              onCancel={cancelAnnotation}
+            />
+          ) : null}
+        </View>
+      )}
     </View>
   );
 }

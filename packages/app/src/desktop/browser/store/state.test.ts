@@ -30,6 +30,10 @@ describe("normalizeBrowserUrl", () => {
     expect(normalizeBrowserUrl("//example.com/path")).toBe("https://example.com/path");
   });
 
+  it("preserves the browser start address", () => {
+    expect(normalizeBrowserUrl("paseo://start")).toBe("paseo://start");
+  });
+
   it("keeps explicit protocols unchanged", () => {
     expect(normalizeBrowserUrl("http://localhost:8081")).toBe("http://localhost:8081");
     expect(normalizeBrowserUrl("https://localhost:8081")).toBe("https://localhost:8081");

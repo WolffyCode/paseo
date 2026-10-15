@@ -1,10 +1,12 @@
 import { useMemo } from "react";
 import { Image } from "react-native";
+import { useTranslation } from "react-i18next";
 import { Globe } from "lucide-react-native";
 import invariant from "tiny-invariant";
 import { BrowserPane } from "@/desktop/browser/pane";
 import { usePaneContext, usePaneFocus } from "@/panels/pane-context";
 import { definePanel, type PanelDescriptor, type PanelIconProps } from "@/panels/panel-registry";
+import { isBrowserStartUrl } from "@/desktop/browser/start-page";
 import { useBrowserStore } from "@/desktop/browser/store";
 import { useWorkspaceDirectory } from "@/stores/session-store-hooks";
 
@@ -39,15 +41,19 @@ function useBrowserPanelDescriptor(target: {
   kind: "browser";
   browserId: string;
 }): PanelDescriptor {
+  const { t } = useTranslation();
   const browser = useBrowserStore((state) => state.browsersById[target.browserId] ?? null);
   const url = browser?.url ?? "https://example.com";
-  const icon = createBrowserTabIcon(browser?.faviconUrl ?? null);
-  const label = getBrowserLabel({ title: browser?.title ?? "", url });
+  const isStartPage = isBrowserStartUrl(url);
+  const icon = createBrowserTabIcon(isStartPage ? null : (browser?.faviconUrl ?? null));
+  const label = isStartPage
+    ? t("workspace.tabs.actions.newTab")
+    : getBrowserLabel({ title: browser?.title ?? "", url });
 
   return {
     label,
-    subtitle: url,
-    tooltip: url || label,
+    subtitle: isStartPage ? label : url,
+    tooltip: isStartPage ? label : url || label,
     titleState: "ready",
     icon,
     statusBucket: browser?.isLoading ? "running" : null,
