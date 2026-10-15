@@ -36,6 +36,8 @@ import {
   FloatingPanelPortalHostNameProvider,
 } from "@/components/ui/floating-panel-portal";
 import { SplitContainer } from "@/components/split-container";
+import { isWorkbenchLayout, usesWorkbench, workbenchPaneHost } from "@/workbench/layout";
+import { workbenchModel } from "@/workbench/runtime";
 import { RetainedPanel } from "@/components/retained-panel";
 import { WorkspaceActions } from "@/git/workspace-actions";
 import { WorkspaceOpenInEditorButton } from "@/workspace/open-in-editor/button";
@@ -66,6 +68,7 @@ import {
   collectAllTabs,
   DEFAULT_PANE_ID,
   findPaneById,
+  findPaneContainingTab,
   getFocusedBrowserId,
   FOCUSED_PANE_PLACEMENT,
   selectExplorerSidebarPaneId,
@@ -109,6 +112,7 @@ import { confirmDialog } from "@/utils/confirm-dialog";
 import { useArchiveAgent } from "@/hooks/use-archive-agent";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import { removeResidentBrowserWebview } from "@/desktop/browser/resident-webviews";
+import { BROWSER_START_URL } from "@/desktop/browser/start-page";
 import { createWorkspaceBrowser, useBrowserStore } from "@/desktop/browser/store";
 import { getDesktopHost } from "@/desktop/host";
 import { buildProviderCommand } from "@/utils/provider-command-templates";
@@ -1826,6 +1830,11 @@ function WorkspaceScreenContent({
   });
   const lastMainPaneId = lastMainPaneRef.current.paneId;
   const hasHydratedWorkspaceLayoutStore = useWorkspaceLayoutStoreHydrated();
+  useLayoutEffect(() => {
+    if (isWeb && !isMobile && hasHydratedWorkspaceLayoutStore && persistenceKey) {
+      useWorkspaceLayoutStore.getState().enableWorkbench(persistenceKey);
+    }
+  }, [isMobile, hasHydratedWorkspaceLayoutStore, persistenceKey]);
   const workspaceSetupSnapshot = useWorkspaceSetupStore((state) =>
     persistenceKey ? (state.snapshots[persistenceKey] ?? null) : null,
   );
@@ -2091,6 +2100,12 @@ function WorkspaceScreenContent({
         return;
       }
       focusWorkspaceTab(persistenceKey, tabId);
+      const layout = useWorkspaceLayoutStore.getState().layoutByWorkspace[persistenceKey];
+      if (layout && isWorkbenchLayout(layout)) {
+        const pane = findPaneContainingTab(layout.root, tabId);
+        if (workbenchPaneHost(pane?.id) === "content")
+          workbenchModel.setRegionVisible("content", true);
+      }
     },
     [focusWorkspaceTab, persistenceKey],
   );
@@ -2419,9 +2434,21 @@ function WorkspaceScreenContent({
       if (!persistenceKey) {
         return;
       }
+      if (workbenchPaneHost(input?.paneId) === "content") {
+        if (!getIsElectron()) {
+          return;
+        }
+        const { browserId } = createWorkspaceBrowser({ initialUrl: BROWSER_START_URL });
+        openWorkspaceTabFocused(
+          persistenceKey,
+          { kind: "browser", browserId },
+          paneLocalPlacement(input?.paneId),
+        );
+        return;
+      }
       createWorkspaceTab(persistenceKey, { kind: "new_tab" }, paneLocalPlacement(input?.paneId));
     },
-    [createWorkspaceTab, persistenceKey],
+    [createWorkspaceTab, openWorkspaceTabFocused, persistenceKey],
   );
 
   const launchWorkspaceTab = useCallback(
@@ -2454,7 +2481,9 @@ function WorkspaceScreenContent({
         });
         return;
       }
-      const { browserId } = createWorkspaceBrowser();
+      const paneId = destination.kind === "open" ? destination.paneId : undefined;
+      const initialUrl = workbenchPaneHost(paneId) === "content" ? BROWSER_START_URL : undefined;
+      const { browserId } = createWorkspaceBrowser({ initialUrl });
       openTarget({ kind: "browser", browserId });
     },
     [createTerminal, createWorkspaceTab, persistenceKey, replaceWorkspaceTabTarget],
@@ -2653,6 +2682,10 @@ function WorkspaceScreenContent({
       if (!tab) {
         return;
       }
+      if (workspaceLayout && isWorkbenchLayout(workspaceLayout) && persistenceKey) {
+        closeWorkspaceTab(persistenceKey, tabId);
+        return;
+      }
       if (!(await confirmDiscardModifiedTab(tabId))) {
         return;
       }
@@ -2672,6 +2705,9 @@ function WorkspaceScreenContent({
       handleCloseAgentTab,
       handleClosePassiveTab,
       handleCloseTerminalTab,
+      workspaceLayout,
+      persistenceKey,
+      closeWorkspaceTab,
     ],
   );
 
@@ -2831,6 +2867,10 @@ function WorkspaceScreenContent({
       if (tabsToClose.length === 0) {
         return true;
       }
+      if (workspaceLayout && isWorkbenchLayout(workspaceLayout) && persistenceKey) {
+        for (const tab of tabsToClose) closeWorkspaceTab(persistenceKey, tab.tabId);
+        return true;
+      }
 
       const groups = classifyBulkClosableTabs(tabsToClose, (agentId) => {
         const agent = useSessionStore.getState().sessions[normalizedServerId]?.agents?.get(agentId);
@@ -2900,6 +2940,8 @@ function WorkspaceScreenContent({
     [
       archiveAgent,
       bulkCloseConfirmationLabels,
+      workspaceLayout,
+      closeWorkspaceTab,
       client,
       closeTab,
       closeWorkspaceTabWithCleanup,
@@ -3516,11 +3558,12 @@ function WorkspaceScreenContent({
         normalizedServerId,
         normalizedWorkspaceId,
         host:
-          canRenderDesktopPaneSplits &&
+          workbenchPaneHost(input.paneId) ??
+          (canRenderDesktopPaneSplits &&
           input.paneId !== null &&
           input.paneId === explorerSidebarPaneId
             ? "explorer"
-            : "main",
+            : "main"),
         fileNavigationRevision: fileNavigationRevisionByTabId[input.tab.tabId] ?? 0,
         onOpenTab: (target) => {
           if (!persistenceKey) {
@@ -3548,6 +3591,7 @@ function WorkspaceScreenContent({
             target,
             source,
             preferences: openInSidePane,
+            parentTabId: input.tab.tabId,
           });
           if (tabId && target.kind === "file") requestFileNavigation(tabId);
           if (tabId) navigateToTabId(tabId);
@@ -3744,7 +3788,14 @@ function WorkspaceScreenContent({
     [focusedPaneId, handleReorderTabsInPane],
   );
 
-  const containerStyle = [styles.container, styles.containerWorkspaceBackground];
+  const hasWorkbench = usesWorkbench(workspaceLayout, isMobile);
+  const containerStyle = useMemo(
+    () => [
+      styles.container,
+      hasWorkbench ? styles.containerWorkbench : styles.containerWorkspaceBackground,
+    ],
+    [hasWorkbench],
+  );
 
   const workspaceScreenGate = renderWorkspaceRouteGate({
     state: workspaceRouteState,
@@ -3788,15 +3839,17 @@ function WorkspaceScreenContent({
         {!isMobile && workspaceDirectory ? (
           <>
             <WorkspaceActions serverId={normalizedServerId} cwd={workspaceDirectory} />
-            <WorkspaceHeaderExplorerToggle
-              owner={explorerToggleOwner}
-              onPress={handleToggleExplorerSidebar}
-              label={explorerSidebarToggleLabel}
-              tooltipLabel={t("workspace.tabs.explorerSidebar.toggle")}
-              tooltipKeys={EXPLORER_TOGGLE_KEYS}
-              style={styles.compactHeaderActionButton}
-              accessibilityState={explorerSidebarToggleAccessibilityState}
-            />
+            {!hasWorkbench ? (
+              <WorkspaceHeaderExplorerToggle
+                owner={explorerToggleOwner}
+                onPress={handleToggleExplorerSidebar}
+                label={explorerSidebarToggleLabel}
+                tooltipLabel={t("workspace.tabs.explorerSidebar.toggle")}
+                tooltipKeys={EXPLORER_TOGGLE_KEYS}
+                style={styles.compactHeaderActionButton}
+                accessibilityState={explorerSidebarToggleAccessibilityState}
+              />
+            ) : null}
           </>
         ) : null}
         {isMobile ? (
@@ -3813,6 +3866,7 @@ function WorkspaceScreenContent({
     ),
     [
       isMobile,
+      hasWorkbench,
       workspaceDescriptor,
       normalizedServerId,
       normalizedWorkspaceId,
@@ -3890,7 +3944,7 @@ function WorkspaceScreenContent({
         <ScreenHeader
           left={
             <>
-              <SidebarMenuToggle />
+              {!hasWorkbench ? <SidebarMenuToggle /> : null}
               <WorkspaceHeaderTitleBar
                 isLoading={isWorkspaceHeaderLoading}
                 title={workspaceHeaderTitle}
@@ -3947,6 +4001,7 @@ function WorkspaceScreenContent({
       openImportSheet,
       showCreateBrowserTab,
       showScreenHeader,
+      hasWorkbench,
       showWorkspaceSetup,
       workspaceDirectory,
       workspaceHeaderSubtitle,
@@ -4152,6 +4207,7 @@ const styles = StyleSheet.create((theme) => ({
   containerWorkspaceBackground: {
     backgroundColor: theme.colors.surfaceWorkspace,
   },
+  containerWorkbench: { backgroundColor: "transparent" },
   threePaneRow: {
     flex: 1,
     minHeight: 0,
@@ -4400,7 +4456,7 @@ const styles = StyleSheet.create((theme) => ({
   content: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: theme.colors.surface0,
+    backgroundColor: isWeb ? "transparent" : theme.colors.surface0,
     position: "relative",
   },
   mobileMountedTabSlot: {
