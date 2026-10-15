@@ -21,7 +21,7 @@ export interface DesktopSidebarState {
 
 export type SortOption = "name" | "modified" | "size";
 
-export const DEFAULT_SIDEBAR_WIDTH = 320;
+export const DEFAULT_SIDEBAR_WIDTH = 220;
 export const MIN_SIDEBAR_WIDTH = 200;
 export const MAX_SIDEBAR_WIDTH = 600;
 
@@ -140,6 +140,8 @@ export const PanelPersistedStateSchema = z.strictObject({
   explorerTab: ExplorerTabSchema.optional(),
   explorerTabByCheckout: z.record(z.string(), ExplorerTabSchema).optional(),
   expandedPathsByWorkspace: z.record(z.string(), z.array(z.string())).optional(),
+  explorerSelectionByView: z.record(z.string(), z.string().nullable()).optional(),
+  explorerScrollByView: z.record(z.string(), z.number().nonnegative()).optional(),
   // Accepted only so migration can discard the former per-file diff expansion state.
   diffExpandedPathsByWorkspace: z.record(z.string(), z.array(z.string())).optional(),
   diffCollapsedFoldersByWorkspace: z.record(z.string(), z.array(z.string())).optional(),

@@ -21,6 +21,7 @@ export interface KeyboardShortcutContext {
   isDesktop: boolean;
   focusScope: KeyboardFocusScope;
   commandCenterOpen: boolean;
+  conversationPane?: boolean;
 }
 
 export interface KeyboardShortcutInput {
@@ -67,6 +68,7 @@ interface KeyboardShortcutPlatformContext {
 }
 
 interface ShortcutWhen {
+  conversationPane?: boolean;
   /** true = mac only, false = non-mac only */
   mac?: boolean;
   /** true = desktop only, false = web only */
@@ -716,10 +718,10 @@ const SHORTCUT_BINDINGS: readonly ShortcutBinding[] = [
 
   // --- Pane management (mac only) ---
   {
-    id: "workspace-pane-split-right-cmd-backslash",
+    id: "workspace-pane-split-right-cmd-d",
     action: "workspace.pane.split.right",
-    combo: "Cmd+\\",
-    when: { mac: true, commandCenter: false },
+    combo: "Cmd+D",
+    when: { mac: true, commandCenter: false, conversationPane: true },
     help: {
       id: "workspace-pane-split-right",
       section: "tabs-panes",
@@ -727,10 +729,10 @@ const SHORTCUT_BINDINGS: readonly ShortcutBinding[] = [
     },
   },
   {
-    id: "workspace-pane-split-down-cmd-shift-backslash",
+    id: "workspace-pane-split-down-cmd-shift-d",
     action: "workspace.pane.split.down",
-    combo: "Cmd+Shift+\\",
-    when: { mac: true, commandCenter: false },
+    combo: "Cmd+Shift+D",
+    when: { mac: true, commandCenter: false, conversationPane: true },
     help: {
       id: "workspace-pane-split-down",
       section: "tabs-panes",
@@ -1322,6 +1324,11 @@ export function matchesKeyboardShortcutContext(
   context: KeyboardShortcutContext,
 ): boolean {
   if (!when) return true;
+  if (
+    when.conversationPane !== undefined &&
+    when.conversationPane !== Boolean(context.conversationPane)
+  )
+    return false;
   if (when.mac !== undefined && when.mac !== context.isMac) return false;
   if (when.desktop !== undefined && when.desktop !== context.isDesktop) return false;
   if (

@@ -12,10 +12,12 @@ import {
 
 import type { WindowState, WindowStateStore } from "../settings/window-state.js";
 import type { DesktopWindowChromeMode } from "./chrome.js";
+import { release } from "node:os";
 
 const WINDOW_STATE_SAVE_DEBOUNCE_MS = 400;
 const MAC_TRAFFIC_LIGHT_POSITION = { x: 16, y: 14 } as const;
 const MAX_TRAFFIC_LIGHT_OFFSET_Y = 10;
+const windowBackgrounds = new WeakMap<BrowserWindow, string>();
 
 export function readBadgeCount(input: unknown): number {
   if (typeof input !== "number" || !Number.isSafeInteger(input) || input < 0) {
@@ -45,6 +47,57 @@ export function resolveSystemWindowTheme(): WindowTheme {
 
 export function getWindowBackgroundColor(theme: WindowTheme): string {
   return theme === "dark" ? "#181B1A" : "#ffffff";
+}
+
+export function getWindowMaterialOptions(input: {
+  platform: NodeJS.Platform;
+  theme: WindowTheme;
+  reducedTransparency: boolean;
+  highContrast: boolean;
+  windowsBuild?: number;
+}): Pick<
+  Electron.BrowserWindowConstructorOptions,
+  "backgroundColor" | "vibrancy" | "visualEffectState" | "backgroundMaterial"
+> {
+  const opaque = { backgroundColor: getWindowBackgroundColor(input.theme) };
+  if (input.reducedTransparency || input.highContrast) return opaque;
+  if (input.platform === "darwin")
+    return {
+      backgroundColor: "#00000000",
+      vibrancy: "under-window",
+      visualEffectState: "followWindow",
+    };
+  if (input.platform === "win32" && (input.windowsBuild ?? 0) >= 22621)
+    return { backgroundColor: "#00000000", backgroundMaterial: "acrylic" };
+  return opaque;
+}
+
+export function systemWindowMaterialOptions(theme: WindowTheme) {
+  return getWindowMaterialOptions({
+    platform: process.platform,
+    theme,
+    reducedTransparency: nativeTheme.prefersReducedTransparency,
+    highContrast: nativeTheme.shouldUseHighContrastColors,
+    windowsBuild: Number(release().split(".")[2]),
+  });
+}
+
+export function observeWindowMaterial(win: BrowserWindow, theme: WindowTheme): void {
+  windowBackgrounds.set(win, getWindowBackgroundColor(theme));
+  const update = () => {
+    if (win.isDestroyed()) return;
+    const options = systemWindowMaterialOptions(theme);
+    win.setBackgroundColor(
+      options.vibrancy || options.backgroundMaterial
+        ? "#00000000"
+        : (windowBackgrounds.get(win) ?? getWindowBackgroundColor(theme)),
+    );
+    if (process.platform === "darwin") win.setVibrancy(options.vibrancy ? "under-window" : null);
+    if (process.platform === "win32")
+      win.setBackgroundMaterial(options.backgroundMaterial ?? "none");
+  };
+  nativeTheme.on("updated", update);
+  win.once("closed", () => nativeTheme.off("updated", update));
 }
 
 export function getMainWindowChromeOptions(input: {
@@ -205,7 +258,11 @@ export function registerWindowManager(input: { mode: DesktopWindowChromeMode }):
     }
 
     if (nextUpdate.backgroundColor) {
-      win.setBackgroundColor(nextUpdate.backgroundColor);
+      windowBackgrounds.set(win, nextUpdate.backgroundColor);
+      const material = systemWindowMaterialOptions(resolveSystemWindowTheme());
+      win.setBackgroundColor(
+        material.vibrancy || material.backgroundMaterial ? "#00000000" : nextUpdate.backgroundColor,
+      );
     }
 
     if (input.mode === "native-mac") {

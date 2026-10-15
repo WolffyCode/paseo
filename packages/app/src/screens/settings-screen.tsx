@@ -134,6 +134,8 @@ import {
 import { useLastWorkspaceSelection } from "@/stores/navigation-active-workspace-store";
 import { returnFromSettings, type SettingsView } from "@/navigation/settings-navigation";
 import { isNative, isWeb } from "@/constants/platform";
+import { WorkbenchRegionContent } from "@/workbench/regions";
+import { workbenchModel } from "@/workbench/runtime";
 
 // ---------------------------------------------------------------------------
 // View model
@@ -1301,7 +1303,8 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
   }, [view]);
 
   const handleBackToWorkspace = useCallback(() => {
-    returnFromSettings({ kind: "root" });
+    if (isWeb) workbenchModel.selectActivity("home");
+    else returnFromSettings({ kind: "root" });
   }, []);
 
   const installedPlugins = useInstalledPlugins();
@@ -1460,13 +1463,11 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
     );
   }
 
-  // Desktop split view — mirrors AppContainer: sidebar owns the titlebar drag
-  // region + traffic-light padding; detail pane renders whatever header the
-  // selected section provides.
+  // The web workbench owns the navigation column; the route supplies its contents.
   return (
     <View style={styles.container}>
       <View style={desktopStyles.row}>
-        <WindowChromeRegion corners="top-left">
+        <SettingsNavigationRegion>
           <SettingsSidebar
             view={view}
             onSelectSection={handleSelectSection}
@@ -1477,7 +1478,7 @@ export default function SettingsScreen({ view, openAddHostIntent = null }: Setti
             activeHostServerId={activeHostServerId}
             layout="desktop"
           />
-        </WindowChromeRegion>
+        </SettingsNavigationRegion>
         <WindowChromeRegion corners="top-right">
           <View style={desktopStyles.contentPane} testID="settings-detail-pane">
             <PageLayout title={detailTitle} titleTestID="settings-detail-header-title">
@@ -1506,10 +1507,7 @@ const styles = StyleSheet.create((theme) => ({
     color: theme.colors.foreground,
     fontSize: theme.fontSize.base,
   },
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.surface0,
-  },
+  container: { flex: 1, backgroundColor: isWeb ? "transparent" : theme.colors.surface0 },
   scrollView: {
     flex: 1,
   },
@@ -1545,22 +1543,35 @@ const styles = StyleSheet.create((theme) => ({
   },
 }));
 
-const desktopStyles = StyleSheet.create({
+function SettingsNavigationRegion({ children }: { children: ReactNode }) {
+  return isWeb ? (
+    <WorkbenchRegionContent region="navigation" testID="workbench-settings-navigation-content">
+      {children}
+    </WorkbenchRegionContent>
+  ) : (
+    <WindowChromeRegion corners="top-left">{children}</WindowChromeRegion>
+  );
+}
+
+const desktopStyles = StyleSheet.create((theme) => ({
   row: {
     flex: 1,
     flexDirection: "row",
   },
   contentPane: {
     flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    backgroundColor: isWeb ? "transparent" : theme.colors.surface0,
   },
-});
+}));
 
 const sidebarStyles = StyleSheet.create((theme) => ({
   desktopContainer: {
-    width: SETTINGS_DESKTOP_SIDEBAR_WIDTH,
-    borderRightWidth: 1,
+    width: isWeb ? "100%" : SETTINGS_DESKTOP_SIDEBAR_WIDTH,
+    borderRightWidth: isWeb ? 0 : 1,
     borderRightColor: theme.colors.border,
-    backgroundColor: theme.colors.surfaceSidebar,
+    backgroundColor: isWeb ? "transparent" : theme.colors.surfaceSidebar,
   },
   scrollBody: {
     flex: 1,

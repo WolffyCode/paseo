@@ -24,6 +24,7 @@ import {
   Minimize,
   Plus,
   X,
+  MessageCircle,
 } from "lucide-react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import Animated from "react-native-reanimated";
@@ -64,7 +65,7 @@ import {
 } from "@/screens/workspace/workspace-tab-menu";
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
 import type { PaneHost } from "@/panels/panel-manifest";
-import type { WorkspaceTabLaunchPurpose } from "@/workspace-tabs/launcher";
+import { useWorkspaceTabLauncher, type WorkspaceTabLaunchPurpose } from "@/workspace-tabs/launcher";
 import type { SurfaceBackdrop } from "@/styles/surface-backdrop";
 import type { Theme } from "@/styles/theme";
 import { RenderProfile } from "@/utils/render-profiler";
@@ -86,6 +87,10 @@ import {
   useHorizontalScrollBoundary,
 } from "@/components/ui/horizontal-scroll-boundary";
 import { useSessionStore } from "@/stores/session-store";
+import { workbenchModel } from "@/workbench/runtime";
+import { CONVERSATION_PANE_ID, isConversationTarget } from "@/workbench/layout";
+import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
+import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
 
 const DROPDOWN_WIDTH = 220;
 const DEFAULT_INLINE_ADD_BUTTON_RESERVED_WIDTH = 36;
@@ -110,13 +115,14 @@ const TAB_CONTENT_GAP = 4;
 const TAB_DROP_INDICATOR_WIDTH = 4;
 const TAB_MODIFIED_DOT_SIZE = 8;
 const TAB_MIN_WIDTH = 64;
-const TAB_MAX_WIDTH = 160;
-const TAB_CLOSE_BUTTON_RESERVED_WIDTH = 0;
+const TAB_MAX_WIDTH = 230;
+const TAB_CLOSE_BUTTON_RESERVED_WIDTH = 20;
 const TAB_LABEL_LAYOUT_ALLOWANCE = 4;
 const AGENT_TOOLTIP_TITLE_MAX_LENGTH = 80;
 
 const ThemedLoadingSpinner = withUnistyles(LoadingSpinner);
 const ThemedX = withUnistyles(X);
+const ThemedMessageCircle = withUnistyles(MessageCircle);
 const ThemedCopy = withUnistyles(Copy);
 
 const ThemedRotateCw = withUnistyles(RotateCw);
@@ -233,27 +239,41 @@ function WorkspaceNewTabButton({
   placement,
 }: WorkspaceNewTabButtonProps) {
   const { t } = useTranslation();
-  const tooltipText = t("workspace.tabs.actions.newTab");
-  const menu = (
-    <DropdownMenu>
-      <ToolbarButton
-        kind="menu"
-        label={tooltipText}
-        shortcut={shortcutKeys}
-        testID="workspace-new-tab-button"
-        style={placement === "inline" ? styles.inlineNewTabButton : undefined}
-      >
-        <ThemedPlus size={14} uniProps={extraMutedColorMapping} />
-      </ToolbarButton>
-      <WorkspaceNewTabMenuContent
-        serverId={serverId}
-        purpose={launchPurpose}
-        host={host}
-        panePanelKinds={panePanelKinds}
-        paneId={paneId}
-      />
-    </DropdownMenu>
+  const launcher = useWorkspaceTabLauncher();
+  const createConversation = useCallback(
+    () => launcher.launch({ kind: "agent" }, { kind: "open", paneId }),
+    [launcher, paneId],
   );
+  const tooltipText = t("workspace.tabs.actions.newTab");
+  const menu =
+    host === "conversations" ? (
+      <ToolbarButton
+        label={t("newWorkspace.title")}
+        testID="workspace-new-conversation-button"
+        onPress={createConversation}
+      >
+        <ThemedPlus size={16} uniProps={extraMutedColorMapping} />
+      </ToolbarButton>
+    ) : (
+      <DropdownMenu>
+        <ToolbarButton
+          kind="menu"
+          label={tooltipText}
+          shortcut={shortcutKeys}
+          testID="workspace-new-tab-button"
+          style={placement === "inline" ? styles.inlineNewTabButton : undefined}
+        >
+          <ThemedPlus size={14} uniProps={extraMutedColorMapping} />
+        </ToolbarButton>
+        <WorkspaceNewTabMenuContent
+          serverId={serverId}
+          purpose={launchPurpose}
+          host={host}
+          panePanelKinds={panePanelKinds}
+          paneId={paneId}
+        />
+      </DropdownMenu>
+    );
 
   return placement === "inline" ? <View style={styles.inlineAddButton}>{menu}</View> : menu;
 }
@@ -271,6 +291,7 @@ function WorkspacePaneToolbarActions({
   newTabShortcutKeys,
   onSplitRight,
   onSplitDown,
+  onClosePane,
   onTogglePaneMaximized,
 }: {
   panePanelKinds: PanePanelKinds;
@@ -285,6 +306,7 @@ function WorkspacePaneToolbarActions({
   newTabShortcutKeys: ShortcutKey[][] | null;
   onSplitRight?: () => void;
   onSplitDown?: () => void;
+  onClosePane?: () => void;
   onTogglePaneMaximized?: () => void;
 }) {
   const { t } = useTranslation();
@@ -373,6 +395,19 @@ function WorkspacePaneToolbarActions({
             >
               {t("workspace.tabs.actions.splitDown")}
             </DropdownMenuItem>
+            {host === "conversations" ? (
+              <DropdownMenuItem
+                onSelect={workbenchModel.resetLayout}
+                testID="workbench-reset-layout"
+              >
+                恢复默认布局
+              </DropdownMenuItem>
+            ) : null}
+            {host === "conversations" && paneId !== CONVERSATION_PANE_ID ? (
+              <DropdownMenuItem onSelect={onClosePane} testID="workbench-close-region">
+                关闭此对话区域
+              </DropdownMenuItem>
+            ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
       ) : null}
@@ -677,6 +712,7 @@ function TabHandleContent({
   tabLabelSkeletonStyle,
   tabLabelStyle,
   modifiedTestId,
+  conversation,
 }: {
   presentation: WorkspaceTabPresentation;
   isHighlighted: boolean;
@@ -685,6 +721,7 @@ function TabHandleContent({
   tabLabelSkeletonStyle: React.ComponentProps<typeof View>["style"];
   tabLabelStyle: React.ComponentProps<typeof Text>["style"];
   modifiedTestId: string;
+  conversation: boolean;
 }) {
   const { t } = useTranslation();
   const tabHandleDataSet = useMemo(
@@ -695,7 +732,15 @@ function TabHandleContent({
   return (
     <View style={styles.tabHandle} dataSet={tabHandleDataSet}>
       <View style={styles.tabIcon}>
-        <WorkspaceTabIcon presentation={presentation} active={isHighlighted} backdrop={backdrop} />
+        {conversation && presentation.statusBucket !== "running" ? (
+          <ThemedMessageCircle size={16} uniProps={mutedColorMapping} />
+        ) : (
+          <WorkspaceTabIcon
+            presentation={presentation}
+            active={isHighlighted}
+            backdrop={backdrop}
+          />
+        )}
       </View>
       {showLabel && presentation.titleState === "loading" ? (
         <View style={tabLabelSkeletonStyle} />
@@ -773,7 +818,8 @@ function TabChip({
     isActiveFocused,
     isFilled: isActive || isHovered,
   });
-  const showCloseControl = showCloseButton && (isHovered || isNative || isCompact || isClosingTab);
+  const showCloseControl =
+    showCloseButton && (isActive || isHovered || isNative || isCompact || isClosingTab);
   const closeButtonDragBlockers = isWeb
     ? ({
         onPointerDown: (event: { stopPropagation?: () => void }) => {
@@ -866,6 +912,7 @@ function TabChip({
               aria-selected={isActive}
             >
               <TabHandleContent
+                conversation={isConversationTarget(tab.target)}
                 presentation={presentation}
                 isHighlighted={isHighlighted}
                 showLabel={showLabel}
@@ -1046,6 +1093,13 @@ function ResolvedWorkspaceDesktopTabsRow({
   onExitFocusMode,
 }: ResolvedWorkspaceDesktopTabsRowProps) {
   const { t } = useTranslation();
+  const closePane = useCallback(() => {
+    const key = buildWorkspaceTabPersistenceKey({
+      serverId: normalizedServerId,
+      workspaceId: normalizedWorkspaceId,
+    });
+    if (key && paneId) useWorkspaceLayoutStore.getState().closePane(key, paneId);
+  }, [normalizedServerId, normalizedWorkspaceId, paneId]);
   const newTabKeys = useShortcutKeys("workspace-tab-new");
   const [tabsContainerWidth, setTabsContainerWidth] = useState<number>(0);
   const [exitFocusModeWidth, setExitFocusModeWidth] = useState<number>(0);
@@ -1420,6 +1474,7 @@ function ResolvedWorkspaceDesktopTabsRow({
         newTabShortcutKeys={newTabKeys}
         onSplitRight={onSplitRight}
         onSplitDown={onSplitDown}
+        onClosePane={closePane}
         onTogglePaneMaximized={onTogglePaneMaximized}
       />
     </View>
@@ -1564,10 +1619,10 @@ function ResolvedDesktopTabChip({
 const styles = StyleSheet.create((theme) => ({
   tabsContainer: {
     minWidth: 0,
-    height: WORKSPACE_SECONDARY_HEADER_HEIGHT,
+    height: isWeb ? 48 : WORKSPACE_SECONDARY_HEADER_HEIGHT,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
-    backgroundColor: theme.colors.surface0,
+    backgroundColor: "transparent",
     flexDirection: "row",
     alignItems: "center",
     overflow: "visible",
@@ -1615,7 +1670,8 @@ const styles = StyleSheet.create((theme) => ({
   tab: {
     height: buttonControlHeight.xs,
     paddingHorizontal: TAB_CHIP_HORIZONTAL_PADDING,
-    borderRadius: theme.borderRadius.md,
+    paddingRight: TAB_CHIP_HORIZONTAL_PADDING + TAB_CLOSE_BUTTON_RESERVED_WIDTH,
+    borderRadius: 15,
     flexDirection: "row",
     alignItems: "center",
     gap: theme.spacing[1],
@@ -1625,10 +1681,10 @@ const styles = StyleSheet.create((theme) => ({
     backgroundColor: theme.colors.surface1,
   },
   tabActive: {
-    backgroundColor: theme.colors.surface2,
+    backgroundColor: theme.colors.workbenchSelected,
   },
   tabActiveUnfocused: {
-    backgroundColor: theme.colors.surface1,
+    backgroundColor: theme.colors.workbenchSelected,
   },
   tabHoverFrame: {
     position: "relative",

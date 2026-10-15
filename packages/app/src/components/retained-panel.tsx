@@ -1,5 +1,6 @@
 import React, { createContext, memo, type ReactNode, useContext } from "react";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { type StyleProp, type ViewStyle } from "react-native";
+import { RetainedPanelSurface } from "./retained-panel-surface";
 
 const RetainedPanelActiveContext = createContext(true);
 
@@ -12,6 +13,7 @@ interface RetainedPanelProps {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   testID?: string;
+  animated?: boolean;
 }
 
 interface RetainedPanelActivityProps {
@@ -39,31 +41,13 @@ export const RetainedPanel = memo(function RetainedPanel({
   children,
   style,
   testID,
+  animated = false,
 }: RetainedPanelProps) {
-  const visibleStyle = StyleSheet.compose<ViewStyle, ViewStyle, ViewStyle>(styles.root, style);
-  const panelStyle = active
-    ? visibleStyle
-    : StyleSheet.compose<ViewStyle, ViewStyle, ViewStyle>(visibleStyle, styles.hidden);
-
   return (
     <RetainedPanelActivity active={active}>
-      <View
-        collapsable={false}
-        pointerEvents={active ? "auto" : "none"}
-        style={panelStyle}
-        testID={testID}
-      >
+      <RetainedPanelSurface active={active} animated={animated} style={style} testID={testID}>
         {children}
-      </View>
+      </RetainedPanelSurface>
     </RetainedPanelActivity>
   );
-});
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  hidden: {
-    display: "none",
-  },
 });

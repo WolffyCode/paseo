@@ -18,7 +18,7 @@ import { buildSettingsHostSectionRoute } from "@/utils/host-routes";
 import type { NewTabSelection } from "@/workspace-tabs/new-tab";
 import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
 import type { TerminalProfile } from "@getpaseo/protocol/messages";
-import { panelCanLaunchInPane, panelSupportsHost, type PaneHost } from "@/panels/panel-manifest";
+import type { PaneHost } from "@/panels/panel-manifest";
 import {
   getPanelRegistration,
   type PanelIconProps,
@@ -29,7 +29,11 @@ import {
   getTerminalProfileIcon,
   resolveTerminalProfiles,
 } from "@getpaseo/protocol/terminal-profiles";
-import { getBuiltInLaunchOrder, type BuiltInLaunchItemId } from "./internal/catalog";
+import {
+  canLaunchPanel,
+  getBuiltInLaunchOrder,
+  type BuiltInLaunchItemId,
+} from "./internal/catalog";
 
 export type WorkspaceTabLaunchPurpose = "primary" | "supporting";
 
@@ -66,6 +70,11 @@ export interface WorkspaceTabLaunchGroup {
 const EMPTY_PANE_PANEL_KINDS: readonly WorkspaceTabTarget["kind"][] = [];
 
 const NewTabLauncherContext = createContext<NewTabLauncher | null>(null);
+export function useWorkspaceTabLauncher(): NewTabLauncher {
+  const launcher = useContext(NewTabLauncherContext);
+  invariant(launcher, "NewTabLauncherProvider is required");
+  return launcher;
+}
 
 export function NewTabLauncherProvider({
   value,
@@ -103,8 +112,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
   const { serverId, purpose, host, surface, panePanelKinds = EMPTY_PANE_PANEL_KINDS } = input;
   const { t } = useTranslation();
   const router = useRouter();
-  const launcher = useContext(NewTabLauncherContext);
-  invariant(launcher, "NewTabLauncherProvider is required");
+  const launcher = useWorkspaceTabLauncher();
   const { config } = useDaemonConfig(serverId);
   const plugins = useInstalledPlugins();
   ensurePanelsRegistered();
@@ -195,7 +203,7 @@ export function useWorkspaceTabLaunchCatalog(input: {
     };
     const tabItems = getBuiltInLaunchOrder(purpose).flatMap((id) => {
       const item = builtIns[id];
-      return item.hidden || !panelSupportsHost(item.panelKind, host) ? [] : [item];
+      return item.hidden ? [] : [item];
     });
 
     const pluginItems: WorkspaceTabLaunchItem[] = [];
@@ -244,10 +252,9 @@ export function useWorkspaceTabLaunchCatalog(input: {
         },
       });
     }
-    if (surface !== "menu") return groups;
     return groups.flatMap((group) => {
       const items = group.items.filter((item) =>
-        panelCanLaunchInPane(item.panelKind, panePanelKinds),
+        canLaunchPanel({ kind: item.panelKind, host, surface, panePanelKinds }),
       );
       return items.length > 0 ? [{ ...group, items }] : [];
     });

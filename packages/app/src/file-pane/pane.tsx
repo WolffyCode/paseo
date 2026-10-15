@@ -30,12 +30,12 @@ import { resolveFilePreviewLifecycle } from "./preview-lifecycle/model";
 import { FilePanelBar } from "./bar";
 import { FileHtmlPreview } from "./html-preview";
 import { FileMarkdownPreview } from "./markdown-preview";
-import { FileEditorModel, getFileConflictCallout, type FileConflictCallout } from "./editor/model";
-import { createFileObservationSource } from "./editor/observation-source";
+import { getFileConflictCallout, type FileConflictCallout } from "./editor/model";
+import { fileEditorRegistry } from "./editor/registry";
+import type { LiveFileSession } from "./live-file/model";
 import { FileEditorView } from "./editor/view";
 import { FileSourceView } from "./source/view";
 import type { FileConflictAlertState } from "./conflict-alert";
-import type { LiveFileModel } from "./live-file/model";
 import { confirmDialog } from "@/utils/confirm-dialog";
 import { usePublishPanelInstanceAttributes } from "@/panels/panel-instance-attributes";
 import type { Theme } from "@/styles/theme";
@@ -300,7 +300,6 @@ export function FilePane({
       client={client}
       readTarget={readTarget}
       preview={preview}
-      liveFile={liveFile.model}
       onRetryRead={liveFile.refresh}
       retryingRead={liveFile.isRetrying}
       retryLabel={t("common.actions.retry")}
@@ -341,7 +340,6 @@ function FilePanePresentation({
   client,
   readTarget,
   preview,
-  liveFile,
   onRetryRead,
   retryingRead,
   retryLabel,
@@ -362,7 +360,6 @@ function FilePanePresentation({
   client: DaemonClient | null;
   readTarget: { cwd: string; path: string } | null;
   preview: ExplorerFile | null;
-  liveFile: LiveFileModel;
   onRetryRead: () => void;
   retryingRead: boolean;
   retryLabel: string;
@@ -393,11 +390,11 @@ function FilePanePresentation({
     return (
       <EditableFilePane
         key={`${serverId}:${readTarget.cwd}:${readTarget.path}`}
+        serverId={serverId}
         client={client}
         cwd={readTarget.cwd}
         path={readTarget.path}
         preview={preview as TextExplorerFile}
-        liveFile={liveFile}
         onRetryRead={onRetryRead}
         retryingRead={retryingRead}
         filename={filename}
@@ -455,11 +452,11 @@ function FilePanePresentation({
 }
 
 function EditableFilePane({
+  serverId,
   client,
   cwd,
   path,
   preview,
-  liveFile,
   onRetryRead,
   retryingRead,
   filename,
@@ -470,11 +467,11 @@ function EditableFilePane({
   location,
   navigationRevision,
 }: {
+  serverId: string;
   client: DaemonClient;
   cwd: string;
   path: string;
   preview: TextExplorerFile;
-  liveFile: LiveFileModel;
   onRetryRead: () => void;
   retryingRead: boolean;
   filename: string;
@@ -494,11 +491,20 @@ function EditableFilePane({
       write(input: { content: string; expectedModifiedAt: string; expectedRevision?: string }) {
         return client.writeFile({ cwd, path, ...input });
       },
+      subscribe: (
+        target: Parameters<LiveFileSession["subscribe"]>[0],
+        listener: Parameters<LiveFileSession["subscribe"]>[1],
+      ) => client.subscribeFile(target, listener),
+      read: (target: Parameters<LiveFileSession["read"]>[0]) =>
+        client.readFile(target.cwd, target.path),
     }),
     [client, cwd, path],
   );
-  const [model] = useState(() => {
-    return new FileEditorModel({
+  const [document] = useState(() => {
+    return fileEditorRegistry.open({
+      serverId,
+      cwd,
+      path,
       file: {
         content: preview.content ?? "",
         hasBom: preview.hasBom,
@@ -514,11 +520,8 @@ function EditableFilePane({
       session,
     });
   });
-  useEffect(() => {
-    const source = createFileObservationSource(liveFile);
-    model.connectFileObservations(source);
-    return () => model.disconnectFileObservations();
-  }, [liveFile, model]);
+  const model = document.model;
+  useEffect(() => document.retain(session), [document, session]);
   const snapshot = useSyncExternalStore(model.subscribe, model.getSnapshot, model.getSnapshot);
   const suspendPendingSave = useCallback(() => model.suspendAutosave(), [model]);
   usePublishPanelInstanceAttributes({ modified: snapshot.modified, suspendPendingSave });
@@ -549,8 +552,6 @@ function EditableFilePane({
       theme.fontSize.code,
     ],
   );
-
-  useEffect(() => () => model.dispose(), [model]);
 
   const handleReload = useCallback(() => {
     if (!snapshot.modified) {
@@ -652,7 +653,7 @@ const styles = StyleSheet.create((theme) => ({
   container: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: theme.colors.surface0,
+    backgroundColor: isWeb ? "transparent" : theme.colors.surface0,
   },
   centerState: {
     flex: 1,

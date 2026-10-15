@@ -7,8 +7,7 @@ import {
   type ReactElement,
 } from "react";
 import { ScrollView, Text, View } from "react-native";
-import { useIsFocused } from "@react-navigation/native";
-import { CalendarClock, Plus } from "lucide-react-native";
+import { CalendarClock, Archive, Plus } from "lucide-react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { MenuHeader } from "@/components/headers/menu-header";
 import { ExternalLink } from "@/components/ui/external-link";
@@ -38,12 +37,10 @@ import {
   buildProjectNameByCwd,
   buildScheduleProjectTargets,
 } from "@/schedules/schedule-project-targets";
-import type { ScheduleSummary } from "@getpaseo/protocol/schedule/types";
-
-type FormState =
-  | { mode: "closed" }
-  | { mode: "create" }
-  | { mode: "edit"; serverId: string; schedule: ScheduleSummary };
+import { createSchedulesScreenModel } from "@/schedules/screen-model";
+import { WorkbenchRegionContent } from "@/workbench/regions";
+import { useIsCompactFormFactor } from "@/constants/layout";
+import { isWeb } from "@/constants/platform";
 
 const STATUS_FILTER_OPTIONS: { value: ScheduleBucket; label: string; testID: string }[] = [
   { value: "runnable", label: "Active", testID: "schedules-filter-active" },
@@ -53,12 +50,6 @@ const STATUS_FILTER_OPTIONS: { value: ScheduleBucket; label: string; testID: str
 const EMPTY_SCHEDULES: AggregatedSchedule[] = [];
 
 export function SchedulesScreen(): ReactElement {
-  const isFocused = useIsFocused();
-
-  if (!isFocused) {
-    return <View style={styles.container} />;
-  }
-
   return <SchedulesScreenContent />;
 }
 
@@ -91,24 +82,19 @@ function SchedulesScreenContent(): ReactElement {
     return ready;
   }, [hosts, runtime, runtimeVersion]);
 
-  const [form, setForm] = useState<FormState>({ mode: "closed" });
-  const [selectedHost, setSelectedHost] = useState(ALL_HOSTS_OPTION_ID);
-  const [statusFilter, setStatusFilter] = useState<ScheduleBucket>("runnable");
-
+  const [model] = useState(() => createSchedulesScreenModel(ALL_HOSTS_OPTION_ID));
+  const { form, selectedHost, statusFilter } = useSyncExternalStore(
+    model.subscribe,
+    model.getSnapshot,
+  );
+  const compact = useIsCompactFormFactor();
+  const workbench = isWeb && !compact;
+  const showActive = useCallback(() => model.setStatusFilter("runnable"), [model]);
+  const showEnded = useCallback(() => model.setStatusFilter("ended"), [model]);
   useEffect(() => {
-    if (
-      selectedHost !== ALL_HOSTS_OPTION_ID &&
-      !hosts.some((host) => host.serverId === selectedHost)
-    ) {
-      setSelectedHost(ALL_HOSTS_OPTION_ID);
-    }
-  }, [hosts, selectedHost]);
-
-  const openCreate = useCallback(() => setForm({ mode: "create" }), []);
-  const openEdit = useCallback((schedule: AggregatedSchedule) => {
-    setForm({ mode: "edit", serverId: schedule.serverId, schedule });
-  }, []);
-  const closeForm = useCallback(() => setForm({ mode: "closed" }), []);
+    model.applyHosts(hosts.map((host) => host.serverId));
+  }, [hosts, model]);
+  useEffect(() => () => model.dispose(), [model]);
 
   const agentsByKey = useMemo(() => {
     const map = new Map<string, ScheduleTargetAgent>();
@@ -164,27 +150,59 @@ function SchedulesScreenContent(): ReactElement {
   const showHostFilter = hosts.length > 1;
 
   return (
-    <View style={styles.container}>
-      <MenuHeader title="Schedules" />
-      <SchedulesScreenBody
-        rows={visibleRows}
-        loadState={loadState}
-        hostErrors={hostErrors}
-        showLoadError={showLoadError}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        showHostFilter={showHostFilter}
-        hosts={hosts}
-        selectedHost={selectedHost}
-        onSelectHost={setSelectedHost}
-        onRetry={refetch}
-        onCreate={openCreate}
-        onEdit={openEdit}
-      />
+    <View style={workbench ? styles.workbenchRow : styles.container}>
+      {workbench ? (
+        <WorkbenchRegionContent region="navigation" testID="workbench-schedules-navigation-content">
+          <View style={styles.navigation}>
+            <Text style={styles.navigationTitle}>定时任务</Text>
+            <Button
+              variant={statusFilter === "runnable" ? "secondary" : "ghost"}
+              leftIcon={CalendarClock}
+              onPress={showActive}
+            >
+              活动中
+            </Button>
+            <Button
+              variant={statusFilter === "ended" ? "secondary" : "ghost"}
+              leftIcon={Archive}
+              onPress={showEnded}
+            >
+              已结束
+            </Button>
+            {showHostFilter ? (
+              <HostFilter
+                hosts={hosts}
+                selectedHost={selectedHost}
+                onSelectHost={model.selectHost}
+                triggerTestID="schedules-host-filter-trigger"
+              />
+            ) : null}
+          </View>
+        </WorkbenchRegionContent>
+      ) : null}
+      <View style={workbench ? styles.workbenchContent : styles.container}>
+        <MenuHeader title="Schedules" />
+        <SchedulesScreenBody
+          rows={visibleRows}
+          loadState={loadState}
+          hostErrors={hostErrors}
+          showLoadError={showLoadError}
+          statusFilter={statusFilter}
+          onStatusFilterChange={model.setStatusFilter}
+          showHostFilter={showHostFilter}
+          hosts={hosts}
+          selectedHost={selectedHost}
+          onSelectHost={model.selectHost}
+          onRetry={refetch}
+          onCreate={model.openCreate}
+          onEdit={model.openEdit}
+          navigationInSidebar={workbench}
+        />
+      </View>
       <ScheduleFormSheet
         serverId={form.mode === "edit" ? form.serverId : undefined}
         visible={form.mode === "create" || form.mode === "edit"}
-        onClose={closeForm}
+        onClose={model.closeForm}
         mode={form.mode === "edit" ? "edit" : "create"}
         schedule={form.mode === "edit" ? form.schedule : undefined}
       />
@@ -206,6 +224,7 @@ function SchedulesScreenBody({
   onRetry,
   onCreate,
   onEdit,
+  navigationInSidebar,
 }: {
   rows: ScheduleRowView[];
   loadState: AggregateLoadState<AggregatedSchedule>;
@@ -220,6 +239,7 @@ function SchedulesScreenBody({
   onRetry: () => void;
   onCreate: () => void;
   onEdit: (schedule: AggregatedSchedule) => void;
+  navigationInSidebar: boolean;
 }): ReactElement {
   const bodyState = resolveSchedulesScreenBodyState({ loadState, showLoadError });
 
@@ -267,23 +287,27 @@ function SchedulesScreenBody({
   return (
     <View style={styles.body}>
       <View style={styles.filterRow}>
-        <View style={styles.filterRowControls}>
-          {showHostFilter ? (
-            <HostFilter
-              hosts={hosts}
-              selectedHost={selectedHost}
-              onSelectHost={onSelectHost}
-              triggerTestID="schedules-host-filter-trigger"
+        {!navigationInSidebar ? (
+          <View style={styles.filterRowControls}>
+            {showHostFilter ? (
+              <HostFilter
+                hosts={hosts}
+                selectedHost={selectedHost}
+                onSelectHost={onSelectHost}
+                triggerTestID="schedules-host-filter-trigger"
+              />
+            ) : null}
+            <SegmentedControl
+              size="sm"
+              value={statusFilter}
+              onValueChange={onStatusFilterChange}
+              options={STATUS_FILTER_OPTIONS}
+              testID="schedules-status-filter"
             />
-          ) : null}
-          <SegmentedControl
-            size="sm"
-            value={statusFilter}
-            onValueChange={onStatusFilterChange}
-            options={STATUS_FILTER_OPTIONS}
-            testID="schedules-status-filter"
-          />
-        </View>
+          </View>
+        ) : (
+          <View style={styles.filterSpacer} />
+        )}
         <Button
           variant="outline"
           leftIcon={Plus}
@@ -356,6 +380,16 @@ function ScheduleHostErrorsBanner({ errors }: { errors: ScheduleHostError[] }): 
 }
 
 const styles = StyleSheet.create((theme) => ({
+  workbenchRow: { flex: 1, flexDirection: "row", minWidth: 0 },
+  workbenchContent: {
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    backgroundColor: "transparent",
+  },
+  navigation: { padding: 12, gap: 8 },
+  navigationTitle: { color: theme.colors.foreground, fontSize: theme.fontSize.base, padding: 8 },
+  filterSpacer: { flex: 1 },
   container: {
     flex: 1,
     backgroundColor: theme.colors.surface0,

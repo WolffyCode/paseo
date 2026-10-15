@@ -9,11 +9,12 @@ import {
 } from "react";
 import { Pressable, ScrollView, Text, View, type PressableStateCallbackType } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Pencil, Plus } from "lucide-react-native";
+import { Pencil, Plus, FileText } from "lucide-react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { TerminalProfileIcon } from "@/components/terminal-profile-icon";
 import { Shortcut } from "@/components/ui/shortcut";
 import { isWeb } from "@/constants/platform";
+import { Button } from "@/components/ui/button";
 import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
 import type { KeyboardActionDefinition } from "@/keyboard/keyboard-action-dispatcher";
@@ -27,6 +28,7 @@ import {
 
 const ThemedPlus = withUnistyles(Plus);
 const ThemedPencil = withUnistyles(Pencil);
+const ThemedFileText = withUnistyles(FileText);
 const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 const extraMutedColorMapping = (theme: Theme) => ({
   color: theme.colors.foregroundExtraMuted,
@@ -127,6 +129,19 @@ function useNewTabDescriptor() {
     icon: ThemedPlus,
     statusBucket: null,
   };
+}
+
+function EmptyConversation({ item }: { item: WorkspaceTabLaunchItem }) {
+  const { t } = useTranslation();
+  const { tabId } = usePaneContext();
+  const create = useCallback(() => item.launch({ kind: "replace", tabId }), [item, tabId]);
+  return (
+    <View style={styles.contentEmpty}>
+      <Button variant="ghost" leftIcon={Pencil} onPress={create}>
+        {t("newWorkspace.title")}
+      </Button>
+    </View>
+  );
 }
 
 const NewTabPanel = memo(function NewTabPanel(): ReactElement {
@@ -242,6 +257,17 @@ const NewTabPanel = memo(function NewTabPanel(): ReactElement {
     handle: handleKeyboardAction,
   });
 
+  const conversationItem = itemsById.get("agent");
+  if (host === "conversations" && conversationItem)
+    return <EmptyConversation item={conversationItem} />;
+  if (host === "content")
+    return (
+      <View style={styles.contentEmpty} testID="workbench-content-empty">
+        <ThemedFileText size={28} uniProps={mutedColorMapping} />
+        <Text style={styles.groupLabel}>内容工作区</Text>
+      </View>
+    );
+
   return (
     <View ref={containerRef} style={styles.container} testID="workspace-new-tab-panel">
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -276,6 +302,7 @@ export const newTabPanelRegistration = definePanel("new_tab", {
 });
 
 const styles = StyleSheet.create((theme) => ({
+  contentEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   container: {
     flex: 1,
   },

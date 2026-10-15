@@ -34,6 +34,7 @@ import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { SidebarMenuToggle } from "@/components/headers/menu-header";
 import { ScreenHeader } from "@/components/headers/screen-header";
 import { useIsCompactFormFactor } from "@/constants/layout";
+import { isWeb } from "@/constants/platform";
 import { useToast } from "@/contexts/toast-context";
 import { useAgentInputDraft } from "@/composer/draft/input-draft";
 import { useForgeSearchQuery } from "@/git/use-forge-search-query";
@@ -2609,7 +2610,7 @@ function NewWorkspaceLayout({
 const styles = StyleSheet.create((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface0,
+    backgroundColor: isWeb ? "transparent" : theme.colors.surface0,
     userSelect: "none",
   },
   content: {
@@ -2643,6 +2644,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   formStackDesktop: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     // Matches the gap between the composer and the Import session pill below it.
     marginBottom: theme.spacing[4],

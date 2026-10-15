@@ -29,7 +29,7 @@ import { getShortcutOs } from "@/utils/shortcut-platform";
 import { useOpenAddProject } from "@/hooks/use-open-add-project";
 import { useStableEvent } from "@/hooks/use-stable-event";
 import { useKeyboardShortcutOverrides } from "@/hooks/use-keyboard-shortcut-overrides";
-import { isNative } from "@/constants/platform";
+import { isNative, isWeb } from "@/constants/platform";
 import { keyboardShortcutsAvailable } from "@/keyboard/availability";
 import { getDesktopHost, isElectronRuntime } from "@/desktop/host";
 import { isImeComposingKeyboardEvent } from "@/utils/keyboard-ime";
@@ -259,6 +259,14 @@ export function useKeyboardShortcuts({
         isDesktop: isDesktopApp,
         focusScope: input.focusScope,
         commandCenterOpen: store.commandCenterOpen,
+        conversationPane:
+          isWeb &&
+          input.domEvent?.target instanceof Element &&
+          Boolean(
+            input.domEvent.target.closest(
+              '[data-testid^="workspace-pane-workbench:conversations"]',
+            ),
+          ),
       },
       chordState: chordStateRef.current,
       onChordReset: () => {

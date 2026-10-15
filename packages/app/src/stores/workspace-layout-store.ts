@@ -62,6 +62,15 @@ import {
 import { normalizeWorkspaceTabTarget } from "@/workspace-tabs/identity";
 import { createValidatedPersistStorage } from "@/storage/validated-persist-storage";
 import { panelTargetSupportsHostForWorkspaceKey } from "@/plugins/workspace-panels/locations";
+import {
+  activeConversationOwner,
+  createWorkbenchLayout,
+  isWorkbenchLayout,
+  resolveWorkbenchDestination,
+  workbenchContentPaneId,
+  workbenchFilesPaneId,
+  workbenchPaneHost,
+} from "@/workbench/layout";
 
 export {
   AMBIENT_PLACEMENT,
@@ -106,6 +115,7 @@ export interface OpenWorkspaceTabInput {
 }
 
 interface WorkspaceLayoutStore {
+  enableWorkbench: (workspaceKey: string) => void;
   layoutByWorkspace: Record<string, WorkspaceLayout>;
   splitSizesByWorkspace: Record<string, Record<string, number[]>>;
   explorerSidebarWidthByWorkspace: Record<string, number>;
@@ -487,6 +497,7 @@ export function resolveExplorerSidebarPaneId(
   layout: WorkspaceLayout,
   registeredPaneId: string | null | undefined,
 ): string | null {
+  if (isWorkbenchLayout(layout)) return workbenchFilesPaneId(activeConversationOwner(layout));
   const registeredPane = findPaneById(layout.root, registeredPaneId ?? null);
   if (registeredPane) {
     return registeredPane.id;
@@ -562,7 +573,7 @@ function getOpenTabPlacement(
     panelTargetSupportsHostForWorkspaceKey(
       workspaceKey,
       target,
-      pane.id === explorerSidebarPaneId ? "explorer" : "main",
+      workbenchPaneHost(pane.id) ?? (pane.id === explorerSidebarPaneId ? "explorer" : "main"),
     );
   const requestedPaneId =
     requestedPlacement.mode === "pane" || requestedPlacement.mode === "prefer"
@@ -657,6 +668,19 @@ export function createWorkspaceLayoutStore(
   return create<WorkspaceLayoutStore>()(
     persist(
       (set, get) => ({
+        enableWorkbench: (workspaceKey) => {
+          const layout = getWorkspaceLayout(get().layoutByWorkspace, workspaceKey);
+          if (isWorkbenchLayout(layout)) return;
+          const focused = findPaneById(layout.root, layout.focusedPaneId);
+          const next = createWorkbenchLayout({
+            tabs: collectAllTabs(layout.root),
+            focusedTabId: focused?.focusedTabId ?? null,
+            parentTabIdByTabId: layout.parentTabIdByTabId,
+          });
+          set((state) => ({
+            layoutByWorkspace: { ...state.layoutByWorkspace, [workspaceKey]: next },
+          }));
+        },
         autoOpenPullRequestTab: (workspaceKey, resolvePlacement) => {
           const key = trimNonEmpty(workspaceKey);
           if (!key || get().pullRequestTabAutoOpenedByWorkspace[key]) return null;
@@ -691,12 +715,26 @@ export function createWorkspaceLayoutStore(
           if (!normalizedWorkspaceKey || !normalizedTarget) {
             return null;
           }
-          const placement = getOpenTabPlacement(
+          let placement = getOpenTabPlacement(
             get(),
             normalizedWorkspaceKey,
             normalizedTarget,
             input.placement,
           );
+          if (isWorkbenchLayout(placement.layout)) {
+            const requestedPane =
+              input.placement?.mode === "pane" || input.placement?.mode === "prefer"
+                ? input.placement.paneId
+                : null;
+            const paneId = resolveWorkbenchDestination({
+              layout: placement.layout,
+              target: normalizedTarget,
+              sourcePaneId: requestedPane,
+              parentTabId: input.parentTabId,
+            });
+            if (!paneId) return null;
+            placement = { ...placement, placement: { mode: "pane", paneId } };
+          }
           let result;
           if (input.intent === "new") {
             result = createTabInLayout({
@@ -837,6 +875,8 @@ export function createWorkspaceLayoutStore(
           }
           const currentState = get();
           const layout = getWorkspaceLayout(currentState.layoutByWorkspace, normalizedWorkspaceKey);
+          if (isWorkbenchLayout(layout))
+            return workbenchContentPaneId(activeConversationOwner(layout));
           const explorerPaneId = resolveExplorerSidebarPaneId(
             layout,
             currentState.explorerSidebarPaneIdByWorkspace[normalizedWorkspaceKey],
@@ -944,6 +984,14 @@ export function createWorkspaceLayoutStore(
             return {
               ...withoutFocusRestoration(state, normalizedWorkspaceKey),
               ...reconcileRememberedSidePane(state, normalizedWorkspaceKey, nextLayout),
+              hiddenAgentIdsByWorkspace:
+                isWorkbenchLayout(layout) && closingTab?.target.kind === "agent"
+                  ? addAgentIdToWorkspaceSet(
+                      state.hiddenAgentIdsByWorkspace,
+                      normalizedWorkspaceKey,
+                      closingTab.target.agentId,
+                    )
+                  : state.hiddenAgentIdsByWorkspace,
               layoutByWorkspace: {
                 ...state.layoutByWorkspace,
                 [normalizedWorkspaceKey]: nextLayout,
@@ -1304,7 +1352,8 @@ export function createWorkspaceLayoutStore(
               state.explorerSidebarPaneIdByWorkspace[normalizedWorkspaceKey],
             );
             const destinationHost =
-              normalizedToPaneId === explorerSidebarPaneId ? "explorer" : "main";
+              workbenchPaneHost(normalizedToPaneId) ??
+              (normalizedToPaneId === explorerSidebarPaneId ? "explorer" : "main");
             if (
               !movingTab ||
               !panelTargetSupportsHostForWorkspaceKey(
@@ -1376,8 +1425,27 @@ export function createWorkspaceLayoutStore(
               return state;
             }
 
+            let hiddenAgentIdsByWorkspace = state.hiddenAgentIdsByWorkspace;
+            if (isWorkbenchLayout(layout)) {
+              const openAgentIds = new Set(
+                collectAllTabs(nextLayout.root).flatMap((tab) =>
+                  tab.target.kind === "agent" ? [tab.target.agentId] : [],
+                ),
+              );
+              for (const tab of findPaneById(layout.root, normalizedPaneId)?.tabs ?? []) {
+                if (tab.target.kind === "agent" && !openAgentIds.has(tab.target.agentId)) {
+                  hiddenAgentIdsByWorkspace = addAgentIdToWorkspaceSet(
+                    hiddenAgentIdsByWorkspace,
+                    normalizedWorkspaceKey,
+                    tab.target.agentId,
+                  );
+                }
+              }
+            }
+
             return {
               ...withoutFocusRestoration(state, normalizedWorkspaceKey),
+              hiddenAgentIdsByWorkspace,
               layoutByWorkspace: {
                 ...state.layoutByWorkspace,
                 [normalizedWorkspaceKey]: nextLayout,

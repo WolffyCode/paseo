@@ -17,6 +17,7 @@ import {
   Text,
   View,
   type NativeSyntheticEvent,
+  type NativeScrollEvent,
   type PressableStateCallbackType,
   type StyleProp,
   type TextInputKeyPressEventData,
@@ -78,6 +79,7 @@ import { confirmDialog } from "@/utils/confirm-dialog";
 import { useToast } from "@/contexts/toast-context";
 import { openDesktopTarget, useDesktopOpenTargets } from "@/workspace/desktop-open-targets";
 import { useOpenDirectoryInEditor } from "@/workspace/open-in-editor/directory";
+import { useStableEvent } from "@/hooks/use-stable-event";
 
 const SORT_OPTIONS: { value: SortOption }[] = [
   { value: "name" },
@@ -397,6 +399,7 @@ function TreeRowItem({
 }
 
 interface FileExplorerPaneProps {
+  viewId?: string;
   serverId: string;
   workspaceId?: string | null;
   workspaceRoot: string;
@@ -406,6 +409,7 @@ interface FileExplorerPaneProps {
 }
 
 export function FileExplorerPane({
+  viewId,
   serverId,
   workspaceId,
   workspaceRoot,
@@ -417,7 +421,7 @@ export function FileExplorerPane({
   const isCompact = useIsCompactFormFactor();
 
   const normalizedWorkspaceRoot = useMemo(() => workspaceRoot.trim(), [workspaceRoot]);
-  const workspaceStateKey = useMemo(
+  const directoryCacheKey = useMemo(
     () =>
       buildWorkspaceExplorerStateKey({
         workspaceId,
@@ -425,24 +429,28 @@ export function FileExplorerPane({
       }),
     [normalizedWorkspaceRoot, workspaceId],
   );
+  const workspaceStateKey = directoryCacheKey
+    ? JSON.stringify([serverId, directoryCacheKey, viewId ?? "workspace"])
+    : null;
   const hasWorkspaceScope = Boolean(workspaceStateKey && normalizedWorkspaceRoot);
   const explorerState = useSessionStore((state) =>
-    workspaceStateKey && state.sessions[serverId]
-      ? state.sessions[serverId]?.fileExplorer.get(workspaceStateKey)
+    directoryCacheKey && state.sessions[serverId]
+      ? state.sessions[serverId]?.fileExplorer.get(directoryCacheKey)
       : undefined,
   );
 
-  const {
-    requestDirectoryListing,
-    createEntry,
-    renameEntry,
-    duplicateEntry,
-    deleteEntry,
-    selectExplorerEntry,
-  } = useFileExplorerActions({
-    serverId,
-    workspaceId,
-    workspaceRoot: normalizedWorkspaceRoot,
+  const { requestDirectoryListing, createEntry, renameEntry, duplicateEntry, deleteEntry } =
+    useFileExplorerActions({
+      serverId,
+      workspaceId,
+      workspaceRoot: normalizedWorkspaceRoot,
+    });
+  const selectedEntryPath = usePanelStore((state) =>
+    workspaceStateKey ? (state.explorerSelectionByView[workspaceStateKey] ?? null) : null,
+  );
+  const selectExplorerPath = usePanelStore((state) => state.selectExplorerPath);
+  const selectExplorerEntry = useStableEvent((path: string | null) => {
+    if (workspaceStateKey) selectExplorerPath(workspaceStateKey, path);
   });
   const toast = useToast();
   const isLocalDaemon = useIsLocalDaemon(serverId);
@@ -484,8 +492,7 @@ export function FileExplorerPane({
   );
 
   const explorerDerived = useMemo(() => deriveExplorerFields(explorerState), [explorerState]);
-  const { directories, pendingRequest, isExplorerLoading, error, selectedEntryPath } =
-    explorerDerived;
+  const { directories, pendingRequest, isExplorerLoading, error } = explorerDerived;
 
   const isDirectoryLoading = useCallback(
     (path: string) => isPendingListForPath({ isExplorerLoading, pendingRequest, path }),
@@ -494,6 +501,24 @@ export function FileExplorerPane({
 
   const treeListRef = useRef<FlatList<ExplorerListRow>>(null);
   const scrollbar = useOverlayFlatListScrollbar(treeListRef, { enabled: !isCompact });
+  const scrollPosition = useRef(
+    workspaceStateKey ? (usePanelStore.getState().explorerScrollByView[workspaceStateKey] ?? 0) : 0,
+  );
+  const setScrollPosition = usePanelStore((state) => state.setExplorerScrollPosition);
+  const handleScroll = useStableEvent((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    scrollbar.onScroll(event);
+    scrollPosition.current = event.nativeEvent.contentOffset.y;
+  });
+  const handleTreeLayout = useStableEvent((event: Parameters<typeof scrollbar.onLayout>[0]) => {
+    scrollbar.onLayout(event);
+    treeListRef.current?.scrollToOffset({ offset: scrollPosition.current, animated: false });
+  });
+  useEffect(
+    () => () => {
+      if (workspaceStateKey) setScrollPosition(workspaceStateKey, scrollPosition.current);
+    },
+    [workspaceStateKey, setScrollPosition],
+  );
 
   const hasInitializedRef = useRef(false);
 
@@ -1068,6 +1093,8 @@ export function FileExplorerPane({
         isRefreshFetching={isRefreshFetching}
         treeListRef={treeListRef}
         scrollbar={scrollbar}
+        handleScroll={handleScroll}
+        handleTreeLayout={handleTreeLayout}
         renderTreeRow={renderTreeRow}
         handleSortCycle={handleSortCycle}
         handleToggleHiddenFiles={handleToggleHiddenFiles}
@@ -1132,6 +1159,8 @@ function RootCreationContextTarget({
 }
 
 interface FileExplorerPaneContentProps {
+  handleScroll: OverlayFlatListScrollbar["onScroll"];
+  handleTreeLayout: OverlayFlatListScrollbar["onLayout"];
   error: string | null;
   isCompact: boolean;
   showInitialLoading: boolean;
@@ -1156,6 +1185,8 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
   const { t } = useTranslation();
   const {
     error,
+    handleScroll,
+    handleTreeLayout,
     isCompact,
     showInitialLoading,
     showBackFromError,
@@ -1328,8 +1359,8 @@ function FileExplorerPaneContent(props: FileExplorerPaneContentProps) {
               keyExtractor={listRowKeyExtractor}
               testID="file-explorer-tree-scroll"
               contentContainerStyle={styles.entriesContent}
-              onLayout={scrollbar.onLayout}
-              onScroll={scrollbar.onScroll}
+              onLayout={handleTreeLayout}
+              onScroll={handleScroll}
               onContentSizeChange={scrollbar.onContentSizeChange}
               scrollEventThrottle={16}
               showsVerticalScrollIndicator={!scrollbar.enabled}
@@ -1360,7 +1391,6 @@ function deriveExplorerFields(state: AgentFileExplorerState | undefined) {
     pendingRequest: state?.pendingRequest ?? null,
     isExplorerLoading: state?.isLoading ?? false,
     error: state?.lastError ?? null,
-    selectedEntryPath: state?.selectedEntryPath ?? null,
   };
 }
 

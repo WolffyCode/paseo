@@ -2,7 +2,9 @@ import { router, usePathname } from "expo-router";
 import { CalendarClock, History, Search, SquarePen } from "lucide-react-native";
 import { memo, useCallback, useMemo, useRef, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
-import { View, type StyleProp, type ViewStyle } from "react-native";
+import { View, Text, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, withUnistyles } from "react-native-unistyles";
+import { HeaderToggleButton } from "@/components/headers/header-toggle-button";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
 import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
 import { PluginSidebarItem } from "@/plugins/sidebar-items";
@@ -21,6 +23,7 @@ interface SidebarNavRowProps {
 }
 
 interface SidebarNavRowsProps extends SidebarNavRowProps {
+  hideSchedules?: boolean;
   /** Style for the group wrapper, which the sidebar owns. */
   style?: StyleProp<ViewStyle>;
 }
@@ -30,15 +33,43 @@ interface SidebarNavRowsProps extends SidebarNavRowProps {
  * `sidebarNavItems` preference. Renders nothing — not even the bordered group
  * wrapper — when every item is hidden.
  */
-export function SidebarNavRows({ style, onBeforeNavigate }: SidebarNavRowsProps) {
+export function SidebarNavRows({
+  style,
+  onBeforeNavigate,
+  hideSchedules = false,
+}: SidebarNavRowsProps) {
   const { items } = useSidebarNavItems("header");
-  const visibleItems = useMemo(() => items.filter((item) => item.visible), [items]);
+  const visibleItems = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          item.visible && !(hideSchedules && item.kind === "builtin" && item.id === "schedules"),
+      ),
+    [items, hideSchedules],
+  );
   const groupRef = useRef<View | null>(null);
 
+  const setCommandCenterOpen = useKeyboardShortcutsStore((state) => state.setCommandCenterOpen);
+  const openSearch = useCallback(() => setCommandCenterOpen(true), [setCommandCenterOpen]);
   if (visibleItems.length === 0) return null;
 
   return (
     <View ref={groupRef} collapsable={false} style={style}>
+      {hideSchedules ? (
+        <View style={workbenchStyles.heading}>
+          <Text style={workbenchStyles.title}>工作空间</Text>
+          <HeaderToggleButton
+            accessibilityLabel="搜索对话"
+            tooltipLabel="搜索对话"
+            tooltipSide="right"
+            tooltipKeys={SEARCH_KEYS}
+            onPress={openSearch}
+            testID="workbench-search"
+          >
+            <ThemedSearch size={18} />
+          </HeaderToggleButton>
+        </View>
+      ) : null}
       {visibleItems.map((item) => {
         if (item.kind === "plugin") {
           return (
@@ -52,11 +83,25 @@ export function SidebarNavRows({ style, onBeforeNavigate }: SidebarNavRowsProps)
           );
         }
         const Row = BUILTIN_ROWS[item.id];
+        if (hideSchedules && item.id === "search") return null;
         return <Row key={item.key} onBeforeNavigate={onBeforeNavigate} />;
       })}
     </View>
   );
 }
+
+const ThemedSearch = withUnistyles(Search, (theme) => ({ color: theme.colors.foregroundMuted }));
+const SEARCH_KEYS = ["mod", "K"];
+const workbenchStyles = StyleSheet.create((theme) => ({
+  heading: {
+    height: 48,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  title: { fontSize: theme.fontSize.base, fontWeight: "500", color: theme.colors.foreground },
+}));
 
 const SidebarNewConversationRow = memo(function SidebarNewConversationRow({
   onBeforeNavigate,

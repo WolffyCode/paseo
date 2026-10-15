@@ -33,7 +33,8 @@ import {
   applyDesktopWindowChromeMode,
   registerWindowManager,
   getMainWindowChromeOptions,
-  getWindowBackgroundColor,
+  systemWindowMaterialOptions,
+  observeWindowMaterial,
   resolveSystemWindowTheme,
   resolveWindowBounds,
   setupWindowResizeEvents,
@@ -692,7 +693,7 @@ async function createWindow(
     title,
     ...resolveWindowBounds(restoredWindowState),
     show: false,
-    backgroundColor: getWindowBackgroundColor(systemTheme),
+    ...systemWindowMaterialOptions(systemTheme),
     ...(iconPath ? { icon: iconPath } : {}),
     ...getMainWindowChromeOptions({
       mode: DESKTOP_WINDOW_CHROME_MODE,
@@ -706,6 +707,7 @@ async function createWindow(
     },
   });
   applyDesktopWindowChromeMode({ win: mainWindow, mode: DESKTOP_WINDOW_CHROME_MODE });
+  observeWindowMaterial(mainWindow, systemTheme);
 
   const webContentsId = mainWindow.webContents.id;
   options.onCreated?.(webContentsId);

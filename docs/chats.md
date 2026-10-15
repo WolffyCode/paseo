@@ -7,7 +7,9 @@ entry inside a project supplies that project's context. Clearing the directory k
 the draft. Adding a new directory through the picker also keeps the form and draft.
 
 The sidebar uses one creation entry above Pinned, Projects, and Conversations. Search
-and Schedules retain their normal entries. Conversations lists independent conversations.
+stays in the sidebar. Wide web and Electron place Schedules in the activity rail;
+compact and native navigation keep its sidebar entry. Conversations lists independent
+conversations. See [workbench](workbench.md) for desktop surface ownership.
 The Projects plus button and Conversations compose button open the same creation form.
 Pinned, Projects, and Conversations collapse independently and remember their state on
 the device. Collapsing hides the section's rows and empty state while keeping its header

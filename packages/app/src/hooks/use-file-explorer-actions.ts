@@ -18,7 +18,6 @@ function createExplorerState(): AgentFileExplorerState {
     currentPath: ".",
     history: ["."],
     lastVisitedPath: ".",
-    selectedEntryPath: null,
   };
 }
 
@@ -327,16 +326,6 @@ export function useFileExplorerActions(params: { serverId: string } & FileExplor
     [client, normalizedWorkspaceRoot, requestDirectoryListing],
   );
 
-  const selectExplorerEntry = useCallback(
-    (path: string | null) => {
-      updateExplorerState((state) => ({
-        ...state,
-        selectedEntryPath: path,
-      }));
-    },
-    [updateExplorerState],
-  );
-
   return {
     workspaceStateKey,
     requestDirectoryListing,
@@ -346,6 +335,5 @@ export function useFileExplorerActions(params: { serverId: string } & FileExplor
     renameEntry,
     duplicateEntry,
     deleteEntry,
-    selectExplorerEntry,
   };
 }

@@ -3,6 +3,7 @@ import { Stack } from "expo-router";
 import { isValidElement, type ReactElement, type ReactNode, useCallback, useMemo } from "react";
 import { withUnistyles } from "react-native-unistyles";
 import { AppearanceStyleBoundary } from "@/components/appearance-style-boundary";
+import { isWeb } from "@/constants/platform";
 
 interface ThemedStackBaseProps {
   backgroundColor: string;
@@ -49,5 +50,5 @@ function ThemedStackBase({
 }
 
 export const ThemedStack = withUnistyles(ThemedStackBase, (theme) => ({
-  backgroundColor: theme.colors.surface0,
+  backgroundColor: isWeb ? "transparent" : theme.colors.surface0,
 }));

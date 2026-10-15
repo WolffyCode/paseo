@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { router } from "expo-router";
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
 import type { KeyboardActionId } from "@/keyboard/keyboard-action-dispatcher";
 import { useHosts } from "@/runtime/host-runtime";
@@ -9,6 +8,7 @@ import {
 } from "@/stores/navigation-active-workspace-store";
 import { generateDraftId } from "@/stores/draft-keys";
 import { buildNewWorkspaceRoute } from "@/utils/host-routes";
+import { workbenchModel } from "@/workbench/runtime";
 
 const NEW_CONVERSATION_ACTIONS: readonly KeyboardActionId[] = ["workspace.new"];
 
@@ -20,7 +20,9 @@ export function useOpenNewConversation() {
   const serverId = hosts.find((host) => host.serverId === preferredServerId)?.serverId;
   return useCallback(() => {
     if (hosts.length === 0) return false;
-    router.navigate(buildNewWorkspaceRoute({ serverId, draftId: generateDraftId() }));
+    workbenchModel.startConversation(
+      buildNewWorkspaceRoute({ serverId, draftId: generateDraftId() }),
+    );
     return true;
   }, [hosts.length, serverId]);
 }

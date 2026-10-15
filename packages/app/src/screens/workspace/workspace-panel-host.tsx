@@ -9,6 +9,7 @@ import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-
 import { useMountedTabSet } from "@/screens/workspace/use-mounted-tab-set";
 import { workspaceTabTargetsEqual } from "@/workspace-tabs/identity";
 import { RenderProfile } from "@/utils/render-profiler";
+import { workbenchPaneHost } from "@/workbench/layout";
 
 interface WorkspacePanelHostProps {
   paneId: string;
@@ -51,7 +52,7 @@ const MountedTab = memo(function MountedTab({
   const handleFocusPane = useCallback(() => onFocusPane?.(paneId), [onFocusPane, paneId]);
   return (
     <RenderProfile id={`DesktopMountedTab:${tab.kind}:${tab.tabId}`}>
-      <RetainedPanel active={visible}>
+      <RetainedPanel active={visible} animated={workbenchPaneHost(paneId) !== null}>
         <WorkspacePaneContent
           content={content}
           isWorkspaceFocused={isWorkspaceFocused}
@@ -101,11 +102,19 @@ export function WorkspacePanelHost({
   buildPaneContentModel,
 }: WorkspacePanelHostProps) {
   const tabIds = useMemo(() => tabs.map((tab) => tab.tabId), [tabs]);
-  const retainedTabIds = useModifiedPanelTabIds({
+  const modifiedTabIds = useModifiedPanelTabIds({
     serverId: normalizedServerId,
     workspaceId: normalizedWorkspaceId,
     tabIds,
   });
+  const retainedTabIds = useMemo(() => {
+    const retained = new Set(modifiedTabIds);
+    // A browser guest owns page state that cannot be reconstructed from its URL.
+    for (const tab of tabs) {
+      if (tab.kind === "browser") retained.add(tab.tabId);
+    }
+    return retained;
+  }, [modifiedTabIds, tabs]);
   const stableTabs = useStableTabs(tabs);
   const { mountedTabIds } = useMountedTabSet({
     activeTabId,

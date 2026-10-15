@@ -21,6 +21,13 @@ import { buildWorkspaceTabPersistenceKey, type WorkspaceTab } from "@/workspace-
 import { defaultChangesState, type ChangesState } from "@/panels/changes/state";
 import { defaultFileState, type FileState } from "@/panels/file/state";
 import {
+  CONVERSATION_PANE_ID,
+  activeConversationOwner,
+  workbenchContentPaneId,
+  workbenchPanes,
+} from "@/workbench/layout";
+import { createWorkbenchModel, type WorkbenchPreferences } from "@/workbench/model";
+import {
   canDismissPaneInLayout,
   collectAllPanes,
   collectAllTabs,
@@ -74,6 +81,401 @@ function createDeterministicWorkspaceLayoutIds() {
 
 const workspaceLayoutIds = createDeterministicWorkspaceLayoutIds();
 const workspaceLayoutStore = createWorkspaceLayoutStore(workspaceLayoutIds);
+
+it("gives each conversation its own resource views and restores them after its tab closes", () => {
+  const store = createWorkspaceLayoutStore(workspaceLayoutIds);
+  const key = "workbench-host:workspace";
+  store.getState().enableWorkbench(key);
+  const first = store
+    .getState()
+    .openTab({ workspaceKey: key, target: { kind: "agent", agentId: "one" }, intent: "reveal" });
+  const firstFile = store.getState().openTab({
+    workspaceKey: key,
+    target: { kind: "file", path: "src/index.ts" },
+    intent: "reveal",
+  });
+  const second = store
+    .getState()
+    .openTab({ workspaceKey: key, target: { kind: "agent", agentId: "two" }, intent: "reveal" });
+  const secondFile = store.getState().openTab({
+    workspaceKey: key,
+    target: { kind: "file", path: "src/index.ts" },
+    intent: "reveal",
+  });
+  expect(typeof first).toBe("string");
+  expect(typeof second).toBe("string");
+  expect(typeof firstFile).toBe("string");
+  expect(typeof secondFile).toBe("string");
+  expect(firstFile).not.toBe(secondFile);
+  const layout = store.getState().layoutByWorkspace[key];
+  expect(activeConversationOwner(layout)).toBe("agent:two");
+  expect(findPaneById(layout.root, CONVERSATION_PANE_ID)?.tabIds).toEqual([first, second]);
+  expect(findPaneById(layout.root, workbenchContentPaneId("agent:one"))?.tabIds).toEqual([
+    firstFile,
+  ]);
+  store.getState().closeTab(key, first!);
+  store
+    .getState()
+    .openTab({ workspaceKey: key, target: { kind: "agent", agentId: "one" }, intent: "reveal" });
+  expect(activeConversationOwner(store.getState().layoutByWorkspace[key])).toBe("agent:one");
+  expect(
+    workbenchPanes(store.getState().layoutByWorkspace[key])
+      .filter((pane) => !pane.hidden)
+      .map((pane) => pane.id),
+  ).toEqual([
+    CONVERSATION_PANE_ID,
+    workbenchContentPaneId("agent:one"),
+    "workbench:files:agent:one",
+  ]);
+});
+
+it("keeps a draft's content and files view when the created conversation is bound", () => {
+  const store = createWorkspaceLayoutStore();
+  const key = "draft-host:workspace";
+  store.getState().enableWorkbench(key);
+  const draft = store.getState().openTab({
+    workspaceKey: key,
+    target: { kind: "draft", draftId: "draft-one" },
+    intent: "reveal",
+  });
+  const file = store
+    .getState()
+    .openTab({ workspaceKey: key, target: { kind: "file", path: "README.md" }, intent: "reveal" });
+  const tree = findPaneById(
+    store.getState().layoutByWorkspace[key].root,
+    "workbench:files:draft:draft-one",
+  )?.tabIds;
+  store.getState().convertDraftToAgent(key, draft!, "created-one");
+  const layout = store.getState().layoutByWorkspace[key];
+  expect(activeConversationOwner(layout)).toBe("agent:created-one");
+  expect(findPaneById(layout.root, workbenchContentPaneId("agent:created-one"))?.tabIds).toEqual([
+    file,
+  ]);
+  expect(findPaneById(layout.root, "workbench:files:agent:created-one")?.tabIds).toEqual(tree);
+});
+
+it("routes a delayed source open back to its conversation and rejects moving a resource into chats", () => {
+  const store = createWorkspaceLayoutStore();
+  const key = "source-host:workspace";
+  store.getState().enableWorkbench(key);
+  const first = store
+    .getState()
+    .openTab({ workspaceKey: key, target: { kind: "agent", agentId: "one" }, intent: "reveal" });
+  store
+    .getState()
+    .openTab({ workspaceKey: key, target: { kind: "agent", agentId: "two" }, intent: "reveal" });
+  const file = store.getState().openTab({
+    workspaceKey: key,
+    target: { kind: "file", path: "README.md" },
+    parentTabId: first!,
+    intent: "reveal",
+  });
+  expect(activeConversationOwner(store.getState().layoutByWorkspace[key])).toBe("agent:one");
+  store.getState().moveTabToPane(key, file!, CONVERSATION_PANE_ID);
+  store.getState().closePane(key, CONVERSATION_PANE_ID);
+  const layout = store.getState().layoutByWorkspace[key];
+  expect(findPaneContainingTab(layout.root, file!)?.id).toBe(workbenchContentPaneId("agent:one"));
+  expect(findPaneById(layout.root, CONVERSATION_PANE_ID)?.tabIds).toContain(first);
+  store.getState().closeTab(key, first!);
+  expect(
+    store.getState().openTab({
+      workspaceKey: key,
+      target: { kind: "file", path: "late.md" },
+      parentTabId: first!,
+      intent: "reveal",
+    }),
+  ).toBeNull();
+  expect(activeConversationOwner(store.getState().layoutByWorkspace[key])).toBe("agent:two");
+});
+
+it("splits only conversations while each focused conversation retains its own resources", () => {
+  const store = createWorkspaceLayoutStore();
+  const key = "split-host:workspace";
+  store.getState().enableWorkbench(key);
+  const first = store
+    .getState()
+    .openTab({ workspaceKey: key, target: { kind: "agent", agentId: "one" }, intent: "reveal" });
+  const right = store
+    .getState()
+    .splitPaneEmpty(key, { targetPaneId: CONVERSATION_PANE_ID, position: "right" });
+  expect(right).toBeTruthy();
+  const draft = findPaneById(store.getState().layoutByWorkspace[key].root, right!)?.tabs?.[0];
+  expect(draft?.target.kind).toBe("draft");
+  const second = store.getState().openTab({
+    workspaceKey: key,
+    target: { kind: "agent", agentId: "two" },
+    intent: "reveal",
+    placement: { mode: "pane", paneId: right! },
+  });
+  expect(findPaneContainingTab(store.getState().layoutByWorkspace[key].root, second!)?.id).toBe(
+    right,
+  );
+  const lower = store.getState().splitPaneEmpty(key, { targetPaneId: right!, position: "bottom" });
+  expect(lower).toBeTruthy();
+  const firstFile = store.getState().openTab({
+    workspaceKey: key,
+    target: { kind: "file", path: "README.md" },
+    parentTabId: first!,
+    intent: "reveal",
+  });
+  const secondFile = store.getState().openTab({
+    workspaceKey: key,
+    target: { kind: "file", path: "README.md" },
+    parentTabId: second!,
+    intent: "reveal",
+  });
+  expect(firstFile).not.toBe(secondFile);
+  expect(activeConversationOwner(store.getState().layoutByWorkspace[key])).toBe("agent:two");
+  store.getState().focusTab(key, first!);
+  expect(activeConversationOwner(store.getState().layoutByWorkspace[key])).toBe("agent:one");
+  expect(
+    store.getState().splitPaneEmpty(key, {
+      targetPaneId: workbenchContentPaneId("agent:one"),
+      position: "right",
+    }),
+  ).toBeNull();
+  store.getState().moveTabToPane(key, first!, right!);
+  expect(
+    findPaneById(store.getState().layoutByWorkspace[key].root, CONVERSATION_PANE_ID)?.tabIds.length,
+  ).toBeGreaterThan(0);
+  store.getState().closePane(key, lower!);
+  expect(findPaneById(store.getState().layoutByWorkspace[key].root, lower!)).toBeNull();
+  store.getState().closePane(key, right!);
+  store.getState().reconcileTabs(key, {
+    activeAgentIds: ["one", "two"],
+    autoOpenAgentIds: ["one", "two"],
+    standaloneTerminalIds: [],
+    agentsHydrated: true,
+    terminalsHydrated: true,
+  });
+  expect(
+    collectAllTabs(store.getState().layoutByWorkspace[key].root).some(
+      (tab) => tab.target.kind === "agent",
+    ),
+  ).toBe(false);
+});
+
+it("preserves resource ancestry when converting the previous workspace layout", () => {
+  const store = createWorkspaceLayoutStore();
+  const key = "existing-host:workspace";
+  const first = store
+    .getState()
+    .openTab({ workspaceKey: key, target: { kind: "agent", agentId: "one" }, intent: "reveal" });
+  const second = store
+    .getState()
+    .openTab({ workspaceKey: key, target: { kind: "agent", agentId: "two" }, intent: "reveal" });
+  const file = store.getState().openTab({
+    workspaceKey: key,
+    target: { kind: "file", path: "existing.md" },
+    parentTabId: first!,
+    intent: "reveal",
+  });
+  store.getState().focusTab(key, second!);
+  store.getState().enableWorkbench(key);
+  const layout = store.getState().layoutByWorkspace[key];
+  expect(findPaneContainingTab(layout.root, file!)?.id).toBe(workbenchContentPaneId("agent:one"));
+  expect(layout.parentTabIdByTabId?.[file!]).toBe(first);
+  expect(activeConversationOwner(layout)).toBe("agent:two");
+});
+
+it("does not reopen a closed running conversation or terminal during reconciliation", () => {
+  const store = createWorkspaceLayoutStore();
+  const key = "close-host:workspace";
+  store.getState().enableWorkbench(key);
+  const chat = store.getState().openTab({
+    workspaceKey: key,
+    target: { kind: "agent", agentId: "running" },
+    intent: "reveal",
+  });
+  const terminal = store.getState().openTab({
+    workspaceKey: key,
+    target: { kind: "terminal", terminalId: "shell" },
+    intent: "reveal",
+  });
+  store.getState().closeTab(key, terminal!);
+  store.getState().closeTab(key, chat!);
+  store.getState().reconcileTabs(key, {
+    activeAgentIds: ["running"],
+    autoOpenAgentIds: ["running"],
+    standaloneTerminalIds: ["shell"],
+    agentsHydrated: true,
+    terminalsHydrated: true,
+  });
+  expect(
+    collectAllTabs(store.getState().layoutByWorkspace[key].root).some(
+      (tab) => tab.target.kind === "agent" || tab.target.kind === "terminal",
+    ),
+  ).toBe(false);
+});
+
+function createWorkbenchHarness(readPreferences: () => Promise<unknown>) {
+  const writes: WorkbenchPreferences[] = [];
+  const navigated: string[] = [];
+  const model = createWorkbenchModel({
+    readPreferences,
+    savePreferences: async (value) => {
+      writes.push(value);
+    },
+    navigate: (path) => navigated.push(path),
+    selectHost: () => {},
+    addHost: () => {},
+    openHostSettings: () => {},
+    getNavigationWidth: () => 260,
+    saveNavigationWidth: () => {},
+    subscribeNavigation: () => () => {},
+  });
+  return { model, writes, navigated };
+}
+
+it("uses the same column geometry for activities without overwriting Home layout preferences", async () => {
+  const { model, writes } = createWorkbenchHarness(async () => ({
+    contentWidth: 480,
+    filesWidth: 240,
+  }));
+  await Promise.resolve();
+  model.setWindowWidth(1500);
+  model.setViewport(1200);
+  model.applyRoute("/h/host/workspace/one");
+  const home = model.getSnapshot();
+  expect(home).toMatchObject({ mainWidth: 464, contentWidth: 480, filesWidth: 240 });
+  for (const path of ["/settings/general", "/schedules", "/settings/appearance"]) {
+    model.applyRoute(path);
+    expect(model.getSnapshot()).toMatchObject({
+      mainWidth: 1200,
+      contentWidth: 0,
+      filesWidth: 0,
+      navigationWidth: home.navigationWidth,
+      preferences: home.preferences,
+    });
+  }
+  model.applyRoute("/h/host/workspace/one");
+  expect(model.getSnapshot()).toMatchObject({ mainWidth: 464, contentWidth: 480, filesWidth: 240 });
+  model.setContentMaximized(true);
+  model.applyRoute("/schedules");
+  expect(model.getSnapshot()).toMatchObject({ mainWidth: 1200, contentWidth: 0, filesWidth: 0 });
+  model.applyRoute("/h/host/workspace/one");
+  expect(model.getSnapshot()).toMatchObject({
+    mainWidth: 0,
+    contentWidth: 1200,
+    filesWidth: 0,
+    contentMaximized: true,
+  });
+  expect(writes).toHaveLength(0);
+  model.dispose();
+});
+
+it("starts each new conversation with both resource columns collapsed and keeps saved widths", async () => {
+  const { model, navigated } = createWorkbenchHarness(async () => ({
+    contentWidth: 480,
+    filesWidth: 240,
+    contentVisible: true,
+    filesVisible: true,
+  }));
+  await Promise.resolve();
+  model.setViewport(1200);
+  model.setContentMaximized(true);
+  model.toggleWorkspaceActions();
+  let notifications = 0;
+  const unsubscribe = model.subscribe(() => {
+    notifications += 1;
+  });
+  const first = "/new?serverId=host&draftId=one";
+  model.startConversation(first);
+  expect(notifications).toBe(1);
+  expect(model.getSnapshot()).toMatchObject({
+    contentWidth: 0,
+    filesWidth: 0,
+    contentMaximized: false,
+    workspaceActionsVisible: false,
+    preferences: { contentWidth: 480, filesWidth: 240, contentVisible: false, filesVisible: false },
+  });
+  model.setRegionVisible("content", true);
+  model.setRegionVisible("files", true);
+  model.applyRoute(first);
+  model.applyRoute("/settings/general");
+  model.applyRoute(first);
+  expect(model.getSnapshot()).toMatchObject({ contentWidth: 480, filesWidth: 240 });
+  const second = "/new?serverId=host&draftId=two";
+  model.startConversation(second);
+  expect(model.getSnapshot()).toMatchObject({ contentWidth: 0, filesWidth: 0 });
+  expect(navigated).toEqual([first, second]);
+  unsubscribe();
+  model.dispose();
+});
+
+it("keeps new conversation defaults and manual expansion when saved preferences arrive late", async () => {
+  let restore: (value: unknown) => void = () => {};
+  const saved = new Promise<unknown>((resolve) => {
+    restore = resolve;
+  });
+  const { model, writes } = createWorkbenchHarness(() => saved);
+  model.setViewport(1200);
+  model.applyRoute("/new?serverId=host&draftId=cold-start");
+  expect(model.getSnapshot()).toMatchObject({ contentWidth: 0, filesWidth: 0 });
+  expect(writes).toHaveLength(0);
+  model.setRegionVisible("content", true);
+  restore({ contentWidth: 480, filesWidth: 240, contentVisible: true, filesVisible: true });
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(model.getSnapshot()).toMatchObject({
+    hydrated: true,
+    contentWidth: 480,
+    filesWidth: 0,
+    preferences: { contentWidth: 480, filesWidth: 240, contentVisible: true, filesVisible: false },
+  });
+  expect(writes).toEqual([
+    { contentWidth: 480, filesWidth: 240, contentVisible: true, filesVisible: false },
+  ]);
+  model.dispose();
+});
+
+it("preserves preferred widths on cancellation and only saves a completed resize", async () => {
+  const { model, writes, navigated } = createWorkbenchHarness(async () => ({
+    contentWidth: 700,
+    filesWidth: 300,
+  }));
+  await Promise.resolve();
+  model.setViewport(900);
+  model.beginResize("content", 400);
+  model.updateResize(450);
+  expect(writes).toHaveLength(0);
+  model.cancelResize();
+  expect(model.getSnapshot().preferences.contentWidth).toBe(700);
+  model.setViewport(1600);
+  expect(model.getSnapshot().contentWidth).toBe(700);
+  model.beginResize("content", 400);
+  model.updateResize(450);
+  model.commitResize();
+  await Promise.resolve();
+  expect(writes).toHaveLength(1);
+  expect(writes[0].contentWidth).toBe(650);
+  model.setRegionVisible("files", false);
+  model.setContentMaximized(true);
+  expect(model.getSnapshot().contentWidth).toBe(1600);
+  model.setContentMaximized(false);
+  expect(model.getSnapshot().preferences.filesVisible).toBe(false);
+  model.applyRoute("/h/host/workspace/workspace");
+  model.applyRoute("/settings/general");
+  model.selectActivity("home");
+  expect(navigated).toEqual(["/h/host/workspace/workspace"]);
+  model.applyRoute("/new?draftId=draft-one&serverId=host");
+  model.applyRoute("/settings/general");
+  model.selectActivity("home");
+  expect(navigated.at(-1)).toBe("/new?draftId=draft-one&serverId=host");
+  model.applyRoute("/new?draftId=draft-one&serverId=host");
+  model.setWindowWidth(900);
+  expect(model.getSnapshot().navigationWidth).toBe(240);
+  model.beginResize("navigation", 400);
+  model.updateResize(390);
+  expect(model.getSnapshot().navigationWidth).toBe(230);
+  model.cancelResize();
+  expect(model.getSnapshot().navigationWidth).toBe(240);
+  model.setRegionVisible("content", false);
+  model.setRegionVisible("files", true);
+  model.setViewport(600);
+  expect(model.getSnapshot().filesWidth).toBeGreaterThan(0);
+  model.dispose();
+});
 
 it("observes open chats across unmounted workspaces until their tabs close", () => {
   const store = createWorkspaceLayoutStore(workspaceLayoutIds);

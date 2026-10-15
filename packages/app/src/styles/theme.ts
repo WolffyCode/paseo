@@ -260,6 +260,10 @@ const lightTerminalAnsi = {
 
 export function buildLightSemanticColors(tint: LightThemeConfig) {
   return {
+    workbenchWindow: "rgba(233, 237, 235, 0.62)",
+    workbenchSurface: "rgba(255, 255, 255, 0.72)",
+    workbenchEdge: "rgba(255, 255, 255, 0.70)",
+    workbenchSelected: "rgba(220, 229, 220, 0.65)",
     surface0: tint.surface0,
     surface1: tint.surface1,
     surface2: tint.surface2,
@@ -391,6 +395,10 @@ export function buildDarkSemanticColors(tint: DarkThemeConfig) {
   const foreground = tint.foreground ?? "#fafafa";
   const ring = tint.ring ?? "#d4d4d8";
   return {
+    workbenchWindow: "rgba(22, 24, 25, 0.45)",
+    workbenchSurface: "rgba(32, 34, 35, 0.78)",
+    workbenchEdge: "rgba(255, 255, 255, 0.08)",
+    workbenchSelected: "rgba(74, 84, 65, 0.60)",
     surface0: tint.surface0,
     surface1: tint.surface1,
     surface2: tint.surface2,

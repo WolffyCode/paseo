@@ -114,6 +114,10 @@ Cross-platform React Native app that connects to one or more daemons.
 
 Independent chat ownership and its execution backing are documented in [chats](chats.md).
 
+The approved desktop shell replacement and its model/API boundaries are specified in
+[the four-column workbench design](workbench.md). That document describes the target;
+the existing workspace shell remains the current implementation until integration.
+
 - Expo Router navigation (`/h/[serverId]/workspace/[workspaceId]`, `/h/[serverId]/agent/[agentId]`, etc.). The `workspaceId` URL segment is an opaque workspace id, not a directly meaningful filesystem path.
 - `HostRuntimeController` manages saved host connections, reconnection, and per-host runtime state. Direct TCP and relay connections use the ordinary client transport; desktop socket, pipe, and SSH connections cross one Electron-owned transport boundary. SSH only tunnels to an already-running daemon.
 - `runtime/replica-cache` is typed storage behind the directory and timeline owners. It never observes or mutates `SessionStore`.

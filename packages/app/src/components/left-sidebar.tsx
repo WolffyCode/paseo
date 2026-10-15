@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import { isWeb } from "@/constants/platform";
 import { CircleGauge, FolderPlus, GitBranch, Plus, Server, Settings, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
@@ -383,6 +384,7 @@ function IconTooltipContent({
 }
 
 function SidebarFooter({
+  globalControls = true,
   theme,
   handleOpenProject,
   handleSettings,
@@ -391,6 +393,7 @@ function SidebarFooter({
   handleOpenHostSettings,
   onBeforeNavigate,
 }: {
+  globalControls?: boolean;
   theme: SidebarTheme;
   handleOpenProject: () => void;
   handleSettings: () => void;
@@ -423,22 +426,26 @@ function SidebarFooter({
             theme={theme}
           />
           <SidebarUsageIcon label={labels.usage} theme={theme} />
-          <SidebarHostPicker
-            theme={theme}
-            label={labels.hosts}
-            onAddHost={handleAddHost}
-            onOpenHostSettings={handleOpenHostSettings}
-          />
+          {globalControls ? (
+            <SidebarHostPicker
+              theme={theme}
+              label={labels.hosts}
+              onAddHost={handleAddHost}
+              onOpenHostSettings={handleOpenHostSettings}
+            />
+          ) : null}
           <View style={styles.footerSpacer} />
           <SidebarHelpMenu />
-          <FooterIconButton
-            onPress={handleSettings}
-            testID="sidebar-settings"
-            label={labels.settings}
-            icon={Settings}
-            shortcutKeys={settingsKeys}
-            theme={theme}
-          />
+          {globalControls ? (
+            <FooterIconButton
+              onPress={handleSettings}
+              testID="sidebar-settings"
+              label={labels.settings}
+              icon={Settings}
+              shortcutKeys={settingsKeys}
+              theme={theme}
+            />
+          ) : null}
         </View>
       </View>
     </UsageSidebarRoot>
@@ -705,68 +712,67 @@ function DesktopSidebar({
     [active, resizeAnimatedStyle],
   );
   const desktopSidebarBorderStyle = useMemo(
-    () => [styles.desktopSidebarBorder, { flex: 1, paddingTop: insetsTop }],
+    () => [
+      isWeb ? styles.workbenchSidebar : styles.desktopSidebarBorder,
+      { flex: 1, paddingTop: insetsTop },
+    ],
     [insetsTop],
   );
   const sidebarHeaderGroupStyle = useMemo(
     () => [styles.sidebarHeaderGroup, ownsTopLeft && styles.sidebarHeaderGroupBelowChrome],
     [ownsTopLeft],
   );
-  return (
-    <Animated.View
-      accessibilityElementsHidden={!active}
-      importantForAccessibility={active ? "auto" : "no-hide-descendants"}
-      pointerEvents={active ? "auto" : "none"}
-      style={desktopSidebarStyle}
-    >
-      <View style={desktopSidebarBorderStyle}>
-        <View style={styles.sidebarDragArea}>
-          {ownsTopLeft || DEV_BUILD_LABEL ? (
-            <View style={styles.desktopChromeRow}>
-              <TitlebarDragRegion />
-              {DEV_BUILD_LABEL ? (
-                <View
-                  pointerEvents="none"
-                  style={styles.devBuildBadge}
-                  testID="dev-build-label"
-                  accessibilityLabel={`Development build: ${DEV_BUILD_LABEL}`}
-                >
-                  <GitBranch size={12} color={theme.colors.accentForeground} />
-                  <Text numberOfLines={1} ellipsizeMode="tail" style={styles.devBuildBadgeText}>
-                    {DEV_BUILD_LABEL}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-          ) : (
+  const content = (
+    <View style={desktopSidebarBorderStyle}>
+      <View style={styles.sidebarDragArea}>
+        {!isWeb && (ownsTopLeft || DEV_BUILD_LABEL) ? (
+          <View style={styles.desktopChromeRow}>
             <TitlebarDragRegion />
-          )}
-          <SidebarNavRows style={sidebarHeaderGroupStyle} />
-        </View>
-
-        {isInitialLoad && !hasActiveHostFilter ? (
-          <SidebarAgentListSkeleton />
+            {DEV_BUILD_LABEL ? (
+              <View
+                pointerEvents="none"
+                style={styles.devBuildBadge}
+                testID="dev-build-label"
+                accessibilityLabel={`Development build: ${DEV_BUILD_LABEL}`}
+              >
+                <GitBranch size={12} color={theme.colors.accentForeground} />
+                <Text numberOfLines={1} ellipsizeMode="tail" style={styles.devBuildBadgeText}>
+                  {DEV_BUILD_LABEL}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         ) : (
-          <SidebarWorkspaceList
-            collapsedProjectKeys={collapsedProjectKeys}
-            onToggleProjectCollapsed={toggleProjectCollapsed}
-            shortcutIndexByWorkspaceKey={shortcutIndexByWorkspaceKey}
-            groupMode={groupMode}
-            workspaceGroups={workspaceGroups}
-            projectIconTargets={projectIconTargets}
-            pinnedGroups={pinnedGroups}
-            projects={projects}
-            hasProjectsBeforeFilter={hasProjectsBeforeFilter}
-            workspaceEntriesByKey={workspaceEntriesByKey}
-            isRefreshing={isManualRefresh && isRevalidating}
-            onRefresh={handleRefresh}
-            listHeaderComponent={projectsSectionHeaderElement}
-          />
+          <TitlebarDragRegion />
         )}
+        <SidebarNavRows style={sidebarHeaderGroupStyle} hideSchedules={isWeb} />
+      </View>
 
-        <SidebarCalloutSlot />
+      {isInitialLoad && !hasActiveHostFilter ? (
+        <SidebarAgentListSkeleton />
+      ) : (
+        <SidebarWorkspaceList
+          collapsedProjectKeys={collapsedProjectKeys}
+          onToggleProjectCollapsed={toggleProjectCollapsed}
+          shortcutIndexByWorkspaceKey={shortcutIndexByWorkspaceKey}
+          groupMode={groupMode}
+          workspaceGroups={workspaceGroups}
+          projectIconTargets={projectIconTargets}
+          pinnedGroups={pinnedGroups}
+          projects={projects}
+          hasProjectsBeforeFilter={hasProjectsBeforeFilter}
+          workspaceEntriesByKey={workspaceEntriesByKey}
+          isRefreshing={isManualRefresh && isRevalidating}
+          onRefresh={handleRefresh}
+          listHeaderComponent={projectsSectionHeaderElement}
+        />
+      )}
 
+      <SidebarCalloutSlot />
+
+      {!isWeb ? (
         <SidebarFooter
+          globalControls={!isWeb}
           theme={theme}
           handleOpenProject={handleOpenProject}
           handleSettings={handleSettings}
@@ -774,14 +780,28 @@ function DesktopSidebar({
           handleAddHost={handleAddHost}
           handleOpenHostSettings={handleOpenHostSettings}
         />
+      ) : null}
 
+      {!isWeb ? (
         <SidebarResizeHandle
           edge="right"
           gesture={resizeGesture}
           pressed={resizePressed}
           testID="left-sidebar-resize-handle"
         />
-      </View>
+      ) : null}
+    </View>
+  );
+  return isWeb ? (
+    content
+  ) : (
+    <Animated.View
+      accessibilityElementsHidden={!active}
+      importantForAccessibility={active ? "auto" : "no-hide-descendants"}
+      pointerEvents={active ? "auto" : "none"}
+      style={desktopSidebarStyle}
+    >
+      {content}
     </Animated.View>
   );
 }
@@ -873,6 +893,7 @@ const styles = StyleSheet.create((theme) => ({
     borderRightColor: theme.colors.border,
     backgroundColor: theme.colors.surfaceSidebar,
   },
+  workbenchSidebar: { minWidth: 0, overflow: "hidden" },
   sidebarDragArea: {
     position: "relative",
   },

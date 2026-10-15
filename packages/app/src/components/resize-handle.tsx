@@ -10,6 +10,7 @@ import {
 } from "@/components/sidebar-resize-handle-layout";
 
 export interface ResizeHandleProps {
+  gutter?: number;
   testID?: string;
   direction: "horizontal" | "vertical";
   hitAreaAlignment?: "center" | "end";
@@ -36,6 +37,7 @@ function resetWindowHorizontalScroll() {
 }
 
 export function ResizeHandle({
+  gutter = 1,
   testID,
   direction,
   hitAreaAlignment = "center",
@@ -198,9 +200,10 @@ export function ResizeHandle({
     () => [
       styles.handle,
       direction === "horizontal" ? styles.handleHorizontal : styles.handleVertical,
-      { backgroundColor: theme.colors.border },
+      { backgroundColor: gutter > 1 ? "transparent" : theme.colors.border },
+      direction === "horizontal" ? { width: gutter } : { height: gutter },
     ],
-    [direction, theme.colors.border],
+    [direction, gutter, theme.colors.border],
   );
   const highlightStyle = useMemo(
     () => [

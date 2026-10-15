@@ -1,3 +1,18 @@
+import { panelCanLaunchInPane, panelSupportsHost, type PaneHost } from "@/panels/panel-manifest";
+import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
+
+export function canLaunchPanel(input: {
+  kind: WorkspaceTabTarget["kind"];
+  host: PaneHost;
+  surface: "menu" | "panel";
+  panePanelKinds: readonly WorkspaceTabTarget["kind"][];
+}): boolean {
+  return (
+    panelSupportsHost(input.kind, input.host) &&
+    (input.surface !== "menu" || panelCanLaunchInPane(input.kind, input.panePanelKinds))
+  );
+}
+
 export const PRIMARY_LAUNCH_ORDER = [
   "agent",
   "terminal",

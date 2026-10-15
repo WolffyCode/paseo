@@ -259,15 +259,15 @@ describe("keyboard-shortcuts", () => {
       action: "command-center.toggle",
     },
     {
-      name: "matches Cmd+Backslash to split pane right on macOS",
-      event: { key: "\\", code: "Backslash", metaKey: true },
-      context: { isMac: true },
+      name: "matches Cmd+D to split a conversation right on macOS",
+      event: { key: "d", code: "KeyD", metaKey: true },
+      context: { isMac: true, conversationPane: true },
       action: "workspace.pane.split.right",
     },
     {
-      name: "matches Cmd+Shift+Backslash to split pane down on macOS",
-      event: { key: "|", code: "Backslash", metaKey: true, shiftKey: true },
-      context: { isMac: true },
+      name: "matches Cmd+Shift+D to split a conversation down on macOS",
+      event: { key: "D", code: "KeyD", metaKey: true, shiftKey: true },
+      context: { isMac: true, conversationPane: true },
       action: "workspace.pane.split.down",
     },
     {
@@ -706,7 +706,7 @@ describe("keyboard-shortcut help sections", () => {
         "workspace-jump-index": ["alt", "1-9"],
         "workspace-tab-jump-index": ["alt", "shift", "1-9"],
         "workspace-tab-close-current": ["alt", "shift", "W"],
-        "workspace-pane-split-right": ["mod", "\\"],
+        "workspace-pane-split-right": ["mod", "D"],
         "workspace-pane-close": ["mod", "shift", "W"],
         "cycle-agent-mode": ["shift", "Tab"],
       },
@@ -725,7 +725,7 @@ describe("keyboard-shortcut help sections", () => {
         // `formatShortcut` renders both as ⌘, so the badge is unchanged — see
         // the render assertion below.
         "workspace-tab-close-current": ["mod", "W"],
-        "workspace-pane-split-right": ["mod", "\\"],
+        "workspace-pane-split-right": ["mod", "D"],
         "workspace-pane-close": ["mod", "shift", "W"],
       },
     },
