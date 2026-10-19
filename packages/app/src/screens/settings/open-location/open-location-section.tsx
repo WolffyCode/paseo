@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { SettingsSection, SettingsCard, SettingsSelect } from "@/components/settings";
+import { isWeb } from "@/constants/platform";
 import {
   useAppSettings,
   type OpenInSidePanePreferences,
@@ -83,8 +84,7 @@ function ServiceUrlRow() {
   );
 }
 
-/** Where things open: files, diffs, subagents, pull requests, and script URLs. Desktop only. */
-export function OpenLocationSection() {
+function FlexiblePaneOpenLocationSection() {
   const { t } = useTranslation();
   const { settings, updateSettings } = useAppSettings();
   const handleDestinationChange = useCallback(
@@ -116,6 +116,18 @@ export function OpenLocationSection() {
           allowExplorer
           onDestinationChange={handleDestinationChange}
         />
+        <ServiceUrlRow />
+      </SettingsCard>
+    </SettingsSection>
+  );
+}
+
+export function OpenLocationSection() {
+  const { t } = useTranslation();
+  if (!isWeb) return <FlexiblePaneOpenLocationSection />;
+  return (
+    <SettingsSection title={t("settings.layout.openInSidePane.title")}>
+      <SettingsCard>
         <ServiceUrlRow />
       </SettingsCard>
     </SettingsSection>

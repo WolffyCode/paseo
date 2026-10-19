@@ -112,22 +112,10 @@ function prefixFromCombo(
   return prefix.meta || prefix.control || prefix.alt ? prefix : null;
 }
 
-function isBrowserNativeNavigationPrefix(prefix: BrowserShortcutPrefix, isMac: boolean): boolean {
-  return (
-    isMac &&
-    prefix.meta &&
-    !prefix.control &&
-    !prefix.alt &&
-    !prefix.shift &&
-    (prefix.code === "BracketLeft" || prefix.code === "BracketRight")
-  );
-}
-
 function canCrossBrowserBoundary(binding: ParsedShortcutBinding, isMac: boolean): boolean {
-  return binding.parsedChord.every((combo) => {
-    const prefix = prefixFromCombo(combo, isMac, binding.when?.editable);
-    return prefix !== null && !isBrowserNativeNavigationPrefix(prefix, isMac);
-  });
+  return binding.parsedChord.every(
+    (combo) => prefixFromCombo(combo, isMac, binding.when?.editable) !== null,
+  );
 }
 
 function prefixKey(prefix: BrowserShortcutPrefix): string {
@@ -152,6 +140,7 @@ function buildBrowserShortcutPrefixes(input: BrowserShortcutPolicyInput): Browse
     isDesktop: input.isDesktop,
     focusScope: "browser" as const,
     commandCenterOpen: false,
+    isBrowserFocused: true,
   };
 
   const candidates =

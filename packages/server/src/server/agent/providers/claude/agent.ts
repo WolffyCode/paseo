@@ -1670,6 +1670,18 @@ export class ClaudeAgentClient implements AgentClient {
     });
   }
 
+  async resolveNativeSessionPath(handle: AgentPersistenceHandle): Promise<string | null> {
+    const { cwd } = coerceSessionMetadata(handle.metadata);
+    if (!cwd) {
+      return null;
+    }
+    return claudeTranscriptPathSync({
+      cwd,
+      sessionId: handle.sessionId,
+      configDir: claudeConfigDir(this.buildProviderEnv()),
+    });
+  }
+
   async isAvailable(): Promise<boolean> {
     const launch = await resolveProviderLaunch({
       commandConfig: this.runtimeSettings?.command,

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { i18n } from "@/i18n/i18next";
 import type { ConfirmDialogInput } from "@/utils/confirm-dialog";
 import {
   requestArchiveSubagent,
@@ -53,14 +54,23 @@ function createFakeEnv(
       reportError: (error) => {
         recordedErrors.push(error);
       },
+      t: i18n.t,
     },
   };
 }
 
+// The real instance, so a dialog that names a key nobody added renders as that key and fails.
+beforeAll(async () => {
+  if (!i18n.isInitialized) {
+    await i18n.init();
+  }
+  await i18n.changeLanguage("en");
+});
+
 describe("resolveArchiveSubagentDialog", () => {
   it("uses running copy for running subagents", () => {
     expect(
-      resolveArchiveSubagentDialog({
+      resolveArchiveSubagentDialog(i18n.t, {
         title: "Review branch",
         status: "running",
       }),
@@ -76,7 +86,7 @@ describe("resolveArchiveSubagentDialog", () => {
 
   it("does not use running copy for initializing subagents", () => {
     expect(
-      resolveArchiveSubagentDialog({
+      resolveArchiveSubagentDialog(i18n.t, {
         title: "Starting child",
         status: "initializing",
       }),
@@ -91,7 +101,7 @@ describe("resolveArchiveSubagentDialog", () => {
 
   it("uses idle copy for non-running subagents", () => {
     expect(
-      resolveArchiveSubagentDialog({
+      resolveArchiveSubagentDialog(i18n.t, {
         title: "Review branch",
         status: "idle",
       }),
@@ -106,13 +116,29 @@ describe("resolveArchiveSubagentDialog", () => {
 
   it("falls back to this subagent when the title is not displayable", () => {
     expect(
-      resolveArchiveSubagentDialog({
+      resolveArchiveSubagentDialog(i18n.t, {
         title: "New Agent",
         status: null,
       }),
     ).toEqual({
       title: "Archive subagent?",
       message: "Remove this subagent from the track. The subagent will be archived.",
+      confirmLabel: "Archive",
+      cancelLabel: "Cancel",
+      destructive: true,
+    });
+  });
+
+  it("falls back to this subagent in the running copy when the title is not displayable", () => {
+    expect(
+      resolveArchiveSubagentDialog(i18n.t, {
+        title: "  ",
+        status: "running",
+      }),
+    ).toEqual({
+      title: "Archive running subagent?",
+      message:
+        "this subagent is still running. Archiving it will stop the subagent and remove it from the track.",
       confirmLabel: "Archive",
       cancelLabel: "Cancel",
       destructive: true,
@@ -167,7 +193,7 @@ describe("requestArchiveSubagent", () => {
     await requestArchiveSubagent({ serverId: "server-1", subagentId: "child-agent" }, env.deps);
 
     expect(env.recordedConfirmInputs).toEqual([
-      resolveArchiveSubagentDialog({ title: "Review branch", status: "running" }),
+      resolveArchiveSubagentDialog(i18n.t, { title: "Review branch", status: "running" }),
     ]);
   });
 
@@ -177,7 +203,7 @@ describe("requestArchiveSubagent", () => {
     await requestArchiveSubagent({ serverId: "server-1", subagentId: "missing" }, env.deps);
 
     expect(env.recordedConfirmInputs).toEqual([
-      resolveArchiveSubagentDialog({ title: undefined, status: undefined }),
+      resolveArchiveSubagentDialog(i18n.t, { title: undefined, status: undefined }),
     ]);
     expect(env.recordedArchives).toEqual([]);
   });

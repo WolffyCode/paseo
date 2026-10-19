@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useReducer, useState, type ReactNode } from "react";
 import { Text, View } from "react-native";
+import { useTranslation } from "react-i18next";
 import { StyleSheet } from "react-native-unistyles";
 import type { ScheduleCadence } from "@getpaseo/protocol/schedule/types";
 import type { FieldControlSize } from "@/components/ui/control-geometry";
@@ -23,40 +24,36 @@ export interface CadenceEditorProps {
   size?: FieldControlSize;
 }
 
-const PRESET_OPTIONS: SelectFieldOption<string>[] = CADENCE_PRESET_OPTIONS.map((option) => ({
-  id: option.id,
-  value: option.id,
-  label: option.label,
-  testID: `schedule-cadence-preset-${option.id}`,
-}));
-
-function getCronPreview(expression: string, timezone: string, error: string | null): string | null {
-  if (error || !expression) {
-    return null;
-  }
-  return describeCron({ type: "cron", expression, timezone }) ?? expression;
-}
-
 function buildCronCadence(expression: string, timezone: string): CronCadence {
   return { type: "cron", expression, timezone };
 }
 
 export function CadenceEditor({ value, onChange, error, size = "md" }: CadenceEditorProps) {
+  const { t } = useTranslation();
   const deviceTimeZone = useMemo(getDeviceTimeZone, []);
+  const presetOptions = useMemo<SelectFieldOption<string>[]>(
+    () =>
+      CADENCE_PRESET_OPTIONS.map((option) => ({
+        id: option.id,
+        value: option.id,
+        label: t(option.labelKey),
+        testID: `schedule-cadence-preset-${option.id}`,
+      })),
+    [t],
+  );
   const normalizedValue = normalizeScheduleFormCadence(value, deviceTimeZone);
   const [cronText, setCronText] = useState(() => normalizedValue.expression);
   const [fieldResetKey, bumpFieldResetKey] = useReducer((key: number) => key + 1, 0);
   const cronTimeZone = normalizedValue.timezone ?? deviceTimeZone;
   const trimmedCron = cronText.trim();
-  const localCronError = trimmedCron ? validateCron(trimmedCron) : null;
+  const localCronError = trimmedCron ? validateCron(t, trimmedCron) : null;
   const effectiveError = error ?? localCronError;
-  const preview = getCronPreview(trimmedCron, cronTimeZone, effectiveError ?? null);
   const currentCadence = useMemo<CronCadence>(
     () => buildCronCadence(trimmedCron, cronTimeZone),
     [cronTimeZone, trimmedCron],
   );
   const selectedPresetId = resolveCronPresetId(currentCadence);
-  const selectedPresetDisplay = resolveCronPresetDisplay(currentCadence);
+  const selectedPresetDisplay = resolveCronPresetDisplay(t, currentCadence);
 
   const handlePresetChange = useCallback(
     (presetId: string) => {
@@ -82,23 +79,24 @@ export function CadenceEditor({ value, onChange, error, size = "md" }: CadenceEd
   let feedback: ReactNode = null;
   if (effectiveError) {
     feedback = <Text style={styles.error}>{effectiveError}</Text>;
-  } else if (preview) {
+  } else if (trimmedCron) {
+    const preview = describeCron(t, currentCadence) ?? trimmedCron;
     feedback = <Text style={styles.preview}>{preview}</Text>;
   }
 
   return (
-    <Field label="Cadence">
+    <Field label={t("schedules.cadence.label")}>
       <View style={styles.stack}>
         <SelectField
-          label="Cadence"
+          label={t("schedules.cadence.label")}
           value={selectedPresetId === "custom" ? null : selectedPresetId}
           selectedDisplay={selectedPresetDisplay}
-          options={PRESET_OPTIONS}
+          options={presetOptions}
           onChange={handlePresetChange}
-          placeholder="Select cadence"
-          emptyText="No cadences found"
+          placeholder={t("schedules.cadence.placeholder")}
+          emptyText={t("schedules.cadence.empty")}
           searchable={false}
-          title="Cadence"
+          title={t("schedules.cadence.label")}
           size={size}
           triggerTestID="schedule-cadence-preset-trigger"
           field={false}
@@ -107,7 +105,7 @@ export function CadenceEditor({ value, onChange, error, size = "md" }: CadenceEd
         <FormTextInput
           size={size}
           testID="cadence-cron-expression"
-          accessibilityLabel="Cron expression"
+          accessibilityLabel={t("schedules.cadence.cronExpression")}
           initialValue={cronText}
           resetKey={`cadence-cron-${fieldResetKey}`}
           onChangeText={handleCronChange}

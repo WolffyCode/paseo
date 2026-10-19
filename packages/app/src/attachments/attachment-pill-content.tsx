@@ -28,20 +28,23 @@ function getReviewSubtitle(count: number, t: TFunction): string {
     : t("message.attachments.commentsMany", { count });
 }
 
-function getPullRequestContextSubtitle(attachment: WorkspaceComposerAttachment): string {
+function getPullRequestContextSubtitle(
+  attachment: WorkspaceComposerAttachment,
+  t: TFunction,
+): string {
   if (
     attachment.kind === "forge.change_request_check" ||
     attachment.kind === "github.pull_request_check"
   ) {
-    return "Check logs";
+    return t("message.attachments.checkLogs");
   }
   if (
     attachment.kind === "forge.change_request_comment" ||
     attachment.kind === "github.pull_request_comment"
   ) {
-    return "Comment";
+    return t("message.attachments.comment");
   }
-  return "Review";
+  return t("message.attachments.review");
 }
 
 function getTextAttachmentSubtitle(
@@ -49,7 +52,7 @@ function getTextAttachmentSubtitle(
   t: TFunction,
 ): string {
   if (attachment.contextKind === "chat_history") {
-    return "Previous conversation";
+    return t("message.attachments.previousConversation");
   }
   return t("message.attachments.text");
 }
@@ -84,7 +87,7 @@ export function getAgentAttachmentPillContent(
       return {
         icon: attachmentGithubIssueIcon,
         title: attachment.title,
-        subtitle: `Issue #${attachment.number}`,
+        subtitle: t("message.attachments.issue", { number: `#${attachment.number}` }),
       };
     case "text":
       if (attachment.externalResource) {
@@ -123,7 +126,7 @@ export function getWorkspaceAttachmentPillContent(
     return {
       icon: attachmentFileIcon,
       title: attachment.title,
-      subtitle: getPullRequestContextSubtitle(attachment),
+      subtitle: getPullRequestContextSubtitle(attachment, t),
     };
   }
   if (attachment.kind === "chat_history") {

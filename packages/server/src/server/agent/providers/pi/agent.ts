@@ -2720,6 +2720,11 @@ export class PiRpcAgentClient implements AgentClient {
     });
   }
 
+  async resolveNativeSessionPath(handle: AgentPersistenceHandle): Promise<string | null> {
+    // Pi persists a session as the JSONL file its handle names.
+    return handle.nativeHandle ?? null;
+  }
+
   async isAvailable(): Promise<boolean> {
     try {
       const launch = await this.resolvePiLaunch();

@@ -8,12 +8,14 @@ import { openExternalUrl } from "@/utils/open-external-url";
 import { isWeb } from "@/constants/platform";
 import { i18n } from "@/i18n/i18next";
 
+const MS_PER_SECOND = 1000;
+
 interface DownloadProgress {
   percent: number;
   bytesWritten: number;
   totalBytes: number;
   speed: number;
-  eta: number;
+  etaMs: number;
 }
 
 export interface Download {
@@ -124,17 +126,17 @@ export const useDownloadStore = create<DownloadState>()((set, get) => ({
           }
 
           const percent = totalBytesWritten / totalBytesExpectedToWrite;
-          const elapsed = (now - downloadStartTime) / 1000;
+          const elapsed = (now - downloadStartTime) / MS_PER_SECOND;
           const speed = elapsed > 0 ? totalBytesWritten / elapsed : 0;
           const remaining = totalBytesExpectedToWrite - totalBytesWritten;
-          const eta = speed > 0 ? remaining / speed : 0;
+          const etaMs = speed > 0 ? (remaining / speed) * MS_PER_SECOND : 0;
 
           get().updateProgress(id, {
             percent,
             bytesWritten: totalBytesWritten,
             totalBytes: totalBytesExpectedToWrite,
             speed,
-            eta,
+            etaMs,
           });
         },
       );
@@ -362,16 +364,4 @@ export function formatSpeed(bytesPerSecond: number): string {
     return `${(bytesPerSecond / 1024).toFixed(1)} KB/s`;
   }
   return `${(bytesPerSecond / (1024 * 1024)).toFixed(1)} MB/s`;
-}
-
-export function formatEta(seconds: number): string {
-  if (seconds < 1) {
-    return "< 1s";
-  }
-  if (seconds < 60) {
-    return `${Math.round(seconds)}s`;
-  }
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.round(seconds % 60);
-  return `${mins}m ${secs}s`;
 }

@@ -168,7 +168,7 @@ export function selectPrPaneState(input: SelectPrPaneStateInput): UsePrPaneDataR
   const data =
     identity.prNumber === null || !input.timelineEnabled
       ? null
-      : mapPrPaneData(input.status, input.timelinePayload, undefined, input.forge ?? "github");
+      : mapPrPaneData(input.status, input.timelinePayload, input.forge ?? "github");
   const statusRefreshing = input.statusIsFetching && !input.statusIsLoading;
   const timelineRefreshing = input.timelineIsFetching && !input.timelineIsLoading;
   const timelinePending =

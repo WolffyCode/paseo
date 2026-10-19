@@ -1,8 +1,16 @@
+import type { TFunction } from "i18next";
 import type { ScheduleCadence, ScheduleSummary } from "@getpaseo/protocol/schedule/types";
 import { validateCronExpression } from "@getpaseo/protocol/schedule/cron-expression";
 
 export type IntervalUnit = "minutes" | "hours" | "days";
 type CronCadence = Extract<ScheduleCadence, { type: "cron" }>;
+
+/**
+ * i18next context selecting the heartbeat wording for any key that carries a `_heartbeat`
+ * variant: `t(key, { context })` resolves `key_heartbeat` for agent-target records and falls back
+ * to the base (schedule) string otherwise.
+ */
+export type ScheduleCopyContext = "heartbeat" | undefined;
 
 const MS_PER_MINUTE = 60_000;
 const MS_PER_HOUR = MS_PER_MINUTE * 60;
@@ -14,25 +22,65 @@ const UNIT_MS: Record<IntervalUnit, number> = {
   days: MS_PER_DAY,
 };
 
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
+const EVERY_SINGLE_UNIT_KEYS: Record<IntervalUnit, string> = {
+  minutes: "schedules.cadence.everyMinute",
+  hours: "schedules.cadence.everyHour",
+  days: "schedules.cadence.everyDay",
+};
+
+// Separate keys instead of `_one`/`_other` plurals: with only those two suffixes, i18next falls
+// back to English for the Russian and Arabic counts that resolve to `_few`/`_many`.
+const EVERY_MULTIPLE_UNITS_KEYS: Record<IntervalUnit, string> = {
+  minutes: "schedules.cadence.everyMinutes",
+  hours: "schedules.cadence.everyHours",
+  days: "schedules.cadence.everyDays",
+};
+
+// Recurring-day phrases ("Mondays", "по понедельникам") are grammatical forms Intl weekday names
+// cannot produce. Indexed by cron day-of-week, 0 = Sunday.
+const RECURRING_DAY_KEYS = [
+  "schedules.cadence.recurringDays.sunday",
+  "schedules.cadence.recurringDays.monday",
+  "schedules.cadence.recurringDays.tuesday",
+  "schedules.cadence.recurringDays.wednesday",
+  "schedules.cadence.recurringDays.thursday",
+  "schedules.cadence.recurringDays.friday",
+  "schedules.cadence.recurringDays.saturday",
 ] as const;
+
+// The protocol validator reports in English from a closed set of messages: the field-count rule
+// and `Invalid cron <field> <problem>`. They are mapped onto localized keys here; a message the
+// protocol adds later reads as the generic invalid-expression error.
+const PROTOCOL_FIELD_COUNT_ERROR = "Cron expressions must have 5 fields";
+const PROTOCOL_FIELD_ERROR_PATTERN = /^Invalid cron ([a-z-]+) ([a-z]+)$/;
+
+const CRON_FIELD_NAME_KEYS = new Map<string, string>([
+  ["minute", "schedules.cron.fields.minute"],
+  ["hour", "schedules.cron.fields.hour"],
+  ["day-of-month", "schedules.cron.fields.dayOfMonth"],
+  ["month", "schedules.cron.fields.month"],
+  ["day-of-week", "schedules.cron.fields.dayOfWeek"],
+]);
+
+const CRON_PROBLEM_KEYS = new Map<string, string>([
+  ["step", "schedules.cron.invalidStep"],
+  ["field", "schedules.cron.invalidField"],
+  ["range", "schedules.cron.invalidRange"],
+  ["value", "schedules.cron.invalidValue"],
+]);
 
 export function isNewAgentSchedule(schedule: ScheduleSummary): boolean {
   return schedule.target.type === "new-agent";
 }
 
-export function scheduleProductName(schedule: ScheduleSummary): "Heartbeat" | "Schedule" {
-  return schedule.target.type === "agent" ? "Heartbeat" : "Schedule";
+export function resolveScheduleCopyContext(schedule: ScheduleSummary): ScheduleCopyContext {
+  if (schedule.target.type === "agent") {
+    return "heartbeat";
+  }
+  return undefined;
 }
 
-export function resolveScheduleTitle(schedule: ScheduleSummary): string {
+export function resolveScheduleTitle(t: TFunction, schedule: ScheduleSummary): string {
   const name = schedule.name?.trim();
   if (name) {
     return name;
@@ -47,11 +95,10 @@ export function resolveScheduleTitle(schedule: ScheduleSummary): string {
     .split("\n")
     .map((line) => line.trim())
     .find((line) => line.length > 0);
-  return firstPromptLine || `Untitled ${scheduleProductName(schedule).toLowerCase()}`;
-}
-
-function pluralize(value: number, noun: string): string {
-  return value === 1 ? `1 ${noun}` : `${value} ${noun}s`;
+  if (firstPromptLine) {
+    return firstPromptLine;
+  }
+  return t("schedules.untitled", { context: resolveScheduleCopyContext(schedule) });
 }
 
 export function everyMsToParts(ms: number): { value: number; unit: IntervalUnit } {
@@ -72,22 +119,19 @@ export function partsToEveryMs(value: number, unit: IntervalUnit): number {
   return normalized * UNIT_MS[unit];
 }
 
-const UNIT_NOUN: Record<IntervalUnit, string> = {
-  minutes: "minute",
-  hours: "hour",
-  days: "day",
-};
-
-function formatEvery(everyMs: number): string {
+function formatEvery(t: TFunction, everyMs: number): string {
   const { value, unit } = everyMsToParts(everyMs);
-  return `Every ${pluralize(value, UNIT_NOUN[unit])}`;
+  if (value === 1) {
+    return t(EVERY_SINGLE_UNIT_KEYS[unit]);
+  }
+  return t(EVERY_MULTIPLE_UNITS_KEYS[unit], { count: value });
 }
 
-export function formatCadence(cadence: ScheduleCadence): string {
+export function formatCadence(t: TFunction, cadence: ScheduleCadence): string {
   if (cadence.type === "every") {
-    return formatEvery(cadence.everyMs);
+    return formatEvery(t, cadence.everyMs);
   }
-  return describeCron(cadence) ?? cadence.expression;
+  return describeCron(t, cadence) ?? cadence.expression;
 }
 
 /**
@@ -95,9 +139,9 @@ export function formatCadence(cadence: ScheduleCadence): string {
  * expression is valid but not one of the recognized patterns (callers fall
  * back to showing the raw expression).
  */
-export function describeCron(cadence: CronCadence): string | null {
+export function describeCron(t: TFunction, cadence: CronCadence): string | null {
   const trimmed = cadence.expression.trim();
-  if (validateCron(trimmed) !== null) {
+  if (validateCronExpression(trimmed) !== null) {
     return null;
   }
 
@@ -111,7 +155,7 @@ export function describeCron(cadence: CronCadence): string | null {
   const isWildcardDom = dayOfMonth === "*";
 
   if (minute === "*" && hour === "*" && isWildcardMonth && isWildcardDom && dayOfWeek === "*") {
-    return "Every minute";
+    return t("schedules.cadence.everyMinute");
   }
 
   if (!isLiteralMinute || !isWildcardMonth || !isWildcardDom) {
@@ -123,7 +167,10 @@ export function describeCron(cadence: CronCadence): string | null {
     if (dayOfWeek !== "*") {
       return null;
     }
-    return minuteNum === 0 ? "Every hour" : `Every hour at :${pad2(minuteNum)}`;
+    if (minuteNum === 0) {
+      return t("schedules.cadence.everyHour");
+    }
+    return t("schedules.cadence.everyHourAt", { minute: pad2(minuteNum) });
   }
 
   if (!/^\d+$/.test(hour)) {
@@ -131,35 +178,60 @@ export function describeCron(cadence: CronCadence): string | null {
   }
   const time = `${pad2(Number.parseInt(hour, 10))}:${pad2(minuteNum)}`;
   const timezone = cadence.timezone ?? "UTC";
-  const dayLabel = describeCronDay(dayOfWeek);
-  return dayLabel ? `${dayLabel} at ${time} ${timezone}` : null;
+  return describeCronDayAt(t, dayOfWeek, { time, timezone });
 }
 
-function describeCronDay(dayOfWeek: string): string | null {
+function describeCronDayAt(
+  t: TFunction,
+  dayOfWeek: string,
+  at: { time: string; timezone: string },
+): string | null {
   if (dayOfWeek === "*") {
-    return "Daily";
+    return t("schedules.cadence.dailyAt", at);
   }
   if (dayOfWeek === "1-5") {
-    return "Weekdays";
+    return t("schedules.cadence.weekdaysAt", at);
   }
   if (dayOfWeek === "0,6" || dayOfWeek === "6,0") {
-    return "Weekends";
+    return t("schedules.cadence.weekendsAt", at);
   }
-  if (/^\d$/.test(dayOfWeek)) {
-    const day = DAY_NAMES[Number.parseInt(dayOfWeek, 10)];
-    return day ? `${day}s` : null;
+  if (!/^\d$/.test(dayOfWeek)) {
+    return null;
   }
-  return null;
+  const dayKey = RECURRING_DAY_KEYS[Number.parseInt(dayOfWeek, 10)];
+  if (!dayKey) {
+    return null;
+  }
+  return t("schedules.cadence.weeklyAt", { ...at, day: t(dayKey) });
 }
 
-export function validateCron(expr: string): string | null {
+export function validateCron(t: TFunction, expr: string): string | null {
   const trimmed = expr.trim();
   if (!trimmed) {
-    return "Enter a cron expression";
+    return t("schedules.cron.empty");
   }
 
-  const error = validateCronExpression(trimmed);
-  return error?.replace(/^Invalid cron /, "Invalid ") ?? null;
+  const protocolError = validateCronExpression(trimmed);
+  if (protocolError === null) {
+    return null;
+  }
+  return localizeProtocolCronError(t, protocolError);
+}
+
+function localizeProtocolCronError(t: TFunction, protocolError: string): string {
+  if (protocolError === PROTOCOL_FIELD_COUNT_ERROR) {
+    return t("schedules.cron.fieldCount");
+  }
+  const fieldError = PROTOCOL_FIELD_ERROR_PATTERN.exec(protocolError);
+  if (!fieldError) {
+    return t("schedules.cron.invalid");
+  }
+  const fieldNameKey = CRON_FIELD_NAME_KEYS.get(fieldError[1]);
+  const problemKey = CRON_PROBLEM_KEYS.get(fieldError[2]);
+  if (!fieldNameKey || !problemKey) {
+    return t("schedules.cron.invalid");
+  }
+  return t(problemKey, { field: t(fieldNameKey) });
 }
 
 function pad2(value: number): string {
@@ -167,10 +239,10 @@ function pad2(value: number): string {
 }
 
 /**
- * Forward-relative description of the next run, e.g. "in 3h", "in 2d", "soon".
+ * The next-run phrase for a schedule row, e.g. "Next run in 3h" or "Next run soon".
  * Returns "" when there is no scheduled next run.
  */
-export function formatNextRun(iso: string | null): string {
+export function formatNextRun(t: TFunction, iso: string | null): string {
   if (!iso) {
     return "";
   }
@@ -180,17 +252,14 @@ export function formatNextRun(iso: string | null): string {
   }
 
   const diffMs = target - Date.now();
-  if (diffMs <= 0) {
-    return "soon";
-  }
   if (diffMs < MS_PER_MINUTE) {
-    return "soon";
+    return t("schedules.nextRun.soon");
   }
   if (diffMs < MS_PER_HOUR) {
-    return `in ${Math.round(diffMs / MS_PER_MINUTE)}m`;
+    return t("schedules.nextRun.inMinutes", { count: Math.round(diffMs / MS_PER_MINUTE) });
   }
   if (diffMs < MS_PER_DAY) {
-    return `in ${Math.round(diffMs / MS_PER_HOUR)}h`;
+    return t("schedules.nextRun.inHours", { count: Math.round(diffMs / MS_PER_HOUR) });
   }
-  return `in ${Math.round(diffMs / MS_PER_DAY)}d`;
+  return t("schedules.nextRun.inDays", { count: Math.round(diffMs / MS_PER_DAY) });
 }

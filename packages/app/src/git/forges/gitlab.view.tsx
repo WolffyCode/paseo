@@ -2,6 +2,7 @@ import React, { useCallback, useMemo, type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { CircleCheck, ExternalLink } from "lucide-react-native";
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import type { CheckoutPipelineJob, CheckoutPipelineStage } from "@getpaseo/protocol/messages";
 import { GitLabIcon } from "@/components/icons/gitlab-icon";
@@ -91,11 +92,11 @@ function jobRowPressableStyle({ hovered }: { hovered?: boolean }) {
   return [styles.pipelineJobRow, Boolean(hovered) && styles.hoverable];
 }
 
-function formatPipelineDuration(seconds: number | null): string {
+function formatPipelineDuration(seconds: number | null, t: TFunction): string {
   if (seconds === null || seconds <= 0) {
     return "";
   }
-  return formatDuration(seconds * 1000);
+  return formatDuration(seconds * 1000, t);
 }
 
 function GitLabPipelineSection({
@@ -169,7 +170,7 @@ function GitLabPipelineSection({
       >
         <GitLabPipelineStatusIcon status={summary.rawStatus} />
         <Text style={sectionKitStyles.checkName} numberOfLines={1}>
-          {`Pipeline #${summary.id}`}
+          {t("workspace.git.pr.pipelineLabel", { id: summary.id })}
         </Text>
         {summary.rawStatus ? (
           <Text style={sectionKitStyles.checkWorkflow} numberOfLines={1}>
@@ -225,7 +226,7 @@ function PipelineJobRow({ job }: { job: CheckoutPipelineJob }) {
       void openExternalUrl(job.url);
     }
   }, [job.url]);
-  const duration = formatPipelineDuration(job.durationSeconds);
+  const duration = formatPipelineDuration(job.durationSeconds, t);
   return (
     <Pressable onPress={handlePress} style={jobRowPressableStyle} disabled={!job.url}>
       <GitLabPipelineStatusIcon status={job.status} allowFailure={job.allowFailure} />

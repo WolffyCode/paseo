@@ -88,9 +88,27 @@ export interface DesktopWebUtilsBridge {
   getPathForFile?: (file: File) => string;
 }
 
+/** One row of a native menu; `id` comes back from `popup` when the row is chosen. */
+export interface DesktopNativeMenuItem {
+  id?: string;
+  label?: string;
+  kind?: "item" | "separator" | "checkbox";
+  isEnabled?: boolean;
+  isChecked?: boolean;
+  /** A shortcut shown beside the label (Electron accelerator syntax); the menu doesn't bind it. */
+  accelerator?: string;
+  submenu?: DesktopNativeMenuItem[];
+}
+
 export interface DesktopMenuBridge {
   showContextMenu?: (input?: { kind?: "terminal"; hasSelection?: boolean }) => Promise<void>;
   setCapturingShortcut?: (capturing: boolean) => Promise<void>;
+  /** Shows a native menu at a window point (default: the pointer); resolves with the chosen id. */
+  popup?: (input: {
+    items: DesktopNativeMenuItem[];
+    x?: number;
+    y?: number;
+  }) => Promise<string | null>;
 }
 
 export interface DesktopWindowChromeUpdate {
@@ -136,6 +154,8 @@ export type DesktopBrowserShortcutEvent =
 export interface DesktopBrowserNewTabRequestEvent {
   sourceBrowserId: string;
   url: string;
+  /** False for a tab Chrome opens behind the page: a ⌘-click, a middle click, 在新标签页中打开链接. */
+  isActive: boolean;
 }
 
 export interface DesktopAttachedBrowserRegistration {
@@ -144,8 +164,221 @@ export interface DesktopAttachedBrowserRegistration {
   webContentsId: number;
 }
 
+/** An extension installed in the browser profile. */
+export interface DesktopBrowserExtension {
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  iconDataUrl: string | null;
+  optionsUrl: string | null;
+  /** The extension's own website (manifest homepage_url), if it names one. */
+  websiteUrl: string | null;
+  isEnabled: boolean;
+  permissions: DesktopBrowserExtensionPermissionRequest;
+}
+
+/** What an extension asks for at install; Chrome's install prompt turns it into warnings. */
+export interface DesktopBrowserExtensionPermissionRequest {
+  apiPermissions: string[];
+  hostPatterns: string[];
+  overridesNewTabPage: boolean;
+  homepageUrl: string | null;
+  searchUrl: string | null;
+  startupPageUrl: string | null;
+}
+
+/** The Chrome Web Store asked to install an extension from the page `browserId`. */
+export interface DesktopBrowserExtensionInstallPrompt {
+  requestId: number;
+  browserId: string;
+  extensionId: string;
+  name: string;
+  iconDataUrl: string;
+  permissions: DesktopBrowserExtensionPermissionRequest;
+}
+
+/** A tab change an extension asked for (chrome.tabs / chrome.windows). */
+export type DesktopBrowserExtensionTabRequest =
+  | {
+      kind: "create";
+      requestId: number;
+      url: string | null;
+      isActive: boolean;
+      nearBrowserId: string | null;
+    }
+  | { kind: "select"; browserId: string }
+  | { kind: "close"; browserId: string };
+
+/** One extension's toolbar action, as electron-chrome-extensions reports it. */
+export interface DesktopBrowserExtensionActionDetails {
+  title?: string;
+  text?: string;
+  color?: string | number[];
+  popup?: string;
+  iconModified?: number;
+}
+
+export interface DesktopBrowserExtensionAction extends DesktopBrowserExtensionActionDetails {
+  id: string;
+  /** Per-tab overrides, keyed by the tab's guest WebContents id. */
+  tabs: Record<string, DesktopBrowserExtensionActionDetails>;
+}
+
+export interface DesktopBrowserExtensionActionState {
+  activeTabId?: number;
+  actions: DesktopBrowserExtensionAction[];
+}
+
+export interface DesktopBrowserExtensionsBridge {
+  list: () => Promise<DesktopBrowserExtension[]>;
+  getNewTabUrl: () => Promise<string | null>;
+  /** Installs from the Chrome Web Store by id, without the store page's prompt. */
+  install: (extensionId: string) => Promise<"installed" | "already-installed" | "failed">;
+  remove: (extensionId: string) => Promise<boolean>;
+  setEnabled: (extensionId: string, isEnabled: boolean) => Promise<void>;
+  reportCreatedTab: (input: { requestId: number; browserId: string | null }) => Promise<void>;
+  decideInstall: (input: { requestId: number; isAllowed: boolean }) => Promise<void>;
+  getActionState: () => Promise<DesktopBrowserExtensionActionState>;
+  /** Clicks an extension's toolbar button; a popup opens under `anchorRect` (window points). */
+  activateAction: (details: {
+    eventType: "click";
+    extensionId: string;
+    tabId: number;
+    anchorRect: { x: number; y: number; width: number; height: number };
+  }) => Promise<void>;
+  observeActions: (listener: () => void) => () => void;
+}
+
+/** A page's session history: its entries, oldest first, and the one shown. */
+export interface DesktopBrowserNavigationHistory {
+  activeIndex: number;
+  entries: Array<{ url: string; title: string }>;
+}
+
+/** A Chrome profile the import dialog offers, by its folder in Chrome's user data. */
+export interface DesktopChromeProfile {
+  directory: string;
+  name: string;
+}
+
+/** What importing copies from one Chrome profile. */
+export interface DesktopChromeImportData {
+  /** Null where the profile kept Chrome's default. */
+  showHomeButton: boolean | null;
+  homePageIsNewTabPage: boolean | null;
+  homePage: string | null;
+  showForwardButton: boolean | null;
+  /** Chrome's action ids ("kActionDevTools"), in toolbar order. */
+  pinnedActions: string[];
+  pinnedExtensionIds: string[];
+  /** Turned-on Chrome Web Store extensions, named as Chrome shows them. */
+  extensions: Array<{ id: string; name: string | null }>;
+}
+
+/** Reads the user's Chrome profiles; only the import dialog calls it. */
+export interface DesktopChromeImportBridge {
+  listProfiles: () => Promise<DesktopChromeProfile[]>;
+  read: (directory: string, uiLocale: string) => Promise<DesktopChromeImportData | null>;
+}
+
+/** One download from the browser session, as the main process reports it. */
+export interface DesktopBrowserDownload {
+  id: string;
+  url: string;
+  /** The page that started it; its window shows the download bubble. */
+  browserId: string | null;
+  /** The site of that page, for the downloads page's 来自 line. */
+  initiatorOrigin: string | null;
+  fileName: string;
+  filePath: string;
+  /** 0 when the server sent no length. */
+  totalBytes: number;
+  receivedBytes: number;
+  bytesPerSecond: number;
+  state: "in_progress" | "complete" | "cancelled" | "interrupted";
+  /** "shutdown" for a download cut off by quitting; Electron names no other reason. */
+  interruptReason: "shutdown" | "unknown" | null;
+  isPaused: boolean;
+  canResume: boolean;
+  /** Chrome's 完成后打开. */
+  openWhenDone: boolean;
+  startTime: number;
+  endTime: number | null;
+  /** A finished file that was moved or deleted since. */
+  isFileMissing: boolean;
+  /** Chrome's 总是打开此类文件 is ticked for this file's type. */
+  opensTypeAutomatically: boolean;
+  /** The type may open by itself at all; dangerous types never do. */
+  canOpenTypeAutomatically: boolean;
+}
+
+export interface DesktopBrowserDownloadsBridge {
+  list: () => Promise<DesktopBrowserDownload[]>;
+  pause: (downloadId: string) => Promise<void>;
+  resume: (downloadId: string) => Promise<void>;
+  cancel: (downloadId: string) => Promise<void>;
+  retry: (downloadId: string) => Promise<void>;
+  open: (downloadId: string) => Promise<void>;
+  showInFolder: (downloadId: string) => Promise<void>;
+  /** Takes the entry off the list; the file stays. */
+  remove: (downloadId: string) => Promise<void>;
+  clearAll: () => Promise<void>;
+  /** Puts back the entries the last removal took off. */
+  undoRemove: () => Promise<void>;
+  setOpenWhenDone: (downloadId: string, openWhenDone: boolean) => Promise<void>;
+  setOpensTypeAutomatically: (downloadId: string, opensType: boolean) => Promise<void>;
+  /** The Finder icon of a finished file as a data URL, or null. */
+  fileIcon: (downloadId: string) => Promise<string | null>;
+  /** Downloads `url` from the page `browserId` shows, saving it under `fileName`. */
+  downloadNamed: (browserId: string, url: string, fileName: string) => Promise<void>;
+  /** 删除浏览数据: takes entries started at or after `since` off the list. */
+  deleteHistory: (since: number) => Promise<void>;
+}
+
+/** The profile's site data and cache, for Chrome's 删除浏览数据. */
+export interface DesktopBrowsingDataBridge {
+  counts: () => Promise<{ cacheBytes: number; cookieDomains: string[] }>;
+  /** Deletes for `origins` only, or for every site when null. */
+  clear: (request: {
+    siteData: boolean;
+    cache: boolean;
+    origins: string[] | null;
+  }) => Promise<void>;
+}
+
+/** Chrome's page context menu labels in the app's language, for the main process to show. */
+export interface DesktopBrowserPageMenuLabels {
+  back: string;
+  forward: string;
+  reload: string;
+  savePageAs: string;
+  print: string;
+  viewPageSource: string;
+  inspect: string;
+  openLinkInNewTab: string;
+  saveLinkAs: string;
+  copyLinkAddress: string;
+  copyEmailAddress: string;
+  openImageInNewTab: string;
+  saveImageAs: string;
+  copyImage: string;
+  copyImageAddress: string;
+  copy: string;
+  /** Keeps a `{{terms}}` slot for the selected text. */
+  searchWebFor: string;
+  undo: string;
+  redo: string;
+  cut: string;
+  paste: string;
+  pasteAndMatchStyle: string;
+  selectAll: string;
+  addToDictionary: string;
+}
+
 export interface DesktopBrowserBridge {
   setShortcutPolicy?: (input: BrowserKeyboardPolicy) => Promise<void>;
+  setPageMenuLabels?: (labels: DesktopBrowserPageMenuLabels) => Promise<void>;
   readonly profilePartition?: string;
   registerAttachedBrowser?: (input: DesktopAttachedBrowserRegistration) => Promise<void>;
   unregisterWorkspaceBrowser?: (browserId: string) => Promise<void>;
@@ -155,6 +388,11 @@ export interface DesktopBrowserBridge {
   }) => Promise<void>;
   focus?: (browserId: string) => Promise<boolean>;
   openDevTools?: (browserId: string) => Promise<unknown>;
+  /** Chrome's 网页另存为…: asks where, then saves the page with its resources. */
+  savePage?: (browserId: string) => Promise<void>;
+  browsingData?: DesktopBrowsingDataBridge;
+  /** The page's session history, for Chrome's back and forward menus. */
+  getNavigationHistory?: (browserId: string) => Promise<DesktopBrowserNavigationHistory | null>;
   clearProfile?: (legacyBrowserIds: string[]) => Promise<void>;
   executeAutomationCommand?: (
     request: BrowserAutomationExecuteRequest,
@@ -166,6 +404,9 @@ export interface DesktopBrowserBridge {
   ) => Promise<string | null>;
   /** Copy element text and/or an image to the system clipboard from main. */
   copyElement?: (payload: { text?: string; imageDataUrl?: string }) => Promise<boolean>;
+  chromeImport?: DesktopChromeImportBridge;
+  downloads?: DesktopBrowserDownloadsBridge;
+  extensions?: DesktopBrowserExtensionsBridge;
 }
 
 export interface DesktopInvokeBridge {

@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import type { HostRuntimeConnectionStatus } from "@/runtime/host-runtime";
 import type { WorkspaceDescriptor } from "@/stores/session-store";
 import type { WorkspaceRecoveryModel } from "@/workspace-recovery/model";
@@ -28,6 +29,7 @@ export type WorkspaceRouteState =
   | { kind: "recoveryInspectionFailed"; hostName: string; error: string };
 
 export function resolveWorkspaceRouteState(input: {
+  t: TFunction;
   hostName: string;
   connectionStatus: HostRuntimeConnectionStatus;
   lastError: string | null;
@@ -84,7 +86,7 @@ export function resolveWorkspaceRouteState(input: {
       return {
         kind: "recoveryUnavailable",
         hostName: input.hostName,
-        message: "Update Paseo to recover this workspace.",
+        message: input.t("workspace.route.recovery.updateAppToRecover"),
       };
     case "inspectionFailed":
       return {

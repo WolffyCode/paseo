@@ -195,7 +195,7 @@ function SidebarWorkspaceMenuItems({
           leading={markAsReadLeadingIcon}
           onSelect={onMarkAsRead}
         >
-          Mark as read
+          {t("sidebar.workspace.actions.markAsRead")}
         </WorkspaceMenuItem>
       ) : null}
       {onMarkAsUnread ? (
@@ -205,7 +205,7 @@ function SidebarWorkspaceMenuItems({
           leading={markAsUnreadLeadingIcon}
           onSelect={onMarkAsUnread}
         >
-          Mark as unread
+          {t("sidebar.workspace.actions.markAsUnread")}
         </WorkspaceMenuItem>
       ) : null}
       {onTogglePin ? (
@@ -227,11 +227,14 @@ function SidebarWorkspaceMenuItems({
           {t("workspaceLabels.title")}
         </DropdownMenuSubTrigger>
       ) : null}
-      <OpenInFileManagerMenuItem
-        surface={surface}
-        path={openInFileManagerPath}
-        testID={`sidebar-workspace-menu-open-folder-${workspaceKey}`}
-      />
+      {serverId ? (
+        <OpenInFileManagerMenuItem
+          surface={surface}
+          serverId={serverId}
+          path={openInFileManagerPath}
+          testID={`sidebar-workspace-menu-open-folder-${workspaceKey}`}
+        />
+      ) : null}
       {onArchive ? (
         <WorkspaceMenuItem
           surface={surface}

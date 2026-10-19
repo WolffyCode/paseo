@@ -2,24 +2,36 @@ import { describe, expect, test } from "vitest";
 
 import { resolveRewindMenuItems } from "./use-rewind-capabilities";
 
+const LABELS = {
+  conversation: "Rewind conversation",
+  files: "Rewind files",
+  both: "Rewind conversation and files",
+};
+
 describe("resolveRewindMenuItems", () => {
   test("returns no items when the provider declares no rewind capability", () => {
     expect(
-      resolveRewindMenuItems({
-        supportsRewindConversation: false,
-        supportsRewindFiles: false,
-        supportsRewindBoth: false,
-      }),
+      resolveRewindMenuItems(
+        {
+          supportsRewindConversation: false,
+          supportsRewindFiles: false,
+          supportsRewindBoth: false,
+        },
+        LABELS,
+      ),
     ).toEqual([]);
   });
 
   test("returns only the capabilities declared by the provider", () => {
     expect(
-      resolveRewindMenuItems({
-        supportsRewindConversation: true,
-        supportsRewindFiles: false,
-        supportsRewindBoth: true,
-      }),
+      resolveRewindMenuItems(
+        {
+          supportsRewindConversation: true,
+          supportsRewindFiles: false,
+          supportsRewindBoth: true,
+        },
+        LABELS,
+      ),
     ).toEqual([
       {
         mode: "conversation",

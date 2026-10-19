@@ -15,12 +15,6 @@ export interface RewindMenuLabels {
   both: string;
 }
 
-const DEFAULT_REWIND_MENU_LABELS: RewindMenuLabels = {
-  conversation: "Rewind conversation",
-  files: "Rewind files",
-  both: "Rewind conversation and files",
-};
-
 export function resolveRewindMenuItems(
   capabilities:
     | Pick<
@@ -29,12 +23,11 @@ export function resolveRewindMenuItems(
       >
     | null
     | undefined,
-  labelsInput?: Partial<RewindMenuLabels>,
+  labels: RewindMenuLabels,
 ): RewindMenuItem[] {
   if (!capabilities) {
     return [];
   }
-  const labels = { ...DEFAULT_REWIND_MENU_LABELS, ...labelsInput };
   const items: RewindMenuItem[] = [];
   if (capabilities.supportsRewindConversation) {
     items.push({
@@ -62,7 +55,7 @@ export function resolveRewindMenuItems(
 
 export function useRewindCapabilities(
   capabilities: Parameters<typeof resolveRewindMenuItems>[0],
-  labels?: Partial<RewindMenuLabels>,
+  labels: RewindMenuLabels,
 ): RewindMenuItem[] {
   return useMemo(() => resolveRewindMenuItems(capabilities, labels), [capabilities, labels]);
 }

@@ -227,7 +227,9 @@ export function Autocomplete({
     return (
       <View style={containerStyle}>
         <View style={styles.emptyItem}>
-          <Text style={styles.emptyText}>Error: {errorMessage}</Text>
+          <Text style={styles.emptyText}>
+            {t("common.errors.withMessage", { message: errorMessage })}
+          </Text>
         </View>
       </View>
     );

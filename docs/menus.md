@@ -8,6 +8,11 @@ directly only when you are building a third trigger shape.
 Do not add a third menu implementation. The two that existed were byte-identical from
 `computePosition` down, and the copies drifted: only one of them ever grew a sheet.
 
+The one exception is column 3's browser. Its ⋮ menu copies Chrome's Views menu
+(`packages/app/src/desktop/browser/chrome-menu/`): Chrome's metrics, colors, icons, the inline
+zoom row and macOS key behavior, none of which are Helm's design. Use it only inside the browser's
+Chrome UI, and use this engine everywhere else.
+
 ## Two presentations
 
 `MenuRoot` picks one from form factor, never from platform — a tablet in a narrow split view

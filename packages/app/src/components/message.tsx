@@ -349,7 +349,7 @@ const userMessageStylesheet = StyleSheet.create((theme) => ({
     marginBottom: theme.spacing[4],
   },
   bubble: {
-    backgroundColor: theme.colors.surface3,
+    backgroundColor: isWeb ? theme.colors.workbenchSelected : theme.colors.surface3,
     borderRadius: theme.borderRadius["2xl"],
     borderTopRightRadius: theme.borderRadius.sm,
     paddingHorizontal: theme.spacing[4],
@@ -442,7 +442,8 @@ export const UserMessage = memo(function UserMessage({
   disableOuterSpacing,
 }: UserMessageProps) {
   const isCompact = useIsCompactFormFactor();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
   const [isHovered, setIsHovered] = useState(false);
   const [lightboxMetadata, setLightboxMetadata] = useState<UserMessageImageAttachment | null>(null);
   const handleLightboxClose = useCallback(() => setLightboxMetadata(null), []);
@@ -456,8 +457,8 @@ export const UserMessage = memo(function UserMessage({
   const hasAttachments = attachments.length > 0;
   const showTrailingRow = !isPending && hasText && (isCompact || isNative || isHovered);
   const formattedTimestamp = useMemo(
-    () => formatMessageTimestamp(new Date(timestamp)),
-    [timestamp],
+    () => formatMessageTimestamp(new Date(timestamp), locale),
+    [locale, timestamp],
   );
   const rewindMutation = useRewindAgentMutation({ serverId, agentId, client, messageId });
 
@@ -630,7 +631,8 @@ export const AssistantTurnFooter = memo(function AssistantTurnFooter({
   durationMs,
   onFork,
 }: AssistantTurnFooterProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
   const [hovered, setHovered] = useState(false);
   const [pressedReveal, setPressedReveal] = useState(false);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -650,8 +652,8 @@ export const AssistantTurnFooter = memo(function AssistantTurnFooter({
     [durationMs, t],
   );
   const timestampLabel = useMemo(
-    () => (completedAt ? formatMessageTimestamp(completedAt) : ""),
-    [completedAt],
+    () => (completedAt ? formatMessageTimestamp(completedAt, locale) : ""),
+    [completedAt, locale],
   );
 
   const primaryLabel = durationLabel || timestampLabel;
@@ -692,7 +694,14 @@ export const AssistantTurnFooter = memo(function AssistantTurnFooter({
           onHoverIn={handleHoverIn}
           onHoverOut={handleHoverOut}
           accessibilityRole={canSwap ? "button" : undefined}
-          accessibilityLabel={canSwap ? `${durationLabel}, ended ${timestampLabel}` : primaryLabel}
+          accessibilityLabel={
+            canSwap
+              ? t("message.turnFooter.durationAndEnd", {
+                  duration: durationLabel,
+                  timestamp: timestampLabel,
+                })
+              : primaryLabel
+          }
         >
           <View style={assistantTurnFooterStylesheet.labelWrapper}>
             {/* Sizer reserves space for whichever label is longer so the
@@ -727,6 +736,7 @@ export const LiveElapsed = memo(function LiveElapsed({
   style,
   testID,
 }: LiveElapsedProps) {
+  const { t } = useTranslation();
   const startedAtMs = startedAt.getTime();
   const [elapsedMs, setElapsedMs] = useState(() => Math.max(0, Date.now() - startedAtMs));
   const visibleElapsedMs = active ? Math.max(0, Date.now() - startedAtMs) : elapsedMs;
@@ -744,7 +754,7 @@ export const LiveElapsed = memo(function LiveElapsed({
 
   return (
     <Text style={style} testID={testID}>
-      {formatDuration(visibleElapsedMs)}
+      {formatDuration(visibleElapsedMs, t)}
     </Text>
   );
 });
@@ -3058,6 +3068,7 @@ export const ToolCall = memo(function ToolCall({
   forceInline = false,
   maxDetailHeight = 400,
 }: ToolCallProps) {
+  const { t } = useTranslation();
   const { openToolCall } = useToolCallSheet();
   const [isExpanded, setIsExpanded] = useState(defaultExpanded ?? false);
 
@@ -3081,6 +3092,7 @@ export const ToolCall = memo(function ToolCall({
   const presentation = useMemo(
     () =>
       buildToolCallPresentation({
+        t,
         toolName,
         status,
         error: error ?? null,
@@ -3089,7 +3101,7 @@ export const ToolCall = memo(function ToolCall({
         cwd,
         resolveIcon: resolveToolCallIcon,
       }),
-    [toolName, status, error, effectiveDetail, metadata, cwd],
+    [t, toolName, status, error, effectiveDetail, metadata, cwd],
   );
   const handleOpenFile = useMemo(() => {
     const openFilePath = presentation.openFilePath;

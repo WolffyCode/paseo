@@ -15,6 +15,15 @@ const RESIDENT_VIEWPORT_HEIGHT = 800;
 const residentWebviewsByBrowserId = new Map<string, HTMLElement>();
 const residentSurfacesByBrowserId = new Map<string, HTMLElement>();
 const residentWebviewSizesByBrowserId = new Map<string, { width: number; height: number }>();
+const presentedViewsByBrowserId = new Map<
+  string,
+  {
+    anchor: HTMLElement;
+    clip: HTMLElement;
+    sizeObserver: ResizeObserver;
+    active: boolean;
+  }
+>();
 
 interface BrowserWebviewElement extends HTMLElement {
   src: string;
@@ -118,17 +127,21 @@ function applyParkedBrowserSurfaceStyle(surface: HTMLElement): void {
   surface.style.display = "block";
   surface.style.visibility = "visible";
   surface.style.transform = "";
+  surface.style.contain = "";
+  surface.style.inset = "";
+  surface.style.left = "0";
+  surface.style.top = "0";
+  surface.style.clipPath = "";
 }
 
 function getBrowserSurface(browserId: string, ownerDocument: Document): HTMLElement {
   const existing = residentSurfacesByBrowserId.get(browserId);
-  if (existing?.isConnected) {
+  if (existing) {
     return existing;
   }
   const surface = ownerDocument.createElement("div");
   surface.setAttribute(BROWSER_SURFACE_ATTRIBUTE, browserId);
   applyParkedBrowserSurfaceStyle(surface);
-  getResidentBrowserHost(ownerDocument).appendChild(surface);
   residentSurfacesByBrowserId.set(browserId, surface);
   return surface;
 }
@@ -186,12 +199,32 @@ function applyResidentWebviewStyle(webview: HTMLElement, browserId: string | nul
   webview.style.zIndex = "0";
 }
 
-function clearResidentWebviewParkingStyle(webview: HTMLElement): void {
-  webview.style.position = "";
-  webview.style.left = "";
-  webview.style.top = "";
-  webview.style.marginTop = "";
-  webview.style.zIndex = "";
+function releasePresentation(browserId: string): void {
+  const presentation = presentedViewsByBrowserId.get(browserId);
+  if (!presentation) return;
+  presentation.sizeObserver.disconnect();
+  presentedViewsByBrowserId.delete(browserId);
+}
+
+function rememberPresentedBrowserSize(browserId: string, webview: HTMLElement): void {
+  const presentation = presentedViewsByBrowserId.get(browserId);
+  if (!presentation?.active) return;
+  const anchorBounds = presentation.anchor.getBoundingClientRect();
+  const clipBounds = presentation.clip.getBoundingClientRect();
+  if (
+    anchorBounds.width <= 0 ||
+    anchorBounds.height <= 0 ||
+    clipBounds.width <= 0 ||
+    clipBounds.height <= 0
+  )
+    return;
+  const bounds = webview.getBoundingClientRect();
+  const dimensions = rememberBrowserWebviewSize({
+    browserId,
+    width: bounds.width,
+    height: bounds.height,
+  });
+  if (!dimensions) return;
 }
 
 export function rememberBrowserWebviewSize(input: {
@@ -231,6 +264,13 @@ export function applyInactiveBrowserWebviewViewport(
   if (viewport.mode === "fixed") {
     rememberBrowserWebviewSize({ browserId, width: viewport.width, height: viewport.height });
   }
+  const presentation = presentedViewsByBrowserId.get(browserId);
+  if (presentation) {
+    presentation.active = false;
+    applyBrowserWebviewDimensions(webview, dimensionsForBrowser(browserId));
+    webview.style.pointerEvents = "none";
+    return;
+  }
   applyResidentWebviewStyle(webview, trimNonEmpty(browserId));
 }
 
@@ -240,6 +280,7 @@ export function presentBrowserWebview(
   anchor: HTMLElement,
   clip: HTMLElement,
   viewport: BrowserViewport,
+  active = true,
 ): void {
   const normalizedBrowserId = trimNonEmpty(browserId);
   if (!normalizedBrowserId) {
@@ -250,47 +291,61 @@ export function presentBrowserWebview(
     return;
   }
   const surface = getBrowserSurface(normalizedBrowserId, ownerDocument);
-  if (webview.parentElement !== surface) {
-    surface.appendChild(webview);
+  const previous = presentedViewsByBrowserId.get(normalizedBrowserId);
+  if (previous && (previous.anchor !== anchor || previous.clip !== clip)) {
+    releasePresentation(normalizedBrowserId);
   }
-  const anchorBounds = anchor.getBoundingClientRect();
-  const clipBounds = clip.getBoundingClientRect();
-  const left = Math.max(anchorBounds.left, clipBounds.left);
-  const top = Math.max(anchorBounds.top, clipBounds.top);
-  const right = Math.min(
-    anchorBounds.left + anchorBounds.width,
-    clipBounds.left + clipBounds.width,
-  );
-  const bottom = Math.min(
-    anchorBounds.top + anchorBounds.height,
-    clipBounds.top + clipBounds.height,
-  );
-  const surfaceLeft = Math.ceil(left);
-  const surfaceTop = Math.ceil(top);
-  const surfaceRight = Math.floor(right);
-  const surfaceBottom = Math.floor(bottom);
-  const hasVisibleArea = surfaceRight > surfaceLeft && surfaceBottom > surfaceTop;
-  surface.setAttribute("aria-hidden", "false");
-  surface.style.position = "fixed";
-  surface.style.left = `${surfaceLeft}px`;
-  surface.style.top = `${surfaceTop}px`;
-  surface.style.width = `${Math.max(0, surfaceRight - surfaceLeft)}px`;
-  surface.style.height = `${Math.max(0, surfaceBottom - surfaceTop)}px`;
+  const sizeObserver =
+    presentedViewsByBrowserId.get(normalizedBrowserId)?.sizeObserver ??
+    new ResizeObserver(() => rememberPresentedBrowserSize(normalizedBrowserId, webview));
+  presentedViewsByBrowserId.set(normalizedBrowserId, { anchor, clip, sizeObserver, active });
+  residentWebviewsByBrowserId.set(normalizedBrowserId, webview);
+
+  // The live viewport belongs to the pane's DOM tree. Its ancestors own all
+  // movement and clipping; resizing never moves or reconstructs the guest.
+  surface.setAttribute("aria-hidden", String(!active));
+  surface.style.cssText = "";
+  surface.style.position = "relative";
+  surface.style.inset = "auto";
+  surface.style.width = "100%";
+  surface.style.height = "100%";
+  surface.style.minWidth = "0";
+  surface.style.minHeight = "0";
+  surface.style.flex = "1 1 0%";
   surface.style.overflow = "hidden";
+  surface.style.clipPath = "";
   surface.style.opacity = "1";
-  surface.style.pointerEvents = hasVisibleArea ? "auto" : "none";
+  surface.style.pointerEvents = "auto";
   surface.style.display = "flex";
   surface.style.visibility = "visible";
-  clearResidentWebviewParkingStyle(webview);
-  applyBrowserWebviewDimensions(
-    webview,
-    viewport.mode === "responsive"
-      ? { width: anchorBounds.width, height: anchorBounds.height }
-      : viewport,
-  );
-  webview.style.position = "absolute";
-  webview.style.left = `${Math.round(anchorBounds.left - surfaceLeft)}px`;
-  webview.style.top = `${Math.round(anchorBounds.top - surfaceTop)}px`;
+  surface.style.contain = "layout paint";
+  if (surface.parentElement !== anchor) anchor.appendChild(surface);
+  if (webview.parentElement !== surface) surface.appendChild(webview);
+
+  webview.style.cssText = "";
+  webview.style.display = "flex";
+  webview.style.position = "relative";
+  webview.style.left = "0";
+  webview.style.top = "0";
+  webview.style.border = "0";
+  webview.style.background = "transparent";
+  webview.style.minWidth = "0";
+  webview.style.minHeight = "0";
+  webview.style.marginTop = "0";
+  webview.style.zIndex = "0";
+  webview.style.pointerEvents = "auto";
+  webview.style.flex = "1 1 0%";
+  webview.style.width = "100%";
+  webview.style.height = "100%";
+  if (viewport.mode === "fixed") {
+    rememberBrowserWebviewSize({ browserId, width: viewport.width, height: viewport.height });
+    applyBrowserWebviewDimensions(webview, viewport);
+  } else if (!active) {
+    applyBrowserWebviewDimensions(webview, dimensionsForBrowser(normalizedBrowserId));
+  }
+  if (!active) webview.style.pointerEvents = "none";
+  sizeObserver.observe(webview);
+  rememberPresentedBrowserSize(normalizedBrowserId, webview);
 }
 
 export function prepareBrowserWebview(
@@ -307,7 +362,6 @@ export function prepareBrowserWebview(
   webview.setAttribute("partition", browser.profilePartition);
   webview.setAttribute("allowpopups", "true");
   webview.setAttribute("spellcheck", "false");
-  webview.setAttribute("autosize", "on");
   if (input.initialUrl) {
     (webview as BrowserWebviewElement).src = input.initialUrl;
   }
@@ -331,7 +385,6 @@ export function ensureResidentBrowserWebview(input: {
 
   const resident = residentWebviewsByBrowserId.get(browserId) ?? null;
   if (resident?.isConnected) {
-    releaseResidentBrowserWebview(browserId, resident);
     return resident;
   }
 
@@ -367,6 +420,28 @@ export function getResidentBrowserWebview(browserId: string): HTMLElement | null
   return ownerDocument ? findBrowserWebview(normalizedBrowserId, ownerDocument) : null;
 }
 
+/** Reloads a page's guest, as Chrome's tab menu does. Pages Helm draws itself have none. */
+export function reloadResidentBrowserWebview(browserId: string): void {
+  const webview = getResidentBrowserWebview(browserId) as
+    | (BrowserWebviewElement & { reload?: () => void })
+    | null;
+  webview?.reload?.();
+}
+
+/** The page's guest WebContents id once its webview attached; extension APIs call it the tab id. */
+export function getBrowserGuestWebContentsId(browserId: string): number | null {
+  const webview = getResidentBrowserWebview(browserId) as BrowserWebviewElement | null;
+  if (!webview) {
+    return null;
+  }
+  try {
+    return webview.getWebContentsId();
+  } catch {
+    // Electron throws until the webview has attached; the page has no tab id before that.
+    return null;
+  }
+}
+
 export function takeResidentBrowserWebview(browserId: string): HTMLElement | null {
   const normalizedBrowserId = trimNonEmpty(browserId);
   if (!normalizedBrowserId) {
@@ -392,10 +467,16 @@ export function releaseResidentBrowserWebview(browserId: string, webview: HTMLEl
     return;
   }
 
+  if (presentedViewsByBrowserId.has(normalizedBrowserId)) {
+    rememberPresentedBrowserSize(normalizedBrowserId, webview);
+    releasePresentation(normalizedBrowserId);
+  }
   residentWebviewsByBrowserId.set(normalizedBrowserId, webview);
   applyResidentWebviewStyle(webview, normalizedBrowserId);
   const surface = getBrowserSurface(normalizedBrowserId, ownerDocument);
   applyParkedBrowserSurfaceStyle(surface);
+  const parkingHost = getResidentBrowserHost(ownerDocument);
+  if (surface.parentElement !== parkingHost) parkingHost.appendChild(surface);
   if (webview.parentElement !== surface) {
     surface.appendChild(webview);
   }
@@ -432,6 +513,7 @@ export function removeResidentBrowserWebview(browserId: string): void {
 
   const resident = residentWebviewsByBrowserId.get(normalizedBrowserId) ?? null;
   const surface = residentSurfacesByBrowserId.get(normalizedBrowserId) ?? null;
+  releasePresentation(normalizedBrowserId);
   residentWebviewsByBrowserId.delete(normalizedBrowserId);
   residentSurfacesByBrowserId.delete(normalizedBrowserId);
   residentWebviewSizesByBrowserId.delete(normalizedBrowserId);
@@ -440,6 +522,7 @@ export function removeResidentBrowserWebview(browserId: string): void {
 }
 
 export function clearResidentBrowserWebviewsForTests(): void {
+  for (const browserId of presentedViewsByBrowserId.keys()) releasePresentation(browserId);
   for (const webview of residentWebviewsByBrowserId.values()) {
     webview.remove();
   }

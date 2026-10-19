@@ -3,6 +3,7 @@ import type { AttachmentMetadata } from "@/attachments/types";
 import { persistAttachmentFromBytes } from "@/attachments/service";
 import { createPreviewAttachmentId, getFileNameFromPath } from "@/attachments/utils";
 import { explorerFileFromReadResult } from "@/file-explorer/read-result";
+import { i18n } from "@/i18n/i18next";
 import type { ExplorerFile } from "@/stores/session-store";
 import type { LiveFileSnapshot } from "../live-file/model";
 
@@ -170,7 +171,7 @@ function getNonReadySnapshot(snapshot: LiveFileSnapshot): FilePreviewLifecycleSn
     return { status: "error", message: snapshot.observation.error };
   }
   if (snapshot.observation?.status === "missing") {
-    return { status: "error", message: "File not found" };
+    return { status: "error", message: i18n.t("panels.file.notFound") };
   }
   return initialSnapshot;
 }
@@ -186,5 +187,5 @@ function sameNonReadyState(
 }
 
 function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : "Failed to prepare preview";
+  return error instanceof Error ? error.message : i18n.t("panels.file.failedToPreparePreview");
 }

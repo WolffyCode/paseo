@@ -3,6 +3,30 @@ import { MAX_SIDEBAR_WIDTH, MIN_SIDEBAR_WIDTH } from "@/stores/panel-store";
 
 const MIN_DESKTOP_CENTER_WIDTH = 400;
 
+export function resolveDesktopAppSidebarState(input: {
+  workbench: boolean;
+  hasMounted: boolean;
+  focusMode: boolean;
+  chromeEnabled: boolean;
+  compact: boolean;
+  open: boolean;
+  contentMinimumWidth: number;
+  requestedSidebarWidth: number;
+  viewportWidth: number;
+}) {
+  const mounted = input.hasMounted && (input.workbench || !input.focusMode);
+  return {
+    mounted,
+    visible: resolveDesktopSidebarVisibility({
+      chromeEnabled: input.chromeEnabled,
+      isCompactLayout: input.compact,
+      isMounted: mounted,
+      isOpen: input.open,
+      canShare: input.workbench || canDesktopAppSidebarShare(input),
+    }),
+  };
+}
+
 export function resolveDesktopSidebarVisibility(input: {
   chromeEnabled: boolean;
   isCompactLayout: boolean;

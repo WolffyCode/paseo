@@ -1,8 +1,5 @@
+import type { TFunction } from "i18next";
 import type { MutableDaemonConfig } from "@getpaseo/protocol/messages";
-
-export const BROWSER_TOOLS_TITLE = "Browser tools";
-export const BROWSER_TOOLS_WARNING =
-  "Allow agents to access and control Paseo browser tabs, including logged-in browser state. Only enable this for agents you trust.";
 
 export interface BrowserToolsCardState {
   isVisible: boolean;
@@ -20,12 +17,13 @@ export interface BrowserToolsMutationViewState {
 export function getBrowserToolsCardState(input: {
   isConnected: boolean;
   config: MutableDaemonConfig | null;
+  t: TFunction;
 }): BrowserToolsCardState {
   return {
     isVisible: input.isConnected,
     isEnabled: input.config?.browserTools.enabled === true,
-    title: BROWSER_TOOLS_TITLE,
-    warning: BROWSER_TOOLS_WARNING,
+    title: input.t("settings.host.agents.browserTools.title"),
+    warning: input.t("settings.host.agents.browserTools.hint"),
   };
 }
 
@@ -36,10 +34,11 @@ export function createBrowserToolsPatch(enabled: boolean): Partial<MutableDaemon
 export function getBrowserToolsMutationViewState(input: {
   isPending: boolean;
   error: unknown;
+  t: TFunction;
 }): BrowserToolsMutationViewState {
   return {
     isSwitchDisabled: input.isPending,
-    loadingText: input.isPending ? "Updating browser tools…" : null,
+    loadingText: input.isPending ? input.t("settings.host.agents.browserTools.updating") : null,
     errorText: input.error ? toErrorMessage(input.error) : null,
   };
 }

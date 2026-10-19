@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import type { ScheduleSummary } from "@getpaseo/protocol/schedule/types";
 import { describeScheduleCwd } from "@/schedules/schedule-project-targets";
 
@@ -27,6 +28,7 @@ export interface ResolvedSchedule {
 }
 
 export interface ResolveScheduleInput {
+  t: TFunction;
   schedule: ScheduleSummary;
   serverId: string;
   now: number;
@@ -62,13 +64,16 @@ function isAgentTargetGone(input: ResolveScheduleInput): boolean {
 }
 
 function resolveTarget(input: ResolveScheduleInput): ScheduleTargetResolution {
-  const { schedule, serverId, agentsByKey, projectNameByCwd } = input;
+  const { t, schedule, serverId, agentsByKey, projectNameByCwd } = input;
   if (schedule.target.type === "agent") {
     const agent = agentsByKey.get(agentKey(serverId, schedule.target.agentId));
     if (agent) {
-      return { label: agent.title?.trim() || "Untitled agent", provider: agent.provider };
+      return {
+        label: agent.title?.trim() || t("schedules.target.untitledAgent"),
+        provider: agent.provider,
+      };
     }
-    return { label: "Agent unavailable", provider: null };
+    return { label: t("schedules.target.agentUnavailable"), provider: null };
   }
   return {
     label: describeScheduleCwd({ serverId, cwd: schedule.target.config.cwd, projectNameByCwd }),

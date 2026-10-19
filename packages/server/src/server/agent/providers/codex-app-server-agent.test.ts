@@ -1944,6 +1944,33 @@ describe("Codex app-server provider", () => {
     appServer.assertNoErrors();
   });
 
+  test("resolves the native thread's rollout in the configured Codex home", async () => {
+    const codexHome = await mkdtemp(path.join(tmpdir(), "codex-native-session-path-"));
+    const threadId = "01a13982-e9d6-7932-bba6-2666bd081fec";
+    const archivedDirectory = path.join(codexHome, "archived_sessions");
+    const rolloutPath = path.join(
+      archivedDirectory,
+      `rollout-2026-10-14T16-24-03-${threadId}.jsonl.zst`,
+    );
+    mkdirSync(archivedDirectory, { recursive: true });
+    writeFileSync(rolloutPath, "");
+    const provider = new CodexAppServerAgentClient(createTestLogger(), {
+      env: { CODEX_HOME: codexHome },
+    });
+
+    try {
+      await expect(
+        provider.resolveNativeSessionPath({
+          provider: "codex",
+          sessionId: "persisted-thread-id",
+          nativeHandle: threadId,
+        }),
+      ).resolves.toBe(rolloutPath);
+    } finally {
+      rmSync(codexHome, { recursive: true, force: true });
+    }
+  });
+
   test("archives the persisted native thread without opening an interactive session", async () => {
     const threadRequests: Array<{ method: string; params: unknown }> = [];
     const appServer = createFakeCodexAppServer({

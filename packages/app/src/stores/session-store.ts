@@ -277,7 +277,6 @@ export interface AgentFileExplorerState {
   currentPath: string;
   history: string[];
   lastVisitedPath: string;
-  selectedEntryPath: string | null;
 }
 
 export interface DaemonServerInfo {

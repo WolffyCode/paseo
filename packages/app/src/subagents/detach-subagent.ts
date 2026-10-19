@@ -1,34 +1,27 @@
+import type { TFunction } from "i18next";
 import type { Agent } from "@/stores/session-store";
 import type { ConfirmDialogInput } from "@/utils/confirm-dialog";
+import { resolveRowLabel } from "./track-presentation";
 
 export interface ResolveDetachSubagentDialogInput {
   title: Agent["title"] | null | undefined;
 }
 
-function resolveSubagentLabel(title: Agent["title"] | null | undefined): string | null {
-  if (typeof title !== "string") {
-    return null;
-  }
-  const normalized = title.trim();
-  if (!normalized) {
-    return null;
-  }
-  if (normalized.toLowerCase() === "new agent") {
-    return null;
-  }
-  return normalized;
-}
-
 export function resolveDetachSubagentDialog(
+  t: TFunction,
   input: ResolveDetachSubagentDialogInput,
 ): ConfirmDialogInput {
-  const subagentLabel = resolveSubagentLabel(input.title) ?? "This subagent";
+  const subagentLabel = resolveRowLabel(input.title);
+  // The unnamed variant is a whole sentence so each locale can place and inflect "this subagent".
+  const message = subagentLabel
+    ? t("subagents.detachDialog.message", { label: subagentLabel })
+    : t("subagents.detachDialog.messageUnnamed");
 
   return {
-    title: "Detach subagent?",
-    message: `${subagentLabel} will leave this track and continue as a standalone agent.`,
-    confirmLabel: "Detach",
-    cancelLabel: "Cancel",
+    title: t("subagents.detachDialog.title"),
+    message,
+    confirmLabel: t("subagents.detachDialog.confirm"),
+    cancelLabel: t("common.actions.cancel"),
     destructive: false,
   };
 }
@@ -39,6 +32,7 @@ export interface DetachSubagentDeps {
   detachAgent: (input: { serverId: string; agentId: string }) => Promise<void>;
   openDetachedAgent: (input: { serverId: string; agentId: string }) => void;
   reportError: (error: unknown) => void;
+  t: TFunction;
 }
 
 export interface RequestDetachSubagentInput {
@@ -52,7 +46,7 @@ export async function requestDetachSubagent(
 ): Promise<void> {
   const subagent = deps.getSubagent(input.subagentId);
   const confirmed = await deps.confirm(
-    resolveDetachSubagentDialog({
+    resolveDetachSubagentDialog(deps.t, {
       title: subagent?.title,
     }),
   );

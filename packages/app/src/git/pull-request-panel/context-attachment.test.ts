@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildPullRequestCheckContextAttachment,
   buildPullRequestCommentContextAttachment,
@@ -10,6 +10,17 @@ import {
 } from "./context-attachment";
 import type { PrPaneActivity, PrPaneCheck } from "./data";
 import type { PrThreadEntry } from "./timeline";
+
+const NOW = Date.UTC(2026, 0, 10, 12, 0, 0);
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+beforeEach(() => {
+  vi.setSystemTime(NOW);
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 const baseInput = {
   provider: { id: "github", label: "GitHub" },
@@ -29,7 +40,7 @@ function comment(overrides: Partial<PrPaneActivity> = {}): PrPaneActivity {
     author: "octocat",
     avatarColor: "#0ea5e9",
     body: "Looks good.",
-    age: "3d ago",
+    createdAt: NOW - 3 * DAY_MS,
     url: "https://github.com/getpaseo/paseo/pull/42#issuecomment-1",
     ...overrides,
   };
@@ -44,7 +55,7 @@ function review(overrides: Partial<PrPaneActivity> = {}): PrPaneActivity {
     avatarColor: "#8b5cf6",
     reviewState: "commented",
     body: "Please simplify this.",
-    age: "2d ago",
+    createdAt: NOW - 2 * DAY_MS,
     url: "https://github.com/getpaseo/paseo/pull/42#pullrequestreview-1",
     ...overrides,
   };
@@ -348,7 +359,7 @@ describe("buildPullRequestThreadContextAttachment", () => {
           body: "This is frozen after initial registration.",
           url: "https://github.com/getpaseo/paseo/pull/42#discussion_r1",
         }),
-        comment({ id: "t2", author: "mo", age: "1d ago", body: "Good catch, fixing." }),
+        comment({ id: "t2", author: "mo", createdAt: NOW - DAY_MS, body: "Good catch, fixing." }),
       ],
       ...overrides,
     };

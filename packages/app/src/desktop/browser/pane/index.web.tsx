@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { EditingTextInput as TextInput } from "@/components/ui/text-input";
 import { BROWSER_START_URL, openBrowserStartPage } from "@/desktop/browser/start-page";
+import { SEARCH_ENGINE_NAME } from "@/desktop/browser/address-input";
 
 interface BrowserPaneProps {
   browserId: string;
@@ -12,6 +13,7 @@ interface BrowserPaneProps {
   cwd: string | null;
   isInteractive?: boolean;
   onFocusPane?: () => void;
+  focusAddressOnMount?: boolean;
 }
 
 export function BrowserPane({ browserId }: BrowserPaneProps) {
@@ -20,6 +22,10 @@ export function BrowserPane({ browserId }: BrowserPaneProps) {
   const [page] = useState(() => openBrowserStartPage({ browserId, url: BROWSER_START_URL }));
   const snapshot = useSyncExternalStore(page.subscribe, page.getSnapshot, page.getSnapshot);
   const [submitted, setSubmitted] = useState(false);
+  const inputStyle = useMemo(
+    () => [styles.input, { color: theme.colors.foreground }],
+    [theme.colors.foreground],
+  );
   const titleStyle = useMemo(
     () => [styles.title, { color: theme.colors.foreground }],
     [theme.colors.foreground],
@@ -28,10 +34,6 @@ export function BrowserPane({ browserId }: BrowserPaneProps) {
     () => [styles.subtitle, { color: theme.colors.foregroundMuted }],
     [theme.colors.foregroundMuted],
   );
-  const inputStyle = useMemo(
-    () => [styles.input, { color: theme.colors.foreground }],
-    [theme.colors.foreground],
-  );
   const submitDraft = useCallback(() => {
     const intent = page.submitDraft();
     setSubmitted(intent?.kind === "load");
@@ -39,18 +41,22 @@ export function BrowserPane({ browserId }: BrowserPaneProps) {
 
   return (
     <View style={styles.container}>
-      <TextInput
-        accessibilityLabel={t("workspace.browser.controls.browserUrl")}
-        autoCapitalize="none"
-        autoCorrect={false}
-        initialValue={snapshot.draft}
-        onChangeText={page.editDraft}
-        onSubmitEditing={submitDraft}
-        placeholder={t("workspace.browser.controls.enterUrl")}
-        placeholderTextColor={theme.colors.foregroundMuted}
-        style={inputStyle}
-      />
-      {snapshot.phase === "start" ? <View style={styles.surface} /> : null}
+      <View style={styles.addressRow}>
+        <TextInput
+          accessibilityLabel={t("workspace.browser.controls.browserUrl")}
+          autoCapitalize="none"
+          autoCorrect={false}
+          initialValue={snapshot.draft}
+          onChangeText={page.editDraft}
+          onSubmitEditing={submitDraft}
+          placeholder={t("workspace.browser.omnibox.placeholder", { engine: SEARCH_ENGINE_NAME })}
+          placeholderTextColor={theme.colors.foregroundMuted}
+          style={inputStyle}
+        />
+      </View>
+      {snapshot.phase === "start" ? (
+        <View style={styles.surface} testID={`browser-start-${browserId}`} />
+      ) : null}
       {submitted ? (
         <View style={styles.notice}>
           <Text style={titleStyle}>{t("workspace.browser.unavailable.title")}</Text>
@@ -62,33 +68,19 @@ export function BrowserPane({ browserId }: BrowserPaneProps) {
 }
 
 const styles = StyleSheet.create((theme) => ({
-  container: {
-    flex: 1,
-    minHeight: 0,
-  },
+  container: { flex: 1, minHeight: 0, backgroundColor: theme.colors.surface0 },
+  addressRow: { height: 48, justifyContent: "center", paddingHorizontal: theme.spacing[2] },
   input: {
-    height: 36,
-    margin: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    fontSize: theme.fontSize.sm,
-  },
-  surface: {
-    flex: 1,
-  },
-  notice: {
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    padding: 16,
-  },
-  title: {
+    height: 28,
+    borderRadius: 10,
+    paddingHorizontal: theme.spacing[2],
+    backgroundColor: "transparent",
     fontSize: theme.fontSize.base,
-    fontWeight: "600",
+    textAlign: "center",
+    color: theme.colors.foreground,
   },
-  subtitle: {
-    fontSize: theme.fontSize.sm,
-  },
+  surface: { flex: 1, backgroundColor: theme.colors.surface1 },
+  notice: { alignItems: "center", gap: theme.spacing[2], padding: theme.spacing[4] },
+  title: { fontSize: theme.fontSize.base, fontWeight: theme.fontWeight.medium },
+  subtitle: { fontSize: theme.fontSize.sm },
 }));

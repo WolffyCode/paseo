@@ -466,8 +466,6 @@ function renderComposerAttachmentPill(args: RenderComposerAttachmentPillArgs): R
       disabled={disabled}
       onOpen={onOpen}
       onRemove={onRemove}
-      openLabel={labels.openGithub}
-      removeLabel={labels.removeGithub}
     />
   );
 }
@@ -742,8 +740,36 @@ interface GithubAttachmentPillProps {
   disabled: boolean;
   onOpen: (attachment: ComposerAttachment) => void;
   onRemove: (index: number) => void;
-  openLabel: (kind: string, numberLabel: string) => string;
-  removeLabel: (kind: string, numberLabel: string) => string;
+}
+
+interface GithubAttachmentPillCopy {
+  openAccessibilityLabel: string;
+  removeAccessibilityLabel: string;
+  subtitle: string;
+}
+
+// The change-request initialism stays Latin in every locale, while "issue" inflects, so issues
+// get whole-phrase keys instead of a translated word in the shared kind slot.
+function resolveGithubAttachmentPillCopy(
+  t: TFunction,
+  item: GithubAttachmentPillProps["attachment"]["item"],
+): GithubAttachmentPillCopy {
+  const presentation = getForgePresentation(item.forge ?? "github");
+  if (item.kind === "change_request") {
+    const number = `${presentation.numberPrefix}${item.number}`;
+    const kind = presentation.changeRequestAbbrev;
+    return {
+      openAccessibilityLabel: t("composer.attachments.openGithub", { kind, number }),
+      removeAccessibilityLabel: t("composer.attachments.removeGithub", { kind, number }),
+      subtitle: `${kind} ${number}`,
+    };
+  }
+  const number = `${presentation.issueNumberPrefix}${item.number}`;
+  return {
+    openAccessibilityLabel: t("composer.attachments.openIssue", { number }),
+    removeAccessibilityLabel: t("composer.attachments.removeIssue", { number }),
+    subtitle: t("message.attachments.issue", { number }),
+  };
 }
 
 function GithubAttachmentPill({
@@ -752,15 +778,11 @@ function GithubAttachmentPill({
   disabled,
   onOpen,
   onRemove,
-  openLabel,
-  removeLabel,
 }: GithubAttachmentPillProps) {
+  const { t } = useTranslation();
   const item = attachment.item;
-  const presentation = getForgePresentation(item.forge ?? "github");
   const isChangeRequest = item.kind === "change_request";
-  const kindLabel = isChangeRequest ? presentation.changeRequestAbbrev : "issue";
-  const subtitleKind = isChangeRequest ? presentation.changeRequestAbbrev : "Issue";
-  const numberPrefix = isChangeRequest ? presentation.numberPrefix : presentation.issueNumberPrefix;
+  const copy = resolveGithubAttachmentPillCopy(t, item);
   const handleOpen = useCallback(() => {
     onOpen(attachment);
   }, [onOpen, attachment]);
@@ -772,14 +794,14 @@ function GithubAttachmentPill({
       testID="composer-github-attachment-pill"
       onOpen={handleOpen}
       onRemove={handleRemove}
-      openAccessibilityLabel={openLabel(kindLabel, `${numberPrefix}${item.number}`)}
-      removeAccessibilityLabel={removeLabel(kindLabel, `${numberPrefix}${item.number}`)}
+      openAccessibilityLabel={copy.openAccessibilityLabel}
+      removeAccessibilityLabel={copy.removeAccessibilityLabel}
       disabled={disabled}
     >
       <AttachmentLabel
         icon={isChangeRequest ? githubPrPillIcon : githubIssuePillIcon}
         title={item.title}
-        subtitle={`${subtitleKind} ${numberPrefix}${item.number}`}
+        subtitle={copy.subtitle}
       />
     </AttachmentPill>
   );
@@ -1755,7 +1777,7 @@ function ComposerContentImpl({
     async (files: SelectedFile[]) => {
       if (files.length === 0) return;
       if (!client) {
-        toastErrorRef.current(t("composer.errors.daemonClientDisconnected"));
+        toastErrorRef.current(t("common.errors.daemonClientDisconnected"));
         return;
       }
 
@@ -1778,7 +1800,7 @@ function ComposerContentImpl({
 
   const handlePickFile = useCallback(async () => {
     if (!client) {
-      toastErrorRef.current(t("composer.errors.daemonClientDisconnected"));
+      toastErrorRef.current(t("common.errors.daemonClientDisconnected"));
       return;
     }
     try {
@@ -1799,7 +1821,7 @@ function ComposerContentImpl({
         const files = droppedItemsToSelectedFiles(items);
         if (files.length === 0) return;
         if (!client || !isConnected) {
-          toastErrorRef.current(t("composer.errors.daemonClientDisconnected"));
+          toastErrorRef.current(t("common.errors.daemonClientDisconnected"));
           return;
         }
         await uploadSelectedFiles(files);

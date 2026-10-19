@@ -1,6 +1,6 @@
-import { expect, test, vi } from "vitest";
+import { expect, onTestFinished, test, vi } from "vitest";
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { randomUUID } from "node:crypto";
@@ -8493,6 +8493,113 @@ test("unarchiveSnapshot keeps the stored record archived when native unarchive f
   const stored = await storage.get(agent.id);
   expect(stored?.archivedAt).toEqual(expect.any(String));
   expect(client.unarchivedHandles).toHaveLength(1);
+});
+
+class NativeSessionFileClient extends TestAgentClient {
+  constructor(private readonly sessionsDir: string) {
+    super();
+  }
+
+  async resolveNativeSessionPath(handle: AgentPersistenceHandle): Promise<string> {
+    return join(this.sessionsDir, `${handle.sessionId}.jsonl`);
+  }
+}
+
+interface NativeSessionFixture {
+  workdir: string;
+  storagePath: string;
+  sessionsDir: string;
+}
+
+function createNativeSessionFixture(): NativeSessionFixture {
+  const workdir = mkdtempSync(join(tmpdir(), "agent-manager-native-session-path-"));
+  onTestFinished(() => rmSync(workdir, { recursive: true, force: true }));
+  const sessionsDir = join(workdir, "sessions");
+  mkdirSync(sessionsDir);
+  return { workdir, storagePath: join(workdir, "agents"), sessionsDir };
+}
+
+async function createAgentWithNativeSession(
+  fixture: NativeSessionFixture,
+): Promise<{ manager: AgentManager; agentId: string; sessionPath: string }> {
+  const manager = new AgentManager({
+    clients: { codex: new NativeSessionFileClient(fixture.sessionsDir) },
+    registry: new AgentStorage(fixture.storagePath, logger),
+    logger,
+  });
+  const agent = await manager.createAgent(
+    { provider: "codex", cwd: fixture.workdir, title: "Native session path target" },
+    undefined,
+    { workspaceId: undefined },
+  );
+  const sessionId = manager.getAgent(agent.id)?.persistence?.sessionId;
+  if (!sessionId) throw new Error("Test agent has no provider session");
+  return {
+    manager,
+    agentId: agent.id,
+    sessionPath: join(fixture.sessionsDir, `${sessionId}.jsonl`),
+  };
+}
+
+test("findNativeSessionPath returns the provider session file of a live agent", async () => {
+  const fixture = createNativeSessionFixture();
+  const { manager, agentId, sessionPath } = await createAgentWithNativeSession(fixture);
+  writeFileSync(sessionPath, "{}\n");
+
+  await expect(manager.findNativeSessionPath(agentId)).resolves.toBe(sessionPath);
+});
+
+test("findNativeSessionPath returns null when the provider session file is not on disk", async () => {
+  const fixture = createNativeSessionFixture();
+  const { manager, agentId } = await createAgentWithNativeSession(fixture);
+
+  await expect(manager.findNativeSessionPath(agentId)).resolves.toBeNull();
+});
+
+test("findNativeSessionPath answers a stored agent without resuming it", async () => {
+  const fixture = createNativeSessionFixture();
+  const { manager, agentId, sessionPath } = await createAgentWithNativeSession(fixture);
+  writeFileSync(sessionPath, "{}\n");
+  await manager.flush();
+  const restartedClient = new NativeSessionFileClient(fixture.sessionsDir);
+  const restartedManager = new AgentManager({
+    clients: { codex: restartedClient },
+    registry: new AgentStorage(fixture.storagePath, logger),
+    logger,
+  });
+
+  await expect(restartedManager.findNativeSessionPath(agentId)).resolves.toBe(sessionPath);
+  expect(restartedManager.getAgent(agentId)).toBeNull();
+  expect(restartedClient.resumeOverrides).toEqual([]);
+});
+
+test("findNativeSessionPath returns null for a provider that keeps no session file", async () => {
+  const fixture = createNativeSessionFixture();
+  const manager = new AgentManager({
+    clients: { codex: new TestAgentClient() },
+    registry: new AgentStorage(fixture.storagePath, logger),
+    logger,
+  });
+  const agent = await manager.createAgent(
+    { provider: "codex", cwd: fixture.workdir, title: "No native session file" },
+    undefined,
+    { workspaceId: undefined },
+  );
+
+  await expect(manager.findNativeSessionPath(agent.id)).resolves.toBeNull();
+});
+
+test("findNativeSessionPath rejects an unknown agent", async () => {
+  const fixture = createNativeSessionFixture();
+  const manager = new AgentManager({
+    clients: { codex: new NativeSessionFileClient(fixture.sessionsDir) },
+    registry: new AgentStorage(fixture.storagePath, logger),
+    logger,
+  });
+
+  await expect(manager.findNativeSessionPath("missing-agent")).rejects.toThrow(
+    "Agent not found: missing-agent",
+  );
 });
 
 test("archiveAgent cascade archives in-memory children with the full archive contract", async () => {

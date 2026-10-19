@@ -97,21 +97,28 @@ and animation measurements. Full-page content correctness remains separately tra
 
 ## Mechanism
 
-Electron captures copy from the guest web contents' compositor surface. A resident
-webview parked with `display:none`, offscreen coordinates, or `opacity:0` can lose its
-copyable surface. Each production webview keeps one permanent body-level surface. Presenting
-or parking changes that surface's geometry without reparenting the webview. The parking state
-uses `left:0`, `top:0`, `width:1px`, `height:1px`, `overflow:hidden`, `opacity:1`, and
-`pointer-events:none`. The webview stays at its resolved logical viewport, defaulting to
-1280x800 before first presentation, with `display:inline-flex` at `left:0`, `top:0`.
-Presentation resolves responsive guests to the pane's exact pixel dimensions after the surface
-has visible bounds. Do not apply percentage guest sizing against the parked surface: Electron
-exposes the 1x1 parking geometry as a real guest resize before expanding it again.
+Electron captures copy from the guest web contents' compositor surface. A guest
+under `display:none`, `visibility:hidden`, or an opacity-zero ancestor can lose its
+copyable surface.
 
-The permanent browser host and `overlay-root` are explicit sibling paint planes. The browser
-plane stays below the overlay plane regardless of body insertion order; menus keep their relative
-layering inside `overlay-root`. Activating a presented browser also focuses its registered guest
-`WebContents` in main so macOS assigns keyboard first-responder ownership to the page.
+Presented browsers are ordinary descendants of the pane's content host. Their
+ancestors own positioning and clipping; do not place a presented guest or its
+surface in a body-level fixed layer. Resizing a column must not reparent the guest.
+Responsive guests fill their content host, while device previews use an explicit
+viewport size.
+
+A mounted browser registers a paint requirement with its retained ancestors.
+Inactive retained surfaces become non-interactive 1x1 clipped containers, and the
+guest keeps its last positive viewport dimensions. Column collapse uses the same
+paintable state. This preserves background frames without moving the guest on tab
+switches. Resources without a mounted pane use the separate parking host; the
+parking host never presents an active browser over the app.
+
+Electron may recreate a guest when its DOM subtree moves between owners. Register
+every `did-attach` identity, and verify state retention through actual Electron
+interactions when changing ownership. A plain browser DOM test cannot establish
+that a guest WebContents survived a move. Menus remain in `overlay-root`, above
+pane content. Focusing a guest also updates its native first-responder ownership.
 
 There is no renderer prep/restore handshake or lifetime background-throttling override.
 Screenshot capture temporarily enables frame production inside the shared serialized queue,

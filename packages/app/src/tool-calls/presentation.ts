@@ -1,7 +1,8 @@
 import type { PlanOutcome } from "@/components/plan-card";
 import type { ComponentType } from "react";
+import type { TFunction } from "i18next";
 import type { ToolCallDetail } from "@getpaseo/protocol/agent-types";
-import type { ToolCallDisplayInput } from "@/utils/tool-call-display";
+import type { ToolCallDisplayInput, ToolCallDisplayLabel } from "@/utils/tool-call-display";
 import { buildToolCallDisplayModel } from "@/utils/tool-call-display";
 import { extractToolCallFilePath } from "@/utils/extract-tool-call-file-path";
 import {
@@ -12,7 +13,22 @@ import {
 type ToolCallStatus = "executing" | "running" | "completed" | "failed" | "canceled";
 export type ToolCallPresentationIcon = ComponentType<{ size?: number; color?: string }>;
 
+const LABEL_KEYS: Record<ToolCallDisplayLabel, string> = {
+  shell: "toolCallDetails.labels.shell",
+  read: "toolCallDetails.labels.read",
+  edit: "toolCallDetails.labels.edit",
+  write: "toolCallDetails.labels.write",
+  search: "toolCallDetails.labels.search",
+  fetch: "toolCallDetails.labels.fetch",
+  worktreeSetup: "toolCallDetails.labels.worktreeSetup",
+  task: "toolCallDetails.labels.task",
+  plan: "toolCallDetails.labels.plan",
+  thinking: "toolCallDetails.labels.thinking",
+  terminal: "toolCallDetails.labels.terminal",
+};
+
 interface BuildToolCallPresentationInput {
+  t: TFunction;
   toolName: string;
   status: ToolCallStatus;
   error: unknown;
@@ -67,8 +83,13 @@ export function buildToolCallPresentation(
   });
   const hasDetails = Boolean(input.error) || hasMeaningfulToolCallDetail(input.detail);
 
+  // Provider tool names stay as the provider wrote them; only the fixed kinds are product wording.
+  const displayName = displayModel.label
+    ? input.t(LABEL_KEYS[displayModel.label])
+    : displayModel.displayName;
+
   return {
-    displayName: displayModel.displayName,
+    displayName,
     summary: displayModel.summary,
     errorText: displayModel.errorText,
     icon: input.resolveIcon(input.toolName, input.detail),

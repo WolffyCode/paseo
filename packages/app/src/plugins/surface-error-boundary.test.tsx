@@ -3,8 +3,9 @@
  */
 import React, { act, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Text } from "react-native";
+import { i18n } from "@/i18n/i18next";
 import { SurfaceErrorBoundary } from "./surface-error-boundary";
 
 vi.mock("react-native-unistyles", () => ({
@@ -35,6 +36,14 @@ const correctedInstallation = {};
 describe("SurfaceErrorBoundary", () => {
   const roots: Array<ReturnType<typeof createRoot>> = [];
   const containers: HTMLElement[] = [];
+
+  // The real instance, so the fallback renders its English copy rather than its key.
+  beforeAll(async () => {
+    if (!i18n.isInitialized) {
+      await i18n.init();
+    }
+    await i18n.changeLanguage("en");
+  });
 
   afterEach(() => {
     for (const root of roots.splice(0)) act(() => root.unmount());

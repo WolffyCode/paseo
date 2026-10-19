@@ -1,5 +1,6 @@
 import type { ScheduleSummary } from "@getpaseo/protocol/schedule/types";
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { i18n } from "@/i18n/i18next";
 import { resolveSchedule, scheduleBucket, type ScheduleTargetAgent } from "./schedule-derivation";
 
 const NOW = Date.parse("2026-07-02T00:00:00.000Z");
@@ -33,6 +34,7 @@ function resolve(
   },
 ) {
   return resolveSchedule({
+    t: i18n.t,
     schedule,
     serverId: "host-1",
     now: NOW,
@@ -41,6 +43,14 @@ function resolve(
     agentDataLoaded: options?.agentDataLoaded ?? true,
   });
 }
+
+// The real instance, so a target label that names a key nobody added renders as that key and fails.
+beforeAll(async () => {
+  if (!i18n.isInitialized) {
+    await i18n.init();
+  }
+  await i18n.changeLanguage("en");
+});
 
 describe("resolveSchedule state", () => {
   it("keeps active and paused schedules runnable", () => {

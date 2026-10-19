@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import type { ScheduleCadence } from "@getpaseo/protocol/schedule/types";
 import { everyMsToParts } from "@/utils/schedule-format";
 
@@ -5,18 +6,18 @@ type CronCadence = Extract<ScheduleCadence, { type: "cron" }>;
 
 export interface CadencePresetOption {
   id: string;
-  label: string;
+  labelKey: string;
   expression: string;
 }
 
 export const CUSTOM_CRON_PRESET_ID = "custom";
 
 export const CADENCE_PRESET_OPTIONS: CadencePresetOption[] = [
-  { id: "every-minute", label: "Every minute", expression: "* * * * *" },
-  { id: "every-hour", label: "Every hour", expression: "0 * * * *" },
-  { id: "daily-9", label: "Daily 9:00", expression: "0 9 * * *" },
-  { id: "weekdays-9", label: "Weekdays 9:00", expression: "0 9 * * 1-5" },
-  { id: "mondays-9", label: "Mondays 9:00", expression: "0 9 * * 1" },
+  { id: "every-minute", labelKey: "schedules.cadence.everyMinute", expression: "* * * * *" },
+  { id: "every-hour", labelKey: "schedules.cadence.everyHour", expression: "0 * * * *" },
+  { id: "daily-9", labelKey: "schedules.cadence.presets.daily9", expression: "0 9 * * *" },
+  { id: "weekdays-9", labelKey: "schedules.cadence.presets.weekdays9", expression: "0 9 * * 1-5" },
+  { id: "mondays-9", labelKey: "schedules.cadence.presets.mondays9", expression: "0 9 * * 1" },
 ];
 
 export function resolveCronPresetId(cadence: CronCadence): string {
@@ -27,12 +28,13 @@ export function resolveCronPresetId(cadence: CronCadence): string {
   );
 }
 
-export function resolveCronPresetDisplay(cadence: CronCadence): { label: string } {
-  return {
-    label:
-      CADENCE_PRESET_OPTIONS.find((option) => option.id === resolveCronPresetId(cadence))?.label ??
-      "Custom cron",
-  };
+export function resolveCronPresetDisplay(t: TFunction, cadence: CronCadence): { label: string } {
+  const presetId = resolveCronPresetId(cadence);
+  const preset = CADENCE_PRESET_OPTIONS.find((option) => option.id === presetId);
+  if (!preset) {
+    return { label: t("schedules.cadence.custom") };
+  }
+  return { label: t(preset.labelKey) };
 }
 
 export function normalizeScheduleFormCadence(

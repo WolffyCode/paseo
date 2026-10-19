@@ -45,6 +45,23 @@ export type KeyboardActionId =
   | "workspace.focus.toggle"
   | "workspace.terminal.new"
   | "workspace.browser.new"
+  | "browser.tab.new"
+  | "browser.tab.reopen"
+  | "browser.page.downloads"
+  | "browser.page.focus-location"
+  | "browser.page.back"
+  | "browser.page.forward"
+  | "browser.page.home"
+  | "browser.page.find"
+  | "browser.page.print"
+  | "browser.page.save"
+  | "browser.page.clear-data"
+  | "browser.page.settings"
+  | "browser.window.new"
+  | "browser.page.zoom-in"
+  | "browser.page.zoom-out"
+  | "browser.page.zoom-reset"
+  | "browser.page.devtools"
   | "sidebar.toggle.right"
   | "sidebar.toggle.both"
   | "workspace.new"
@@ -103,6 +120,23 @@ export type KeyboardActionDefinition =
   | { id: "workspace.focus.toggle"; scope: KeyboardActionScope }
   | { id: "workspace.terminal.new"; scope: KeyboardActionScope }
   | { id: "workspace.browser.new"; scope: KeyboardActionScope }
+  | { id: "browser.tab.new"; scope: KeyboardActionScope }
+  | { id: "browser.tab.reopen"; scope: KeyboardActionScope }
+  | { id: "browser.page.downloads"; scope: KeyboardActionScope }
+  | { id: "browser.page.focus-location"; scope: KeyboardActionScope }
+  | { id: "browser.page.back"; scope: KeyboardActionScope }
+  | { id: "browser.page.forward"; scope: KeyboardActionScope }
+  | { id: "browser.page.home"; scope: KeyboardActionScope }
+  | { id: "browser.page.find"; scope: KeyboardActionScope }
+  | { id: "browser.page.print"; scope: KeyboardActionScope }
+  | { id: "browser.page.save"; scope: KeyboardActionScope }
+  | { id: "browser.page.clear-data"; scope: KeyboardActionScope }
+  | { id: "browser.page.settings"; scope: KeyboardActionScope }
+  | { id: "browser.window.new"; scope: KeyboardActionScope }
+  | { id: "browser.page.zoom-in"; scope: KeyboardActionScope }
+  | { id: "browser.page.zoom-out"; scope: KeyboardActionScope }
+  | { id: "browser.page.zoom-reset"; scope: KeyboardActionScope }
+  | { id: "browser.page.devtools"; scope: KeyboardActionScope }
   | { id: "sidebar.toggle.right"; scope: KeyboardActionScope }
   | { id: "sidebar.toggle.both"; scope: KeyboardActionScope }
   | { id: "workspace.new"; scope: KeyboardActionScope }

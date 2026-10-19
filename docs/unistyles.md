@@ -82,6 +82,19 @@ Keep the entries separate so each retains its Unistyles metadata. If composition
 JSX, create the array inside the component or in a `useMemo` that first runs when the component
 mounts—never at module evaluation time.
 
+### Do Not Branch On The Theme Inside `StyleSheet.create`
+
+On web, Unistyles builds each stylesheet once and switches themes by changing CSS variables: a
+theme read inside the factory becomes `var(--colors-surface0)`, not the color. JavaScript that
+picks a value from the theme, such as `palette(theme.colorScheme).toolbar` or
+`theme.colorScheme === "dark" ? a : b`, runs once and keeps that answer through every later theme
+switch. `withUnistyles` mappings get real theme values, so the two disagree: the browser once drew
+dark icons on a light toolbar after the app switched to dark.
+
+A value that differs per theme belongs in the theme. The browser's Chrome palette is one example:
+every theme carries it as `theme.chrome` (`packages/app/src/desktop/browser/chrome-theme.ts`), and
+stylesheets read `theme.chrome.toolbar`.
+
 [`useUnistyles()`](https://www.unistyl.es/v3/references/use-unistyles) is different. It gives React access to the current theme/runtime and can make a component re-render when those values change. Use it for values that must be rendered through React props, such as icon colors or small escape hatches. Do not expect direct reads from `UnistylesRuntime` to re-render a component; [issue #817](https://github.com/jpudysz/react-native-unistyles/issues/817) is a useful reminder of that invariant.
 
 ## Dynamic Pixel Styles On Web

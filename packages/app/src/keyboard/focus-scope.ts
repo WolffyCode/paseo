@@ -28,6 +28,16 @@ function getFocusCandidateElements(target: EventTarget | null): Element[] {
   return candidates;
 }
 
+/** Marks a web page's root view; focus inside it gets the browser's shortcuts. */
+export const BROWSER_PAGE_DATA_SET = { browserPage: "true" };
+const BROWSER_PAGE_SELECTOR = '[data-browser-page="true"]';
+
+export function isBrowserFocusTarget(target: EventTarget | null): boolean {
+  return getFocusCandidateElements(target).some((element) =>
+    Boolean(element.closest(BROWSER_PAGE_SELECTOR)),
+  );
+}
+
 export function resolveKeyboardFocusScope(input: {
   target: EventTarget | null;
   commandCenterOpen: boolean;

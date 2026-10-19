@@ -1,7 +1,6 @@
 import type { SplitNode, SplitPane, WorkspaceLayout } from "@/stores/workspace-layout-actions";
 import type { WorkspaceTab, WorkspaceTabTarget } from "@/workspace-tabs/model";
 import type { PaneHost } from "@/panels/panel-manifest";
-import { createBrowserStartTab } from "@/desktop/browser/start-tab";
 import { createNewWorkspaceTab } from "@/workspace-tabs/new-tab";
 
 export const WORKBENCH_ROOT_ID = "workbench";
@@ -23,6 +22,10 @@ export function workbenchPaneHost(paneId: string | null | undefined): PaneHost |
   if (paneId?.startsWith(CONTENT_PREFIX)) return "content";
   if (paneId?.startsWith(FILES_PREFIX)) return "files";
   return null;
+}
+
+export function showsWorkbenchTabBar(paneId: string | null | undefined): boolean {
+  return workbenchPaneHost(paneId) !== "conversations" && workbenchPaneHost(paneId) !== "files";
 }
 
 export function isConversationTarget(target: WorkspaceTabTarget): boolean {
@@ -61,25 +64,25 @@ export function workbenchPanes(layout: WorkspaceLayout): SplitPane[] {
   return visit(layout.root);
 }
 
-export function isWorkbenchConversationNode(node: SplitNode): boolean {
-  return node.kind === "pane"
-    ? workbenchPaneHost(node.pane.id) === "conversations"
-    : node.group.children.every(isWorkbenchConversationNode);
-}
-
 export function workbenchConversationRoot(layout: WorkspaceLayout): SplitNode {
   if (layout.root.kind !== "group") return layout.root;
-  const children = layout.root.group.children.filter(isWorkbenchConversationNode);
-  if (children.length === 1) return children[0];
-  return {
-    kind: "group",
-    group: {
-      id: "workbench:conversation-board",
-      direction: "horizontal",
-      children,
-      sizes: children.map(() => 1 / children.length),
-    },
-  };
+  const panes = workbenchPanes(layout).filter(
+    (pane) => workbenchPaneHost(pane.id) === "conversations",
+  );
+  const primary = panes.find((pane) => pane.id === CONVERSATION_PANE_ID) ?? panes[0];
+  if (!primary) return layout.root;
+  const seen = new Set<string>();
+  const tabs = panes
+    .flatMap((pane) => pane.tabs ?? [])
+    .filter((tab) => {
+      if (seen.has(tab.tabId)) return false;
+      seen.add(tab.tabId);
+      return true;
+    });
+  const focused = tabs.some((tab) => tab.tabId === primary.focusedTabId)
+    ? primary.focusedTabId
+    : tabs[0]?.tabId;
+  return paneNode({ id: CONVERSATION_PANE_ID, tabs, focusedTabId: focused });
 }
 
 export function activeConversationPane(layout: WorkspaceLayout): SplitPane | undefined {
@@ -97,6 +100,14 @@ export function activeConversationOwner(layout: WorkspaceLayout): string {
   const pane = activeConversationPane(layout);
   const tab = pane?.tabs?.find((entry) => entry.tabId === pane.focusedTabId);
   return conversationOwner(tab);
+}
+
+/** The tab column 3 shows: the focused tab of the active conversation's content pane. */
+export function focusedContentTab(layout: WorkspaceLayout): WorkspaceTab | null {
+  const contentPaneId = workbenchContentPaneId(activeConversationOwner(layout));
+  const contentPane = workbenchPanes(layout).find((pane) => pane.id === contentPaneId);
+  if (!contentPane) return null;
+  return contentPane.tabs?.find((tab) => tab.tabId === contentPane.focusedTabId) ?? null;
 }
 
 function paneNode(input: {
@@ -206,7 +217,7 @@ export function reconcileWorkbenchLayout(layout: WorkspaceLayout): WorkspaceLayo
       .map((pane): SplitNode => {
         const host = workbenchPaneHost(pane.id);
         let tabs = pane.tabs ?? [];
-        if (host === "content" && tabs.length === 0) tabs = [createBrowserStartTab()];
+        if (host === "content" && tabs.length === 0) tabs = [createNewWorkspaceTab()];
         if (host === "files" && tabs.length === 0) {
           tabs = [{ tabId: `${pane.id}:tree`, target: { kind: "files" }, createdAt: 0 }];
         }

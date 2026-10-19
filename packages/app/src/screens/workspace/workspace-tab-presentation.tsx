@@ -39,6 +39,7 @@ interface WorkspaceTabPresentationResolverProps {
   tab: WorkspaceTabDescriptor;
   serverId: string;
   workspaceId: string;
+  paneId: string | null;
   children: (presentation: WorkspaceTabPresentation) => ReactNode;
 }
 
@@ -50,6 +51,7 @@ export function WorkspaceTabPresentationResolver({
   tab,
   serverId,
   workspaceId,
+  paneId,
   children,
 }: WorkspaceTabPresentationResolverProps): ReactElement {
   ensurePanelsRegistered();
@@ -63,6 +65,7 @@ export function WorkspaceTabPresentationResolver({
       tab={tab}
       serverId={serverId}
       workspaceId={workspaceId}
+      paneId={paneId}
     >
       {children}
     </WorkspaceTabPresentationResolverInner>
@@ -74,12 +77,14 @@ function WorkspaceTabPresentationResolverInner({
   tab,
   serverId,
   workspaceId,
+  paneId,
   children,
 }: WorkspaceTabPresentationResolverInnerProps): ReactElement {
   const descriptor = registration.useDescriptor(tab.target as never, {
     serverId,
     workspaceId,
     tabId: tab.tabId,
+    paneId,
   });
   const attributes = usePanelInstanceAttributes({ serverId, workspaceId, tabId: tab.tabId });
 
@@ -144,6 +149,7 @@ export function WorkspaceTabIcon({
   statusDotBorderColor,
   backdrop,
 }: WorkspaceTabIconProps): ReactElement {
+  const { t } = useTranslation();
   const iconColor = active ? styles.iconActive.color : styles.iconInactive.color;
   const bucket = presentation.statusBucket;
   const isRunning = bucket === "running";
@@ -174,7 +180,7 @@ export function WorkspaceTabIcon({
         <View
           style={styles.statusRing}
           accessibilityRole="progressbar"
-          accessibilityLabel="Agent running"
+          accessibilityLabel={t("workspace.tabs.agentRunning")}
         >
           <StatusRing backdrop={backdrop} />
         </View>

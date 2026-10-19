@@ -78,6 +78,7 @@ function useProviderSubagentDescriptor(
   target: { kind: "provider_subagent"; parentAgentId: string; subagentId: string },
   context: { serverId: string },
 ): PanelDescriptor {
+  const { t } = useTranslation();
   const descriptor = useProviderSubagentStore((state) =>
     state.descriptors.get(
       providerSubagentKey(context.serverId, target.parentAgentId, target.subagentId),
@@ -89,8 +90,11 @@ function useProviderSubagentDescriptor(
   const provider = descriptor?.provider ?? parentProvider ?? "agent";
   // The task names the tab; the subagent type is supporting detail beside the provider.
   const subagentType = descriptor?.title?.trim();
-  const label = descriptor?.description?.trim() || subagentType || "Subagent";
-  const providerLabel = `${formatProviderLabel(provider)} subagent`;
+  const label =
+    descriptor?.description?.trim() || subagentType || t("subagents.panel.fallbackLabel");
+  const providerLabel = t("subagents.panel.providerSubtitle", {
+    provider: formatProviderLabel(provider),
+  });
   return {
     label,
     subtitle:

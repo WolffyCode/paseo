@@ -3,6 +3,7 @@ import type {
   PullRequestTimelineResponse,
 } from "@getpaseo/protocol/messages";
 import { type Forge, getForgePresentation } from "@/git/forge";
+import { i18n } from "@/i18n/i18next";
 import type { PresentableCheck } from "@/git/check-presentation";
 import { parseClientForgeFacts } from "@/git/forges";
 import type { ForgeSpecificStatusFacts } from "@/git/merge-capability";
@@ -57,7 +58,8 @@ export interface PrPaneActivity {
   avatarUrl?: string | null;
   reviewState?: ReviewState;
   body: string;
-  age: string;
+  /** When the comment or review was posted, in epoch milliseconds. */
+  createdAt: number;
   url: string;
   /** For inline review comments: the review this comment was submitted with. */
   reviewId?: string;
@@ -112,7 +114,6 @@ type PullRequestTimelineItem = PullRequestTimeline["items"][number];
 export function mapPrPaneData(
   status: CheckoutPrStatus,
   timeline: PullRequestTimeline | null | undefined,
-  nowMs = Date.now(),
   forge: Forge = "github",
 ): PrPaneData | null {
   if (!status) {
@@ -144,7 +145,7 @@ export function mapPrPaneData(
     checks: mapChecks(status, forge),
     ...(forgeSpecific ? { forgeSpecific } : {}),
     activity: timelineMatchesStatus
-      ? timeline.items.flatMap((item) => mapActivity(item, nowMs, forge))
+      ? timeline.items.flatMap((item) => mapActivity(item, forge))
       : [],
   };
 }
@@ -158,36 +159,6 @@ function toProviderMetadata(forge: Forge): PullRequestProviderMetadata {
 // case-insensitively, so the same person keeps one color across forges.
 export function deriveAvatarColor(login: string): string {
   return identityColor(deriveIdentityColorName(login.toLowerCase()));
-}
-
-export function formatAge(createdAtMs: number, nowMs = Date.now()): string {
-  const elapsedMs = Math.max(0, nowMs - createdAtMs);
-  const elapsedSeconds = Math.floor(elapsedMs / 1000);
-
-  if (elapsedSeconds < 60) {
-    return "just now";
-  }
-
-  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
-  if (elapsedMinutes < 60) {
-    return `${elapsedMinutes}m ago`;
-  }
-
-  const elapsedHours = Math.floor(elapsedMinutes / 60);
-  if (elapsedHours < 24) {
-    return `${elapsedHours}h ago`;
-  }
-
-  const elapsedDays = Math.floor(elapsedHours / 24);
-  if (elapsedDays < 30) {
-    return `${elapsedDays}d ago`;
-  }
-
-  if (elapsedDays < 365) {
-    return `${Math.floor(elapsedDays / 30)}mo ago`;
-  }
-
-  return `${Math.floor(elapsedDays / 365)}y ago`;
 }
 
 function derivePrState(status: NonNullable<CheckoutPrStatus>): PrState {
@@ -246,10 +217,13 @@ function formatCheckTiming(duration: string | undefined, status: CheckStatus): s
   if (!duration) {
     return null;
   }
-  return status === "pending" ? `running ${duration}` : duration;
+  if (status !== "pending") {
+    return duration;
+  }
+  return i18n.t("workspace.git.pr.checkTiming.running", { duration });
 }
 
-function mapActivity(item: PullRequestTimelineItem, nowMs: number, forge: Forge): PrPaneActivity[] {
+function mapActivity(item: PullRequestTimelineItem, forge: Forge): PrPaneActivity[] {
   if (item.kind === "comment") {
     if (item.body.trim() === "") {
       return [];
@@ -264,7 +238,7 @@ function mapActivity(item: PullRequestTimelineItem, nowMs: number, forge: Forge)
         avatarColor: deriveAvatarColor(item.author),
         avatarUrl: item.avatarUrl,
         body: item.body,
-        age: formatAge(item.createdAt, nowMs),
+        createdAt: item.createdAt,
         url: item.url,
         reviewId: item.reviewId,
         threadId: item.threadId,
@@ -289,7 +263,7 @@ function mapActivity(item: PullRequestTimelineItem, nowMs: number, forge: Forge)
       avatarUrl: item.avatarUrl,
       reviewState: item.reviewState,
       body: item.body,
-      age: formatAge(item.createdAt, nowMs),
+      createdAt: item.createdAt,
       url: item.url,
     },
   ];

@@ -2,8 +2,14 @@ import { router, usePathname } from "expo-router";
 import { CalendarClock, History, Search, SquarePen } from "lucide-react-native";
 import { memo, useCallback, useMemo, useRef, type ComponentType } from "react";
 import { useTranslation } from "react-i18next";
-import { View, type StyleProp, type ViewStyle } from "react-native";
+import { View, Text, type StyleProp, type ViewStyle } from "react-native";
+import { StyleSheet, withUnistyles } from "react-native-unistyles";
+import { HeaderToggleButton } from "@/components/headers/header-toggle-button";
 import { SidebarHeaderRow } from "@/components/sidebar/sidebar-header-row";
+import { HEADER_CONTROL_HEIGHT } from "@/components/ui/control-geometry";
+import { iconButtonChromeGlyphSize } from "@/components/ui/icon-button-chrome";
+import { WORKSPACE_TAB_ROW_HEIGHT } from "@/constants/layout";
+import { PRODUCT_NAME } from "@/constants/product";
 import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
 import { PluginSidebarItem } from "@/plugins/sidebar-items";
 import {
@@ -21,6 +27,7 @@ interface SidebarNavRowProps {
 }
 
 interface SidebarNavRowsProps extends SidebarNavRowProps {
+  hideSchedules?: boolean;
   /** Style for the group wrapper, which the sidebar owns. */
   style?: StyleProp<ViewStyle>;
 }
@@ -30,33 +37,85 @@ interface SidebarNavRowsProps extends SidebarNavRowProps {
  * `sidebarNavItems` preference. Renders nothing — not even the bordered group
  * wrapper — when every item is hidden.
  */
-export function SidebarNavRows({ style, onBeforeNavigate }: SidebarNavRowsProps) {
+export function SidebarNavRows({
+  style,
+  onBeforeNavigate,
+  hideSchedules = false,
+}: SidebarNavRowsProps) {
+  const { t } = useTranslation();
   const { items } = useSidebarNavItems("header");
-  const visibleItems = useMemo(() => items.filter((item) => item.visible), [items]);
+  const visibleItems = useMemo(
+    () =>
+      items.filter(
+        (item) =>
+          item.visible && !(hideSchedules && item.kind === "builtin" && item.id === "schedules"),
+      ),
+    [items, hideSchedules],
+  );
   const groupRef = useRef<View | null>(null);
 
+  const setCommandCenterOpen = useKeyboardShortcutsStore((state) => state.setCommandCenterOpen);
+  const openSearch = useCallback(() => setCommandCenterOpen(true), [setCommandCenterOpen]);
   if (visibleItems.length === 0) return null;
 
+  // The workbench heading is the column header, so it sits above the group's top padding, level
+  // with the other columns' headers.
   return (
-    <View ref={groupRef} collapsable={false} style={style}>
-      {visibleItems.map((item) => {
-        if (item.kind === "plugin") {
-          return (
-            <PluginSidebarItem
-              key={item.key}
-              group={item.group}
-              section="header"
-              fallbackAnchorRef={groupRef}
-              onBeforeNavigate={onBeforeNavigate}
-            />
-          );
-        }
-        const Row = BUILTIN_ROWS[item.id];
-        return <Row key={item.key} onBeforeNavigate={onBeforeNavigate} />;
-      })}
-    </View>
+    <>
+      {hideSchedules ? (
+        <View style={workbenchStyles.heading}>
+          <Text style={workbenchStyles.title}>{PRODUCT_NAME}</Text>
+          <HeaderToggleButton
+            accessibilityLabel={t("sidebar.sections.search")}
+            tooltipLabel={t("sidebar.sections.search")}
+            tooltipSide="bottom"
+            tooltipKeys={SEARCH_KEYS}
+            onPress={openSearch}
+            testID="workbench-search"
+            style={workbenchStyles.search}
+          >
+            <ThemedSearch size={SEARCH_GLYPH_SIZE} />
+          </HeaderToggleButton>
+        </View>
+      ) : null}
+      <View ref={groupRef} collapsable={false} style={style}>
+        {visibleItems.map((item) => {
+          if (item.kind === "plugin") {
+            return (
+              <PluginSidebarItem
+                key={item.key}
+                group={item.group}
+                section="header"
+                fallbackAnchorRef={groupRef}
+                onBeforeNavigate={onBeforeNavigate}
+              />
+            );
+          }
+          const Row = BUILTIN_ROWS[item.id];
+          if (hideSchedules && item.id === "search") return null;
+          return <Row key={item.key} onBeforeNavigate={onBeforeNavigate} />;
+        })}
+      </View>
+    </>
   );
 }
+
+const ThemedSearch = withUnistyles(Search, (theme) => ({ color: theme.colors.foregroundMuted }));
+const SEARCH_KEYS = ["mod", "K"];
+const SEARCH_GLYPH_SIZE = iconButtonChromeGlyphSize("large");
+const workbenchStyles = StyleSheet.create((theme) => ({
+  heading: {
+    height: WORKSPACE_TAB_ROW_HEIGHT,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  title: { fontSize: theme.fontSize.base, fontWeight: "500", color: theme.colors.foreground },
+  // The button frame is wider than its glyph. Let the frame reach past the padding so the glyph
+  // ends on the same right edge as the section buttons below.
+  search: { marginRight: -(HEADER_CONTROL_HEIGHT - SEARCH_GLYPH_SIZE) / 2 },
+}));
 
 const SidebarNewConversationRow = memo(function SidebarNewConversationRow({
   onBeforeNavigate,

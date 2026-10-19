@@ -4,12 +4,14 @@ import { FolderOpen } from "lucide-react-native";
 import { withUnistyles } from "react-native-unistyles";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { ContextMenuItem } from "@/components/ui/context-menu";
-import { getIsElectron } from "@/constants/platform";
 import { useToast } from "@/contexts/toast-context";
+import { useIsLocalDaemon } from "@/hooks/use-is-local-daemon";
 import type { Theme } from "@/styles/theme";
 import { openDesktopTarget, useDesktopOpenTargets } from "@/workspace/desktop-open-targets";
 
 interface OpenInFileManagerMenuItemProps {
+  /** The host the path lives on. Only the desktop's own daemon shares this machine's disk. */
+  serverId: string;
   path?: string | null;
   testID: string;
   surface?: "context" | "dropdown";
@@ -24,16 +26,17 @@ const foregroundMutedColorMapping = (theme: Theme) => ({
 const leadingIcon = <ThemedFolderOpen size={14} uniProps={foregroundMutedColorMapping} />;
 
 export function OpenInFileManagerMenuItem({
+  serverId,
   path,
   testID,
   surface = "dropdown",
 }: OpenInFileManagerMenuItemProps) {
   const { t } = useTranslation();
   const toast = useToast();
-  const isElectron = getIsElectron();
+  const isLocalDaemon = useIsLocalDaemon(serverId);
   const workspacePath = path?.trim() ?? "";
   const { targets } = useDesktopOpenTargets({
-    isLocalExecution: isElectron && workspacePath.length > 0,
+    isLocalExecution: isLocalDaemon && workspacePath.length > 0,
   });
   const fileManagerTarget = targets.find((target) => target.kind === "file-manager");
 
@@ -48,11 +51,11 @@ export function OpenInFileManagerMenuItem({
     });
   }, [fileManagerTarget, t, toast, workspacePath]);
 
-  if (!isElectron || !fileManagerTarget || workspacePath.length === 0) {
+  if (!isLocalDaemon || !fileManagerTarget || workspacePath.length === 0) {
     return null;
   }
 
-  const label = t("sidebar.project.actions.openFolder");
+  const label = t("workspace.fileActions.openIn", { target: fileManagerTarget.label });
   if (surface === "context") {
     return (
       <ContextMenuItem testID={testID} leading={leadingIcon} onSelect={openInFileManager}>

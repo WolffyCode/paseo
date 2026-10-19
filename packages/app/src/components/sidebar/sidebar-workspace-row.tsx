@@ -9,12 +9,11 @@ import type { DraggableListDragHandleProps } from "@/components/draggable-list.t
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import { WorkspaceRenameModal } from "@/components/workspace-rename-modal";
 import { useWorkspaceClipboardActions } from "@/hooks/use-workspace-clipboard-actions";
-import { useToast } from "@/contexts/toast-context";
 import { toWorktreeArchiveRisk } from "@/git/worktree-archive-warning";
 import { useWorkspaceArchive } from "@/workspace/use-workspace-archive";
 import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
-import { useWorkspaceReadState } from "@/hooks/use-workspace-read-state";
+import { useSidebarWorkspaceReadActions } from "@/components/sidebar/use-sidebar-workspace-read-actions";
 import { redirectIfArchivingActiveWorkspace } from "@/utils/sidebar-workspace-archive-redirect";
 import { isNative as platformIsNative } from "@/constants/platform";
 import { useIsCompactFormFactor } from "@/constants/layout";
@@ -73,7 +72,6 @@ export function SidebarWorkspaceRow({
   dragHandleProps,
 }: SidebarWorkspaceRowProps) {
   const { t } = useTranslation();
-  const toast = useToast();
   const [isHidingWorkspace, setIsHidingWorkspace] = useState(false);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const isArchiving = workspace.archivingAt !== null || isHidingWorkspace;
@@ -123,21 +121,10 @@ export function SidebarWorkspaceRow({
   }, []);
 
   const archiveShortcutKeys = useShortcutKeys("archive-workspace");
-  const { hasClearableAttention, canMarkUnread, clearAttention, markUnread } =
-    useWorkspaceReadState({
-      serverId: workspace.serverId,
-      workspaceId: workspace.workspaceId,
-    });
-  const handleMarkAsRead = useCallback(() => {
-    void clearAttention().catch((error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to mark workspace as read");
-    });
-  }, [clearAttention, toast]);
-  const handleMarkAsUnread = useCallback(() => {
-    void markUnread().catch((error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to mark workspace as unread");
-    });
-  }, [markUnread, toast]);
+  const readActions = useSidebarWorkspaceReadActions({
+    serverId: workspace.serverId,
+    workspaceId: workspace.workspaceId,
+  });
 
   useKeyboardActionHandler({
     handlerId: `workspace-archive-${workspace.workspaceKey}`,
@@ -171,8 +158,8 @@ export function SidebarWorkspaceRow({
         onCopyBranchName={canCopyBranchName ? handleCopyBranchName : undefined}
         onCopyPath={handleCopyPath}
         onRename={handleOpenRename}
-        onMarkAsRead={hasClearableAttention ? handleMarkAsRead : undefined}
-        onMarkAsUnread={canMarkUnread ? handleMarkAsUnread : undefined}
+        onMarkAsRead={readActions.onMarkAsRead}
+        onMarkAsUnread={readActions.onMarkAsUnread}
         archiveShortcutKeys={selected ? archiveShortcutKeys : null}
       />
       <WorkspaceRenameModal

@@ -145,16 +145,23 @@ Navigation `getId`, and `getId` has broken Android native-stack/Fabric by
 reordering an already-mounted workspace screen.
 
 Use `ThemedStack` from `packages/app/src/navigation/themed-stack.tsx` for every
-Expo Router stack. React Navigation otherwise paints each native stack screen
-with its light default background. A screen-level wrapper can hide that surface
-while settled, but Android may expose it for one frame when navigation crosses
-from a nested stack to its parent stack. This is especially visible when an
-app-wide route such as `/new` opens from a dark workspace.
+Expo Router stack. React Navigation otherwise paints each stack screen with its
+light default background, `rgb(242, 242, 242)`. A screen-level wrapper can hide
+that surface while settled, but Android may expose it for one frame when
+navigation crosses from a nested stack to its parent stack. This is especially
+visible when an app-wide route such as `/new` opens from a dark workspace.
 
-Do not read the active theme with `useUnistyles()` in a layout to build
-`screenOptions`. `ThemedStack` keeps that third-party prop theme-reactive through
-a small `withUnistyles` boundary without subscribing the route tree itself to
-every Unistyles runtime update.
+`ThemedStack` sets the screen background through the navigation theme's
+`colors.background`, not `contentStyle`. On web the stack paints a full-size
+background layer under each screen from the theme, and `contentStyle` never
+reaches it. Web screens are transparent so the workbench's rounded columns show
+through; square light corners around column 2 mean a stack is painting the
+default background again.
+
+Do not read the active theme with `useUnistyles()` in a layout to build the
+navigation theme. `ThemedStack` keeps it theme-reactive through a small
+`withUnistyles` boundary without subscribing the route tree itself to every
+Unistyles runtime update.
 
 Navigators keep their identity across appearance changes. `ThemedStack` remounts
 each screen's content below the native stack when appearance tokens change; a

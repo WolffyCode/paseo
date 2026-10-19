@@ -466,6 +466,7 @@ interface AgentClient {
     context: ImportProviderSessionContext,
   ): Promise<ImportedProviderSession>;
   getDiagnostic?(): Promise<{ diagnostic: string }>;
+  resolveNativeSessionPath?(handle: AgentPersistenceHandle): Promise<string | null>;
 }
 ```
 

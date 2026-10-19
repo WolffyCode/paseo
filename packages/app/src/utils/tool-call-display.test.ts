@@ -16,6 +16,7 @@ describe("tool-call-display", () => {
 
     expect(display).toEqual({
       displayName: "Shell",
+      label: "shell",
       summary: "npm test",
     });
   });
@@ -34,6 +35,7 @@ describe("tool-call-display", () => {
 
     expect(display).toEqual({
       displayName: "Read",
+      label: "read",
       summary: "src/index.ts",
     });
   });
@@ -99,6 +101,7 @@ describe("tool-call-display", () => {
 
     expect(display).toEqual({
       displayName: "Worktree setup",
+      label: "worktreeSetup",
       summary: "feature-branch",
     });
   });
@@ -148,6 +151,7 @@ describe("tool-call-display", () => {
 
     expect(display).toEqual({
       displayName: "Terminal",
+      label: "terminal",
     });
   });
 
@@ -165,6 +169,7 @@ describe("tool-call-display", () => {
 
     expect(display).toEqual({
       displayName: "Terminal",
+      label: "terminal",
       summary: "npm run test",
     });
   });

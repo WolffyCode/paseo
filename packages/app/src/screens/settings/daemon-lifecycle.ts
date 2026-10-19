@@ -1,3 +1,5 @@
+import { i18n } from "@/i18n/i18next";
+
 interface WorkerStatus {
   pid: number;
   serverId: string;
@@ -28,7 +30,10 @@ export async function restartDaemonFromSettings(
   try {
     await observeReplacement(previous, deps);
   } catch (error) {
-    throw new Error(`Restart acknowledged: ${acknowledged}. ${String(error)}`, { cause: error });
+    const messageKey = acknowledged
+      ? "settings.host.daemon.restart.acknowledgedFailure"
+      : "settings.host.daemon.restart.unacknowledgedFailure";
+    throw new Error(i18n.t(messageKey, { error: String(error) }), { cause: error });
   }
 }
 
@@ -44,18 +49,23 @@ export async function updateDaemonFromSettings(
 ): Promise<{ workerVersion: string }> {
   const previous = await readSelectedWorker(hostServerId, deps);
   const installed = await deps.updateDaemon();
-  if (!installed.success) throw new Error(installed.error ?? "Package installation failed");
+  if (!installed.success) {
+    throw new Error(installed.error ?? i18n.t("settings.host.daemon.update.installFailed"));
+  }
   try {
     const worker = await observeReplacement(previous, deps);
     if (!worker.version || !installed.newVersion || worker.version !== installed.newVersion) {
       throw new Error(
-        `Expected installed version ${installed.newVersion ?? "unknown"}; observed worker ${worker.version}.`,
+        i18n.t("settings.host.daemon.update.versionMismatch", {
+          expected: installed.newVersion ?? i18n.t("settings.host.daemon.update.unknownVersion"),
+          observed: String(worker.version),
+        }),
       );
     }
     return { workerVersion: worker.version };
   } catch (error) {
     throw new Error(
-      `Package installed; replacement worker version was not confirmed. ${String(error)}`,
+      i18n.t("settings.host.daemon.update.workerNotConfirmed", { error: String(error) }),
       { cause: error },
     );
   }
@@ -63,7 +73,9 @@ export async function updateDaemonFromSettings(
 
 async function readSelectedWorker(serverId: string, deps: StatusReader): Promise<WorkerStatus> {
   const worker = await deps.getStatus();
-  if (worker.serverId !== serverId) throw new Error("Daemon identity changed");
+  if (worker.serverId !== serverId) {
+    throw new Error(i18n.t("settings.host.daemon.lifecycle.identityChanged"));
+  }
   return worker;
 }
 
@@ -81,7 +93,7 @@ async function observeReplacement(
     }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw new Error("Replacement worker could not be confirmed. Check daemon status and logs.");
+  throw new Error(i18n.t("settings.host.daemon.lifecycle.replacementNotConfirmed"));
 }
 
 function isReconnectFailure(error: unknown): boolean {

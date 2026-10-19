@@ -7,8 +7,8 @@ import {
   type ReactElement,
 } from "react";
 import { ScrollView, Text, View } from "react-native";
-import { useIsFocused } from "@react-navigation/native";
-import { CalendarClock, Plus } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
+import { CalendarClock, Archive, Plus } from "lucide-react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { MenuHeader } from "@/components/headers/menu-header";
 import { ExternalLink } from "@/components/ui/external-link";
@@ -38,31 +38,24 @@ import {
   buildProjectNameByCwd,
   buildScheduleProjectTargets,
 } from "@/schedules/schedule-project-targets";
-import type { ScheduleSummary } from "@getpaseo/protocol/schedule/types";
+import { createSchedulesScreenModel } from "@/schedules/screen-model";
+import { WorkbenchRegionContent } from "@/workbench/regions";
+import { useIsCompactFormFactor } from "@/constants/layout";
+import { isWeb } from "@/constants/platform";
 
-type FormState =
-  | { mode: "closed" }
-  | { mode: "create" }
-  | { mode: "edit"; serverId: string; schedule: ScheduleSummary };
-
-const STATUS_FILTER_OPTIONS: { value: ScheduleBucket; label: string; testID: string }[] = [
-  { value: "runnable", label: "Active", testID: "schedules-filter-active" },
-  { value: "ended", label: "Ended", testID: "schedules-filter-ended" },
+const STATUS_FILTER_OPTIONS: { value: ScheduleBucket; labelKey: string; testID: string }[] = [
+  { value: "runnable", labelKey: "schedules.filters.active", testID: "schedules-filter-active" },
+  { value: "ended", labelKey: "schedules.filters.ended", testID: "schedules-filter-ended" },
 ];
 
 const EMPTY_SCHEDULES: AggregatedSchedule[] = [];
 
 export function SchedulesScreen(): ReactElement {
-  const isFocused = useIsFocused();
-
-  if (!isFocused) {
-    return <View style={styles.container} />;
-  }
-
   return <SchedulesScreenContent />;
 }
 
 function SchedulesScreenContent(): ReactElement {
+  const { t } = useTranslation();
   const { loadState, hostErrors, isError, refetch } = useSchedules();
   const schedules = loadState.status === "loaded" ? loadState.data : EMPTY_SCHEDULES;
   const { agents } = useAggregatedAgents({ includeArchived: true });
@@ -91,24 +84,19 @@ function SchedulesScreenContent(): ReactElement {
     return ready;
   }, [hosts, runtime, runtimeVersion]);
 
-  const [form, setForm] = useState<FormState>({ mode: "closed" });
-  const [selectedHost, setSelectedHost] = useState(ALL_HOSTS_OPTION_ID);
-  const [statusFilter, setStatusFilter] = useState<ScheduleBucket>("runnable");
-
+  const [model] = useState(() => createSchedulesScreenModel(ALL_HOSTS_OPTION_ID));
+  const { form, selectedHost, statusFilter } = useSyncExternalStore(
+    model.subscribe,
+    model.getSnapshot,
+  );
+  const compact = useIsCompactFormFactor();
+  const workbench = isWeb && !compact;
+  const showActive = useCallback(() => model.setStatusFilter("runnable"), [model]);
+  const showEnded = useCallback(() => model.setStatusFilter("ended"), [model]);
   useEffect(() => {
-    if (
-      selectedHost !== ALL_HOSTS_OPTION_ID &&
-      !hosts.some((host) => host.serverId === selectedHost)
-    ) {
-      setSelectedHost(ALL_HOSTS_OPTION_ID);
-    }
-  }, [hosts, selectedHost]);
-
-  const openCreate = useCallback(() => setForm({ mode: "create" }), []);
-  const openEdit = useCallback((schedule: AggregatedSchedule) => {
-    setForm({ mode: "edit", serverId: schedule.serverId, schedule });
-  }, []);
-  const closeForm = useCallback(() => setForm({ mode: "closed" }), []);
+    model.applyHosts(hosts.map((host) => host.serverId));
+  }, [hosts, model]);
+  useEffect(() => () => model.dispose(), [model]);
 
   const agentsByKey = useMemo(() => {
     const map = new Map<string, ScheduleTargetAgent>();
@@ -131,6 +119,7 @@ function SchedulesScreenContent(): ReactElement {
     return schedules.map((schedule) => ({
       schedule,
       resolved: resolveSchedule({
+        t,
         schedule,
         serverId: schedule.serverId,
         now,
@@ -139,7 +128,7 @@ function SchedulesScreenContent(): ReactElement {
         agentDataLoaded: agentDirReadyHosts.has(schedule.serverId),
       }),
     }));
-  }, [schedules, agentsByKey, projectNameByCwd, agentDirReadyHosts]);
+  }, [schedules, agentsByKey, projectNameByCwd, agentDirReadyHosts, t]);
 
   const visibleRows = useMemo<ScheduleRowView[]>(() => {
     const singleHost = hosts.length <= 1;
@@ -164,27 +153,59 @@ function SchedulesScreenContent(): ReactElement {
   const showHostFilter = hosts.length > 1;
 
   return (
-    <View style={styles.container}>
-      <MenuHeader title="Schedules" />
-      <SchedulesScreenBody
-        rows={visibleRows}
-        loadState={loadState}
-        hostErrors={hostErrors}
-        showLoadError={showLoadError}
-        statusFilter={statusFilter}
-        onStatusFilterChange={setStatusFilter}
-        showHostFilter={showHostFilter}
-        hosts={hosts}
-        selectedHost={selectedHost}
-        onSelectHost={setSelectedHost}
-        onRetry={refetch}
-        onCreate={openCreate}
-        onEdit={openEdit}
-      />
+    <View style={workbench ? styles.workbenchRow : styles.container}>
+      {workbench ? (
+        <WorkbenchRegionContent region="navigation" testID="workbench-schedules-navigation-content">
+          <View style={styles.navigation}>
+            <Text style={styles.navigationTitle}>{t("sidebar.sections.schedules")}</Text>
+            <Button
+              variant={statusFilter === "runnable" ? "secondary" : "ghost"}
+              leftIcon={CalendarClock}
+              onPress={showActive}
+            >
+              {t("schedules.filters.active")}
+            </Button>
+            <Button
+              variant={statusFilter === "ended" ? "secondary" : "ghost"}
+              leftIcon={Archive}
+              onPress={showEnded}
+            >
+              {t("schedules.filters.ended")}
+            </Button>
+            {showHostFilter ? (
+              <HostFilter
+                hosts={hosts}
+                selectedHost={selectedHost}
+                onSelectHost={model.selectHost}
+                triggerTestID="schedules-host-filter-trigger"
+              />
+            ) : null}
+          </View>
+        </WorkbenchRegionContent>
+      ) : null}
+      <View style={workbench ? styles.workbenchContent : styles.container}>
+        <MenuHeader title={t("sidebar.sections.schedules")} />
+        <SchedulesScreenBody
+          rows={visibleRows}
+          loadState={loadState}
+          hostErrors={hostErrors}
+          showLoadError={showLoadError}
+          statusFilter={statusFilter}
+          onStatusFilterChange={model.setStatusFilter}
+          showHostFilter={showHostFilter}
+          hosts={hosts}
+          selectedHost={selectedHost}
+          onSelectHost={model.selectHost}
+          onRetry={refetch}
+          onCreate={model.openCreate}
+          onEdit={model.openEdit}
+          navigationInSidebar={workbench}
+        />
+      </View>
       <ScheduleFormSheet
         serverId={form.mode === "edit" ? form.serverId : undefined}
         visible={form.mode === "create" || form.mode === "edit"}
-        onClose={closeForm}
+        onClose={model.closeForm}
         mode={form.mode === "edit" ? "edit" : "create"}
         schedule={form.mode === "edit" ? form.schedule : undefined}
       />
@@ -206,6 +227,7 @@ function SchedulesScreenBody({
   onRetry,
   onCreate,
   onEdit,
+  navigationInSidebar,
 }: {
   rows: ScheduleRowView[];
   loadState: AggregateLoadState<AggregatedSchedule>;
@@ -220,7 +242,18 @@ function SchedulesScreenBody({
   onRetry: () => void;
   onCreate: () => void;
   onEdit: (schedule: AggregatedSchedule) => void;
+  navigationInSidebar: boolean;
 }): ReactElement {
+  const { t } = useTranslation();
+  const statusFilterOptions = useMemo(
+    () =>
+      STATUS_FILTER_OPTIONS.map((option) => ({
+        value: option.value,
+        label: t(option.labelKey),
+        testID: option.testID,
+      })),
+    [t],
+  );
   const bodyState = resolveSchedulesScreenBodyState({ loadState, showLoadError });
 
   if (bodyState.kind === "loading") {
@@ -234,9 +267,9 @@ function SchedulesScreenBody({
   if (bodyState.kind === "load-error") {
     return (
       <View style={styles.centered}>
-        <Text style={styles.message}>Unable to load schedules</Text>
+        <Text style={styles.message}>{t("schedules.screen.loadError")}</Text>
         <Button variant="ghost" onPress={onRetry} testID="schedules-retry">
-          Try again
+          {t("common.actions.retry")}
         </Button>
       </View>
     );
@@ -267,23 +300,27 @@ function SchedulesScreenBody({
   return (
     <View style={styles.body}>
       <View style={styles.filterRow}>
-        <View style={styles.filterRowControls}>
-          {showHostFilter ? (
-            <HostFilter
-              hosts={hosts}
-              selectedHost={selectedHost}
-              onSelectHost={onSelectHost}
-              triggerTestID="schedules-host-filter-trigger"
+        {!navigationInSidebar ? (
+          <View style={styles.filterRowControls}>
+            {showHostFilter ? (
+              <HostFilter
+                hosts={hosts}
+                selectedHost={selectedHost}
+                onSelectHost={onSelectHost}
+                triggerTestID="schedules-host-filter-trigger"
+              />
+            ) : null}
+            <SegmentedControl
+              size="sm"
+              value={statusFilter}
+              onValueChange={onStatusFilterChange}
+              options={statusFilterOptions}
+              testID="schedules-status-filter"
             />
-          ) : null}
-          <SegmentedControl
-            size="sm"
-            value={statusFilter}
-            onValueChange={onStatusFilterChange}
-            options={STATUS_FILTER_OPTIONS}
-            testID="schedules-status-filter"
-          />
-        </View>
+          </View>
+        ) : (
+          <View style={styles.filterSpacer} />
+        )}
         <Button
           variant="outline"
           leftIcon={Plus}
@@ -291,7 +328,7 @@ function SchedulesScreenBody({
           size="sm"
           testID="schedules-new"
         >
-          New schedule
+          {t("schedules.actions.new")}
         </Button>
       </View>
       <ScrollView
@@ -315,39 +352,45 @@ function SchedulesEmptyState({
   onCreate: () => void;
   testID?: string;
 }): ReactElement {
+  const { t } = useTranslation();
   return (
     <View style={styles.emptyState} testID={testID}>
       <CalendarClock size={styles.emptyIcon.width} color={styles.emptyIcon.color} />
       <View style={styles.emptyTextStack}>
-        <Text style={styles.emptyTitle}>No active schedules</Text>
-        <Text style={styles.emptyDescription}>Schedules run agents on a cadence.</Text>
-        <ExternalLink href="https://paseo.sh/docs/schedules" label="See docs" />
+        <Text style={styles.emptyTitle}>{t("schedules.screen.emptyTitle")}</Text>
+        <Text style={styles.emptyDescription}>{t("schedules.screen.emptyDescription")}</Text>
+        <ExternalLink
+          href="https://paseo.sh/docs/schedules"
+          label={t("schedules.screen.seeDocs")}
+        />
       </View>
       <Button variant="outline" leftIcon={Plus} onPress={onCreate} testID="schedules-empty-new">
-        New schedule
+        {t("schedules.actions.new")}
       </Button>
     </View>
   );
 }
 
 function SchedulesEndedEmptyState(): ReactElement {
+  const { t } = useTranslation();
   return (
     <View style={styles.filterEmpty}>
       <View style={styles.endedEmptyState}>
         <CalendarClock size={styles.emptyIcon.width} color={styles.emptyIcon.color} />
-        <Text style={styles.emptyTitle}>No ended schedules</Text>
+        <Text style={styles.emptyTitle}>{t("schedules.screen.endedEmptyTitle")}</Text>
       </View>
     </View>
   );
 }
 
 function ScheduleHostErrorsBanner({ errors }: { errors: ScheduleHostError[] }): ReactElement {
+  const { t } = useTranslation();
   return (
     <View style={styles.errorsBannerWrap}>
       <View style={styles.errorsBanner} testID="schedules-host-errors">
         {errors.map((error) => (
           <Text key={error.serverId} style={styles.errorsBannerText}>
-            {`${error.serverName}: Could not load schedules`}
+            {t("schedules.screen.hostLoadError", { host: error.serverName })}
           </Text>
         ))}
       </View>
@@ -356,6 +399,16 @@ function ScheduleHostErrorsBanner({ errors }: { errors: ScheduleHostError[] }): 
 }
 
 const styles = StyleSheet.create((theme) => ({
+  workbenchRow: { flex: 1, flexDirection: "row", minWidth: 0 },
+  workbenchContent: {
+    flex: 1,
+    minWidth: 0,
+    overflow: "hidden",
+    backgroundColor: "transparent",
+  },
+  navigation: { padding: 12, gap: 8 },
+  navigationTitle: { color: theme.colors.foreground, fontSize: theme.fontSize.base, padding: 8 },
+  filterSpacer: { flex: 1 },
   container: {
     flex: 1,
     backgroundColor: theme.colors.surface0,

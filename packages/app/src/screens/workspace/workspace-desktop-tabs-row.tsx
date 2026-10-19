@@ -45,8 +45,7 @@ import {
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
-import { WORKSPACE_SECONDARY_HEADER_HEIGHT, useIsCompactFormFactor } from "@/constants/layout";
-import { buttonControlHeight } from "@/components/ui/control-geometry";
+import { useIsCompactFormFactor, WORKSPACE_TAB_ROW_HEIGHT } from "@/constants/layout";
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import { Shortcut } from "@/components/ui/shortcut";
 import { useWorkspaceTabLayout } from "@/screens/workspace/use-workspace-tab-layout";
@@ -59,6 +58,7 @@ import {
 import { buildDeterministicWorkspaceTabId } from "@/workspace-tabs/identity";
 import {
   buildWorkspaceDesktopTabActions,
+  buildWorkspaceTabMenuLabels,
   type WorkspaceDesktopTabActions,
   type WorkspaceTabMenuEntry,
   type WorkspaceTabMenuLabels,
@@ -69,10 +69,9 @@ import { useWorkspaceTabLauncher, type WorkspaceTabLaunchPurpose } from "@/works
 import type { SurfaceBackdrop } from "@/styles/surface-backdrop";
 import type { Theme } from "@/styles/theme";
 import { RenderProfile } from "@/utils/render-profiler";
-import { TrailingActionScrim } from "@/components/ui/trailing-action-scrim";
+import { trailingActionFadeMask, TrailingActionScrim } from "@/components/ui/trailing-action-scrim";
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
-import { useCompactTimeAgo } from "@/hooks/use-time-ago";
-import { formatCompactTimeAgoAsProse } from "@/utils/time";
+import { useTimeAgo } from "@/hooks/use-time-ago";
 import { buildWorkspaceKeyboardHandlerId } from "@/keyboard/handler-id";
 import type { KeyboardActionDefinition } from "@/keyboard/keyboard-action-dispatcher";
 import { WorkspaceNewTabMenuContent } from "@/screens/workspace/workspace-new-tab-menu";
@@ -86,6 +85,7 @@ import {
   HorizontalScrollBoundaryShades,
   useHorizontalScrollBoundary,
 } from "@/components/ui/horizontal-scroll-boundary";
+import { HorizontalOverlayScrollbar } from "@/components/ui/overlay-scrollbar/horizontal-overlay-scrollbar";
 import { useSessionStore } from "@/stores/session-store";
 import { workbenchModel } from "@/workbench/runtime";
 import { CONVERSATION_PANE_ID, isConversationTarget } from "@/workbench/layout";
@@ -105,19 +105,24 @@ const PANE_MAXIMIZE_ACTION_RESERVED_WIDTH = smallIconButtonChromeFrameSize(false
 // Chip geometry. `layoutMetrics` measures tabs from these same numbers, so a chip that changes
 // shape without changing them mis-measures and drops the row into the overflow-scroll fallback at
 // the wrong width. Keep them together.
-// Tabs and the adjacent New Tab trigger are one control family. Keep their outer box and corner
-// token identical; only their horizontal sizing differs (content-width chip versus square icon).
+// Column 3 matches Codex's right-panel strip: a `WORKSPACE_TAB_ROW_HEIGHT` toolbar row and a 32px
+// chip. Slots share the row from 90px up to 240px; below 90px the row scrolls instead of
+// truncating labels.
+const TAB_CHIP_HEIGHT = 32;
 const TAB_CHIP_HORIZONTAL_PADDING = 8;
-const TAB_CHIP_GAP = 4;
-const TAB_ROW_PADDING_HORIZONTAL = 4;
+const TAB_CHIP_GAP = 6;
+const TAB_ROW_PADDING_HORIZONTAL = 8;
 const TAB_ICON_WIDTH = 14;
-const TAB_CONTENT_GAP = 4;
+const TAB_CONTENT_GAP = 8;
 const TAB_DROP_INDICATOR_WIDTH = 4;
 const TAB_MODIFIED_DOT_SIZE = 8;
-const TAB_MIN_WIDTH = 64;
-const TAB_MAX_WIDTH = 230;
+const TAB_MIN_WIDTH = 90;
+const TAB_MAX_WIDTH = 240;
 const TAB_CLOSE_BUTTON_RESERVED_WIDTH = 20;
 const TAB_LABEL_LAYOUT_ALLOWANCE = 4;
+// Native horizontal indicator claims layout height. The tab row cannot spare it, so web
+// hides that indicator and paints a floating thumb instead.
+const TAB_STRIP_OVERLAY_SCROLLBAR_DATASET = { overlayScrollbar: "true" } as const;
 const AGENT_TOOLTIP_TITLE_MAX_LENGTH = 80;
 
 const ThemedLoadingSpinner = withUnistyles(LoadingSpinner);
@@ -171,8 +176,7 @@ function AgentTabTooltipBody({
     const agent = session?.agents.get(agentId) ?? session?.agentDetails.get(agentId) ?? null;
     return state.agentLastActivity.get(agentId) ?? agent?.lastActivityAt ?? null;
   });
-  const compactActivity = useCompactTimeAgo(lastActivityAt);
-  const activity = formatCompactTimeAgoAsProse(compactActivity);
+  const activity = useTimeAgo(lastActivityAt);
 
   return (
     <View style={styles.tooltipAgentContent}>
@@ -244,8 +248,9 @@ function WorkspaceNewTabButton({
     () => launcher.launch({ kind: "agent" }, { kind: "open", paneId }),
     [launcher, paneId],
   );
-  const createBrowserStart = useCallback(
-    () => launcher.launch({ kind: "browser" }, { kind: "open", paneId }),
+  const openHome = useCallback(
+    () =>
+      launcher.launch({ kind: "target", target: { kind: "new_tab" } }, { kind: "open", paneId }),
     [launcher, paneId],
   );
   const tooltipText = t("workspace.tabs.actions.newTab");
@@ -287,7 +292,7 @@ function WorkspaceNewTabButton({
         shortcut={shortcutKeys}
         testID="workspace-new-tab-button"
         style={inlineStyle}
-        onPress={createBrowserStart}
+        onPress={openHome}
       >
         <ThemedPlus size={14} uniProps={extraMutedColorMapping} />
       </ToolbarButton>
@@ -419,12 +424,12 @@ function WorkspacePaneToolbarActions({
                 onSelect={workbenchModel.resetLayout}
                 testID="workbench-reset-layout"
               >
-                恢复默认布局
+                {t("workspace.tabs.actions.resetLayout")}
               </DropdownMenuItem>
             ) : null}
             {host === "conversations" && paneId !== CONVERSATION_PANE_ID ? (
               <DropdownMenuItem onSelect={onClosePane} testID="workbench-close-region">
-                关闭此对话区域
+                {t("workspace.tabs.actions.closeConversationArea")}
               </DropdownMenuItem>
             ) : null}
           </DropdownMenuContent>
@@ -610,6 +615,7 @@ interface WorkspaceDesktopTabPresentationSlotProps {
   tab: WorkspaceTabDescriptor;
   serverId: string;
   workspaceId: string;
+  paneId: string | null;
   onResolve: (tabKey: string, presentation: WorkspaceTabPresentation) => void;
 }
 
@@ -619,10 +625,16 @@ function WorkspaceDesktopTabPresentationSlot({
   tab,
   serverId,
   workspaceId,
+  paneId,
   onResolve,
 }: WorkspaceDesktopTabPresentationSlotProps) {
   return (
-    <WorkspaceTabPresentationResolver tab={tab} serverId={serverId} workspaceId={workspaceId}>
+    <WorkspaceTabPresentationResolver
+      tab={tab}
+      serverId={serverId}
+      workspaceId={workspaceId}
+      paneId={paneId}
+    >
       {(presentation) => (
         <WorkspaceDesktopTabPresentationCommit
           tabKey={tab.key}
@@ -732,6 +744,7 @@ function TabHandleContent({
   tabLabelStyle,
   modifiedTestId,
   conversation,
+  fadesTrailingEdge,
 }: {
   presentation: WorkspaceTabPresentation;
   isHighlighted: boolean;
@@ -741,6 +754,7 @@ function TabHandleContent({
   tabLabelStyle: React.ComponentProps<typeof Text>["style"];
   modifiedTestId: string;
   conversation: boolean;
+  fadesTrailingEdge: boolean;
 }) {
   const { t } = useTranslation();
   const tabHandleDataSet = useMemo(
@@ -749,7 +763,10 @@ function TabHandleContent({
   );
 
   return (
-    <View style={styles.tabHandle} dataSet={tabHandleDataSet}>
+    <View
+      style={[styles.tabHandle, fadesTrailingEdge && styles.tabHandleTrailingFade]}
+      dataSet={tabHandleDataSet}
+    >
       <View style={styles.tabIcon}>
         {conversation && presentation.statusBucket !== "running" ? (
           <ThemedMessageCircle size={16} uniProps={mutedColorMapping} />
@@ -781,6 +798,17 @@ function TabHandleContent({
     </View>
   );
 }
+
+const CLOSE_BUTTON_DRAG_BLOCKERS = isWeb
+  ? ({
+      onPointerDown: (event: { stopPropagation?: () => void }) => {
+        event.stopPropagation?.();
+      },
+      onMouseDown: (event: { stopPropagation?: () => void }) => {
+        event.stopPropagation?.();
+      },
+    } as const)
+  : undefined;
 
 function TabChip({
   serverId,
@@ -839,16 +867,6 @@ function TabChip({
   });
   const showCloseControl =
     showCloseButton && (isActive || isHovered || isNative || isCompact || isClosingTab);
-  const closeButtonDragBlockers = isWeb
-    ? ({
-        onPointerDown: (event: { stopPropagation?: () => void }) => {
-          event.stopPropagation?.();
-        },
-        onMouseDown: (event: { stopPropagation?: () => void }) => {
-          event.stopPropagation?.();
-        },
-      } as const)
-    : undefined;
 
   const tabChipStyle = useCallback(
     () => [
@@ -939,6 +957,7 @@ function TabChip({
                 tabLabelSkeletonStyle={tabLabelSkeletonStyle}
                 tabLabelStyle={tabLabelStyle}
                 modifiedTestId={`workspace-tab-modified-${testIdentity}`}
+                fadesTrailingEdge={showCloseControl}
               />
             </ContextMenuTrigger>
           </TooltipTrigger>
@@ -969,9 +988,11 @@ function TabChip({
               showCloseControl ? styles.tabTrailingOverlayShown : styles.tabTrailingOverlayHidden,
             ]}
           >
-            <TrailingActionScrim backdrop={chipBackdrop} />
+            {/* Web fades the label with a mask instead (tabHandleTrailingFade): a painted scrim
+                cannot match the translucent chip fills. */}
+            {isNative ? <TrailingActionScrim backdrop={chipBackdrop} /> : null}
             <Pressable
-              {...(closeButtonDragBlockers as object | undefined)}
+              {...(CLOSE_BUTTON_DRAG_BLOCKERS as object | undefined)}
               testID={closeButtonTestId}
               accessibilityRole="button"
               accessibilityLabel={t("workspace.tabs.menu.close")}
@@ -1069,6 +1090,7 @@ export function WorkspaceDesktopTabsRow(props: WorkspaceDesktopTabsRowProps) {
           tab={tab}
           serverId={props.normalizedServerId}
           workspaceId={props.normalizedWorkspaceId}
+          paneId={props.paneId ?? null}
           onResolve={handlePresentation}
         />
       ))}
@@ -1120,6 +1142,7 @@ function ResolvedWorkspaceDesktopTabsRow({
     if (key && paneId) useWorkspaceLayoutStore.getState().closePane(key, paneId);
   }, [normalizedServerId, normalizedWorkspaceId, paneId]);
   const newTabKeys = useShortcutKeys("workspace-tab-new");
+  const tabsScrollRef = useRef<Animated.ScrollView>(null);
   const [tabsContainerWidth, setTabsContainerWidth] = useState<number>(0);
   const [exitFocusModeWidth, setExitFocusModeWidth] = useState<number>(0);
   const tabScrollBoundary = useHorizontalScrollBoundary();
@@ -1173,24 +1196,7 @@ function ResolvedWorkspaceDesktopTabsRow({
     }),
     [t],
   );
-  const tabMenuLabels = useMemo<WorkspaceTabMenuLabels>(
-    () => ({
-      copyResumeCommand: t("workspace.tabs.menu.copyResumeCommand"),
-      copyAgentId: t("workspace.tabs.menu.copyAgentId"),
-      copyTerminalId: t("workspace.tabs.menu.copyTerminalId"),
-      copyFilePath: t("workspace.tabs.menu.copyFilePath"),
-      rename: t("workspace.tabs.menu.rename"),
-      closeAbove: t("workspace.tabs.menu.closeAbove"),
-      closeBelow: t("workspace.tabs.menu.closeBelow"),
-      closeLeft: t("workspace.tabs.menu.closeLeft"),
-      closeRight: t("workspace.tabs.menu.closeRight"),
-      closeOthers: t("workspace.tabs.menu.closeOthers"),
-      reloadAgent: t("workspace.tabs.menu.reloadAgent"),
-      reloadAgentTooltip: t("workspace.tabs.menu.reloadAgentTooltip"),
-      close: t("workspace.tabs.menu.close"),
-    }),
-    [t],
-  );
+  const tabMenuLabels = useMemo(() => buildWorkspaceTabMenuLabels(t), [t]);
   const tabLabels = useMemo(
     () =>
       tabs.map((tab) => {
@@ -1438,12 +1444,14 @@ function ResolvedWorkspaceDesktopTabsRow({
       />
       <View style={styles.tabsScrollContainer}>
         <Animated.ScrollView
+          ref={tabsScrollRef}
           horizontal
           scrollEnabled={layout.requiresHorizontalScrollFallback}
           testID="workspace-tabs-scroll"
           style={tabsScrollStyle}
           contentContainerStyle={styles.tabsContent}
           showsHorizontalScrollIndicator={false}
+          dataSet={isWeb ? TAB_STRIP_OVERLAY_SCROLLBAR_DATASET : undefined}
           onLayout={tabScrollBoundary.onLayout}
           onContentSizeChange={tabScrollBoundary.onContentSizeChange}
           onScroll={tabScrollBoundary.onScroll}
@@ -1479,6 +1487,9 @@ function ResolvedWorkspaceDesktopTabsRow({
           leftStyle={tabScrollBoundary.leftShadeStyle}
           rightStyle={tabScrollBoundary.rightShadeStyle}
         />
+        {isWeb && layout.requiresHorizontalScrollFallback ? (
+          <HorizontalOverlayScrollbar scrollRef={tabsScrollRef} />
+        ) : null}
       </View>
       <WorkspacePaneToolbarActions
         panePanelKinds={panePanelKinds}
@@ -1638,7 +1649,7 @@ function ResolvedDesktopTabChip({
 const styles = StyleSheet.create((theme) => ({
   tabsContainer: {
     minWidth: 0,
-    height: isWeb ? 48 : WORKSPACE_SECONDARY_HEADER_HEIGHT,
+    height: WORKSPACE_TAB_ROW_HEIGHT,
     borderBottomWidth: 1,
     borderBottomColor: theme.colors.border,
     backgroundColor: "transparent",
@@ -1648,19 +1659,24 @@ const styles = StyleSheet.create((theme) => ({
   },
   tabsScroll: {
     minWidth: 0,
+    height: "100%",
   },
   tabsScrollContainer: {
     minWidth: 0,
     flex: 1,
     alignSelf: "stretch",
+    position: "relative",
   },
   tabsScrollFitContent: {
     flex: 1,
   },
   tabsScrollOverflow: {
-    flex: 1,
+    flexGrow: 0,
+    flexShrink: 1,
+    flexBasis: "auto",
   },
   tabsContent: {
+    minHeight: "100%",
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: TAB_ROW_PADDING_HORIZONTAL,
@@ -1679,21 +1695,21 @@ const styles = StyleSheet.create((theme) => ({
     paddingHorizontal: theme.spacing[1],
   },
   inlineNewTabButton: {
-    width: buttonControlHeight.xs,
-    height: buttonControlHeight.xs,
+    width: TAB_CHIP_HEIGHT,
+    height: TAB_CHIP_HEIGHT,
   },
   paneSplitActions: {
     paddingHorizontal: PANE_SPLIT_ACTIONS_HORIZONTAL_PADDING,
     marginRight: PANE_SPLIT_ACTIONS_OUTER_MARGIN,
   },
   tab: {
-    height: buttonControlHeight.xs,
+    height: TAB_CHIP_HEIGHT,
     paddingHorizontal: TAB_CHIP_HORIZONTAL_PADDING,
     paddingRight: TAB_CHIP_HORIZONTAL_PADDING + TAB_CLOSE_BUTTON_RESERVED_WIDTH,
-    borderRadius: 15,
+    borderRadius: theme.borderRadius.lg,
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[1],
+    gap: TAB_CONTENT_GAP,
     userSelect: "none",
   },
   tabHovered: {
@@ -1716,10 +1732,13 @@ const styles = StyleSheet.create((theme) => ({
   tabHandle: {
     flexDirection: "row",
     alignItems: "center",
-    gap: theme.spacing[1],
+    gap: TAB_CONTENT_GAP,
     flex: 1,
     minWidth: 0,
     userSelect: "none",
+  },
+  tabHandleTrailingFade: {
+    _web: trailingActionFadeMask(TAB_CHIP_HORIZONTAL_PADDING + TAB_CLOSE_BUTTON_RESERVED_WIDTH),
   },
   tabIcon: {
     width: TAB_ICON_WIDTH,
@@ -1750,7 +1769,7 @@ const styles = StyleSheet.create((theme) => ({
     flexShrink: 1,
     minWidth: 0,
     color: theme.colors.foregroundMuted,
-    fontSize: theme.fontSize.base,
+    fontSize: theme.fontSize.sm,
     fontWeight: theme.fontWeight.normal,
     userSelect: "none",
   },

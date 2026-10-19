@@ -55,7 +55,24 @@ export type KeyboardActionId =
   | "workspace.pin"
   | "view.toggle.focus"
   | "theme.cycle"
-  | "message-input.action";
+  | "message-input.action"
+  | "browser.tab.new"
+  | "browser.tab.reopen"
+  | "browser.page.downloads"
+  | "browser.page.focus-location"
+  | "browser.page.back"
+  | "browser.page.forward"
+  | "browser.page.home"
+  | "browser.page.find"
+  | "browser.page.print"
+  | "browser.page.save"
+  | "browser.page.clear-data"
+  | "browser.page.settings"
+  | "browser.window.new"
+  | "browser.page.zoom-in"
+  | "browser.page.zoom-out"
+  | "browser.page.zoom-reset"
+  | "browser.page.devtools";
 
 export type KeyboardShortcutPayload =
   | { index: number }

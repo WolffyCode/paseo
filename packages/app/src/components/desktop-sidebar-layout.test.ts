@@ -5,9 +5,40 @@ import {
   resolveDesktopAppContentMinimum,
   resolveDesktopSidebarVisibility,
   resolveDesktopSidebarWidth,
+  resolveDesktopAppSidebarState,
 } from "@/components/desktop-sidebar-layout";
 
 describe("desktop sidebar layout", () => {
+  it("keeps the shared workbench navigation visible across activity content requirements", () => {
+    const input = {
+      workbench: true,
+      hasMounted: true,
+      focusMode: false,
+      chromeEnabled: true,
+      compact: false,
+      open: true,
+      contentMinimumWidth: 0,
+      requestedSidebarWidth: 300,
+      viewportWidth: 900,
+    };
+    expect(resolveDesktopAppSidebarState(input)).toEqual({ mounted: true, visible: true });
+    expect(resolveDesktopAppSidebarState({ ...input, contentMinimumWidth: 720 })).toEqual({
+      mounted: true,
+      visible: true,
+    });
+    expect(resolveDesktopAppSidebarState({ ...input, focusMode: true })).toEqual({
+      mounted: true,
+      visible: true,
+    });
+    expect(resolveDesktopAppSidebarState({ ...input, open: false })).toEqual({
+      mounted: true,
+      visible: false,
+    });
+    expect(
+      resolveDesktopAppSidebarState({ ...input, workbench: false, contentMinimumWidth: 720 }),
+    ).toEqual({ mounted: true, visible: false });
+  });
+
   it("keeps a retained sidebar hidden while app chrome is suppressed", () => {
     expect(
       resolveDesktopSidebarVisibility({

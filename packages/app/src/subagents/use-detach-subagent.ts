@@ -1,6 +1,6 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useToast } from "@/contexts/toast-context";
-import { i18n } from "@/i18n/i18next";
 import { useSessionStore } from "@/stores/session-store";
 import { confirmDialog } from "@/utils/confirm-dialog";
 import { toErrorMessage } from "@/utils/error-messages";
@@ -21,6 +21,7 @@ export interface UseDetachSubagentInput {
 export function useDetachSubagent(input: UseDetachSubagentInput): (subagentId: string) => void {
   const { serverId } = input;
   const toast = useToast();
+  const { t } = useTranslation();
 
   return useCallback(
     (subagentId: string) => {
@@ -33,7 +34,7 @@ export function useDetachSubagent(input: UseDetachSubagentInput): (subagentId: s
           detachAgent: async ({ serverId: targetServerId, agentId }) => {
             const client = useSessionStore.getState().sessions[targetServerId]?.client;
             if (!client) {
-              throw new Error(i18n.t("workspaceSetup.errors.hostDisconnected"));
+              throw new Error(t("workspaceSetup.errors.hostDisconnected"));
             }
             await client.detachAgent(agentId);
           },
@@ -43,9 +44,10 @@ export function useDetachSubagent(input: UseDetachSubagentInput): (subagentId: s
           reportError: (error) => {
             toast.error(toErrorMessage(error));
           },
+          t,
         },
       );
     },
-    [serverId, toast],
+    [serverId, t, toast],
   );
 }

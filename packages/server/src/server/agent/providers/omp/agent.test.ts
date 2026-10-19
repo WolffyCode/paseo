@@ -69,6 +69,21 @@ test("OMP import uses the runtime's custom agent directory without a configured 
     expect.objectContaining({ providerHandleId: sessionFile }),
   ]);
 });
+test("OMP resolves the native session path to the session file its handle names", async () => {
+  const client = new OmpAgentClient({ logger: createTestLogger(), runtime: new FakeOmp() });
+
+  await expect(
+    client.resolveNativeSessionPath({
+      provider: "omp",
+      sessionId: "omp-session-1",
+      nativeHandle: "/home/dev/.omp/agent/sessions/project/omp-session-1.jsonl",
+    }),
+  ).resolves.toBe("/home/dev/.omp/agent/sessions/project/omp-session-1.jsonl");
+  await expect(
+    client.resolveNativeSessionPath({ provider: "omp", sessionId: "omp-session-2" }),
+  ).resolves.toBeNull();
+});
+
 test("OMP resumes a session whose model was removed on the model OMP falls back to", async () => {
   const runtime = new FakeOmp();
   runtime.removeModel("9router/deepseek-v4-flash");

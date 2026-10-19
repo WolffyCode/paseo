@@ -65,6 +65,23 @@ const PASSTHROUGH_DISPATCH: Record<string, KeyboardActionDefinition> = {
   "workspace.pane.move-tab.down": { id: "workspace.pane.move-tab.down", scope: "workspace" },
   "workspace.pane.close": { id: "workspace.pane.close", scope: "workspace" },
   "view.toggle.focus": { id: "workspace.focus.toggle", scope: "workspace" },
+  "browser.tab.new": { id: "browser.tab.new", scope: "workspace" },
+  "browser.tab.reopen": { id: "browser.tab.reopen", scope: "workspace" },
+  "browser.page.downloads": { id: "browser.page.downloads", scope: "workspace" },
+  "browser.page.focus-location": { id: "browser.page.focus-location", scope: "workspace" },
+  "browser.page.back": { id: "browser.page.back", scope: "workspace" },
+  "browser.page.forward": { id: "browser.page.forward", scope: "workspace" },
+  "browser.page.home": { id: "browser.page.home", scope: "workspace" },
+  "browser.page.find": { id: "browser.page.find", scope: "workspace" },
+  "browser.page.print": { id: "browser.page.print", scope: "workspace" },
+  "browser.page.save": { id: "browser.page.save", scope: "workspace" },
+  "browser.page.clear-data": { id: "browser.page.clear-data", scope: "workspace" },
+  "browser.page.settings": { id: "browser.page.settings", scope: "workspace" },
+  "browser.window.new": { id: "browser.window.new", scope: "workspace" },
+  "browser.page.zoom-in": { id: "browser.page.zoom-in", scope: "workspace" },
+  "browser.page.zoom-out": { id: "browser.page.zoom-out", scope: "workspace" },
+  "browser.page.zoom-reset": { id: "browser.page.zoom-reset", scope: "workspace" },
+  "browser.page.devtools": { id: "browser.page.devtools", scope: "workspace" },
 };
 
 const SIMPLE_CALLBACKS: Record<string, ShortcutCallbackName> = {

@@ -7,7 +7,6 @@ export type ClientSlashCommandExecution = "immediate" | "insert";
 export interface ClientSlashCommand {
   name: string;
   aliases: readonly string[];
-  description: string;
   descriptionKey: "composer.clientCommands.archiveAgent" | "composer.clientCommands.freshDraft";
   argumentHint: string;
   kind: ClientSlashCommandKind;
@@ -18,7 +17,6 @@ export const CLIENT_SLASH_COMMANDS: readonly ClientSlashCommand[] = [
   {
     name: "exit",
     aliases: ["quit", "q"],
-    description: "Archive the current agent",
     descriptionKey: "composer.clientCommands.archiveAgent",
     argumentHint: "",
     kind: "archive-agent",
@@ -27,7 +25,6 @@ export const CLIENT_SLASH_COMMANDS: readonly ClientSlashCommand[] = [
   {
     name: "clear",
     aliases: ["new"],
-    description: "Archive this agent and start a fresh draft",
     descriptionKey: "composer.clientCommands.freshDraft",
     argumentHint: "",
     kind: "replace-agent-with-draft",

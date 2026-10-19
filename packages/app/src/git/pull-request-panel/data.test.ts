@@ -11,13 +11,7 @@ import {
 } from "@/git/forges/gitlab";
 import { i18n } from "@/i18n/i18next";
 import { IDENTITY_COLOR_NAMES, identityColor } from "@/styles/identity-colors";
-import {
-  deriveAvatarColor,
-  formatAge,
-  getActivityVerbKey,
-  getStateLabelKey,
-  mapPrPaneData,
-} from "./data";
+import { deriveAvatarColor, getActivityVerbKey, getStateLabelKey, mapPrPaneData } from "./data";
 
 type CheckoutPrStatus = NonNullable<CheckoutPrStatusResponse["payload"]["status"]>;
 type PullRequestTimeline = PullRequestTimelineResponse["payload"];
@@ -297,7 +291,6 @@ describe("mapPrPaneData", () => {
           },
         ],
       }),
-      Date.UTC(2026, 0, 1, 12, 0, 0),
     );
 
     expect(data?.activity.map((item) => item.kind)).toEqual(["review", "comment"]);
@@ -329,7 +322,6 @@ describe("mapPrPaneData", () => {
           },
         ],
       }),
-      Date.UTC(2026, 0, 1, 12, 0, 0),
     );
 
     expect(data?.activity).toEqual([
@@ -342,7 +334,7 @@ describe("mapPrPaneData", () => {
         avatarColor: deriveAvatarColor("inline-reviewer"),
         avatarUrl: "https://avatars.githubusercontent.com/u/3?v=4",
         body: "This should include line context.",
-        age: "1h ago",
+        createdAt: Date.UTC(2026, 0, 1, 11, 0, 0),
         url: "https://github.com/getpaseo/paseo/pull/42#discussion_r1",
         location: {
           path: "packages/app/src/git/pull-request-panel/data.ts",
@@ -372,7 +364,6 @@ describe("mapPrPaneData", () => {
           },
         ],
       }),
-      Date.UTC(2026, 0, 1, 12, 0, 0),
       "gitlab",
     );
 
@@ -398,7 +389,6 @@ describe("mapPrPaneData", () => {
           },
         ],
       }),
-      Date.UTC(2026, 0, 1, 12, 0, 0),
       "gitlab",
     );
 
@@ -440,7 +430,6 @@ describe("mapPrPaneData", () => {
           },
         ],
       }),
-      4000,
     );
 
     expect(data?.activity).toMatchObject([
@@ -482,7 +471,6 @@ describe("mapPrPaneData", () => {
           },
         ],
       }),
-      4000,
     );
 
     expect(data?.activity).toMatchObject([
@@ -532,7 +520,6 @@ describe("mapPrPaneData", () => {
     const data = mapPrPaneData(
       status({ projectPath: "group/subgroup/repo" }),
       baseTimeline,
-      undefined,
       "gitlab",
     );
     expect(data?.forge).toBe("gitlab");
@@ -555,7 +542,6 @@ describe("mapPrPaneData", () => {
           },
         ],
       }),
-      2000,
     );
 
     expect(data?.activity).toEqual([]);
@@ -581,7 +567,6 @@ describe("mapPrPaneData", () => {
         forgeSpecific: gitlabFacts,
       }),
       baseTimeline,
-      undefined,
       "gitlab",
     );
 
@@ -615,7 +600,6 @@ describe("mapPrPaneData", () => {
         },
       }),
       baseTimeline,
-      undefined,
       "gitea",
     );
 
@@ -643,7 +627,6 @@ describe("mapPrPaneData", () => {
         },
       }),
       baseTimeline,
-      undefined,
       "forgejo",
     );
 
@@ -688,7 +671,6 @@ describe("mapPrPaneData", () => {
           },
         ],
       }),
-      2000,
       "gitlab",
     );
     expect(data?.provider).toEqual({ id: "gitlab", label: "GitLab" });
@@ -764,19 +746,6 @@ describe("deriveAvatarColor", () => {
 
     expect(palette).toContain(deriveAvatarColor("alice"));
     expect(deriveAvatarColor("Alice")).toBe(deriveAvatarColor("alice"));
-  });
-});
-
-describe("formatAge", () => {
-  it("emits PR pane age labels", () => {
-    const now = Date.UTC(2026, 0, 1, 12, 0, 0);
-
-    expect(formatAge(now - 20_000, now)).toBe("just now");
-    expect(formatAge(now - 5 * 60_000, now)).toBe("5m ago");
-    expect(formatAge(now - 2 * 60 * 60_000, now)).toBe("2h ago");
-    expect(formatAge(now - 3 * 24 * 60 * 60_000, now)).toBe("3d ago");
-    expect(formatAge(now - 90 * 24 * 60 * 60_000, now)).toBe("3mo ago");
-    expect(formatAge(now - 365 * 24 * 60 * 60_000, now)).toBe("1y ago");
   });
 });
 

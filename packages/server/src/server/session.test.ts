@@ -187,6 +187,71 @@ test("legacy cancel_agent_request reports refusal through the activity log", asy
   ]);
 });
 
+test("agent.get_storage_paths.request responds with the record and provider session paths", async () => {
+  const agentId = "11111111-1111-4111-8111-111111111111";
+  const messages: SessionOutboundMessage[] = [];
+  const findNativeSessionPath = vi.fn(async () => "/codex-home/sessions/rollout-thread.jsonl");
+  const getRecordPath = vi.fn(async () => `/paseo-home/agents/project/${agentId}.json`);
+  const session = createSessionForTest({
+    messages,
+    agentManager: { findNativeSessionPath },
+    agentStorage: { getRecordPath },
+  });
+
+  await session.handleMessage({
+    type: "agent.get_storage_paths.request",
+    agentId,
+    requestId: "paths-1",
+  });
+
+  expect(findNativeSessionPath).toHaveBeenCalledWith(agentId);
+  expect(getRecordPath).toHaveBeenCalledWith(agentId);
+  expect(messages).toEqual([
+    {
+      type: "agent.get_storage_paths.response",
+      payload: {
+        requestId: "paths-1",
+        agentId,
+        recordPath: `/paseo-home/agents/project/${agentId}.json`,
+        providerSessionPath: "/codex-home/sessions/rollout-thread.jsonl",
+        error: null,
+      },
+    },
+  ]);
+});
+
+test("agent.get_storage_paths.request reports an unknown agent through its response", async () => {
+  const messages: SessionOutboundMessage[] = [];
+  const session = createSessionForTest({
+    messages,
+    agentManager: {
+      findNativeSessionPath: vi.fn(async () => {
+        throw new Error("Agent not found: missing-agent");
+      }),
+    },
+    agentStorage: { getRecordPath: vi.fn(async () => null) },
+  });
+
+  await session.handleMessage({
+    type: "agent.get_storage_paths.request",
+    agentId: "missing-agent",
+    requestId: "paths-missing",
+  });
+
+  expect(messages).toEqual([
+    {
+      type: "agent.get_storage_paths.response",
+      payload: {
+        requestId: "paths-missing",
+        agentId: "missing-agent",
+        recordPath: null,
+        providerSessionPath: null,
+        error: "Agent not found: missing-agent",
+      },
+    },
+  ]);
+});
+
 const checkoutGitMocks = vi.hoisted(() => ({
   checkoutResolvedBranch: vi.fn(),
   commitChanges: vi.fn(),

@@ -280,16 +280,12 @@ export function CompactModelSheet({
             <ModelIcon size={glyphSize} color={styles.providerIcon.color} />
           </ComposerToolbarGlyph>
         ) : null}
-        <View style={styles.triggerLabels}>
-          <Text style={styles.triggerText} numberOfLines={1}>
-            {shortModelLabel(rootBrowser.triggerLabel)}
-          </Text>
-          {thinkingLabel ? (
-            <Text style={styles.triggerThinking} numberOfLines={1}>
-              {thinkingLabel}
-            </Text>
-          ) : null}
-        </View>
+        {/* One text run truncates from its end, so the thinking level gives up its space before
+            the model name loses a character. Weighted flex shrink still trims the name a little. */}
+        <Text style={styles.triggerText} numberOfLines={1}>
+          {shortModelLabel(rootBrowser.triggerLabel)}
+          {thinkingLabel ? <Text style={styles.triggerThinking}> {thinkingLabel}</Text> : null}
+        </Text>
       </ComboboxTrigger>
 
       <AdaptiveModalSheet
@@ -402,18 +398,8 @@ const styles = StyleSheet.create((theme) => ({
     fontSize: theme.fontSize.base,
     fontWeight: theme.fontWeight.normal,
   },
-  triggerLabels: {
-    minWidth: 0,
-    flexShrink: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[1],
-  },
   triggerThinking: {
-    flexShrink: 0,
     color: theme.colors.foregroundExtraMuted,
-    fontSize: theme.fontSize.base,
-    fontWeight: theme.fontWeight.normal,
   },
   providerIcon: {
     color: theme.colors.foregroundMuted,

@@ -87,6 +87,7 @@ describe("buildBrowserKeyboardPolicy", () => {
         focusScope: "browser",
         isDesktop: true,
         isMac: false,
+        isBrowserFocused: true,
       },
       chordState: { candidateIndices: [chordIndex], step: 1, timeoutId: null },
       onChordReset: () => undefined,
@@ -136,9 +137,10 @@ describe("buildBrowserKeyboardPolicy", () => {
     });
   });
 
-  it("keeps Ctrl+W out of the window menu after the tab-close shortcut is remapped", () => {
+  it("keeps Ctrl+W out of the window menu after the tab-close shortcuts are remapped", () => {
     const bindings = buildEffectiveBindings({
       "workspace-tab-close-current-ctrl-w-non-mac": "Ctrl+Y",
+      "browser-tab-close-ctrl-w-non-mac": "Ctrl+Y",
     });
 
     const policy = buildBrowserKeyboardPolicy({ bindings, isMac: false, isDesktop: true });
@@ -161,20 +163,15 @@ describe("buildBrowserKeyboardPolicy", () => {
     });
   });
 
-  it("leaves macOS browser back and forward shortcuts in the guest", () => {
+  it("sends macOS back and forward keys from the page to the browser window", () => {
     const bindings = buildEffectiveBindings({});
 
     const policy = buildBrowserKeyboardPolicy({ bindings, isMac: true, isDesktop: true });
 
     for (const code of ["BracketLeft", "BracketRight"]) {
-      expect(policy.prefixes).not.toContainEqual({
-        alt: false,
-        code,
-        control: false,
-        key: code === "BracketLeft" ? "[" : "]",
-        meta: true,
-        shift: false,
-      });
+      expect(policy.prefixes).toContainEqual(
+        expect.objectContaining({ alt: false, code, control: false, meta: true, shift: false }),
+      );
     }
   });
 

@@ -11,39 +11,19 @@ import {
   createElement,
 } from "react";
 import { createPortal } from "react-dom";
-import { Pressable, Text, View, type StyleProp, type ViewStyle } from "react-native";
+import { BrowserAddressBar } from "./address-bar.electron";
+import { Image, Pressable, Text, View, type GestureResponderEvent } from "react-native";
 import {
   EditingTextInput as TextInput,
   type EditingTextInputHandle,
 } from "@/components/ui/text-input";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Camera,
-  ChevronDown,
-  Maximize,
-  Monitor,
-  MousePointer2,
-  RotateCw,
-  Smartphone,
-  Tablet,
-  Wrench,
-  X,
-  type LucideIcon,
-} from "lucide-react-native";
+import { Globe, MousePointerClick, X } from "lucide-react-native";
 import { StyleSheet, useUnistyles, withUnistyles } from "react-native-unistyles";
 import { useTranslation } from "react-i18next";
 import * as Clipboard from "expo-clipboard";
 import { Button } from "@/components/ui/button";
-import { useRetainedPanelActive } from "@/components/retained-panel";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useRetainedPanelActive, useRetainedPanelPaint } from "@/components/retained-panel";
 import { useToast } from "@/contexts/toast-context";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   buildWorkspaceAttachmentScopeKey,
   useWorkspaceAttachments,
@@ -51,7 +31,6 @@ import {
 } from "@/attachments/workspace-attachments-store";
 import type { AttachmentMetadata, BrowserElementAttachment } from "@/attachments/types";
 import { persistAttachmentFromDataUrl } from "@/attachments/service";
-import { WORKSPACE_SECONDARY_HEADER_HEIGHT } from "@/constants/layout";
 import { getOverlayRoot } from "@/lib/overlay-root";
 import {
   getDesktopHost,
@@ -59,17 +38,44 @@ import {
   type DesktopBrowserShortcutEvent,
 } from "@/desktop/host";
 import {
-  type BrowserViewport,
-  createFixedBrowserViewport,
   normalizeWorkspaceBrowserUrl,
   RESPONSIVE_BROWSER_VIEWPORT,
   useBrowserStore,
 } from "@/desktop/browser/store";
 import {
+  BROWSER_START_URL,
   isBrowserStartUrl,
   openBrowserStartPage,
   type BrowserNavigationIntent,
+  type BrowserRecentSite,
 } from "@/desktop/browser/start-page";
+import { useBrowserExtensionsStore } from "@/desktop/browser/extensions/store";
+import {
+  BROWSER_DOWNLOADS_URL,
+  BROWSER_EXTENSIONS_URL,
+  BROWSER_SETTINGS_URL,
+  browserInternalPage,
+  internalPageRecord,
+  settingsUrl,
+} from "@/desktop/browser/internal-pages";
+import { CLEAR_BROWSER_DATA_ROUTE } from "@/desktop/browser/chrome-settings/routes";
+import { resolveAddressInput } from "@/desktop/browser/address-input";
+import { ChromeToolbarButton } from "@/desktop/browser/chrome-controls";
+import { ChromeIcon } from "@/desktop/browser/chrome-icons";
+import { CHROME_LAYOUT, chromeColorProps } from "@/desktop/browser/chrome-theme";
+import { CHROME_WEB_STORE_HOME_URL } from "@/desktop/browser/extensions/web-store";
+import {
+  findBrowserOnInternalPage,
+  openBrowserFromPage,
+  reopenClosedBrowser,
+  revealBrowserPage,
+  takeAddressFocusRequest,
+} from "@/desktop/browser/workspace-browsers";
+import { DEFAULT_ZOOM_FACTOR, nextZoomFactor } from "@/desktop/browser/zoom";
+import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
+import { BROWSER_PAGE_DATA_SET } from "@/keyboard/focus-scope";
+import { buildWorkspaceKeyboardHandlerId } from "@/keyboard/handler-id";
+import type { KeyboardActionDefinition } from "@/keyboard/keyboard-action-dispatcher";
 import {
   applyInactiveBrowserWebviewViewport,
   prepareBrowserWebview,
@@ -79,24 +85,66 @@ import {
   removeResidentBrowserWebview,
   takeResidentBrowserWebview,
 } from "../resident-webviews";
+import { useElementBounds } from "../use-element-bounds";
+import { ExtensionInstallPromptDialog } from "../extensions/install-prompt";
+import { BrowserExtensionsToolbar } from "../extensions/toolbar";
+import {
+  homePageAddress,
+  useBrowserToolbarSettingsStore,
+  type BrowserPinnableAction,
+} from "../toolbar/settings";
+import { chooseFromPinMenu } from "../toolbar/actions";
+import { BrowserDownloadsPage } from "../downloads/downloads-page.electron";
+import { BrowserPinnedActionsToolbar } from "../toolbar/pinned-actions-toolbar.electron";
+import { BrowserSidePanelLayout } from "../side-panel/layout.electron";
+import { useBrowserSidePanelStore, type CustomizeChromePage } from "../side-panel/store";
+import { CustomizeChromeContent } from "../customize/customize-chrome.electron";
+import { ChromeImportDialog } from "../import/import-dialog.electron";
+import { menuAnchorBelow } from "../menu-anchor.electron";
+import { ChromeToast, useChromeToasts } from "../chrome-toast.electron";
+import {
+  middleClickDisposition,
+  pressDisposition,
+  type BrowserClickDisposition,
+} from "../click-disposition";
+import { BrowserExtensionsPage } from "../extensions/extensions-page";
+import type { BrowserAppMenuChoice, BrowserCommand } from "./app-menu";
+import { BrowserAppMenu } from "./browser-app-menu.electron";
+import { QrCodeBubble } from "../qr-code/qr-code-bubble.electron";
+import { deviceSizeIdForViewport, viewportForDeviceSize, type DeviceSizeId } from "./device-sizes";
+import { BrowserFindBar } from "./find-bar.electron";
+import { historyMenuItems, type HistoryMenuDirection } from "./history-menu";
+import { chooseFromPageTools } from "./page-tools";
+import { BrowserDialogHostProvider } from "./dialog-host";
 import {
   createElementSelectorController,
   type BrowserElementSelection,
   type ElementSelectorOutcome,
 } from "./element-selector.electron";
+import { PRODUCT_NAME } from "@/constants/product";
 
 type ElectronWebview = HTMLElement & {
   canGoBack?: () => boolean;
   canGoForward?: () => boolean;
   goBack?: () => void;
   goForward?: () => void;
+  goToIndex?: (index: number) => void;
   reload?: () => void;
   stop?: () => void;
   loadURL?: (url: string) => Promise<void>;
   getURL?: () => string;
+  getTitle?: () => string;
   isLoading?: () => boolean;
   executeJavaScript?: (code: string) => Promise<unknown>;
   focus?: () => void;
+  print?: () => void;
+  findInPage?: (text: string, options?: { forward?: boolean; findNext?: boolean }) => number;
+  stopFindInPage?: (action: "clearSelection" | "keepSelection" | "activateSelection") => void;
+  getZoomFactor?: () => number;
+  setZoomFactor?: (factor: number) => void;
+  cut?: () => void;
+  copy?: () => void;
+  paste?: () => void;
   addEventListener: (type: string, listener: EventListenerOrEventListenerObject) => void;
   removeEventListener: (type: string, listener: EventListenerOrEventListenerObject) => void;
 };
@@ -105,64 +153,31 @@ interface BrowserElementAnnotation {
   comment: string;
 }
 
-type DeviceSizeId =
-  | "responsive"
-  | "iphone-se"
-  | "iphone-14"
-  | "iphone-14-pro-max"
-  | "pixel-7"
-  | "galaxy-s20"
-  | "ipad-mini"
-  | "ipad-air"
-  | "ipad-pro-11"
-  | "ipad-pro-12"
-  | "surface-pro"
-  | "laptop"
-  | "desktop-1080"
-  | "desktop-1440";
-
-interface DeviceSizePreset {
-  id: DeviceSizeId;
-  /** Display name (not translated — device names are proper nouns). */
-  name: string;
-  /** Fixed CSS width, or null for "fill the available area". */
-  width: number | null;
-  height: number | null;
-  icon: LucideIcon;
-}
-
-// Viewport presets for the in-app browser. "responsive" fills the pane; the
-// others render a fixed-size, centered frame so the user can preview how a page
-// behaves at common device sizes. Content is centered (not left-aligned).
-const DEVICE_SIZE_PRESETS: readonly DeviceSizePreset[] = [
-  { id: "responsive", name: "Responsive", width: null, height: null, icon: Maximize },
-  { id: "iphone-se", name: "iPhone SE", width: 375, height: 667, icon: Smartphone },
-  { id: "iphone-14", name: "iPhone 14", width: 390, height: 844, icon: Smartphone },
-  { id: "iphone-14-pro-max", name: "iPhone 14 Pro Max", width: 430, height: 932, icon: Smartphone },
-  { id: "pixel-7", name: "Pixel 7", width: 412, height: 915, icon: Smartphone },
-  { id: "galaxy-s20", name: "Galaxy S20", width: 360, height: 800, icon: Smartphone },
-  { id: "ipad-mini", name: "iPad Mini", width: 768, height: 1024, icon: Tablet },
-  { id: "ipad-air", name: "iPad Air", width: 820, height: 1180, icon: Tablet },
-  { id: "ipad-pro-11", name: 'iPad Pro 11"', width: 834, height: 1194, icon: Tablet },
-  { id: "ipad-pro-12", name: 'iPad Pro 12.9"', width: 1024, height: 1366, icon: Tablet },
-  { id: "surface-pro", name: "Surface Pro", width: 912, height: 1368, icon: Tablet },
-  { id: "laptop", name: "Laptop", width: 1366, height: 768, icon: Monitor },
-  { id: "desktop-1080", name: "Desktop 1080p", width: 1920, height: 1080, icon: Monitor },
-  { id: "desktop-1440", name: "Desktop 1440p", width: 2560, height: 1440, icon: Monitor },
-];
-
-const RESPONSIVE_DEVICE_LABEL_KEY = "workspace.browser.devices.responsive";
-
-function formatDevicePresetLabel(preset: DeviceSizePreset, responsiveLabel: string): string {
-  const name = preset.id === "responsive" ? responsiveLabel : preset.name;
-  if (preset.width && preset.height) {
-    return `${name} · ${preset.width}×${preset.height}`;
-  }
-  return name;
-}
-
 const ERR_ABORTED = -3;
-const ALLOWED_BROWSER_PROTOCOLS = new Set(["http:", "https:"]);
+// chrome-extension: pages are extension pages a tab can show (options, the new tab page), and
+// view-source: shows a page's source.
+const ALLOWED_BROWSER_PROTOCOLS = new Set(["http:", "https:", "chrome-extension:", "view-source:"]);
+
+function isSameDocument(left: string, right: string): boolean {
+  try {
+    const leftUrl = new URL(left);
+    const rightUrl = new URL(right);
+    return leftUrl.origin === rightUrl.origin && leftUrl.pathname === rightUrl.pathname;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * The tab's own address for what its guest shows. An extension's new tab page is the new tab
+ * page, as in Chrome: the address bar stays empty and the visit stays out of history.
+ */
+function pageUrlForGuestUrl(guestUrl: string, newTabUrl: string | null): string {
+  if (newTabUrl && isSameDocument(guestUrl, newTabUrl)) {
+    return BROWSER_START_URL;
+  }
+  return normalizeWorkspaceBrowserUrl(guestUrl);
+}
 
 function truncateText(value: string, maxLength: number): string {
   return value.length > maxLength ? `${value.slice(0, maxLength).trim()}...` : value;
@@ -189,22 +204,6 @@ function getWebviewLoadErrorMessage(event: Event, failedToLoadLabel: string): st
       : null;
 
   return url ? `${description}: ${url}` : description;
-}
-
-function getLoadUrlRejectionMessage(error: unknown, failedToLoadLabel: string): string | null {
-  if (error instanceof Error && error.message.trim()) {
-    if (error.message.includes("ERR_ABORTED") || error.message.includes("ERR_BLOCKED_BY_CLIENT")) {
-      return null;
-    }
-    return error.message.trim();
-  }
-  if (typeof error === "string" && error.trim()) {
-    if (error.includes("ERR_ABORTED") || error.includes("ERR_BLOCKED_BY_CLIENT")) {
-      return null;
-    }
-    return error.trim();
-  }
-  return failedToLoadLabel;
 }
 
 function getUnsafeNavigationMessage(
@@ -409,22 +408,24 @@ function clearAnnotationMarkers(webview: ElectronWebview): void {
   ).catch(ignoreWebviewJavaScriptError);
 }
 
-function getTextInputNativeElement(
-  current: EditingTextInputHandle | null,
-): HTMLInputElement | null {
-  const native = current?.getNativeRef();
-  return native instanceof HTMLInputElement ? native : null;
+const START_PAGE_CONTENT_WIDTH = 560;
+
+function siteLabel(url: string): string {
+  try {
+    return new URL(url).host || url;
+  } catch {
+    return url;
+  }
 }
 
-function isBrowserShortcutKey(event: KeyboardEvent, key: "l" | "r"): boolean {
+function isReloadShortcutKey(event: KeyboardEvent): boolean {
   if (event.altKey || event.shiftKey) {
     return false;
   }
   if (!event.metaKey && !event.ctrlKey) {
     return false;
   }
-  const eventKey = event.key.toLowerCase();
-  return eventKey === key || event.code === `Key${key.toUpperCase()}`;
+  return event.key.toLowerCase() === "r" || event.code === "KeyR";
 }
 
 function isDesktopBrowserShortcutEvent(payload: unknown): payload is DesktopBrowserShortcutEvent {
@@ -435,149 +436,124 @@ function isDesktopBrowserShortcutEvent(payload: unknown): payload is DesktopBrow
   return event.action === "focus-url";
 }
 
-function ToolbarButton({
-  label,
-  children,
-  active,
-  disabled,
-  onPress,
-  style,
+function BrowserStartPage({
+  browserId,
+  recentSites,
+  onOpenSite,
 }: {
-  label: string;
-  children: ReactNode;
-  active?: boolean;
-  disabled?: boolean;
-  onPress: () => void;
-  style: (state: { hovered?: boolean; pressed?: boolean }) => StyleProp<ViewStyle>;
-}) {
-  const accessibilityState = useMemo(
-    () => ({ disabled: Boolean(disabled), selected: Boolean(active) }),
-    [active, disabled],
-  );
-  return (
-    <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile={false}>
-      <TooltipTrigger asChild disabled={disabled}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={label}
-          accessibilityState={accessibilityState}
-          disabled={disabled}
-          onPress={onPress}
-          style={style}
-        >
-          {children}
-        </Pressable>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" align="center" offset={8}>
-        <Text style={styles.toolbarTooltipText}>{label}</Text>
-      </TooltipContent>
-    </Tooltip>
-  );
-}
-
-// Lucide icons themed via withUnistyles so their color stays theme-reactive
-// without a banned useUnistyles() call.
-const ThemedMaximize = withUnistyles(Maximize);
-const ThemedSmartphone = withUnistyles(Smartphone);
-const ThemedTablet = withUnistyles(Tablet);
-const ThemedMonitor = withUnistyles(Monitor);
-const ThemedChevronDown = withUnistyles(ChevronDown);
-const deviceMutedIconMapping = (theme: { colors: { foregroundMuted: string } }) => ({
-  color: theme.colors.foregroundMuted,
-});
-
-function resolveThemedDeviceIcon(icon: LucideIcon): typeof ThemedMaximize {
-  if (icon === Smartphone) return ThemedSmartphone;
-  if (icon === Tablet) return ThemedTablet;
-  if (icon === Monitor) return ThemedMonitor;
-  return ThemedMaximize;
-}
-
-function DeviceSizeMenuItem({
-  preset,
-  selected,
-  label,
-  onSelect,
-}: {
-  preset: DeviceSizePreset;
-  selected: boolean;
-  label: string;
-  onSelect: (id: DeviceSizeId) => void;
-}) {
-  const ThemedIcon = resolveThemedDeviceIcon(preset.icon);
-  const handleSelect = useCallback(() => {
-    onSelect(preset.id);
-  }, [onSelect, preset.id]);
-  const leading = useMemo(
-    () => <ThemedIcon size={16} uniProps={deviceMutedIconMapping} />,
-    [ThemedIcon],
-  );
-  return (
-    <DropdownMenuItem
-      onSelect={handleSelect}
-      selected={selected}
-      showSelectedCheck
-      leading={leading}
-    >
-      {label}
-    </DropdownMenuItem>
-  );
-}
-
-function DeviceSizeMenu({
-  selectedId,
-  onSelect,
-  triggerStyle,
-}: {
-  selectedId: DeviceSizeId | null;
-  onSelect: (id: DeviceSizeId) => void;
-  triggerStyle: (state: { hovered?: boolean; pressed?: boolean }) => StyleProp<ViewStyle>;
+  browserId: string;
+  recentSites: readonly BrowserRecentSite[];
+  onOpenSite: (url: string) => void;
 }) {
   const { t } = useTranslation();
-  const selectedPreset =
-    DEVICE_SIZE_PRESETS.find((preset) => preset.id === selectedId) ?? DEVICE_SIZE_PRESETS[0];
-  const SelectedIcon = resolveThemedDeviceIcon(selectedPreset.icon);
-  const label = t("workspace.browser.devices.label");
+  const { theme } = useUnistyles();
+  const sectionStyle = useMemo(
+    () => [styles.startSectionLabel, { color: theme.colors.foregroundMuted }],
+    [theme.colors.foregroundMuted],
+  );
+
   return (
-    <DropdownMenu>
-      <Tooltip delayDuration={0} enabledOnDesktop enabledOnMobile={false}>
-        <TooltipTrigger asChild>
-          <DropdownMenuTrigger accessibilityLabel={label} style={triggerStyle}>
-            <View style={styles.deviceTrigger}>
-              <SelectedIcon size={16} uniProps={deviceMutedIconMapping} />
-              <ThemedChevronDown size={12} uniProps={deviceMutedIconMapping} />
-            </View>
-          </DropdownMenuTrigger>
-        </TooltipTrigger>
-        <TooltipContent side="bottom" align="center" offset={8}>
-          <Text style={styles.toolbarTooltipText}>{label}</Text>
-        </TooltipContent>
-      </Tooltip>
-      <DropdownMenuContent align="end" scrollable maxHeight={360}>
-        {DEVICE_SIZE_PRESETS.map((preset) => (
-          <DeviceSizeMenuItem
-            key={preset.id}
-            preset={preset}
-            selected={preset.id === selectedId}
-            label={formatDevicePresetLabel(preset, t(RESPONSIVE_DEVICE_LABEL_KEY))}
-            onSelect={onSelect}
-          />
-        ))}
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <View style={styles.startPage} testID={`browser-start-${browserId}`}>
+      {recentSites.length > 0 ? (
+        <View style={styles.startContent}>
+          <Text style={sectionStyle}>{t("workspace.browser.start.recommendations")}</Text>
+          <View style={styles.startSites}>
+            {recentSites.map((site) => (
+              <RecentSiteButton key={site.url} site={site} onPress={onOpenSite} />
+            ))}
+          </View>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
-function deviceSizeIdForViewport(viewport: BrowserViewport): DeviceSizeId | null {
-  if (viewport.mode === "responsive") {
-    return "responsive";
-  }
+function RecentSiteButton({
+  site,
+  onPress,
+}: {
+  site: BrowserRecentSite;
+  onPress: (url: string) => void;
+}) {
+  const { theme } = useUnistyles();
+  const label = site.title.trim() || siteLabel(site.url);
+  const handlePress = useCallback(() => onPress(site.url), [onPress, site.url]);
+  const iconSource = useMemo(
+    () => (site.faviconUrl ? { uri: site.faviconUrl } : undefined),
+    [site.faviconUrl],
+  );
+  const buttonStyle = useCallback(
+    ({ hovered, pressed }: { hovered?: boolean; pressed?: boolean }) => [
+      styles.startSite,
+      (hovered || pressed) && styles.startSiteHovered,
+    ],
+    [],
+  );
+  const labelStyle = useMemo(
+    () => [styles.startSiteLabel, { color: theme.colors.foregroundMuted }],
+    [theme.colors.foregroundMuted],
+  );
+  const icon = iconSource ? (
+    <Image accessibilityIgnoresInvertColors source={iconSource} style={styles.startSiteIcon} />
+  ) : (
+    <Globe size={28} color={theme.colors.foregroundMuted} />
+  );
   return (
-    DEVICE_SIZE_PRESETS.find(
-      (preset) => preset.width === viewport.width && preset.height === viewport.height,
-    )?.id ?? null
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      onPress={handlePress}
+      style={buttonStyle}
+    >
+      {icon}
+      <Text numberOfLines={1} style={labelStyle}>
+        {label}
+      </Text>
+    </Pressable>
   );
 }
+
+// Chrome's page shortcuts, and the command each one runs.
+const PAGE_SHORTCUT_COMMANDS = {
+  "browser.tab.new": "newTab",
+  "browser.tab.reopen": "reopenClosedTab",
+  "browser.page.downloads": "showDownloads",
+  "browser.page.focus-location": "focusLocation",
+  "browser.page.back": "back",
+  "browser.page.forward": "forward",
+  "browser.page.home": "home",
+  "browser.page.find": "find",
+  "browser.page.print": "print",
+  "browser.page.save": "savePage",
+  "browser.page.clear-data": "clearBrowsingData",
+  "browser.page.settings": "showSettings",
+  "browser.window.new": "newWindow",
+  "browser.page.zoom-in": "zoomIn",
+  "browser.page.zoom-out": "zoomOut",
+  "browser.page.zoom-reset": "zoomReset",
+  "browser.page.devtools": "devTools",
+} as const satisfies Record<string, BrowserCommand>;
+type PageShortcutAction = keyof typeof PAGE_SHORTCUT_COMMANDS;
+const BROWSER_PAGE_ACTIONS = Object.keys(PAGE_SHORTCUT_COMMANDS) as PageShortcutAction[];
+
+// The ⋮ menu's zoom row buttons and the step each takes.
+const MENU_ZOOM_DIRECTIONS: Partial<Record<BrowserCommand, 1 | -1>> = {
+  zoomIn: 1,
+  zoomOut: -1,
+};
+
+function elementOf(view: View | null): HTMLElement | null {
+  const node: unknown = view;
+  return node instanceof HTMLElement ? node : null;
+}
+
+// The command each pinned toolbar button runs (browser_actions.cc).
+const PINNED_ACTION_COMMANDS = {
+  kActionShowDownloads: "showDownloads",
+  kActionPrint: "print",
+  kActionCopyUrl: "copyLink",
+  kActionDevTools: "devTools",
+} as const satisfies Record<BrowserPinnableAction, BrowserCommand>;
 
 function rememberResolvedBrowserWebviewSize(browserId: string, webview: HTMLElement): void {
   const bounds = webview.getBoundingClientRect();
@@ -603,14 +579,29 @@ export function BrowserPane({
   const { theme } = useUnistyles();
   const { t } = useTranslation();
   const browser = useBrowserStore((state) => state.browsersById[browserId] ?? null);
+  const browserHistory = useBrowserStore((state) => state.history);
   const [startPage] = useState(() =>
-    openBrowserStartPage({ browserId, url: browser?.url ?? "paseo://start" }),
+    openBrowserStartPage({ browserId, url: browser?.url ?? BROWSER_START_URL }),
   );
   const startSnapshot = useSyncExternalStore(
     startPage.subscribe,
     startPage.getSnapshot,
     startPage.getSnapshot,
   );
+  const newTabUrl = useBrowserExtensionsStore((state) => state.newTabUrl);
+  const showHomeButton = useBrowserToolbarSettingsStore((state) => state.showHomeButton);
+  const showForwardButton = useBrowserToolbarSettingsStore((state) => state.showForwardButton);
+  const customizeChromePanel = useBrowserSidePanelStore(
+    (state) => state.customizeChromeByBrowserId[browserId] ?? null,
+  );
+  const newTabUrlRef = useRef(newTabUrl);
+  newTabUrlRef.current = newTabUrl;
+  // An extension's new tab page is a guest page; Helm's own start page is not.
+  const showStartPage = startSnapshot.phase === "start" && newTabUrl === null;
+  const internalPage = browserInternalPage(browser?.url ?? "");
+  // Helm draws its start page and its own pages itself; only web pages have a guest.
+  const drawsOwnPage = showStartPage || internalPage !== null;
+  useRetainedPanelPaint(!drawsOwnPage);
   const pendingRequestIdRef = useRef<number | null>(null);
   const updateBrowser = useBrowserStore((state) => state.updateBrowser);
   const setBrowserViewport = useBrowserStore((state) => state.setBrowserViewport);
@@ -624,7 +615,6 @@ export function BrowserPane({
   const webviewHostRef = useRef<HTMLDivElement | null>(null);
   const webviewClipRef = useRef<HTMLElement | null>(null);
   const urlInputRef = useRef<EditingTextInputHandle | null>(null);
-  const initialUrlRef = useRef(browser?.url ?? "https://example.com");
   const browserIdRef = useRef(browserId);
   browserIdRef.current = browserId;
   const browserRef = useRef(browser);
@@ -642,11 +632,22 @@ export function BrowserPane({
   const toast = useToast();
   const toastRef = useRef(toast);
   toastRef.current = toast;
+  // Chrome's toasts belong to the tab: a switch away or a new document closes them.
+  const {
+    shown: shownChromeToast,
+    showToast: showChromeToast,
+    closeToast: closeChromeToast,
+    handleExited: handleChromeToastExited,
+  } = useChromeToasts();
+  useEffect(() => {
+    if (!isPresented) {
+      closeChromeToast();
+    }
+  }, [closeChromeToast, isPresented]);
   const [pendingSelection, setPendingSelection] = useState<BrowserElementSelection | null>(null);
   // Screenshot is captured at selection time (overlay already torn down, no
   // scroll drift) and reused when the annotation card is submitted.
   const pendingScreenshotRef = useRef<AttachmentMetadata | undefined>(undefined);
-  const [draftUrl, setDraftUrl] = useState(browser?.url ?? "https://example.com");
   const workspaceAttachmentScopeKey = useMemo(
     () => buildBrowserAttachmentScopeKey({ cwd, serverId, workspaceId }),
     [cwd, serverId, workspaceId],
@@ -662,16 +663,6 @@ export function BrowserPane({
   const subtitleStyle = useMemo(
     () => [styles.unavailableSubtitle, { color: theme.colors.foregroundMuted }],
     [theme.colors.foregroundMuted],
-  );
-  const urlInputStyle = useMemo(
-    () => [
-      styles.urlInput,
-      {
-        color: theme.colors.foreground,
-        outlineStyle: "none",
-      } as object,
-    ],
-    [theme.colors.foreground],
   );
   const errorTextStyle = useMemo(
     () => [styles.metaError, { color: theme.colors.palette.red[500] }],
@@ -690,52 +681,67 @@ export function BrowserPane({
   browserErrorLabelsRef.current = browserErrorLabels;
 
   useEffect(() => {
-    const nextUrl = browser?.url ?? "https://example.com";
-    urlInputRef.current?.replaceText(nextUrl);
-    setDraftUrl((current) => (current === nextUrl ? current : nextUrl));
-  }, [browser?.url]);
+    startPage.setHistory(browserHistory);
+  }, [browserHistory, startPage]);
 
   const updateBrowserRef = useRef(updateBrowser);
   updateBrowserRef.current = updateBrowser;
 
-  const selectUrlBar = useCallback(() => {
-    window.setTimeout(() => {
-      getTextInputNativeElement(urlInputRef.current)?.select();
-    }, 0);
-  }, []);
-
-  const handleUrlBarFocus = useCallback(() => {
-    selectUrlBar();
-  }, [selectUrlBar]);
-
   const focusUrlBar = useCallback(() => {
-    urlInputRef.current?.focus();
-    selectUrlBar();
-  }, [selectUrlBar]);
-
-  const syncNavigationState = useCallback((input?: { syncUrl?: boolean }) => {
-    const webview = webviewRef.current;
-    if (!webview) {
-      return;
-    }
-
-    try {
-      const currentUrl = webview.getURL?.() ?? webview.getAttribute("src") ?? "";
-      const patch = {
-        canGoBack: webview.canGoBack?.() ?? false,
-        canGoForward: webview.canGoForward?.() ?? false,
-        ...(input?.syncUrl === false
-          ? {}
-          : { url: normalizeWorkspaceBrowserUrl(pendingNavigationUrlRef.current ?? currentUrl) }),
-      };
-      updateBrowserRef.current(browserIdRef.current, patch);
-    } catch {
-      // webview not yet attached
-    }
+    const input = urlInputRef.current;
+    if (!input) return;
+    input.focus();
+    const text = input.getText();
+    input.replaceText(text, { start: 0, end: text.length });
   }, []);
+
+  // A new tab starts with the cursor in its address bar, as in Chrome.
+  useEffect(() => {
+    if (takeAddressFocusRequest(browserId)) focusUrlBar();
+  }, [browserId, focusUrlBar]);
+
+  const syncNavigationState = useCallback(
+    (input?: { syncUrl?: boolean }) => {
+      const webview = webviewRef.current;
+      if (!webview) {
+        return;
+      }
+
+      try {
+        const currentUrl = webview.getURL?.() ?? webview.getAttribute("src") ?? "";
+        const observedUrl = pendingNavigationUrlRef.current ?? currentUrl;
+        // A guest between documents reports an empty URL. That says nothing about the page,
+        // and normalizing it would turn a loaded page back into the new tab page.
+        const isUrlObserved = input?.syncUrl !== false && observedUrl.length > 0;
+        const patch = {
+          canGoBack: webview.canGoBack?.() ?? false,
+          canGoForward: webview.canGoForward?.() ?? false,
+          isLoading: webview.isLoading?.() ?? false,
+          ...(isUrlObserved ? { url: pageUrlForGuestUrl(observedUrl, newTabUrlRef.current) } : {}),
+        };
+        updateBrowserRef.current(browserIdRef.current, patch);
+        startPage.observeNavigation({
+          ...patch,
+          requestId: pendingRequestIdRef.current ?? undefined,
+        });
+      } catch {
+        // webview not yet attached
+      }
+    },
+    [startPage],
+  );
+
+  // A page Helm draws has no guest. One left from before (an extension's new tab page that went
+  // away, the web page a tab left for an internal page) would otherwise return stale on the next
+  // load.
+  useEffect(() => {
+    if (drawsOwnPage) {
+      removeResidentBrowserWebview(browserId);
+    }
+  }, [browserId, drawsOwnPage]);
 
   useEffect(() => {
-    if (!isElectronRuntime() || isBrowserStartUrl(initialUrlRef.current)) {
+    if (!isElectronRuntime() || drawsOwnPage) {
       return;
     }
 
@@ -745,10 +751,12 @@ export function BrowserPane({
       return;
     }
 
-    host.replaceChildren();
-
+    // The start page has no guest. Read the submitted address when its host mounts.
+    const pageUrl = browserRef.current?.url ?? BROWSER_START_URL;
+    const initialUrl =
+      isBrowserStartUrl(pageUrl) && newTabUrlRef.current ? newTabUrlRef.current : pageUrl;
     const initialUnsafeNavigationMessage = getUnsafeNavigationMessage(
-      initialUrlRef.current,
+      initialUrl,
       browserErrorLabelsRef.current,
     );
     const residentWebview = takeResidentBrowserWebview(browserId) as ElectronWebview | null;
@@ -758,31 +766,17 @@ export function BrowserPane({
       prepareBrowserWebview(webview, {
         browserId,
         workspaceId,
-        initialUrl: initialUnsafeNavigationMessage ? "about:blank" : initialUrlRef.current,
+        initialUrl: initialUnsafeNavigationMessage ? "about:blank" : initialUrl,
       });
     }
-    releaseResidentBrowserWebview(browserId, webview);
-    if (isPresentedRef.current) {
-      presentBrowserWebview(browserId, webview, host, clip, browserViewportRef.current);
-    } else {
-      applyInactiveBrowserWebviewViewport(browserId, webview, browserViewportRef.current);
-    }
-    const sizeObserver =
-      typeof ResizeObserver === "undefined"
-        ? null
-        : new ResizeObserver(() => {
-            if (!isPresentedRef.current) {
-              return;
-            }
-            presentBrowserWebview(
-              browserIdRef.current,
-              webview,
-              host,
-              clip,
-              browserViewportRef.current,
-            );
-            rememberResolvedBrowserWebviewSize(browserIdRef.current, webview);
-          });
+    presentBrowserWebview(
+      browserId,
+      webview,
+      host,
+      clip,
+      browserViewportRef.current,
+      isPresentedRef.current,
+    );
 
     const handleStartLoading = () => {
       selectorControllerRef.current?.stopForWebview(webview);
@@ -790,31 +784,39 @@ export function BrowserPane({
       syncNavigationState({ syncUrl: false });
     };
     const handleStopLoading = () => {
+      // A navigation that stopped without committing, such as a download, left the page where
+      // it was; the address shows that page again, as Chrome's omnibox reverts.
+      pendingNavigationUrlRef.current = null;
       updateBrowser(browserId, { isLoading: false });
       syncNavigationState();
     };
-    const handleNavigate = (event: Event) => {
+    const commitNavigation = (event: Event, isNewDocument: boolean) => {
       const nextUrl =
         typeof (event as Event & { url?: unknown }).url === "string"
           ? ((event as Event & { url?: string }).url ?? "")
           : (webview.getURL?.() ?? webview.getAttribute("src") ?? "");
-      const normalized = normalizeWorkspaceBrowserUrl(nextUrl);
-      const previousUrl = browserRef.current?.url ?? initialUrlRef.current;
       pendingNavigationUrlRef.current = null;
+      if (!nextUrl) {
+        syncNavigationState({ syncUrl: false });
+        return;
+      }
+      const normalized = pageUrlForGuestUrl(nextUrl, newTabUrlRef.current);
+      // A new document brings its own favicon and, until it names itself, the title the guest
+      // reports; Chrome's tab keeps the old ones until then. The same document keeps both.
       updateBrowser(browserIdRef.current, {
         url: normalized,
-        ...(normalized !== previousUrl ? { faviconUrl: null } : {}),
+        ...(isNewDocument ? { title: webview.getTitle?.() ?? "", faviconUrl: null } : {}),
         lastError: null,
       });
-      startPage.observeNavigation({
-        requestId: pendingRequestIdRef.current ?? undefined,
-        url: normalized,
-        isLoading: false,
-      });
-      setDraftUrl((current) => {
-        return current === normalized ? current : normalized;
-      });
+      useBrowserStore.getState().recordVisit(browserIdRef.current);
       syncNavigationState();
+    };
+    const handleNavigate = (event: Event) => {
+      closeChromeToast();
+      commitNavigation(event, true);
+    };
+    const handleNavigateInPage = (event: Event) => {
+      commitNavigation(event, false);
     };
     const handleWillNavigate = (event: Event) => {
       const nextUrl =
@@ -824,14 +826,9 @@ export function BrowserPane({
       if (!nextUrl) {
         return;
       }
-      const normalized = normalizeWorkspaceBrowserUrl(nextUrl);
+      const normalized = pageUrlForGuestUrl(nextUrl, newTabUrlRef.current);
       pendingNavigationUrlRef.current = normalized;
-      updateBrowserRef.current(browserIdRef.current, {
-        url: normalized,
-        ...(normalized !== browserRef.current?.url ? { faviconUrl: null } : {}),
-        lastError: null,
-      });
-      setDraftUrl((current) => (current === normalized ? current : normalized));
+      updateBrowserRef.current(browserIdRef.current, { url: normalized, lastError: null });
     };
     const handleTitleUpdated = (event: Event) => {
       const title =
@@ -855,6 +852,7 @@ export function BrowserPane({
         isLoading: false,
         lastError: message,
       });
+      startPage.observeNavigation({ isLoading: false });
     };
     const handleDomReady = () => {
       syncNavigationState();
@@ -880,7 +878,7 @@ export function BrowserPane({
     webview.addEventListener("did-stop-loading", handleStopLoading);
     webview.addEventListener("will-navigate", handleWillNavigate);
     webview.addEventListener("did-navigate", handleNavigate);
-    webview.addEventListener("did-navigate-in-page", handleNavigate);
+    webview.addEventListener("did-navigate-in-page", handleNavigateInPage);
     webview.addEventListener("page-title-updated", handleTitleUpdated);
     webview.addEventListener("page-favicon-updated", handleFaviconUpdated);
     webview.addEventListener("did-fail-load", handleLoadFailed);
@@ -891,8 +889,6 @@ export function BrowserPane({
     if (isPresentedRef.current) {
       rememberResolvedBrowserWebviewSize(browserId, webview);
     }
-    sizeObserver?.observe(host);
-    sizeObserver?.observe(clip);
     if (initialUnsafeNavigationMessage) {
       updateBrowserRef.current(browserIdRef.current, {
         isLoading: false,
@@ -901,12 +897,11 @@ export function BrowserPane({
     }
 
     return () => {
-      sizeObserver?.disconnect();
       webview.removeEventListener("did-start-loading", handleStartLoading);
       webview.removeEventListener("did-stop-loading", handleStopLoading);
       webview.removeEventListener("will-navigate", handleWillNavigate);
       webview.removeEventListener("did-navigate", handleNavigate);
-      webview.removeEventListener("did-navigate-in-page", handleNavigate);
+      webview.removeEventListener("did-navigate-in-page", handleNavigateInPage);
       webview.removeEventListener("page-title-updated", handleTitleUpdated);
       webview.removeEventListener("page-favicon-updated", handleFaviconUpdated);
       webview.removeEventListener("did-fail-load", handleLoadFailed);
@@ -927,15 +922,15 @@ export function BrowserPane({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [browserId, onFocusPane]);
+  }, [browserId, closeChromeToast, onFocusPane, drawsOwnPage]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const webview = webviewRef.current;
     if (!webview) {
       return;
     }
     if (!isPresented) {
-      releaseResidentBrowserWebview(browserId, webview);
+      applyInactiveBrowserWebviewViewport(browserId, webview, browserViewport);
       return;
     }
     const host = webviewHostRef.current;
@@ -956,43 +951,60 @@ export function BrowserPane({
 
   const navigate = useCallback(
     (nextUrl: string) => {
-      const normalizedUrl = normalizeWorkspaceBrowserUrl(nextUrl);
+      const normalizedUrl = resolveAddressInput(nextUrl);
+      // The new tab page has no address of its own. An extension's new tab page loads in the
+      // guest under the start address; without one Helm draws its start page, like its own pages.
+      const extensionNewTabUrl = newTabUrlRef.current;
+      const isNewTabPage = isBrowserStartUrl(normalizedUrl);
+      if (browserInternalPage(normalizedUrl) || (isNewTabPage && !extensionNewTabUrl)) {
+        pendingNavigationUrlRef.current = null;
+        const pageRecord = internalPageRecord(normalizedUrl);
+        updateBrowserRef.current(browserIdRef.current, pageRecord);
+        startPage.observeNavigation({
+          ...pageRecord,
+          requestId: pendingRequestIdRef.current ?? undefined,
+        });
+        return;
+      }
+      const guestUrl = isNewTabPage && extensionNewTabUrl ? extensionNewTabUrl : normalizedUrl;
       const webview = webviewRef.current;
-      const unsafeNavigationMessage = getUnsafeNavigationMessage(normalizedUrl, browserErrorLabels);
-      const previousUrl = browserRef.current?.url ?? initialUrlRef.current;
+      const unsafeNavigationMessage = getUnsafeNavigationMessage(guestUrl, browserErrorLabels);
       pendingNavigationUrlRef.current = unsafeNavigationMessage ? null : normalizedUrl;
       updateBrowserRef.current(browserIdRef.current, {
         url: normalizedUrl,
         isLoading: unsafeNavigationMessage === null,
-        ...(normalizedUrl !== previousUrl ? { faviconUrl: null } : {}),
         lastError: null,
       });
-      setDraftUrl((current) => (current === normalizedUrl ? current : normalizedUrl));
       if (unsafeNavigationMessage) {
         updateBrowserRef.current(browserIdRef.current, {
           isLoading: false,
           lastError: unsafeNavigationMessage,
         });
+        startPage.observeNavigation({ isLoading: false });
         return;
       }
       if (webview?.loadURL) {
-        void webview.loadURL(normalizedUrl).catch((error: unknown) => {
-          const message = getLoadUrlRejectionMessage(error, browserErrorLabels.failedToLoad);
-          if (!message) {
+        void webview.loadURL(guestUrl).catch(() => {
+          // A load that really failed reported itself through did-fail-load first. One that
+          // didn't was given up: it turned into a download, or another navigation replaced it.
+          // Chrome then keeps the page and its address as they were.
+          const failedLoad =
+            useBrowserStore.getState().browsersById[browserIdRef.current]?.lastError;
+          if (failedLoad) {
             return;
           }
-          updateBrowserRef.current(browserIdRef.current, {
-            isLoading: false,
-            lastError: message,
-          });
+          pendingNavigationUrlRef.current = null;
+          syncNavigationState();
+          startPage.observeNavigation({ isLoading: false });
+          startPage.cancelAddressEditing();
         });
         return;
       }
       if (webview) {
-        webview.setAttribute("src", normalizedUrl);
+        webview.setAttribute("src", guestUrl);
       }
     },
-    [browserErrorLabels],
+    [browserErrorLabels, startPage, syncNavigationState],
   );
 
   const applyNavigationIntent = useCallback(
@@ -1019,10 +1031,139 @@ export function BrowserPane({
     applyNavigationIntent(startPage.goForward());
   }, [applyNavigationIntent, startPage]);
 
+  const backButtonRef = useRef<View | null>(null);
+  const forwardButtonRef = useRef<View | null>(null);
+  // Chrome's back and forward buttons list the tab's history on a long press or a right-click.
+  const showHistoryMenu = useCallback(
+    async (direction: HistoryMenuDirection, anchor: View | null) => {
+      const desktopHost = getDesktopHost();
+      const history = await desktopHost?.browser?.getNavigationHistory?.(browserIdRef.current);
+      const popup = desktopHost?.menu?.popup;
+      if (!history || !popup) {
+        return;
+      }
+      const items = historyMenuItems(history, direction);
+      if (items.length === 0) {
+        return;
+      }
+      const chosen = await popup({ items, ...menuAnchorBelow(anchor) });
+      if (chosen !== null) {
+        webviewRef.current?.goToIndex?.(Number(chosen));
+      }
+    },
+    [],
+  );
+  const showBackMenu = useCallback(() => {
+    void showHistoryMenu("back", backButtonRef.current);
+  }, [showHistoryMenu]);
+  const showForwardMenu = useCallback(() => {
+    void showHistoryMenu("forward", forwardButtonRef.current);
+  }, [showHistoryMenu]);
+  const handleBackContextMenu = useCallback(
+    (event: MouseEvent) => {
+      event.preventDefault();
+      showBackMenu();
+    },
+    [showBackMenu],
+  );
+  const handleForwardContextMenu = useCallback(
+    (event: MouseEvent) => {
+      event.preventDefault();
+      showForwardMenu();
+    },
+    [showForwardMenu],
+  );
+
+  const openHome = useCallback(
+    (disposition: BrowserClickDisposition) => {
+      // Chrome navigates nowhere for an Alt-click on 首页.
+      if (disposition === "saveToDisk") {
+        return;
+      }
+      const homeAddress = homePageAddress(useBrowserToolbarSettingsStore.getState().homePage);
+      if (disposition === "currentTab") {
+        navigate(homeAddress ?? BROWSER_START_URL);
+        return;
+      }
+      openBrowserFromPage({
+        sourceBrowserId: browserIdRef.current,
+        url: homeAddress,
+        isActive: disposition === "newForegroundTab",
+      });
+    },
+    [navigate],
+  );
+  const handleHome = useCallback(() => {
+    openHome("currentTab");
+  }, [openHome]);
+  const handleHomePress = useCallback(
+    (event: GestureResponderEvent) => {
+      openHome(pressDisposition(event));
+    },
+    [openHome],
+  );
+  const handleHomeMiddleClick = useCallback(
+    (event: MouseEvent) => {
+      openHome(middleClickDisposition(event));
+    },
+    [openHome],
+  );
+
+  // Customize Chrome lives in this tab's side panel; Chrome opens one per tab.
+  const showCustomizeChrome = useCallback((page: CustomizeChromePage) => {
+    useBrowserSidePanelStore.getState().showCustomizeChrome(browserIdRef.current, page);
+  }, []);
+  const closeSidePanel = useCallback(() => {
+    useBrowserSidePanelStore.getState().closeSidePanel(browserIdRef.current);
+  }, []);
+  const customizeToolbar = useCallback(() => {
+    showCustomizeChrome("toolbar");
+  }, [showCustomizeChrome]);
+
+  // 首页 is pinned by its pref, so its menu offers 取消固定; a press and hold opens it too.
+  const homeButtonRef = useRef<View | null>(null);
+  const [isHomeMenuOpen, setIsHomeMenuOpen] = useState(false);
+  const showHomeMenu = useCallback(async () => {
+    setIsHomeMenuOpen(true);
+    const choice = await chooseFromPinMenu({
+      t,
+      isPinned: true,
+      isPinnable: true,
+      anchor: menuAnchorBelow(homeButtonRef.current),
+    });
+    setIsHomeMenuOpen(false);
+    if (choice === "unpin") {
+      useBrowserToolbarSettingsStore.getState().setShowHomeButton(false);
+    }
+    if (choice === "customizeToolbar") {
+      customizeToolbar();
+    }
+  }, [customizeToolbar, t]);
+  const handleHomeLongPress = useCallback(() => {
+    void showHomeMenu();
+  }, [showHomeMenu]);
+  const handleHomeContextMenu = useCallback(
+    (event: MouseEvent) => {
+      event.preventDefault();
+      void showHomeMenu();
+    },
+    [showHomeMenu],
+  );
+
+  const copyPageLink = useCallback(() => {
+    const pageUrl = browserRef.current?.url;
+    if (!pageUrl) {
+      return;
+    }
+    void Clipboard.setStringAsync(pageUrl);
+    showChromeToast();
+  }, [showChromeToast]);
+
   const handleRefresh = useCallback(() => {
     if (browser?.isLoading) {
       webviewRef.current?.stop?.();
       updateBrowser(browserId, { isLoading: false });
+      startPage.observeNavigation({ isLoading: false });
       return;
     }
     applyNavigationIntent(startPage.reload());
@@ -1033,27 +1174,22 @@ export function BrowserPane({
       return;
     }
 
+    // ⌘L is the browser.page.focus-location binding, which applies only while focus is in the browser.
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (isBrowserShortcutKey(event, "l")) {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        focusUrlBar();
+      if (!isReloadShortcutKey(event)) {
         return;
       }
-      if (isBrowserShortcutKey(event, "r")) {
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        handleRefresh();
-      }
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      handleRefresh();
     };
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => {
       window.removeEventListener("keydown", handleKeyDown, true);
     };
-  }, [focusUrlBar, handleRefresh, isInteractive]);
+  }, [handleRefresh, isInteractive]);
 
   useEffect(() => {
     if (!isElectronRuntime()) {
@@ -1084,9 +1220,15 @@ export function BrowserPane({
     };
   }, [focusUrlBar, isInteractive]);
 
-  const handleNavigateDraftUrl = useCallback(() => {
-    applyNavigationIntent(startPage.submitDraft());
-  }, [applyNavigationIntent, startPage]);
+  // Loads an address in this tab the way the address bar does, so the bar shows it.
+  const openUrlInTab = useCallback(
+    (url: string) => {
+      startPage.editDraft(url);
+      const intent = startPage.submitDraft();
+      applyNavigationIntent(intent);
+    },
+    [applyNavigationIntent, startPage],
+  );
 
   const addElementAttachment = useCallback(
     (
@@ -1360,46 +1502,6 @@ export function BrowserPane({
       });
   }, []);
 
-  const baseIconButtonStyle = useCallback(
-    ({ hovered, pressed }: { hovered?: boolean; pressed?: boolean }) => [
-      styles.iconButton,
-      (hovered || pressed) && styles.iconButtonHovered,
-    ],
-    [],
-  );
-  const backIconButtonStyle = useCallback(
-    ({ hovered, pressed }: { hovered?: boolean; pressed?: boolean }) => [
-      styles.iconButton,
-      (hovered || pressed) && styles.iconButtonHovered,
-      !browser?.canGoBack && styles.iconButtonDisabled,
-    ],
-    [browser?.canGoBack],
-  );
-  const forwardIconButtonStyle = useCallback(
-    ({ hovered, pressed }: { hovered?: boolean; pressed?: boolean }) => [
-      styles.iconButton,
-      (hovered || pressed) && styles.iconButtonHovered,
-      !browser?.canGoForward && styles.iconButtonDisabled,
-    ],
-    [browser?.canGoForward],
-  );
-  const annotateIconButtonStyle = useCallback(
-    ({ hovered, pressed }: { hovered?: boolean; pressed?: boolean }) => [
-      styles.iconButton,
-      selectorMode === "annotate" && styles.selectorActiveButton,
-      (hovered || pressed) && styles.iconButtonHovered,
-    ],
-    [selectorMode],
-  );
-  const screenshotIconButtonStyle = useCallback(
-    ({ hovered, pressed }: { hovered?: boolean; pressed?: boolean }) => [
-      styles.iconButton,
-      selectorMode === "screenshot" && styles.selectorActiveButton,
-      (hovered || pressed) && styles.iconButtonHovered,
-    ],
-    [selectorMode],
-  );
-
   const selectedDeviceSizeId = useMemo(
     () => deviceSizeIdForViewport(browserViewport),
     [browserViewport],
@@ -1408,18 +1510,217 @@ export function BrowserPane({
 
   const handleSelectDeviceSize = useCallback(
     (deviceSizeId: DeviceSizeId) => {
-      const preset =
-        DEVICE_SIZE_PRESETS.find((candidate) => candidate.id === deviceSizeId) ??
-        DEVICE_SIZE_PRESETS[0];
-      setBrowserViewport(
-        browserId,
-        preset.width === null || preset.height === null
-          ? RESPONSIVE_BROWSER_VIEWPORT
-          : createFixedBrowserViewport(preset.width, preset.height),
-      );
+      setBrowserViewport(browserId, viewportForDeviceSize(deviceSizeId));
     },
     [browserId, setBrowserViewport],
   );
+
+  // Chrome opens its import dialog over the Settings page; this browser has none, so over the tab.
+  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
+  const openImportDialog = useCallback(() => setIsImportDialogOpen(true), []);
+  const closeImportDialog = useCallback(() => setIsImportDialogOpen(false), []);
+
+  // Chrome's find bar belongs to the tab and remembers the last search when it reopens.
+  const [isFindBarOpen, setIsFindBarOpen] = useState(false);
+  const lastFindQueryRef = useRef("");
+  const rememberFindQuery = useCallback((query: string) => {
+    lastFindQueryRef.current = query;
+  }, []);
+  const openFindBar = useCallback(() => {
+    if (webviewRef.current) setIsFindBarOpen(true);
+  }, []);
+  const closeFindBar = useCallback(() => setIsFindBarOpen(false), []);
+  // A page Helm draws has nothing to find in.
+  useEffect(() => {
+    if (drawsOwnPage) setIsFindBarOpen(false);
+  }, [drawsOwnPage]);
+
+  // Returns the factor it set, so the ⋮ menu's zoom row can show it without reading it back.
+  const zoomPage = useCallback((direction: 1 | -1 | 0): number | null => {
+    const webview = webviewRef.current;
+    if (!webview?.getZoomFactor || !webview.setZoomFactor) {
+      return null;
+    }
+    const nextFactor =
+      direction === 0 ? DEFAULT_ZOOM_FACTOR : nextZoomFactor(webview.getZoomFactor(), direction);
+    webview.setZoomFactor(nextFactor);
+    return nextFactor;
+  }, []);
+
+  // Chrome's full-screen button fills the screen with the browser window; here that is Helm's.
+  const toggleWindowFullscreen = useCallback(() => {
+    const currentWindow = getDesktopHost()?.window?.getCurrentWindow?.();
+    const setFullscreen = currentWindow?.setFullscreen;
+    if (!currentWindow?.isFullscreen || !setFullscreen) {
+      return;
+    }
+    void currentWindow.isFullscreen().then((isFullscreen) => setFullscreen(!isFullscreen));
+  }, []);
+  const [isQrCodeOpen, setIsQrCodeOpen] = useState(false);
+  const closeQrCode = useCallback(() => setIsQrCodeOpen(false), []);
+
+  const openInNewTab = useCallback((url: string) => {
+    openBrowserFromPage({ sourceBrowserId: browserIdRef.current, url, isActive: true });
+  }, []);
+  const isOnNewTabPage = startSnapshot.phase === "start";
+  // Chrome's ShowSingletonTabOverwritingNTP: the window's tab already on that page is selected
+  // and sent there, a new tab page is used in place, and only otherwise does a tab open.
+  const showSingletonPage = useCallback(
+    (url: string) => {
+      const existingBrowserId = findBrowserOnInternalPage({
+        sourceBrowserId: browserIdRef.current,
+        url,
+      });
+      if (existingBrowserId) {
+        updateBrowser(existingBrowserId, internalPageRecord(url));
+        revealBrowserPage(existingBrowserId);
+        return;
+      }
+      if (isOnNewTabPage) {
+        navigate(url);
+        return;
+      }
+      openInNewTab(url);
+    },
+    [isOnNewTabPage, navigate, openInNewTab, updateBrowser],
+  );
+  // What each of Chrome's commands does on this page; the ⋮ menu and the shortcuts share it.
+  const browserCommands = useMemo<Record<BrowserCommand, () => void>>(
+    () => ({
+      // Chrome's new tab opens right after the current one; here that is the next column-3 tab.
+      newTab: () =>
+        openBrowserFromPage({ sourceBrowserId: browserIdRef.current, url: null, isActive: true }),
+      newWindow: () => void getDesktopHost()?.window?.openNew?.(),
+      reopenClosedTab: () => reopenClosedBrowser({ sourceBrowserId: browserIdRef.current }),
+      showDownloads: () => showSingletonPage(BROWSER_DOWNLOADS_URL),
+      focusLocation: focusUrlBar,
+      back: handleBack,
+      forward: handleForward,
+      home: handleHome,
+      importSettings: openImportDialog,
+      manageExtensions: () => showSingletonPage(BROWSER_EXTENSIONS_URL),
+      visitWebStore: () => openInNewTab(CHROME_WEB_STORE_HOME_URL),
+      zoomIn: () => zoomPage(1),
+      zoomOut: () => zoomPage(-1),
+      zoomReset: () => zoomPage(0),
+      fullscreen: toggleWindowFullscreen,
+      print: () => webviewRef.current?.print?.(),
+      savePage: () => void getDesktopHost()?.browser?.savePage?.(browserIdRef.current),
+      copyLink: copyPageLink,
+      createQrCode: () => setIsQrCodeOpen(true),
+      customizeChrome: () => showCustomizeChrome("overview"),
+      find: openFindBar,
+      cut: () => webviewRef.current?.cut?.(),
+      copy: () => webviewRef.current?.copy?.(),
+      paste: () => webviewRef.current?.paste?.(),
+      devTools: handleOpenDevTools,
+      clearBrowsingData: () => showSingletonPage(settingsUrl(CLEAR_BROWSER_DATA_ROUTE)),
+      showSettings: () => showSingletonPage(BROWSER_SETTINGS_URL),
+    }),
+    [
+      copyPageLink,
+      focusUrlBar,
+      handleBack,
+      handleForward,
+      handleHome,
+      handleOpenDevTools,
+      openImportDialog,
+      openFindBar,
+      openInNewTab,
+      showCustomizeChrome,
+      showSingletonPage,
+      toggleWindowFullscreen,
+      zoomPage,
+    ],
+  );
+  const runPinnedAction = useCallback(
+    (action: BrowserPinnableAction) => {
+      browserCommands[PINNED_ACTION_COMMANDS[action]]();
+    },
+    [browserCommands],
+  );
+  const runAppMenuChoice = useCallback(
+    (choice: BrowserAppMenuChoice) => {
+      if (choice.kind === "command") {
+        browserCommands[choice.command]();
+        return;
+      }
+      reopenClosedBrowser({
+        sourceBrowserId: browserIdRef.current,
+        closedIndex: choice.closedIndex,
+      });
+    },
+    [browserCommands],
+  );
+
+  const appMenuButtonRef = useRef<View | null>(null);
+  const pageToolsButtonRef = useRef<View | null>(null);
+  // The page's zoom while the ⋮ menu is open, null while it is closed.
+  const [appMenuZoomFactor, setAppMenuZoomFactor] = useState<number | null>(null);
+  const closeAppMenu = useCallback(() => setAppMenuZoomFactor(null), []);
+  const handleAppMenuChoice = useCallback(
+    (choice: BrowserAppMenuChoice): boolean => {
+      const zoomDirection =
+        choice.kind === "command" ? MENU_ZOOM_DIRECTIONS[choice.command] : undefined;
+      if (zoomDirection === undefined) {
+        runAppMenuChoice(choice);
+        return false;
+      }
+      // Chrome's − and + leave the menu open to show the new percentage.
+      const factor = zoomPage(zoomDirection);
+      if (factor !== null) setAppMenuZoomFactor(factor);
+      return true;
+    },
+    [runAppMenuChoice, zoomPage],
+  );
+  const showPageTools = useCallback(async () => {
+    const choice = await chooseFromPageTools({
+      t,
+      selectorMode,
+      deviceSizeId: selectedDeviceSizeId,
+      anchor: menuAnchorBelow(pageToolsButtonRef.current),
+    });
+    if (choice?.kind === "annotate") handleToggleElementSelector();
+    if (choice?.kind === "screenshot") handleToggleScreenshot();
+    if (choice?.kind === "device") handleSelectDeviceSize(choice.deviceSizeId);
+  }, [
+    handleSelectDeviceSize,
+    handleToggleElementSelector,
+    handleToggleScreenshot,
+    selectedDeviceSizeId,
+    selectorMode,
+    t,
+  ]);
+  const handleAppMenuPress = useCallback(() => {
+    setAppMenuZoomFactor(webviewRef.current?.getZoomFactor?.() ?? DEFAULT_ZOOM_FACTOR);
+  }, []);
+  const handlePageToolsPress = useCallback(() => {
+    void showPageTools();
+  }, [showPageTools]);
+
+  const handlePageShortcut = useCallback(
+    (action: KeyboardActionDefinition): boolean => {
+      const command = PAGE_SHORTCUT_COMMANDS[action.id as PageShortcutAction];
+      if (!command) {
+        return false;
+      }
+      browserCommands[command]();
+      return true;
+    },
+    [browserCommands],
+  );
+  useKeyboardActionHandler({
+    handlerId: buildWorkspaceKeyboardHandlerId({
+      name: "browser-page",
+      serverId,
+      workspaceId,
+      paneId: browserId,
+    }),
+    actions: BROWSER_PAGE_ACTIONS,
+    enabled: Boolean(isInteractive),
+    priority: 100,
+    handle: handlePageShortcut,
+  });
 
   const webviewHostStyle = useMemo<CSSProperties>(
     () =>
@@ -1430,6 +1731,8 @@ export function BrowserPane({
             width: "100%",
             height: "100%",
             minHeight: 0,
+            minWidth: 0,
+            overflow: "hidden",
             background: theme.colors.surface0,
           }
         : {
@@ -1437,7 +1740,10 @@ export function BrowserPane({
             display: "flex",
             width: browserViewport.width,
             height: browserViewport.height,
+            flexShrink: 0,
             minHeight: 0,
+            minWidth: 0,
+            overflow: "hidden",
             background: theme.colors.surface0,
             boxShadow: "0 2px 16px rgba(0,0,0,0.25)",
           },
@@ -1456,6 +1762,24 @@ export function BrowserPane({
   const setWebviewClipNode = useCallback((node: unknown) => {
     webviewClipRef.current = node instanceof HTMLElement ? node : null;
   }, []);
+  // The page area below the toolbar; Chrome centers a page's dialogs over it.
+  const [contentElement, setContentElement] = useState<HTMLElement | null>(null);
+  const customizeChromeTitle = t("workspace.browser.customizeChrome.title", {
+    product: PRODUCT_NAME,
+  });
+  const sidePanel = useMemo(() => {
+    if (!customizeChromePanel) {
+      return null;
+    }
+    return {
+      title: customizeChromeTitle,
+      isOpen: customizeChromePanel.isOpen,
+      onClose: closeSidePanel,
+      content: (
+        <CustomizeChromeContent page={customizeChromePanel.page} onShowPage={showCustomizeChrome} />
+      ),
+    };
+  }, [closeSidePanel, customizeChromePanel, customizeChromeTitle, showCustomizeChrome]);
 
   if (!isElectronRuntime()) {
     return (
@@ -1466,132 +1790,224 @@ export function BrowserPane({
     );
   }
 
+  let pageContent: ReactNode;
+  if (internalPage === "downloads") {
+    pageContent = <BrowserDownloadsPage isPresented={isPresented} />;
+  } else if (internalPage === "extensions") {
+    pageContent = (
+      <BrowserExtensionsPage
+        browserId={browserId}
+        url={browser?.url ?? ""}
+        onNavigate={openUrlInTab}
+      />
+    );
+  } else if (showStartPage) {
+    pageContent = (
+      <BrowserStartPage
+        browserId={browserId}
+        recentSites={startSnapshot.recentSites}
+        onOpenSite={openUrlInTab}
+      />
+    );
+  } else {
+    pageContent = (
+      <View
+        ref={setWebviewClipNode}
+        style={webviewWrapStyle}
+        testID={`browser-webview-clip-${browserId}`}
+      >
+        {createElement("div", {
+          ref: setWebviewHostNode,
+          style: webviewHostStyle,
+        })}
+        {pendingSelection ? (
+          <BrowserElementAnnotationCard
+            anchor={webviewClipRef.current}
+            selection={pendingSelection}
+            onSubmit={submitAnnotation}
+            onCancel={cancelAnnotation}
+          />
+        ) : null}
+      </View>
+    );
+  }
+
   return (
-    <View style={styles.container}>
-      <View style={styles.chromeRow}>
-        <View style={styles.chromeLeft}>
-          <ToolbarButton
+    <BrowserDialogHostProvider value={contentElement}>
+      <View dataSet={BROWSER_PAGE_DATA_SET} style={styles.container}>
+        <View style={styles.toolbar}>
+          <ChromeToolbarButton
+            ref={backButtonRef}
             label={t("workspace.browser.controls.back")}
-            disabled={!startSnapshot.canGoBack}
+            tooltip={t("workspace.browser.controls.backTooltip")}
+            isDisabled={!startSnapshot.canGoBack}
             onPress={handleBack}
-            style={backIconButtonStyle}
+            onLongPress={showBackMenu}
+            onContextMenu={handleBackContextMenu}
+            testID="browser-back"
           >
-            <ArrowLeft size={16} color={theme.colors.foregroundMuted} />
-          </ToolbarButton>
-          <ToolbarButton
-            label={t("workspace.browser.controls.forward")}
-            disabled={!startSnapshot.canGoForward}
-            onPress={handleForward}
-            style={forwardIconButtonStyle}
-          >
-            <ArrowRight size={16} color={theme.colors.foregroundMuted} />
-          </ToolbarButton>
-          <ToolbarButton
-            label={
+            <ThemedChromeIcon
+              name="back"
+              size={CHROME_LAYOUT.toolbarIconSize}
+              uniProps={startSnapshot.canGoBack ? toolbarIconMapping : toolbarDisabledIconMapping}
+            />
+          </ChromeToolbarButton>
+          {showForwardButton ? (
+            <ChromeToolbarButton
+              ref={forwardButtonRef}
+              label={t("workspace.browser.controls.forward")}
+              tooltip={t("workspace.browser.controls.forwardTooltip")}
+              isDisabled={!startSnapshot.canGoForward}
+              onPress={handleForward}
+              onLongPress={showForwardMenu}
+              onContextMenu={handleForwardContextMenu}
+              testID="browser-forward"
+            >
+              <ThemedChromeIcon
+                name="forward"
+                size={CHROME_LAYOUT.toolbarIconSize}
+                uniProps={
+                  startSnapshot.canGoForward ? toolbarIconMapping : toolbarDisabledIconMapping
+                }
+              />
+            </ChromeToolbarButton>
+          ) : null}
+          <ChromeToolbarButton
+            label={t("workspace.browser.controls.reload")}
+            tooltip={
               browser?.isLoading
-                ? t("workspace.browser.controls.stopLoading")
-                : t("workspace.browser.controls.refresh")
+                ? t("workspace.browser.controls.stopTooltip")
+                : t("workspace.browser.controls.reloadTooltip")
             }
             onPress={handleRefresh}
-            style={baseIconButtonStyle}
+            testID="browser-reload"
           >
-            <RotateCw size={16} color={theme.colors.foregroundMuted} />
-          </ToolbarButton>
-        </View>
-        <View style={styles.urlBarWrap}>
-          <TextInput
-            accessibilityLabel={t("workspace.browser.controls.browserUrl")}
-            autoCapitalize="none"
-            autoCorrect={false}
-            onChangeText={startPage.editDraft}
-            onFocus={handleUrlBarFocus}
-            onSubmitEditing={handleNavigateDraftUrl}
-            placeholder={t("workspace.browser.controls.enterUrl")}
-            placeholderTextColor={theme.colors.foregroundMuted}
-            ref={urlInputRef}
-            style={urlInputStyle}
-            initialValue={startSnapshot.draft}
-          />
-        </View>
-        <View style={styles.chromeRight}>
-          <DeviceSizeMenu
-            selectedId={selectedDeviceSizeId}
-            onSelect={handleSelectDeviceSize}
-            triggerStyle={baseIconButtonStyle}
-          />
-          <ToolbarButton
-            label={t("workspace.browser.controls.openDevTools")}
-            onPress={handleOpenDevTools}
-            style={baseIconButtonStyle}
-          >
-            <Wrench size={16} color={theme.colors.foregroundMuted} />
-          </ToolbarButton>
-          <ToolbarButton
-            label={
-              selectorMode === "annotate"
-                ? t("workspace.browser.controls.cancelSelector")
-                : t("workspace.browser.controls.annotateElement")
-            }
-            active={selectorMode === "annotate"}
-            onPress={handleToggleElementSelector}
-            style={annotateIconButtonStyle}
-          >
-            <MousePointer2
-              size={16}
-              color={
-                selectorMode === "annotate" ? theme.colors.accent : theme.colors.foregroundMuted
-              }
+            <ThemedChromeIcon
+              name={browser?.isLoading ? "stop" : "reload"}
+              size={CHROME_LAYOUT.toolbarIconSize}
+              uniProps={toolbarIconMapping}
             />
-          </ToolbarButton>
-          <ToolbarButton
-            label={
-              selectorMode === "screenshot"
-                ? t("workspace.browser.controls.cancelSelector")
-                : t("workspace.browser.controls.screenshotElement")
-            }
-            active={selectorMode === "screenshot"}
-            onPress={handleToggleScreenshot}
-            style={screenshotIconButtonStyle}
-          >
-            <Camera
-              size={16}
-              color={
-                selectorMode === "screenshot" ? theme.colors.accent : theme.colors.foregroundMuted
-              }
-            />
-          </ToolbarButton>
-        </View>
-      </View>
-      {browser?.lastError ? (
-        <View style={styles.errorRow}>
-          <Text numberOfLines={1} style={errorTextStyle}>
-            {browser.lastError}
-          </Text>
-        </View>
-      ) : null}
-      {startSnapshot.phase === "start" ? (
-        <View style={styles.webviewWrap} testID={`browser-start-${browserId}`} />
-      ) : (
-        <View
-          ref={setWebviewClipNode}
-          style={webviewWrapStyle}
-          testID={`browser-webview-clip-${browserId}`}
-        >
-          {createElement("div", {
-            ref: setWebviewHostNode,
-            style: webviewHostStyle,
-          })}
-          {pendingSelection ? (
-            <BrowserElementAnnotationCard
-              anchor={webviewClipRef.current}
-              selection={pendingSelection}
-              onSubmit={submitAnnotation}
-              onCancel={cancelAnnotation}
-            />
+          </ChromeToolbarButton>
+          {showHomeButton ? (
+            <ChromeToolbarButton
+              ref={homeButtonRef}
+              label={t("workspace.browser.controls.home")}
+              tooltip={t("workspace.browser.controls.homeTooltip")}
+              isActive={isHomeMenuOpen}
+              onPress={handleHomePress}
+              onLongPress={handleHomeLongPress}
+              onContextMenu={handleHomeContextMenu}
+              onMiddleClick={handleHomeMiddleClick}
+              testID="browser-home"
+            >
+              <ThemedChromeIcon
+                name="home"
+                size={CHROME_LAYOUT.toolbarIconSize}
+                uniProps={toolbarIconMapping}
+              />
+            </ChromeToolbarButton>
           ) : null}
+          <View style={styles.omnibox}>
+            <BrowserAddressBar
+              page={startPage}
+              snapshot={startSnapshot}
+              inputRef={urlInputRef}
+              isPresented={isPresented}
+              onNavigate={applyNavigationIntent}
+            />
+          </View>
+          <BrowserExtensionsToolbar
+            browserId={browserId}
+            onShowExtensionsPage={showSingletonPage}
+          />
+          <BrowserPinnedActionsToolbar
+            browserId={browserId}
+            isPresented={isPresented}
+            page={contentElement}
+            onShowDownloadsPage={browserCommands.showDownloads}
+            isCustomizeChromeOpen={customizeChromePanel?.isOpen ?? false}
+            onRunAction={runPinnedAction}
+            onToggleCustomizeChrome={closeSidePanel}
+            onCustomizeToolbar={customizeToolbar}
+          />
+          <ChromeToolbarButton
+            ref={pageToolsButtonRef}
+            label={t("workspace.browser.controls.tools", { product: PRODUCT_NAME })}
+            isActive={selectorMode !== null}
+            onPress={handlePageToolsPress}
+            testID="browser-page-tools"
+          >
+            <ThemedPageToolsIcon
+              size={CHROME_LAYOUT.toolbarIconSize}
+              uniProps={toolbarIconMapping}
+            />
+          </ChromeToolbarButton>
+          <ChromeToolbarButton
+            ref={appMenuButtonRef}
+            label={t("workspace.browser.appMenu.button", { product: PRODUCT_NAME })}
+            isActive={appMenuZoomFactor !== null}
+            onPress={handleAppMenuPress}
+            testID="browser-app-menu"
+          >
+            <ThemedChromeIcon
+              name="appMenu"
+              size={CHROME_LAYOUT.toolbarIconSize}
+              uniProps={toolbarIconMapping}
+            />
+          </ChromeToolbarButton>
         </View>
-      )}
-    </View>
+        {browser?.lastError ? (
+          <View style={styles.errorRow}>
+            <Text numberOfLines={1} style={errorTextStyle}>
+              {browser.lastError}
+            </Text>
+          </View>
+        ) : null}
+        <BrowserSidePanelLayout panel={sidePanel} onPageElement={setContentElement}>
+          {pageContent}
+        </BrowserSidePanelLayout>
+        {isPresented ? <ExtensionInstallPromptDialog browserId={browserId} /> : null}
+        {isPresented && appMenuZoomFactor !== null ? (
+          <BrowserAppMenu
+            anchor={elementOf(appMenuButtonRef.current)}
+            zoomFactor={appMenuZoomFactor}
+            onChoice={handleAppMenuChoice}
+            onClose={closeAppMenu}
+          />
+        ) : null}
+        {isPresented && isQrCodeOpen && browser?.url ? (
+          <QrCodeBubble
+            anchor={elementOf(appMenuButtonRef.current)}
+            browserId={browserId}
+            url={browser.url}
+            onClose={closeQrCode}
+          />
+        ) : null}
+        {isPresented && isImportDialogOpen ? (
+          <ChromeImportDialog onClose={closeImportDialog} />
+        ) : null}
+        {shownChromeToast ? (
+          <ChromeToast
+            key={shownChromeToast.id}
+            toast={shownChromeToast}
+            icon="copyLink"
+            text={t("workspace.browser.toolbarActions.linkCopied")}
+            page={contentElement}
+            isHidden={startSnapshot.addressFocused}
+            onTimeout={closeChromeToast}
+            onExited={handleChromeToastExited}
+          />
+        ) : null}
+        {isPresented && isFindBarOpen ? (
+          <BrowserFindBar
+            webview={webviewRef.current}
+            initialQuery={lastFindQueryRef.current}
+            onQueryChange={rememberFindQuery}
+            onClose={closeFindBar}
+          />
+        ) : null}
+      </View>
+    </BrowserDialogHostProvider>
   );
 }
 
@@ -1686,31 +2102,10 @@ function BrowserElementAnnotationCard({
   );
 }
 
-function useElementBounds(element: HTMLElement | null): ViewStyle | null {
-  const [bounds, setBounds] = useState<ViewStyle | null>(null);
-
-  useLayoutEffect(() => {
-    if (!element) {
-      setBounds(null);
-      return;
-    }
-    const update = () => {
-      const rect = element.getBoundingClientRect();
-      setBounds({ left: rect.left, top: rect.top, width: rect.width, height: rect.height });
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(element);
-    window.addEventListener("resize", update);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", update);
-    };
-  }, [element]);
-
-  return bounds;
-}
-
+const ThemedChromeIcon = withUnistyles(ChromeIcon);
+const ThemedPageToolsIcon = withUnistyles(MousePointerClick);
+const toolbarIconMapping = chromeColorProps("toolbarIcon");
+const toolbarDisabledIconMapping = chromeColorProps("toolbarIconDisabled");
 const ThemedCloseIcon = withUnistyles(X);
 const ThemedAnnotationInput = withUnistyles(TextInput);
 const iconForegroundMutedMapping = (theme: { colors: { foregroundMuted: string } }) => ({
@@ -1726,68 +2121,64 @@ const styles = StyleSheet.create((theme) => ({
     minHeight: 0,
     backgroundColor: theme.colors.surface0,
   },
-  chromeRow: {
-    height: WORKSPACE_SECONDARY_HEADER_HEIGHT,
+  // Chrome's toolbar (layout_constants.cc): 46 tall, 34 dip buttons 2 apart, 6 at the edges,
+  // 9 between a button and the omnibox. The page area below draws the separator line.
+  toolbar: {
+    height: CHROME_LAYOUT.toolbarHeight,
     flexDirection: "row",
+    alignItems: "center",
+    gap: CHROME_LAYOUT.toolbarButtonSpacing,
+    paddingHorizontal: CHROME_LAYOUT.toolbarEdgePadding,
+    backgroundColor: theme.chrome.toolbar,
+  },
+  omnibox: {
+    flex: 1,
+    minWidth: 0,
+    marginHorizontal: CHROME_LAYOUT.locationBarMargin - CHROME_LAYOUT.toolbarButtonSpacing,
+  },
+  startPage: {
+    flex: 1,
+    minHeight: 0,
+    alignItems: "center",
+    paddingTop: theme.spacing[16],
+    backgroundColor: theme.colors.surface1,
+  },
+  startContent: {
+    width: START_PAGE_CONTENT_WIDTH,
+    maxWidth: "100%",
+    gap: theme.spacing[6],
+  },
+  startSectionLabel: {
+    fontSize: theme.fontSize.sm,
+    fontWeight: theme.fontWeight.medium,
+  },
+  startSiteHovered: {
+    backgroundColor: theme.colors.surface2,
+  },
+  startSites: {
+    flexDirection: "row",
+    gap: theme.spacing[6],
+  },
+  startSite: {
+    width: 96,
     alignItems: "center",
     gap: theme.spacing[2],
-    paddingHorizontal: theme.spacing[2],
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
-    backgroundColor: theme.colors.surface0,
   },
-  chromeLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[1],
-    flexShrink: 0,
-  },
-  chromeRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[1],
-    flexShrink: 0,
-  },
-  iconButton: {
+  startSiteIcon: {
     width: 28,
     height: 28,
     borderRadius: theme.borderRadius.md,
-    alignItems: "center",
-    justifyContent: "center",
   },
-  selectorActiveButton: {
-    backgroundColor: `${String(theme.colors.accent)}20`,
-  },
-  iconButtonHovered: {
-    backgroundColor: theme.colors.surface2,
-  },
-  iconButtonDisabled: {
-    opacity: 0.45,
-  },
-  urlBarWrap: {
-    flex: 1,
-    minWidth: 0,
-    height: 28,
-    borderRadius: theme.borderRadius.md,
-    paddingHorizontal: theme.spacing[2],
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: theme.colors.surface1,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-  },
-  urlInput: {
-    flex: 1,
-    minWidth: 0,
-    fontSize: theme.fontSize.base,
-    paddingVertical: 0,
-    paddingHorizontal: 0,
+  startSiteLabel: {
+    width: "100%",
+    fontSize: theme.fontSize.sm,
+    textAlign: "center",
   },
   errorRow: {
     paddingHorizontal: theme.spacing[2],
     paddingVertical: theme.spacing[1],
-    borderBottomWidth: 1,
-    borderBottomColor: theme.colors.border,
+    borderTopWidth: 1,
+    borderTopColor: theme.chrome.contentSeparator,
     backgroundColor: theme.colors.surface0,
   },
   metaError: {
@@ -1795,6 +2186,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   webviewWrap: {
     flex: 1,
+    minWidth: 0,
     minHeight: 0,
     overflow: "hidden",
   },
@@ -1805,15 +2197,6 @@ const styles = StyleSheet.create((theme) => ({
     justifyContent: "center",
     backgroundColor: theme.colors.surface1,
     padding: theme.spacing[3],
-  },
-  deviceTrigger: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: theme.spacing[1],
-  },
-  toolbarTooltipText: {
-    fontSize: theme.fontSize.sm,
-    color: theme.colors.popoverForeground,
   },
   annotationOverlay: {
     position: "absolute",

@@ -18,6 +18,7 @@ import {
 } from "@/stores/workspace-setup-store";
 import { useHostRuntimeClient } from "@/runtime/host-runtime";
 import { useHostFeature } from "@/runtime/host-features";
+import { formatPreciseDuration } from "@/utils/time";
 
 function useSetupPanelDescriptor(
   target: { kind: "setup"; workspaceId: string },
@@ -83,15 +84,6 @@ function CommandStatusIcon({ status }: { status: CommandStatus }) {
     return <ThemedCheckCircle2 size={14} uniProps={greenColorMapping} />;
   }
   return <ThemedCircleAlert size={14} uniProps={redColorMapping} />;
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds}s`;
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = seconds % 60;
-  return `${minutes}m ${remainingSeconds}s`;
 }
 
 /**
@@ -452,7 +444,7 @@ function SetupCommandRow({
           {command.command}
         </Text>
         {command.durationMs != null ? (
-          <Text style={styles.commandDuration}>{formatDuration(command.durationMs)}</Text>
+          <Text style={styles.commandDuration}>{formatPreciseDuration(command.durationMs, t)}</Text>
         ) : null}
         <SetupCommandChevron showDetail={showDetail} />
       </Pressable>

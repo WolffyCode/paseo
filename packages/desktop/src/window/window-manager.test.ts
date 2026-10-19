@@ -5,6 +5,7 @@ import {
   DEFAULT_WINDOW_HEIGHT,
   DEFAULT_WINDOW_WIDTH,
   getMainWindowChromeOptions,
+  getWindowMaterialOptions,
   readBadgeCount,
   readWindowChromeUpdate,
   readWindowTheme,
@@ -12,6 +13,30 @@ import {
 } from "./window-manager";
 
 describe("window-manager", () => {
+  it("uses native glass only when the platform and accessibility preferences permit it", () => {
+    const input = {
+      platform: "darwin" as const,
+      theme: "dark" as const,
+      reducedTransparency: false,
+      highContrast: false,
+    };
+    expect(getWindowMaterialOptions(input)).toMatchObject({
+      backgroundColor: "#00000000",
+      vibrancy: "under-window",
+    });
+    expect(getWindowMaterialOptions({ ...input, reducedTransparency: true })).toEqual({
+      backgroundColor: "#181B1A",
+    });
+    expect(getWindowMaterialOptions({ ...input, highContrast: true })).toEqual({
+      backgroundColor: "#181B1A",
+    });
+    expect(getWindowMaterialOptions({ ...input, platform: "linux" })).toEqual({
+      backgroundColor: "#181B1A",
+    });
+    expect(
+      getWindowMaterialOptions({ ...input, platform: "win32", windowsBuild: 22621 }),
+    ).toMatchObject({ backgroundMaterial: "acrylic" });
+  });
   describe("readBadgeCount", () => {
     it("returns valid non-negative integers", () => {
       expect(readBadgeCount(0)).toBe(0);

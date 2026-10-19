@@ -6,7 +6,10 @@ import type { SurfaceBackdrop } from "@/styles/surface-backdrop";
 import type { Theme } from "@/styles/theme";
 
 export const SCRIM_WIDTH = 48;
-const SCRIM_SOLID_OFFSET = "55%";
+// The scrim fades in over this share of its width and is solid over the rest.
+const SCRIM_FADE_PERCENT = 55;
+const SCRIM_SOLID_OFFSET = `${SCRIM_FADE_PERCENT}%`;
+const SCRIM_SOLID_WIDTH = (SCRIM_WIDTH * (100 - SCRIM_FADE_PERCENT)) / 100;
 
 function TrailingActionScrimSvg({ gradientId, color }: { gradientId: string; color: string }) {
   return (
@@ -54,6 +57,21 @@ export function TrailingActionScrim({
       />
     </View>
   );
+}
+
+/**
+ * The scrim's fade as a web mask on the content itself, for content over a translucent fill.
+ * A painted scrim only blends into an opaque backdrop; over glass its color shows as a band.
+ * `contentInset` is the distance from the content's right edge to the edge the action sits on.
+ */
+export function trailingActionFadeMask(contentInset: number): { maskImage: string } {
+  const fadeStart = pointFromActionEdge(contentInset, SCRIM_WIDTH);
+  const fadeEnd = pointFromActionEdge(contentInset, SCRIM_SOLID_WIDTH);
+  return { maskImage: `linear-gradient(to right, #000 ${fadeStart}, transparent ${fadeEnd})` };
+}
+
+function pointFromActionEdge(contentInset: number, distanceFromEdge: number): string {
+  return `calc(100% + ${contentInset}px - ${distanceFromEdge}px)`;
 }
 
 const styles = StyleSheet.create({

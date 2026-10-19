@@ -6,6 +6,16 @@ import {
   useWorkspaceLayoutStore,
 } from "@/stores/workspace-layout-store";
 import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
+import { useSyncExternalStore } from "react";
+import { isWorkbenchLayout } from "@/workbench/layout";
+import { workbenchModel } from "@/workbench/runtime";
+
+function isWorkbench(workspaceKey: string | null): boolean {
+  const layout = workspaceKey
+    ? useWorkspaceLayoutStore.getState().layoutByWorkspace[workspaceKey]
+    : null;
+  return Boolean(layout && isWorkbenchLayout(layout));
+}
 
 export type ExplorerSidebarView = "changes" | "files" | "pr";
 export type ExplorerSidebarPresentation = "overlay" | "dock" | "pane";
@@ -60,6 +70,15 @@ export function openExplorerSidebarView(
   }
   if (!input.workspaceKey) return;
   const store = useWorkspaceLayoutStore.getState();
+  if (isWorkbench(input.workspaceKey)) {
+    workbenchModel.setRegionVisible(input.view === "files" ? "files" : "content", true);
+    store.openTab({
+      workspaceKey: input.workspaceKey,
+      target: VIEW_TARGETS[input.view],
+      intent: "reveal",
+    });
+    return;
+  }
   const paneId = store.showExplorerSidebar(input.workspaceKey);
   store.openTab({
     workspaceKey: input.workspaceKey,
@@ -70,6 +89,10 @@ export function openExplorerSidebarView(
 }
 
 export function showExplorerSidebar(input: ExplorerSidebarInput): void {
+  if (!input.isCompact && isWorkbench(input.workspaceKey)) {
+    workbenchModel.setRegionVisible("files", true);
+    return;
+  }
   if (usesCompactExplorerSidebar(input)) {
     if (input.checkout) usePanelStore.getState().openCompactFileExplorer(input.checkout);
     return;
@@ -80,6 +103,10 @@ export function showExplorerSidebar(input: ExplorerSidebarInput): void {
 }
 
 export function hideExplorerSidebar(input: ExplorerSidebarInput): void {
+  if (!input.isCompact && isWorkbench(input.workspaceKey)) {
+    workbenchModel.setRegionVisible("files", false);
+    return;
+  }
   if (usesCompactExplorerSidebar(input)) {
     usePanelStore.getState().showMobileAgent();
     return;
@@ -103,16 +130,20 @@ export function toggleExplorerSidebar(input: ExplorerSidebarInput): void {
 }
 
 export function useIsExplorerSidebarOpen(input: ExplorerSidebarQuery): boolean {
+  const workbench = useSyncExternalStore(workbenchModel.subscribe, workbenchModel.getSnapshot);
   const compactOpen = usePanelStore(selectIsCompactFileExplorerOpen);
   const paneOpen = useWorkspaceLayoutStore((state) =>
     input.workspaceKey && canUseExplorerSidebar(input)
       ? selectIsExplorerSidebarVisible(state, input.workspaceKey)
       : false,
   );
+  if (!input.isCompact && isWorkbench(input.workspaceKey)) return workbench.filesWidth > 0;
   return usesCompactExplorerSidebar(input) ? compactOpen : paneOpen;
 }
 
 export function isExplorerSidebarOpen(input: ExplorerSidebarQuery): boolean {
+  if (!input.isCompact && isWorkbench(input.workspaceKey))
+    return workbenchModel.getSnapshot().filesWidth > 0;
   if (usesCompactExplorerSidebar(input)) {
     return selectIsCompactFileExplorerOpen(usePanelStore.getState());
   }

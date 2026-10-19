@@ -16,7 +16,7 @@ export function BrowserToolsOptInCard({ serverId }: { serverId: string }) {
   const { t } = useTranslation();
   const isConnected = useHostRuntimeIsConnected(serverId);
   const { config, patchConfig } = useDaemonConfig(serverId);
-  const state = getBrowserToolsCardState({ isConnected, config });
+  const state = getBrowserToolsCardState({ isConnected, config, t });
   const mutation = useMutation({
     mutationFn: async (next: boolean) => {
       const result = await patchConfig(createBrowserToolsPatch(next));
@@ -29,6 +29,7 @@ export function BrowserToolsOptInCard({ serverId }: { serverId: string }) {
   const mutationView = getBrowserToolsMutationViewState({
     isPending: mutation.isPending,
     error: mutation.error,
+    t,
   });
 
   const handleValueChange = useCallback(
@@ -61,7 +62,7 @@ export function BrowserToolsOptInCard({ serverId }: { serverId: string }) {
           value={state.isEnabled}
           onValueChange={handleValueChange}
           disabled={mutationView.isSwitchDisabled}
-          accessibilityLabel="Enable browser tools"
+          accessibilityLabel={t("settings.host.agents.browserTools.accessibilityLabel")}
           testID="host-page-browser-tools-switch"
         />
       </View>

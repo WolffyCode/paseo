@@ -1,5 +1,5 @@
 import { parsePcmSampleRate, resampleToPcm16 } from "./pcm";
-import { isElectronRuntime } from "@/desktop/host";
+import { assertMicrophoneEnvironment } from "./microphone-environment.web";
 import type { AudioEngine, AudioEngineCallbacks, AudioPlaybackSource } from "./audio-engine-types";
 
 import { createPlaybackQueue } from "./playback";
@@ -217,26 +217,7 @@ export function createAudioEngine(
         return;
       }
 
-      const missingNavigator =
-        typeof navigator === "undefined" ||
-        !navigator.mediaDevices ||
-        typeof navigator.mediaDevices.getUserMedia !== "function";
-      const secureContext =
-        typeof window !== "undefined" && typeof window.isSecureContext === "boolean"
-          ? window.isSecureContext
-          : true;
-      const currentOrigin =
-        typeof window !== "undefined" && window.location ? window.location.origin : "unknown";
-      const isDesktopApp = isElectronRuntime();
-
-      if (missingNavigator) {
-        throw new Error("Microphone capture is not supported in this environment");
-      }
-      if (!secureContext && !isDesktopApp) {
-        throw new Error(
-          `Microphone access requires HTTPS or localhost. Current origin: ${currentOrigin}`,
-        );
-      }
+      assertMicrophoneEnvironment();
 
       try {
         const context = await ensureCaptureContext();

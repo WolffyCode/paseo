@@ -65,6 +65,7 @@ import type {
   FileWriteResult,
   FetchAgentTimelineResponseMessage,
   AgentForkContextResponseMessage,
+  AgentGetStoragePathsResponseMessage,
   GitSetupOptions,
   CheckoutStatusResponse,
   CheckoutCommit,
@@ -671,6 +672,10 @@ type ScheduleUpdatePayload = Extract<
 >["payload"];
 export type FetchAgentTimelinePayload = FetchAgentTimelineResponseMessage["payload"];
 export type AgentForkContextPayload = AgentForkContextResponseMessage["payload"];
+export type AgentStoragePaths = Pick<
+  AgentGetStoragePathsResponseMessage["payload"],
+  "recordPath" | "providerSessionPath"
+>;
 
 export type FetchAgentTimelineDirection = FetchAgentTimelinePayload["direction"];
 export type FetchAgentTimelineProjection = FetchAgentTimelinePayload["projection"];
@@ -3458,6 +3463,21 @@ export class DaemonClient {
     }
 
     return payload;
+  }
+
+  async fetchAgentStoragePaths(
+    agentId: string,
+    options: { requestId?: string } = {},
+  ): Promise<AgentStoragePaths> {
+    const payload =
+      await this.sendNamespacedCorrelatedSessionRequest<"agent.get_storage_paths.response">({
+        requestId: options.requestId,
+        message: { type: "agent.get_storage_paths.request", agentId },
+      });
+    if (payload.error) {
+      throw new Error(payload.error);
+    }
+    return { recordPath: payload.recordPath, providerSessionPath: payload.providerSessionPath };
   }
 
   // ============================================================================

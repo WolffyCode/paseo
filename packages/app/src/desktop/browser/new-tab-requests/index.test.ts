@@ -15,11 +15,12 @@ function createLayoutWithBrowser(browserId: string): WorkspaceLayout {
 }
 
 describe("browser new-tab requests", () => {
-  it("accepts desktop requests from browser tabs in the current workspace", () => {
+  it("accepts desktop requests from pages shown in the current workspace", () => {
     const request = resolveBrowserNewTabRequest({
       payload: {
         sourceBrowserId: "browser-1",
         url: "https://example.com/target",
+        isActive: true,
       },
       workspaceLayout: createLayoutWithBrowser("browser-1"),
     });
@@ -27,6 +28,7 @@ describe("browser new-tab requests", () => {
     expect(request).toEqual<BrowserNewTabRequest>({
       sourceBrowserId: "browser-1",
       url: "https://example.com/target",
+      isActive: true,
     });
   });
 
@@ -35,6 +37,7 @@ describe("browser new-tab requests", () => {
       payload: {
         sourceBrowserId: "browser-from-other-workspace",
         url: "https://example.com/target",
+        isActive: true,
       },
       workspaceLayout: createLayoutWithBrowser("browser-1"),
     });
@@ -42,11 +45,46 @@ describe("browser new-tab requests", () => {
     expect(request).toBeNull();
   });
 
+  it("accepts extension pages opening their own pages in new tabs", () => {
+    const request = resolveBrowserNewTabRequest({
+      payload: {
+        sourceBrowserId: "browser-1",
+        url: "chrome-extension://abcdefghijklmnopabcdefghijklmnop/options.html",
+        isActive: true,
+      },
+      workspaceLayout: createLayoutWithBrowser("browser-1"),
+    });
+
+    expect(request?.url).toBe("chrome-extension://abcdefghijklmnopabcdefghijklmnop/options.html");
+  });
+
+  it("opens a page's source and searches Google for a selection, as Chrome's page menu does", () => {
+    const layout = createLayoutWithBrowser("browser-1");
+    const source = resolveBrowserNewTabRequest({
+      payload: {
+        sourceBrowserId: "browser-1",
+        url: "view-source:https://example.com/",
+        isActive: true,
+      },
+      workspaceLayout: layout,
+    });
+    const search = resolveBrowserNewTabRequest({
+      payload: { sourceBrowserId: "browser-1", searchTerms: " hello world ", isActive: true },
+      workspaceLayout: layout,
+    });
+
+    expect(source?.url).toBe("view-source:https://example.com/");
+    expect(search?.url).toBe(
+      "https://www.google.com/search?q=hello+world&sourceid=chrome&ie=UTF-8",
+    );
+  });
+
   it("rejects unsupported desktop request URLs", () => {
     const request = resolveBrowserNewTabRequest({
       payload: {
         sourceBrowserId: "browser-1",
         url: "file:///etc/passwd",
+        isActive: true,
       },
       workspaceLayout: createLayoutWithBrowser("browser-1"),
     });

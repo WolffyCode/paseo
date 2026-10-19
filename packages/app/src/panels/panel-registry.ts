@@ -26,6 +26,8 @@ export interface PanelDescriptorContext {
   serverId: string;
   workspaceId: string;
   tabId: string;
+  /** The pane the tab sits in; `null` where a tab is presented outside a pane. */
+  paneId: string | null;
 }
 
 export interface PanelPresentation {

@@ -78,6 +78,26 @@ describe("confirmDialog", () => {
     });
   });
 
+  it("labels the desktop dialog buttons with the default actions when none are given", async () => {
+    const askMock = vi.fn(async () => false);
+    desktopHostState.api = {
+      dialog: { ask: askMock },
+    };
+
+    const { confirmDialog } = await loadModuleForPlatform("web");
+    await confirmDialog({
+      title: "Restart host",
+      message: "This will restart the daemon.",
+    });
+
+    expect(askMock).toHaveBeenCalledWith("This will restart the daemon.", {
+      title: "Restart host",
+      okLabel: "Confirm",
+      cancelLabel: "Cancel",
+      kind: "info",
+    });
+  });
+
   it("falls back to browser confirm on web when desktop APIs are unavailable", async () => {
     const browserConfirm = vi.fn(() => true);
     const blurMock = vi.fn();

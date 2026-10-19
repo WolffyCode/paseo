@@ -23,7 +23,14 @@ const WorkspaceTabTargetStorageSchema = z.discriminatedUnion("kind", [
     subagentId: z.string(),
   }),
   z.strictObject({ kind: z.literal("terminal"), terminalId: z.string() }),
-  z.strictObject({ kind: z.literal("browser"), browserId: z.string() }),
+  z.strictObject({
+    kind: z.literal("browser"),
+    // COMPAT(browserWindowTarget): development builds of 2026-10 saved browser tabs as windows by
+    // `windowId`; they parse with an empty `browserId`, which normalization drops, instead of
+    // failing every saved layout. Remove the default and `windowId` after 2027-04-15.
+    browserId: z.string().default(""),
+    windowId: z.string().optional(),
+  }),
   z.strictObject({ kind: z.literal("changes_tree") }),
   z.strictObject({ kind: z.literal("files") }),
   z.strictObject({ kind: z.literal("pull_request") }),

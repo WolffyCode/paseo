@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { useTranslation } from "react-i18next";
 import {
   checkDesktopAppUpdate,
   formatVersionWithPrefix,
@@ -37,6 +38,7 @@ export interface UseDesktopAppUpdaterReturn {
 }
 
 export function useDesktopAppUpdater(): UseDesktopAppUpdaterReturn {
+  const { i18n } = useTranslation();
   const isDesktopApp = shouldShowDesktopUpdateSection();
   const { settings: desktopSettings } = useDesktopSettings();
   const releaseChannel = desktopSettings.releaseChannel;
@@ -112,7 +114,8 @@ export function useDesktopAppUpdater(): UseDesktopAppUpdaterReturn {
       installMessage: snapshot.installMessage,
       lastCheckedAt: snapshot.lastCheckedAt,
       formatVersion: formatVersionWithPrefix,
-      formatLastCheckedAt: (timestamp) => formatMessageTimestamp(new Date(timestamp)),
+      formatLastCheckedAt: (timestamp) =>
+        formatMessageTimestamp(new Date(timestamp), i18n.language),
     }),
     availableUpdate: snapshot.availableUpdate,
     errorMessage: snapshot.errorMessage,

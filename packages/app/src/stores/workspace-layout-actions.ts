@@ -10,9 +10,7 @@ import {
   normalizeWorkspaceTabTarget,
   workspaceTabTargetsEqual,
 } from "@/workspace-tabs/identity";
-import { createBrowserStartTab } from "@/desktop/browser/start-tab";
 import { createNewWorkspaceTab } from "@/workspace-tabs/new-tab";
-import { generateDraftId } from "@/stores/draft-keys";
 import {
   activateWorkbenchPaneOwner,
   bindWorkbenchConversation,
@@ -182,6 +180,16 @@ interface RetargetTabInLayoutResult {
   tabId: string;
 }
 
+/** A replaced conversation hands its column 3 to the conversation that replaced it. */
+export interface ReboundConversation {
+  previousOwner: string;
+  nextOwner: string;
+}
+
+interface ReplaceTabTargetInLayoutResult extends RetargetTabInLayoutResult {
+  reboundConversation: ReboundConversation | null;
+}
+
 interface ConvertDraftToAgentInLayoutInput {
   explorerSidebarPaneId: string | null;
   layout: WorkspaceLayout;
@@ -192,6 +200,7 @@ interface ConvertDraftToAgentInLayoutInput {
 interface ConvertDraftToAgentInLayoutResult {
   layout: WorkspaceLayout;
   tabId: string;
+  reboundConversation: ReboundConversation | null;
 }
 
 interface ReorderFocusedPaneTabsInLayoutInput {
@@ -344,17 +353,11 @@ function createPaneNode(input: {
   };
 }
 
-function tabForEmptyPane(paneId: string): WorkspaceTab {
-  return workbenchPaneHost(paneId) === "content"
-    ? createBrowserStartTab()
-    : createNewWorkspaceTab();
-}
-
 function ensureRetainedPaneHasTab(pane: SplitPaneInternal): SplitPaneInternal {
   if (pane.tabs.length > 0) {
     return pane;
   }
-  const newTab = tabForEmptyPane(pane.id);
+  const newTab = createNewWorkspaceTab();
   return normalizePaneAfterTabChange({
     ...pane,
     tabs: [newTab],
@@ -697,14 +700,15 @@ function normalizePaneNode(rawPane: SplitPaneInternal | undefined): SplitNodeInt
   }
   const tabs = normalizeWorkspaceTabs(rawPane?.tabs);
   const tabIds = normalizeTabIds(rawPane?.tabIds);
-  const mergedTabs =
-    tabs.length > 0
-      ? tabs
-      : tabIds.map((tabId) => ({
-          tabId,
-          target: { kind: "draft", draftId: tabId } as WorkspaceTabTarget,
-          createdAt: Date.now(),
-        }));
+  // A pane that lists only tab ids predates tab targets; each id was a draft. A pane whose
+  // saved tabs all failed to load stays empty rather than turning them into drafts.
+  const mergedTabs = Array.isArray(rawPane?.tabs)
+    ? tabs
+    : tabIds.map((tabId) => ({
+        tabId,
+        target: { kind: "draft", draftId: tabId } as WorkspaceTabTarget,
+        createdAt: Date.now(),
+      }));
   return createPaneNode({
     id: paneId,
     tabs: mergedTabs,
@@ -791,7 +795,7 @@ function reorderTabsForPane(input: ReorderTabsForPaneInput): SplitPaneInternal {
 function removePaneByPath(root: SplitNodeInternal, path: number[]): SplitNodeInternal {
   if (path.length === 0) {
     invariant(root.kind === "pane", "Expected pane at root while removing pane");
-    return createPaneNode({ id: root.pane.id, tabs: [tabForEmptyPane(root.pane.id)] });
+    return createPaneNode({ id: root.pane.id, tabs: [createNewWorkspaceTab()] });
   }
 
   const parentPath = path.slice(0, -1);
@@ -1182,7 +1186,7 @@ function restoreEmptyPanesInNode(
           tabs:
             node.pane.id === explorerSidebarPaneId
               ? createDefaultExplorerSidebarTabs()
-              : [tabForEmptyPane(node.pane.id)],
+              : [createNewWorkspaceTab()],
           hidden: node.pane.hidden,
         });
   }
@@ -1673,8 +1677,7 @@ export function canDismissPaneInLayout(
   paneId: string,
   explorerSidebarPaneId?: string | null,
 ): boolean {
-  if (isWorkbenchLayout(layout))
-    return workbenchPaneHost(paneId) === "conversations" && paneId !== CONVERSATION_PANE_ID;
+  if (isWorkbenchLayout(layout)) return false;
   const pane = findPaneById(layout.root, paneId);
   if (!pane || pane.hidden === true) {
     return false;
@@ -1822,7 +1825,7 @@ export function retargetTabInLayout(
 /** Replaces one pane-local slot and never claims an equivalent tab elsewhere. */
 export function replaceTabTargetInLayout(
   input: ReplaceTabTargetInLayoutInput,
-): RetargetTabInLayoutResult | null {
+): ReplaceTabTargetInLayoutResult | null {
   const layout = asInternalLayout(input.layout);
   const containingPane = findPaneContainingTab(layout.root, input.tabId);
   if (!containingPane) return null;
@@ -1831,10 +1834,11 @@ export function replaceTabTargetInLayout(
   const currentTab = collectAllTabs(layout.root).find((tab) => tab.tabId === input.tabId) ?? null;
   if (currentTab && workspaceTabTargetsEqual(currentTab.target, input.target)) {
     if (input.state === undefined) {
-      return { layout: input.layout, tabId: input.tabId };
+      return { layout: input.layout, tabId: input.tabId, reboundConversation: null };
     }
     return {
       tabId: input.tabId,
+      reboundConversation: null,
       layout: withNormalizedParentTabMap({
         root: replaceTabInTree(layout.root, {
           tabId: input.tabId,
@@ -1870,8 +1874,11 @@ export function replaceTabTargetInLayout(
   } else if (currentTab?.target.kind === input.target.kind) {
     state = currentTab.state;
   }
+  const previousOwner = conversationOwner(currentTab ?? undefined);
+  const nextOwner = conversationOwner({ tabId, target: input.target, createdAt: 0 });
   return {
     tabId,
+    reboundConversation: previousOwner === nextOwner ? null : { previousOwner, nextOwner },
     layout: withNormalizedParentTabMap(
       bindWorkbenchConversation(
         {
@@ -1884,8 +1891,8 @@ export function replaceTabTargetInLayout(
           focusedPaneId: layout.focusedPaneId,
           parentTabIdByTabId,
         },
-        conversationOwner(currentTab ?? undefined),
-        conversationOwner({ tabId, target: input.target, createdAt: 0 }),
+        previousOwner,
+        nextOwner,
       ),
     ),
   };
@@ -1966,11 +1973,15 @@ export function convertDraftToAgentInLayout(
           tabId: canonicalTabId,
         }) ?? nextLayout,
       tabId: canonicalTabId,
+      reboundConversation: null,
     };
   }
 
+  const previousOwner = conversationOwner(currentTab);
+  const nextOwner = conversationOwner({ tabId: canonicalTabId, target, createdAt: 0 });
   return {
     tabId: canonicalTabId,
+    reboundConversation: { previousOwner, nextOwner },
     layout: withNormalizedParentTabMap(
       bindWorkbenchConversation(
         {
@@ -1982,8 +1993,8 @@ export function convertDraftToAgentInLayout(
           focusedPaneId: layout.focusedPaneId,
           parentTabIdByTabId: input.layout.parentTabIdByTabId,
         },
-        conversationOwner(currentTab),
-        `agent:${input.agentId}`,
+        previousOwner,
+        nextOwner,
       ),
     ),
   };
@@ -2008,14 +2019,7 @@ export function reorderFocusedPaneTabsInLayout(
 }
 
 export function splitPaneInLayout(input: SplitPaneInLayoutInput): SplitPaneInLayoutResult | null {
-  const workbench = isWorkbenchLayout(input.layout);
-  if (
-    workbench &&
-    (workbenchPaneHost(input.targetPaneId) !== "conversations" ||
-      workbenchPaneHost(findPaneContainingTab(input.layout.root, input.tabId)?.id) !==
-        "conversations")
-  )
-    return null;
+  if (isWorkbenchLayout(input.layout)) return null;
   const layout = asInternalLayout(input.layout);
   if (!findPaneById(layout.root, input.targetPaneId)) {
     return null;
@@ -2029,10 +2033,7 @@ export function splitPaneInLayout(input: SplitPaneInLayoutInput): SplitPaneInLay
     targetPaneId: input.targetPaneId,
     tabId: input.tabId,
     position: input.position,
-    createNodeId: (prefix) =>
-      prefix === "pane" && workbench
-        ? `${CONVERSATION_PANE_ID}:${input.createNodeId(prefix)}`
-        : input.createNodeId(prefix),
+    createNodeId: input.createNodeId,
   });
   if (getTreeDepth(result.root) > input.maxTreeDepth) {
     return null;
@@ -2051,8 +2052,7 @@ export function splitPaneInLayout(input: SplitPaneInLayoutInput): SplitPaneInLay
 export function splitPaneEmptyInLayout(
   input: SplitPaneEmptyInLayoutInput,
 ): SplitPaneInLayoutResult | null {
-  const workbench = isWorkbenchLayout(input.layout);
-  if (workbench && workbenchPaneHost(input.targetPaneId) !== "conversations") return null;
+  if (isWorkbenchLayout(input.layout)) return null;
   const layout = asInternalLayout(input.layout);
   if (!findPaneById(layout.root, input.targetPaneId)) {
     return null;
@@ -2067,10 +2067,8 @@ export function splitPaneEmptyInLayout(
   const targetNode = getNodeAtPath(layout.root, targetPath);
   invariant(targetNode.kind === "pane", "Expected target pane");
 
-  const generatedPaneId = input.createNodeId("pane");
-  const newPaneId = workbench ? `${CONVERSATION_PANE_ID}:${generatedPaneId}` : generatedPaneId;
+  const newPaneId = input.createNodeId("pane");
   const newTab = createNewWorkspaceTab();
-  if (workbench) newTab.target = { kind: "draft", draftId: generateDraftId() };
   const newPaneNode = createPaneNode({ id: newPaneId, tabs: [newTab] });
 
   const parentPath = targetPath.slice(0, -1);

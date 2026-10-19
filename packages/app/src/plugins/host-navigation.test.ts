@@ -4,7 +4,7 @@ import { createPluginHostNavigation } from "./host-navigation-model";
 describe("plugin host navigation", () => {
   function setup(electron = true) {
     const destinations: unknown[] = [];
-    const browsers: string[] = [];
+    const browsers: unknown[] = [];
     const workspaces = new Set(["selected:one", "remote:two"]);
     const navigation = createPluginHostNavigation("selected", {
       browserAvailable: electron,
@@ -12,15 +12,12 @@ describe("plugin host navigation", () => {
         workspaces.has(`${serverId}:${workspaceId}`) ? workspaceId : null,
       openAgent: (input) => destinations.push(input),
       openWorkspace: (input) => destinations.push(input),
-      createBrowser: ({ initialUrl }) => {
-        browsers.push(initialUrl);
-        return { browserId: `browser-${browsers.length}` };
-      },
+      openBrowserPage: (input) => browsers.push(input),
     });
     return { navigation, destinations, browsers, workspaces };
   }
 
-  it("creates and focuses a local browser in the selected or explicit host workspace", () => {
+  it("opens the page in the selected or explicit host workspace's browser and shows it", () => {
     const { navigation, destinations, browsers } = setup();
     navigation.openBrowser!({ url: "https://example.com/one", workspaceId: "one" });
     navigation.openBrowser!({
@@ -28,18 +25,13 @@ describe("plugin host navigation", () => {
       workspaceId: "two",
       serverId: "remote",
     });
-    expect(browsers).toEqual(["https://example.com/one", "https://example.com/two"]);
+    expect(browsers).toEqual([
+      { serverId: "selected", workspaceId: "one", url: "https://example.com/one" },
+      { serverId: "remote", workspaceId: "two", url: "https://example.com/two" },
+    ]);
     expect(destinations).toEqual([
-      {
-        serverId: "selected",
-        workspaceId: "one",
-        target: { kind: "browser", browserId: "browser-1" },
-      },
-      {
-        serverId: "remote",
-        workspaceId: "two",
-        target: { kind: "browser", browserId: "browser-2" },
-      },
+      { serverId: "selected", workspaceId: "one" },
+      { serverId: "remote", workspaceId: "two" },
     ]);
   });
 

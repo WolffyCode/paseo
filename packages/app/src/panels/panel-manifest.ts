@@ -1,6 +1,6 @@
 import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
 
-export type PaneHost = "main" | "explorer";
+export type PaneHost = "main" | "explorer" | "conversations" | "content" | "files";
 
 export interface PanelManifest<K extends WorkspaceTabTarget["kind"] = WorkspaceTabTarget["kind"]> {
   kind: K;
@@ -17,77 +17,78 @@ type PanelManifestByKind = {
 const manifests = {
   new_tab: {
     kind: "new_tab",
-    supportedHosts: ["main", "explorer"],
+    supportedHosts: ["main", "explorer", "conversations", "content"],
     showCloseButton: true,
     singleton: false,
     resourceKey: () => "new_tab",
   },
   draft: {
     kind: "draft",
-    supportedHosts: ["main", "explorer"],
+    supportedHosts: ["main", "explorer", "conversations"],
     showCloseButton: true,
     singleton: false,
     resourceKey: (target) => target.draftId,
   },
   agent: {
     kind: "agent",
-    supportedHosts: ["main", "explorer"],
+    supportedHosts: ["main", "explorer", "conversations"],
     showCloseButton: true,
     singleton: false,
     resourceKey: (target) => target.agentId,
   },
   provider_subagent: {
     kind: "provider_subagent",
-    supportedHosts: ["main", "explorer"],
+    supportedHosts: ["main", "explorer", "conversations"],
     showCloseButton: true,
     singleton: false,
     resourceKey: (target) => `${target.parentAgentId}:${target.subagentId}`,
   },
   terminal: {
     kind: "terminal",
-    supportedHosts: ["main", "explorer"],
+    supportedHosts: ["main", "explorer", "content"],
     showCloseButton: true,
     singleton: false,
     resourceKey: (target) => target.terminalId,
   },
   browser: {
     kind: "browser",
-    supportedHosts: ["main"],
+    supportedHosts: ["main", "content"],
     showCloseButton: true,
+    // Every web page is its own column-3 tab, as every page is a tab in Chrome.
     singleton: false,
     resourceKey: (target) => target.browserId,
   },
   changes_tree: {
     kind: "changes_tree",
-    supportedHosts: ["explorer"],
+    supportedHosts: ["explorer", "content"],
     showCloseButton: false,
     singleton: true,
     resourceKey: () => "changes_tree",
   },
   files: {
     kind: "files",
-    supportedHosts: ["explorer"],
+    supportedHosts: ["explorer", "files"],
     showCloseButton: false,
     singleton: true,
     resourceKey: () => "files",
   },
   pull_request: {
     kind: "pull_request",
-    supportedHosts: ["main", "explorer"],
+    supportedHosts: ["main", "explorer", "content"],
     showCloseButton: true,
     singleton: false,
     resourceKey: () => "pull_request",
   },
   file: {
     kind: "file",
-    supportedHosts: ["main", "explorer"],
+    supportedHosts: ["main", "explorer", "content"],
     showCloseButton: true,
     singleton: false,
     resourceKey: (target) => target.path,
   },
   working_diff: {
     kind: "working_diff",
-    supportedHosts: ["main", "explorer"],
+    supportedHosts: ["main", "explorer", "content"],
     showCloseButton: true,
     singleton: false,
     resourceKey: () => "working_diff",
@@ -95,7 +96,7 @@ const manifests = {
   plugin: {
     kind: "plugin",
     // Plugin targets are narrowed by the target-aware plugin panel capability resolver.
-    supportedHosts: ["main", "explorer"],
+    supportedHosts: ["main", "explorer", "content"],
     showCloseButton: true,
     singleton: false,
     resourceKey: (target) =>
@@ -105,14 +106,14 @@ const manifests = {
   },
   setup: {
     kind: "setup",
-    supportedHosts: ["main"],
+    supportedHosts: ["main", "content"],
     showCloseButton: true,
     singleton: false,
     resourceKey: (target) => target.workspaceId,
   },
   commit_diff: {
     kind: "commit_diff",
-    supportedHosts: ["main", "explorer"],
+    supportedHosts: ["main", "explorer", "content"],
     showCloseButton: true,
     singleton: false,
     resourceKey: (target) => target.sha,

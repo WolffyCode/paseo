@@ -100,18 +100,253 @@ const untranslatedPullRequestPanelLabels = [
   "Outdated",
 ] as const;
 
-function findUntranslatedPullRequestPanelLabels(): string[] {
-  return pullRequestPanelSources.flatMap((source) => {
-    const contents = readFileSync(join(appSourceRoot, source), "utf8");
-    const matches: string[] = untranslatedPullRequestPanelLabels.filter(
-      (text) => contents.includes(`"${text}"`) || new RegExp(`>\\s*${text}\\s*<`).test(contents),
-    );
-    if (contents.includes("} group`")) {
-      matches.push("group");
-    }
+const scheduleSources = [
+  "screens/schedules-screen.tsx",
+  "components/schedules/cadence-editor.tsx",
+  "components/schedules/schedule-form-sheet.tsx",
+  "components/schedules/schedule-row.tsx",
+  "components/schedules/schedules-table.tsx",
+  "utils/schedule-format.ts",
+  "schedules/schedule-cadence-options.ts",
+  "schedules/schedule-derivation.ts",
+  "schedules/schedule-form-model.ts",
+] as const;
+const untranslatedScheduleLabels = [
+  "Unable to load schedules",
+  "Try again",
+  "New schedule",
+  "No active schedules",
+  "Schedules run agents on a cadence.",
+  "See docs",
+  "No ended schedules",
+  "Create schedule",
+  "Save changes",
+  "Cancel",
+  "Delete",
+  "Pause schedule",
+  "Resume schedule",
+  "Run now",
+  "Pausing...",
+  "Resuming...",
+  "Starting...",
+  "Deleting...",
+  "Active",
+  "Paused",
+  "Expired",
+  "Finished",
+  "Target gone",
+  "Never run",
+  "soon",
+  "Untitled agent",
+  "Agent unavailable",
+  "Default mode",
+  "Local",
+  "Worktree",
+  "Archive on finish",
+  "Max runs",
+  "Unlimited",
+  "Choose a host first.",
+  "Search projects...",
+  "What should the agent do each run?",
+  "Cadence",
+  "Select cadence",
+  "Cron expression",
+  "Custom cron",
+  "Daily 9:00",
+  "Every minute",
+  "Daily",
+  "Weekdays",
+  "Enter a cron expression",
+  "Invalid ",
+] as const;
+const untranslatedScheduleTemplates = [
+  "Could not load schedules",
+  "Created ${",
+  "Last run ${",
+  "Next run ${",
+  "Untitled ${",
+  "Delete ${",
+  "Edit ${",
+  "} actions`",
+  "${noun}s",
+] as const;
+
+interface UntranslatedSourceCheck {
+  sources: readonly string[];
+  /** Copy that must not appear as a quoted literal or as JSX text. */
+  labels: readonly string[];
+  /** Raw fragments, such as the edge of an English template literal, that must not appear. */
+  templateFragments?: readonly string[];
+}
+
+function findUntranslatedSourceText({
+  sources,
+  labels,
+  templateFragments = [],
+}: UntranslatedSourceCheck): string[] {
+  return sources.flatMap((source) => {
+    // Comments may quote the English they explain; only code counts.
+    const contents = readFileSync(join(appSourceRoot, source), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .replace(/(^|[^:])\/\/.*$/gm, "$1");
+    const labelMatches = labels.filter((text) => {
+      const escapedText = text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      return (
+        contents.includes(`"${text}"`) || new RegExp(`>\\s*${escapedText}\\s*<`).test(contents)
+      );
+    });
+    const templateMatches = templateFragments.filter((fragment) => contents.includes(fragment));
+    const matches = [...labelMatches, ...templateMatches];
     return matches.length === 0 ? [] : [`${source}: ${matches.join(", ")}`];
   });
 }
+
+const untranslatedSurfaceChecks: readonly UntranslatedSourceCheck[] = [
+  {
+    sources: [
+      "usage/agent-usage.tsx",
+      "usage/balance-bar.tsx",
+      "usage/card.tsx",
+      "usage/format.ts",
+      "usage/host-usage-section.tsx",
+      "usage/model.ts",
+      "usage/options.tsx",
+      "usage/pinned.ts",
+      "usage/queries.ts",
+      "usage/refresh-button.tsx",
+      "usage/usage-modal.tsx",
+      "usage/usage-section.tsx",
+      "usage/window-bar.tsx",
+    ],
+    labels: [
+      "Plan usage",
+      "Refresh all",
+      "Unable to refresh usage",
+      "Loading usage...",
+      "No usage data",
+      "No connected hosts",
+      "Unable to load usage",
+      "Host connection is not ready",
+      "Try again",
+      "Percentages",
+      "Summary in sidebar",
+      "Unavailable",
+      "Sign in again.",
+      "resetting now",
+    ],
+    templateFragments: ["} left`", "`resets ", "`runs out", "`Updated ", "`Login ", "usageCopy"],
+  },
+  {
+    sources: [
+      "git/pull-request-panel/data.ts",
+      "panels/setup-panel.tsx",
+      "stores/download-store.ts",
+      "components/message.tsx",
+    ],
+    labels: ["just now", "< 1s"],
+    templateFragments: ["m ago`", "}ms`", "`running ", ", ended "],
+  },
+  {
+    sources: [
+      "add-project-flow/options.ts",
+      "components/add-project-flow.tsx",
+      "hosts/host-chooser.tsx",
+      "components/hosts/host-filter.tsx",
+      "components/hosts/host-picker-constants.ts",
+    ],
+    labels: [
+      "Search for directory",
+      "Clone from GitHub",
+      "New directory",
+      "Choose destination",
+      "Choose parent directory",
+      "Name directory",
+      "Directory name",
+      "Adding project...",
+      "Unable to clone repository",
+      "Unable to create directory",
+      "Choose host",
+      "Search hosts...",
+      "No matching hosts",
+      "Filter by host",
+      "All hosts",
+      "Add host",
+    ],
+  },
+  {
+    sources: [
+      "screens/sessions-screen.tsx",
+      "screens/startup-splash-screen.tsx",
+      "screens/settings/host-page.tsx",
+      "screens/settings/browser-tools-config.ts",
+      "screens/new-workspace-screen.tsx",
+      "screens/workspace/workspace-screen.tsx",
+      "screens/workspace/workspace-bulk-close.ts",
+      "screens/workspace/workspace-route-state.ts",
+      "panels/terminal-panel.tsx",
+    ],
+    labels: [
+      "Unable to load sessions",
+      "No sessions for this host",
+      "Try again",
+      "Copy logs",
+      "Open GitHub issue",
+      "Docs",
+      "Archive merged PR workspaces",
+      "Enable terminal agent hooks",
+      "Terminal agents",
+      "Workspace isolation",
+      "Browser tools",
+      "Updating browser tools…",
+      "Update Paseo to recover this workspace.",
+      "Workspace directory not found.",
+    ],
+    templateFragments: ["`This will archive", "`This will close", "No tabs are available yet"],
+  },
+  {
+    sources: [
+      "subagents/archive-subagent.ts",
+      "subagents/detach-subagent.ts",
+      "plugins/surface-screen.tsx",
+      "plugins/workspace-panels/panel.tsx",
+      "components/terminal-copy-paste-actions.tsx",
+      "components/terminal-emulator-native-grid.native.tsx",
+      "components/terminal-pane.tsx",
+      "components/import-session-sheet.tsx",
+      "components/sidebar/sidebar-workspace-menu.tsx",
+      "components/sidebar/sidebar-workspace-row.tsx",
+      "components/sidebar/sidebar-status-list.tsx",
+      "components/sidebar-workspace-list.tsx",
+      "components/community-links.tsx",
+      "composer/attachments/workspace.tsx",
+      "utils/confirm-dialog.ts",
+      "utils/daemons.ts",
+    ],
+    labels: [
+      "Archive subagent?",
+      "Detach subagent?",
+      "Close plugin",
+      "Plugin host is offline.",
+      "This plugin panel is unavailable.",
+      "Copy",
+      "Paste",
+      "Bottom",
+      "Hide keyboard",
+      "Show keyboard",
+      "Filter by provider",
+      "Mark as read",
+      "Mark as unread",
+      "Star",
+      "Sponsor",
+      "Community",
+      "Open context attachment",
+      "Confirm",
+      "Online",
+      "Offline",
+    ],
+    templateFragments: ["Failed to mark workspace as"],
+  },
+];
 
 function collectSourceFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -214,7 +449,7 @@ describe("translation resources", () => {
     expect(ja.settings.providers.models.many).toBe("{{count}}つのモデル");
     expect(ptBR.settings.providers.models.many).toBe("{{count}} modelos");
     expect(ru.settings.providers.models.many).toBe("{{count}} моделей");
-    expect(zhCN.settings.providers.models.many).toBe("{{count}} 个 Model");
+    expect(zhCN.settings.providers.models.many).toBe("{{count}} 个模型");
   });
 
   it("preserves reviewed Korean status labels", () => {
@@ -244,7 +479,13 @@ describe("translation resources", () => {
   });
 
   it("keeps pull request panel and sidebar status group labels translated", () => {
-    expect(findUntranslatedPullRequestPanelLabels()).toEqual([]);
+    expect(
+      findUntranslatedSourceText({
+        sources: pullRequestPanelSources,
+        labels: untranslatedPullRequestPanelLabels,
+        templateFragments: ["} group`"],
+      }),
+    ).toEqual([]);
     for (const resource of [ar, es, fr, ja, ko, ptBR, ru, zhCN]) {
       const pr = resource.workspace.git.pr;
       const englishPr = en.workspace.git.pr;
@@ -271,6 +512,20 @@ describe("translation resources", () => {
 
   it("keeps local connection fallback errors translated", () => {
     expect(findUntranslatedConnectionErrors()).toEqual([]);
+  });
+
+  it("keeps schedules labels translated", () => {
+    expect(
+      findUntranslatedSourceText({
+        sources: scheduleSources,
+        labels: untranslatedScheduleLabels,
+        templateFragments: untranslatedScheduleTemplates,
+      }),
+    ).toEqual([]);
+  });
+
+  it("keeps moved surface copy out of the source", () => {
+    expect(untranslatedSurfaceChecks.flatMap(findUntranslatedSourceText)).toEqual([]);
   });
 
   it("includes shared shell keys for the Batch 1 migration", () => {
@@ -378,7 +633,7 @@ describe("translation resources", () => {
     expect(en.workspace.setup.status.running).toBe("Running");
     expect(en.workspace.setup.empty.noCommands).toBe("No setup commands ran for this workspace.");
     expect(en.workspace.browser.unavailable.title).toBe("Browser is desktop-only");
-    expect(en.workspace.browser.controls.enterUrl).toBe("Enter URL");
+    expect(en.workspace.browser.omnibox.placeholder).toBe("Search {{engine}} or type a URL");
     expect(en.workspace.terminal.hostDisconnected).toBe("Host is not connected");
     expect(en.panels.file.directoryMissing).toBe("Workspace directory not found.");
     expect(en.openProject.tiles.importSession.description).toBe(
@@ -515,7 +770,7 @@ describe("translation resources", () => {
     expect(en.workspace.tabs.toasts.copyFailed).toBe("Copy failed");
     expect(en.workspace.tabs.toasts.agentIdCopiedLabel).toBe("Agent ID");
     expect(en.workspace.tabs.toasts.resumeCommandCopiedLabel).toBe("resume command");
-    expect(en.workspace.tabs.toasts.resumeIdUnavailable).toBe("Resume ID not available");
+    expect(en.workspace.tabs.toasts.sessionIdUnavailable).toBe("Session ID not available");
     expect(en.workspace.tabs.toasts.resumeCommandUnavailable).toBe("Resume command not available");
     expect(en.workspace.tabs.toasts.reloadingAgent).toBe("Reloading agent...");
     expect(en.workspace.tabs.toasts.reloadedAgent).toBe("Reloaded agent");

@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { i18n } from "@/i18n/i18next";
 import type { ConfirmDialogInput } from "@/utils/confirm-dialog";
 import {
   requestDetachSubagent,
@@ -60,13 +61,22 @@ function createFakeEnv(
       reportError: (error) => {
         recordedErrors.push(error);
       },
+      t: i18n.t,
     },
   };
 }
 
+// The real instance, so a dialog that names a key nobody added renders as that key and fails.
+beforeAll(async () => {
+  if (!i18n.isInitialized) {
+    await i18n.init();
+  }
+  await i18n.changeLanguage("en");
+});
+
 describe("resolveDetachSubagentDialog", () => {
   it("uses non-destructive copy for named subagents", () => {
-    expect(resolveDetachSubagentDialog({ title: "Review branch" })).toEqual({
+    expect(resolveDetachSubagentDialog(i18n.t, { title: "Review branch" })).toEqual({
       title: "Detach subagent?",
       message: "Review branch will leave this track and continue as a standalone agent.",
       confirmLabel: "Detach",
@@ -76,7 +86,7 @@ describe("resolveDetachSubagentDialog", () => {
   });
 
   it("falls back to this subagent when the title is not displayable", () => {
-    expect(resolveDetachSubagentDialog({ title: "New Agent" })).toEqual({
+    expect(resolveDetachSubagentDialog(i18n.t, { title: "New Agent" })).toEqual({
       title: "Detach subagent?",
       message: "This subagent will leave this track and continue as a standalone agent.",
       confirmLabel: "Detach",
@@ -130,7 +140,7 @@ describe("requestDetachSubagent", () => {
     await requestDetachSubagent({ serverId: "server-1", subagentId: "child-agent" }, env.deps);
 
     expect(env.recordedConfirmInputs).toEqual([
-      resolveDetachSubagentDialog({ title: "Review branch" }),
+      resolveDetachSubagentDialog(i18n.t, { title: "Review branch" }),
     ]);
   });
 

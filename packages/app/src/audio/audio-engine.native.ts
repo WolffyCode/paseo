@@ -2,6 +2,7 @@ import type { AudioEngine, AudioEngineCallbacks, AudioPlaybackSource } from "./a
 
 import { createAudioPlayer, setAudioModeAsync } from "expo-audio";
 import { File, Paths } from "expo-file-system";
+import { i18n } from "@/i18n/i18next";
 import { createPlaybackQueue } from "./playback";
 import { playFile } from "./file-playback";
 import { playPcm16 } from "./pcm";
@@ -94,9 +95,7 @@ export function createAudioEngine(
       permission = await native.requestMicrophonePermissionsAsync().catch(() => null);
     }
     if (!permission?.granted) {
-      throw new Error(
-        "Microphone permission is required to capture audio. Please enable microphone access in system settings.",
-      );
+      throw new Error(i18n.t("common.errors.microphonePermissionRequired"));
     }
   }
 
@@ -182,9 +181,7 @@ export function createAudioEngine(
         await ensureInitialized();
         const isRecording = native.toggleRecording(true);
         if (!isRecording) {
-          throw new Error(
-            "Microphone capture could not start because Android audio focus is unavailable.",
-          );
+          throw new Error(i18n.t("common.errors.microphoneAudioFocusUnavailable"));
         }
         refs.captureActive = true;
       } catch (error) {

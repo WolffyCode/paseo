@@ -78,18 +78,19 @@ export function computeWorkspaceTabLayout(
     clamp(tabChromeWidth + labelWidth, input.metrics.minTabWidth, input.metrics.maxTabWidth),
   );
   const naturalTotalWidth = naturalWidths.reduce((total, width) => total + width, 0);
-  const minimumTotalWidth = input.metrics.minTabWidth * tabCount;
-  const requiresHorizontalScrollFallback = availableTabsWidth < minimumTotalWidth;
+  // Column 3 keeps each label readable. Tabs that cannot sit at their natural
+  // width scroll instead of shrinking into truncated chips.
+  const requiresHorizontalScrollFallback = availableTabsWidth < naturalTotalWidth;
 
+  const maximumTotalWidth = input.metrics.maxTabWidth * tabCount;
   let resolvedWidths = naturalWidths;
-  if (requiresHorizontalScrollFallback) {
-    resolvedWidths = Array.from({ length: tabCount }, () => input.metrics.minTabWidth);
-  } else if (naturalTotalWidth > availableTabsWidth) {
-    const widthToRemove = naturalTotalWidth - availableTabsWidth;
-    const shrinkCapacity = naturalTotalWidth - minimumTotalWidth;
-    const shrinkRatio = widthToRemove / shrinkCapacity;
+  if (!requiresHorizontalScrollFallback && naturalTotalWidth < maximumTotalWidth) {
+    const spareWidth = availableTabsWidth - naturalTotalWidth;
+    const growCapacity = maximumTotalWidth - naturalTotalWidth;
+    const widthToAdd = Math.min(spareWidth, growCapacity);
+    const growRatio = widthToAdd / growCapacity;
     resolvedWidths = naturalWidths.map(
-      (width) => width - (width - input.metrics.minTabWidth) * shrinkRatio,
+      (width) => width + (input.metrics.maxTabWidth - width) * growRatio,
     );
   }
 

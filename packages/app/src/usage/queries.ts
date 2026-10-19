@@ -1,5 +1,6 @@
 import { supportsUsageReports } from "@getpaseo/client/internal/daemon-client";
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 import {
   skipToken,
   useMutation,
@@ -9,6 +10,7 @@ import {
 } from "@tanstack/react-query";
 import { useShallow } from "zustand/shallow";
 import { useFetchQuery } from "@/data/query";
+import { i18n } from "@/i18n/i18next";
 import {
   getHostRuntimeStore,
   useHostRuntimeConnectionStatuses,
@@ -16,7 +18,6 @@ import {
   useHosts,
 } from "@/runtime/host-runtime";
 import { useSessionStore, type SessionState } from "@/stores/session-store";
-import { usageCopy } from "./copy";
 import {
   replaceReport,
   resolveAgentUsageView,
@@ -50,7 +51,7 @@ function agentUsageQueryKey(serverId: string, agentId: string) {
 
 function requireClient(serverId: string) {
   const client = getHostRuntimeStore().getClient(serverId);
-  if (!client) throw new Error(usageCopy.clientUnavailable);
+  if (!client) throw new Error(i18n.t("usage.clientUnavailable"));
   return client;
 }
 
@@ -131,6 +132,7 @@ function toQueryState(query: {
 
 /** Usage reports for one host, as shown on its settings page. */
 export function useHostUsage(serverId: string): { view: UsageView; refresh: () => void } {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const isConnected = useHostRuntimeIsConnected(serverId);
   const isSupported = useSessionStore((state) => supportsUsage(state.sessions[serverId]));
@@ -150,6 +152,7 @@ export function useHostUsage(serverId: string): { view: UsageView; refresh: () =
     isConnected,
     supportsUsage: isSupported,
     query: toQueryState(query),
+    t,
   });
   return { view, refresh };
 }
@@ -176,6 +179,7 @@ export function useUsageHostReports(serverId: string | null): UsageReportEntry[]
  * Fetched while either is mounted, so only while it is open.
  */
 export function useAgentUsage(serverId: string, agentId: string): AgentUsageView {
+  const { t } = useTranslation();
   const queryClient = useQueryClient();
   const canReport = useHostReportsUsage(serverId);
   const queryKey = agentUsageQueryKey(serverId, agentId);
@@ -196,7 +200,7 @@ export function useAgentUsage(serverId: string, agentId: string): AgentUsageView
     retry: false,
     staleTimeMs: REPORTS_STALE_TIME_MS,
   });
-  return resolveAgentUsageView({ canReport, query: toQueryState(query) });
+  return resolveAgentUsageView({ canReport, query: toQueryState(query), t });
 }
 
 /** Whether a host is connected and reports usage, read without fetching anything. */

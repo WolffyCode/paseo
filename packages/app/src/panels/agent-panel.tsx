@@ -325,6 +325,7 @@ function useAgentPanelDescriptor(
   target: { kind: "agent"; agentId: string },
   context: { serverId: string },
 ): PanelDescriptor {
+  const { t } = useTranslation();
   const descriptorState = useSessionStore(
     useShallow((state) => {
       const session = state.sessions[context.serverId];
@@ -344,11 +345,14 @@ function useAgentPanelDescriptor(
   const provider = descriptorState.provider;
   const label = resolveWorkspaceAgentTabLabel(descriptorState.title);
   const icon = useProviderIcon(provider, context.serverId);
+  const providerAgentLabel = t("agentPanel.descriptor.providerAgent", {
+    provider: formatProviderLabel(provider),
+  });
 
   return {
     label: label ?? "",
-    subtitle: `${formatProviderLabel(provider)} agent`,
-    tooltip: label ?? `${formatProviderLabel(provider)} agent`,
+    subtitle: providerAgentLabel,
+    tooltip: label ?? providerAgentLabel,
     titleState: label ? "ready" : "loading",
     icon,
     statusBucket: descriptorState.status
@@ -1727,11 +1731,11 @@ const animatedStaticStyles = RNStyleSheet.create({
 const styles = StyleSheet.create((theme) => ({
   root: {
     flex: 1,
-    backgroundColor: theme.colors.surface0,
+    backgroundColor: isWeb ? "transparent" : theme.colors.surface0,
   },
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface0,
+    backgroundColor: isWeb ? "transparent" : theme.colors.surface0,
   },
   contentContainer: {
     flex: 1,

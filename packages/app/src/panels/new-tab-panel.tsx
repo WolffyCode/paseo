@@ -1,58 +1,38 @@
-import {
-  memo,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  type ComponentType,
-  type ReactElement,
-} from "react";
+import { memo, useCallback, useMemo, useRef, type ReactElement } from "react";
 import { Pressable, ScrollView, Text, View, type PressableStateCallbackType } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Pencil, Plus } from "lucide-react-native";
+import { House, Pencil, Plus } from "lucide-react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { TerminalProfileIcon } from "@/components/terminal-profile-icon";
-import { Shortcut } from "@/components/ui/shortcut";
-import { isWeb } from "@/constants/platform";
-import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
+import { Button } from "@/components/ui/button";
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
 import type { KeyboardActionDefinition } from "@/keyboard/keyboard-action-dispatcher";
 import { usePaneContext, usePaneFocus } from "@/panels/pane-context";
-import { definePanel, type PanelIconProps } from "@/panels/panel-registry";
+import { definePanel, type PanelDescriptorContext } from "@/panels/panel-registry";
+import { newTabPresentation } from "@/panels/new-tab-presentation";
+import {
+  LAUNCHER_ICON_SIZE,
+  LAUNCHER_ROW_DATA_SET,
+  LauncherShortcut,
+  ThemedLauncherIcon,
+  useLauncherRowNavigation,
+} from "@/panels/launcher-rows";
 import { ICON_SIZE, SPACING, type Theme } from "@/styles/theme";
+import { ContentHome } from "@/workbench/content-home";
 import {
   useWorkspaceTabLaunchCatalog,
   type WorkspaceTabLaunchItem,
 } from "@/workspace-tabs/launcher";
 
 const ThemedPlus = withUnistyles(Plus);
+const ThemedHouse = withUnistyles(House);
 const ThemedPencil = withUnistyles(Pencil);
 const mutedColorMapping = (theme: Theme) => ({ color: theme.colors.foregroundMuted });
 const extraMutedColorMapping = (theme: Theme) => ({
   color: theme.colors.foregroundExtraMuted,
 });
-/** Every launcher row leads with the same glyph box so labels share one rail. */
-const LAUNCHER_ICON_SIZE = ICON_SIZE.md;
 const LAUNCHER_MAX_WIDTH = 380;
 const EDIT_PROFILES_HIT_SIZE = ICON_SIZE.xs + SPACING[2];
-const ROW_DATA_SET = { newTabLauncherRow: "true" };
-const ROW_SELECTOR = '[data-new-tab-launcher-row="true"]';
-function LauncherIcon({
-  Icon,
-  color = "",
-}: {
-  Icon: ComponentType<PanelIconProps>;
-  color?: string;
-}) {
-  return <Icon size={LAUNCHER_ICON_SIZE} color={color} />;
-}
-
-const ThemedLauncherIcon = withUnistyles(LauncherIcon);
-
-function LauncherShortcut({ actionId }: { actionId: string }): ReactElement | null {
-  const keys = useShortcutKeys(actionId);
-  return keys ? <Shortcut chord={keys} /> : null;
-}
 
 function rowStyle({
   pressed,
@@ -97,7 +77,7 @@ function LauncherRow({ item }: { item: WorkspaceTabLaunchItem }) {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={item.label}
-      dataSet={ROW_DATA_SET}
+      dataSet={LAUNCHER_ROW_DATA_SET}
       disabled={item.disabled}
       onPress={handlePress}
       style={rowStyle}
@@ -116,17 +96,31 @@ function LauncherRow({ item }: { item: WorkspaceTabLaunchItem }) {
   );
 }
 
-function useNewTabDescriptor() {
+function useNewTabDescriptor(_target: { kind: "new_tab" }, context: PanelDescriptorContext) {
   const { t } = useTranslation();
-  const label = t("workspace.tabs.actions.newTab");
+  const presentation = newTabPresentation(context.paneId);
+  const label = t(presentation.labelKey);
   return {
     label,
     subtitle: label,
     tooltip: label,
     titleState: "ready" as const,
-    icon: ThemedPlus,
+    icon: presentation.icon === "home" ? ThemedHouse : ThemedPlus,
     statusBucket: null,
   };
+}
+
+function EmptyConversation({ item }: { item: WorkspaceTabLaunchItem }) {
+  const { t } = useTranslation();
+  const { tabId } = usePaneContext();
+  const create = useCallback(() => item.launch({ kind: "replace", tabId }), [item, tabId]);
+  return (
+    <View style={styles.contentEmpty}>
+      <Button variant="ghost" leftIcon={Pencil} onPress={create}>
+        {t("newWorkspace.title")}
+      </Button>
+    </View>
+  );
 }
 
 const NewTabPanel = memo(function NewTabPanel(): ReactElement {
@@ -145,56 +139,13 @@ const NewTabPanel = memo(function NewTabPanel(): ReactElement {
   );
   const handlesWorkspaceShortcuts = isInteractive && host === "main";
 
-  useEffect(() => {
-    if (!isWeb || !isInteractive) return;
-    const container: unknown = containerRef.current;
-    if (!(container instanceof HTMLElement)) return;
-    const webContainer = container as HTMLElement;
-
-    function rows() {
-      return Array.from(webContainer.querySelectorAll(ROW_SELECTOR)) as HTMLElement[];
-    }
-    function focusFirstRow() {
-      rows()[0]?.focus({ preventScroll: true });
-    }
-    function handlePointerDown(event: PointerEvent) {
-      focusPane();
-      if (!(event.target instanceof Element) || !event.target.closest(ROW_SELECTOR)) {
-        requestAnimationFrame(focusFirstRow);
-      }
-    }
-    function handleKeyDown(event: KeyboardEvent) {
-      const availableRows = rows();
-      const currentIndex = availableRows.findIndex((row) => row === document.activeElement);
-      let direction = 0;
-      if (event.key === "ArrowDown") {
-        direction = 1;
-      } else if (event.key === "ArrowUp") {
-        direction = -1;
-      }
-      if (direction !== 0 && availableRows.length > 0) {
-        event.preventDefault();
-        let start = currentIndex;
-        if (currentIndex < 0) {
-          start = direction > 0 ? -1 : 0;
-        }
-        const nextIndex = (start + direction + availableRows.length) % availableRows.length;
-        availableRows[nextIndex]?.focus();
-      }
-      if (event.key === "Enter" && currentIndex >= 0) {
-        event.preventDefault();
-        availableRows[currentIndex]?.click();
-      }
-    }
-
-    webContainer.addEventListener("pointerdown", handlePointerDown, true);
-    webContainer.addEventListener("keydown", handleKeyDown);
-    focusFirstRow();
-    return () => {
-      webContainer.removeEventListener("pointerdown", handlePointerDown, true);
-      webContainer.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [focusPane, isInteractive]);
+  // The column 3 home also opens on its own, where a preselected row reads as a stuck hover.
+  useLauncherRowNavigation({
+    containerRef,
+    isInteractive,
+    focusPane,
+    preselectFirstRow: host !== "content",
+  });
 
   const handleKeyboardAction = useCallback(
     (action: KeyboardActionDefinition): boolean => {
@@ -242,6 +193,21 @@ const NewTabPanel = memo(function NewTabPanel(): ReactElement {
     handle: handleKeyboardAction,
   });
 
+  const conversationItem = itemsById.get("agent");
+  if (host === "conversations" && conversationItem)
+    return <EmptyConversation item={conversationItem} />;
+  if (host === "content")
+    return (
+      <View
+        ref={containerRef}
+        style={styles.homeContainer}
+        tabIndex={-1}
+        testID="workbench-content-home"
+      >
+        <ContentHome catalog={groups} />
+      </View>
+    );
+
   return (
     <View ref={containerRef} style={styles.container} testID="workspace-new-tab-panel">
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -276,8 +242,14 @@ export const newTabPanelRegistration = definePanel("new_tab", {
 });
 
 const styles = StyleSheet.create((theme) => ({
+  contentEmpty: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12 },
   container: {
     flex: 1,
+  },
+  // The home's container holds keyboard focus until an arrow key picks a row; it is not a control.
+  homeContainer: {
+    flex: 1,
+    outlineWidth: 0,
   },
   scrollContent: {
     flexGrow: 1,

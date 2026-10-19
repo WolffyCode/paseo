@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { subscribeToRelativeTimeTick, type TickResolution } from "@/utils/relative-time-ticker";
-import { describeCompactTimeAgo, describeTimeAgo, type RelativeTimeLabel } from "@/utils/time";
+import { describeRelativeTime, type RelativeTimeStyle } from "@/utils/time";
 
 /** A prose relative timestamp ("5m ago") that keeps itself current. See `useCompactTimeAgo`. */
 export function useTimeAgo(date: Date | null): string {
-  return useRelativeTimeLabel(date, describeTimeAgo);
+  return useRelativeTimeLabel(date, "prose");
 }
 
 /**
@@ -24,19 +25,22 @@ export function useTimeAgo(date: Date | null): string {
  *   never changes again.
  */
 export function useCompactTimeAgo(date: Date | null): string {
-  return useRelativeTimeLabel(date, describeCompactTimeAgo);
+  return useRelativeTimeLabel(date, "compact");
 }
 
-function useRelativeTimeLabel(
-  date: Date | null,
-  describe: (date: Date) => RelativeTimeLabel,
-): string {
-  const [label, setLabel] = useState(() => (date ? describe(date).label : ""));
+function useRelativeTimeLabel(date: Date | null, style: RelativeTimeStyle): string {
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
+  const [label, setLabel] = useState(() =>
+    date ? describeRelativeTime(date, style, t, locale).label : "",
+  );
 
   // Keyed on the instant, not the Date object: the store parses a fresh Date on every payload, so
   // depending on identity would tear down and rebuild the subscription for an unchanged time.
   const time = date === null ? null : date.getTime();
 
+  // `t` only changes identity when the app language does, so a language switch rewords the label
+  // here the way a new instant would, and a plain re-render never resubscribes.
   useEffect(() => {
     if (time === null) {
       setLabel("");
@@ -44,13 +48,14 @@ function useRelativeTimeLabel(
     }
 
     const source = new Date(time);
-    let current = describe(source);
+    const describe = () => describeRelativeTime(source, style, t, locale);
+    let current = describe();
     setLabel(current.label);
 
     let unsubscribe: (() => void) | null = null;
 
     const handleTick = () => {
-      const next = describe(source);
+      const next = describe();
       if (next.label !== current.label) {
         setLabel(next.label);
       }
@@ -74,7 +79,7 @@ function useRelativeTimeLabel(
     return () => {
       unsubscribe?.();
     };
-  }, [time, describe]);
+  }, [time, style, t, locale]);
 
   return label;
 }

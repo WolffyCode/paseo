@@ -2832,6 +2832,8 @@ export class Session {
       }
       case "agent.fork_context.request":
         return this.handleAgentForkContextRequest(msg);
+      case "agent.get_storage_paths.request":
+        return this.handleAgentGetStoragePathsRequest(msg);
       default:
         return undefined;
     }
@@ -8239,6 +8241,42 @@ export class Session {
           itemCount: 0,
           boundaryCursor: msg.boundaryCursor ?? null,
           boundaryMessageId: msg.boundaryMessageId ?? null,
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    }
+  }
+
+  private async handleAgentGetStoragePathsRequest(
+    msg: Extract<SessionInboundMessage, { type: "agent.get_storage_paths.request" }>,
+  ): Promise<void> {
+    try {
+      const [recordPath, providerSessionPath] = await Promise.all([
+        this.agentStorage.getRecordPath(msg.agentId),
+        this.agentManager.findNativeSessionPath(msg.agentId),
+      ]);
+      this.emit({
+        type: "agent.get_storage_paths.response",
+        payload: {
+          requestId: msg.requestId,
+          agentId: msg.agentId,
+          recordPath,
+          providerSessionPath,
+          error: null,
+        },
+      });
+    } catch (error) {
+      this.sessionLogger.error(
+        { err: error, agentId: msg.agentId },
+        "Failed to handle agent.get_storage_paths.request",
+      );
+      this.emit({
+        type: "agent.get_storage_paths.response",
+        payload: {
+          requestId: msg.requestId,
+          agentId: msg.agentId,
+          recordPath: null,
+          providerSessionPath: null,
           error: error instanceof Error ? error.message : String(error),
         },
       });

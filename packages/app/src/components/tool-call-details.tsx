@@ -199,6 +199,7 @@ function WorktreeSetupDetailSection({
   worktreePath,
   ds,
 }: WorktreeSetupDetailProps) {
+  const { t } = useTranslation();
   const setupLog = log.replace(/^\n+/, "");
   const hasLog = setupLog.length > 0;
   return (
@@ -218,7 +219,9 @@ function WorktreeSetupDetailSection({
           >
             <View style={styles.codeLine} dataSet={CODE_SURFACE_DATASET}>
               <Text selectable style={styles.scrollText}>
-                {hasLog ? setupLog : `Preparing worktree ${branchName} at ${worktreePath}`}
+                {hasLog
+                  ? setupLog
+                  : t("toolCallDetails.preparingWorktree", { branchName, worktreePath })}
               </Text>
             </View>
           </ScrollView>
@@ -383,7 +386,7 @@ function SubAgentDetailSection({
             <View style={styles.codeLine} dataSet={CODE_SURFACE_DATASET}>
               {childSessionId ? (
                 <Text selectable style={styles.subAgentSessionText}>
-                  session {childSessionId}
+                  {t("toolCallDetails.subAgentSession", { sessionId: childSessionId })}
                 </Text>
               ) : null}
               {hasActions ? (

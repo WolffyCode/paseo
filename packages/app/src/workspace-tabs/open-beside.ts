@@ -11,6 +11,7 @@ import {
 import { getPanelInstanceAttributes } from "@/panels/panel-instance-attributes";
 import { workspaceTabTargetsEqual } from "@/workspace-tabs/identity";
 import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
+import { isWorkbenchLayout } from "@/workbench/layout";
 
 export type OpenInSidePaneSource = keyof OpenInSidePanePreferences;
 export type WorkspaceTargetOpenLocation = "main" | "side";
@@ -101,6 +102,14 @@ export function openWorkspaceTargetAtLocation(
   if (!input.workspaceKey) return null;
   const store = useWorkspaceLayoutStore.getState();
   const layout = store.layoutByWorkspace[input.workspaceKey];
+  if (layout && isWorkbenchLayout(layout)) {
+    return store.openTab({
+      workspaceKey: input.workspaceKey,
+      target: input.target,
+      intent: "reveal",
+      parentTabId: input.parentTabId ?? undefined,
+    });
+  }
   const targetAlreadyExists = Boolean(
     layout &&
     collectAllTabs(layout.root).some((tab) => workspaceTabTargetsEqual(tab.target, input.target)),
@@ -132,6 +141,7 @@ export function openPreferredWorkspacePreview(
   const store = useWorkspaceLayoutStore.getState();
   const layout = store.layoutByWorkspace[input.workspaceKey];
   if (!layout) return null;
+  if (isWorkbenchLayout(layout)) return openPreferredWorkspaceTarget(input);
   const existing = collectAllTabs(layout.root).some((tab) =>
     workspaceTabTargetsEqual(tab.target, input.target),
   );

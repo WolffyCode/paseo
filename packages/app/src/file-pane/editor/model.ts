@@ -59,7 +59,7 @@ const systemClock: FileEditorClock = {
 };
 
 export class FileEditorModel {
-  private readonly session: FileEditorSession;
+  private session: FileEditorSession;
   private readonly clock: FileEditorClock;
   private readonly listeners = new Set<() => void>();
   private snapshot: FileEditorSnapshot;
@@ -102,6 +102,10 @@ export class FileEditorModel {
   };
 
   getSnapshot = (): FileEditorSnapshot => this.snapshot;
+
+  setSession(session: FileEditorSession): void {
+    this.session = session;
+  }
 
   connectFileObservations(source: FileObservationSource): void {
     this.disconnectFileObservations();

@@ -252,6 +252,7 @@ function newTabResultFrom(payload: BrowserAutomationResponsePayload) {
   return payload.result;
 }
 
+/** The workspace tabs showing `browserId`. */
 function workspaceBrowserTabs(workspaceKey: string, browserId: string) {
   return useWorkspaceLayoutStore
     .getState()
@@ -278,7 +279,7 @@ useWorkspaceLayoutStore.persist.setOptions({
 describe("mountBrowserAutomationHandler", () => {
   beforeEach(() => {
     browserAutomationStorage.clear();
-    useBrowserStore.setState({ browsersById: {} });
+    useBrowserStore.setState({ browsersById: {}, closedBrowsers: [] });
     useWorkspaceLayoutStore.setState({ layoutByWorkspace: {} });
   });
 
@@ -475,6 +476,34 @@ describe("mountBrowserAutomationHandler", () => {
     expect(useBrowserStore.getState().browsersById[result.browserId]).toBeUndefined();
     expect(browser.browser.unregisteredWorkspaceBrowsers).toEqual([result.browserId]);
     expect(currentBrowserTabs()).toEqual([]);
+  });
+
+  test("every page an agent opens is its own column-3 tab", async () => {
+    const browser = new BrowserAutomationHandlerHarness();
+    const workspaceKey = buildWorkspaceTabPersistenceKey({
+      serverId: "server-1",
+      workspaceId: "wks_workspace_a",
+    });
+    if (!workspaceKey) {
+      throw new Error("Expected workspace key");
+    }
+    browser.mount({ serverId: "server-1" });
+
+    browser.receive(browserNewTabRequest());
+    await flushAsyncWork();
+    browser.receive(browserNewTabRequest());
+    await flushAsyncWork();
+    const first = newTabResultFrom(browser.client.payloadAt(0));
+    const second = newTabResultFrom(browser.client.payloadAt(1));
+
+    expect(workspaceBrowserTabs(workspaceKey, first.browserId)).toHaveLength(1);
+    expect(workspaceBrowserTabs(workspaceKey, second.browserId)).toHaveLength(1);
+
+    browser.receive(browserCloseTabRequest(first.browserId));
+    await flushAsyncWork();
+    expect(workspaceBrowserTabs(workspaceKey, first.browserId)).toEqual([]);
+    expect(workspaceBrowserTabs(workspaceKey, second.browserId)).toHaveLength(1);
+    expect(Object.keys(useBrowserStore.getState().browsersById)).toEqual([second.browserId]);
   });
 
   test("browser_close_tab returns not found after the tab is gone", async () => {

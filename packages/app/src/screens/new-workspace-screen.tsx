@@ -34,6 +34,7 @@ import { TitlebarDragRegion } from "@/components/desktop/titlebar-drag-region";
 import { SidebarMenuToggle } from "@/components/headers/menu-header";
 import { ScreenHeader } from "@/components/headers/screen-header";
 import { useIsCompactFormFactor } from "@/constants/layout";
+import { isWeb } from "@/constants/platform";
 import { useToast } from "@/contexts/toast-context";
 import { useAgentInputDraft } from "@/composer/draft/input-draft";
 import { useForgeSearchQuery } from "@/git/use-forge-search-query";
@@ -680,6 +681,7 @@ function IsolationPickerTrigger({
   iconColor: string;
   iconSize: number;
 }) {
+  const { t } = useTranslation();
   return (
     <Tooltip>
       <TooltipTrigger asChild triggerRefProp="ref">
@@ -691,7 +693,7 @@ function IsolationPickerTrigger({
           disabled={disabled}
           style={badgePressableStyle}
           accessibilityRole="button"
-          accessibilityLabel="Workspace isolation"
+          accessibilityLabel={t("newWorkspace.isolation.accessibilityLabel")}
         >
           <View style={styles.badgeIconBox}>
             {isolation === "worktree" ? (
@@ -854,13 +856,13 @@ async function createConversationWorkspace(input: {
     workspaces: ReturnType<typeof normalizeWorkspaceDescriptor>[],
   ) => void;
   serverId: string;
-  createFailedMessage: string;
+  t: TFunction;
 }): Promise<WorkspaceCreationResult> {
   let source: CreateWorkspaceRequestOptions["source"] = { kind: "chat" };
   if (input.project) {
     const projectId = getHostProjectId(input.project, input.serverId);
     if (!projectId || !input.sourceDirectory)
-      throw new Error("Project is not available on the selected host");
+      throw new Error(input.t("newWorkspace.errors.projectUnavailable"));
     if (input.isolation === "worktree") {
       source = {
         kind: "worktree",
@@ -889,7 +891,7 @@ async function createConversationWorkspace(input: {
   });
   if (payload.error || !payload.workspace) {
     throw new WorkspaceCreationError({
-      message: payload.error ?? input.createFailedMessage,
+      message: payload.error ?? input.t("newWorkspace.errors.createFailed"),
       outcomeUnknown: payload.creation?.outcomeUnknown === true,
     });
   }
@@ -1472,7 +1474,8 @@ function useNewWorkspaceFormStack(input: NewWorkspaceFormStackInput): ReactEleme
   const { isCompact, isPending, project, host, isolation, base, launch } = input;
 
   const selectedHostLabel =
-    host.allHosts.find((h) => h.serverId === host.selectedServerId)?.label ?? "Host";
+    host.allHosts.find((h) => h.serverId === host.selectedServerId)?.label ??
+    t("newWorkspace.fields.host");
   const showHostControl = host.allHosts.length > 1;
   const isolationTriggerLabel = isolationLabel(t, isolation.effectiveIsolation);
   const addProjectAction = useMemo(
@@ -1539,7 +1542,7 @@ function useNewWorkspaceFormStack(input: NewWorkspaceFormStackInput): ReactEleme
         onOpenChange={host.onOpenChange}
         anchorRef={host.anchorRef}
         searchable={false}
-        title="Host"
+        title={t("newWorkspace.fields.host")}
         desktopPlacement="bottom-start"
         desktopMinWidth={200}
         hostOptionTestID={newWorkspaceHostOptionTestID}
@@ -1549,7 +1552,7 @@ function useNewWorkspaceFormStack(input: NewWorkspaceFormStackInput): ReactEleme
             <Pressable
               ref={host.anchorRef}
               accessibilityRole="button"
-              accessibilityLabel="Host"
+              accessibilityLabel={t("newWorkspace.fields.host")}
               onPress={host.open}
               disabled={isPending || host.allHosts.length === 0}
               style={badgePressableStyle}
@@ -1914,8 +1917,8 @@ export function NewWorkspaceScreen({
   }, [forgeSearchAuthenticated, githubPrSearchQuery.data?.items]);
 
   const baseItem = useMemo(
-    () => selectedItem ?? (checkoutStatus ? defaultBasePickerItem(checkoutStatus) : null),
-    [checkoutStatus, selectedItem],
+    () => selectedItem ?? (checkoutStatus ? defaultBasePickerItem(checkoutStatus, t) : null),
+    [checkoutStatus, selectedItem, t],
   );
   const { options, itemById, selectedOptionId }: PickerOptionData = useMemo(
     () =>
@@ -1923,8 +1926,9 @@ export function NewWorkspaceScreen({
         branchDetails,
         prItems,
         baseItem,
+        t,
       }),
-    [baseItem, branchDetails, prItems],
+    [baseItem, branchDetails, prItems, t],
   );
   const triggerLabel = useMemo(() => {
     const displayItem = itemById.get(selectedOptionId);
@@ -2133,7 +2137,7 @@ export function NewWorkspaceScreen({
         return creationResult;
       }
       if (selectedProject && !selectedSourceDirectory) {
-        throw new Error("Choose a host for this project");
+        throw new Error(t("newWorkspace.errors.chooseHost"));
       }
       const connectedClient = withConnectedClient();
       const createsWorktree =
@@ -2150,7 +2154,7 @@ export function NewWorkspaceScreen({
           : null;
       const checkoutRequest = checkoutStatusForCreate
         ? pickerItemToCheckoutRequest(
-            selectedItem ?? defaultBasePickerItem(checkoutStatusForCreate),
+            selectedItem ?? defaultBasePickerItem(checkoutStatusForCreate, t),
           )
         : undefined;
       const normalizedWorkspace = await createConversationWorkspace({
@@ -2168,7 +2172,7 @@ export function NewWorkspaceScreen({
         onEvent: input.onEvent,
         mergeWorkspaces,
         serverId: selectedServerId,
-        createFailedMessage: t("newWorkspace.errors.createFailed"),
+        t,
       });
       setCreationResult(normalizedWorkspace);
       return normalizedWorkspace;
@@ -2609,7 +2613,7 @@ function NewWorkspaceLayout({
 const styles = StyleSheet.create((theme) => ({
   container: {
     flex: 1,
-    backgroundColor: theme.colors.surface0,
+    backgroundColor: isWeb ? "transparent" : theme.colors.surface0,
     userSelect: "none",
   },
   content: {
@@ -2643,6 +2647,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   formStackDesktop: {
     flexDirection: "row",
+    flexWrap: "wrap",
     alignItems: "center",
     // Matches the gap between the composer and the Import session pill below it.
     marginBottom: theme.spacing[4],

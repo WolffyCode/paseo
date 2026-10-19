@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { FileFind, FileFindModel } from "../find/index.web";
 import { Compartment, EditorState } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -60,10 +61,17 @@ function ReadonlyCodeMirror({
 }: Omit<FileSourceViewProps, "size" | "tooLargeMessage"> & {
   presentation: Exclude<SourcePresentation, "unsupported">;
 }) {
+  const { t } = useTranslation();
   const [find] = useState(() => new FileFindModel());
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
-  const initial = useRef({ content, filename, presentation, theme });
+  const initial = useRef({
+    content,
+    filename,
+    presentation,
+    theme,
+    sourceLabel: t("panels.file.sourceLabel", { filename }),
+  });
 
   useEffect(() => {
     if (!hostRef.current) return;
@@ -77,7 +85,7 @@ function ReadonlyCodeMirror({
           EditorState.readOnly.of(true),
           EditorView.contentAttributes.of({
             tabindex: "0",
-            "aria-label": `Source for ${values.filename}`,
+            "aria-label": values.sourceLabel,
           }),
           EditorView.editable.of(false),
           languageCompartment.of(

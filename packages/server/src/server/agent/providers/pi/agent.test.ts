@@ -215,6 +215,21 @@ async function createSession(
   return { pi, session, events };
 }
 
+test("resolves the native session path to the session file its handle names", async () => {
+  const client = createClient();
+
+  await expect(
+    client.resolveNativeSessionPath({
+      provider: "pi",
+      sessionId: "pi-session-1",
+      nativeHandle: "/home/dev/.pi/agent/sessions/project/pi-session-1.jsonl",
+    }),
+  ).resolves.toBe("/home/dev/.pi/agent/sessions/project/pi-session-1.jsonl");
+  await expect(
+    client.resolveNativeSessionPath({ provider: "pi", sessionId: "pi-session-2" }),
+  ).resolves.toBeNull();
+});
+
 test("forwards launch-context env to the Pi process launch", async () => {
   const pi = new FakePi();
   const client = createClient(pi);

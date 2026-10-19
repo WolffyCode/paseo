@@ -1,7 +1,11 @@
 import type { ToolCallDetail } from "@getpaseo/protocol/agent-types";
 import { describe, expect, it } from "vitest";
+import { i18n } from "@/i18n/i18next";
 
 import { buildToolCallPresentation, type ToolCallPresentationIcon } from "./presentation";
+
+const englishT = i18n.getFixedT("en");
+const chineseT = i18n.getFixedT("zh-CN");
 
 const fakeIcons = {
   brain: (() => null) as ToolCallPresentationIcon,
@@ -28,6 +32,7 @@ function fakeResolveIcon(
 describe("tool-call presentation", () => {
   it("builds badge, detail, icon, and file-open policy in one model", () => {
     const presentation = buildToolCallPresentation({
+      t: englishT,
       toolName: "read_file",
       status: "completed",
       error: null,
@@ -54,6 +59,7 @@ describe("tool-call presentation", () => {
 
   it("marks running calls without meaningful detail as loading details", () => {
     const presentation = buildToolCallPresentation({
+      t: englishT,
       toolName: "exec_command",
       status: "running",
       error: null,
@@ -78,6 +84,7 @@ describe("tool-call presentation", () => {
 
   it("keeps plan calls out of the expandable badge path", () => {
     const presentation = buildToolCallPresentation({
+      t: englishT,
       toolName: "ExitPlanMode",
       status: "completed",
       error: null,
@@ -90,5 +97,27 @@ describe("tool-call presentation", () => {
 
     expect(presentation.isPlan).toBe(true);
     expect(presentation.icon).toBe(fakeIcons.brain);
+  });
+
+  it("shows fixed tool kinds in the app language and provider tool names as written", () => {
+    const shell = buildToolCallPresentation({
+      t: chineseT,
+      toolName: "Bash",
+      status: "completed",
+      error: null,
+      detail: { type: "shell", command: "ls -la" },
+      resolveIcon: fakeResolveIcon,
+    });
+    const providerTool = buildToolCallPresentation({
+      t: chineseT,
+      toolName: "todo_write",
+      status: "completed",
+      error: null,
+      resolveIcon: fakeResolveIcon,
+    });
+
+    expect(shell.displayName).toBe("命令");
+    expect(shell.summary).toBe("ls -la");
+    expect(providerTool.displayName).toBe("Todo write");
   });
 });

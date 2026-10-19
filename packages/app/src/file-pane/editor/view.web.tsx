@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useTranslation } from "react-i18next";
 import { FileFind, FileFindModel } from "../find/index.web";
 import { Annotation, Compartment, EditorState, Transaction } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
@@ -39,6 +40,7 @@ export function FileEditorView({
   onCursorChange,
   onVimModeChange,
 }: FileEditorViewProps) {
+  const { t } = useTranslation();
   const [find] = useState(() => new FileFindModel());
   const hostRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
@@ -149,7 +151,7 @@ export function FileEditorView({
         ref={hostRef}
         data-pmono=""
         data-testid="file-source-editor"
-        aria-label={`Source editor for ${filename}`}
+        aria-label={t("panels.file.editor.sourceEditorLabel", { filename })}
         style={HOST_STYLE}
       />
       <FileFind model={find} editor={viewRef} />

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import type { ForgeSearchItem } from "@getpaseo/protocol/messages";
+import { i18n } from "@/i18n/i18next";
 import {
   type BranchPickerDetail,
   branchPickerOptionId,
@@ -21,6 +22,10 @@ const prItem: ForgeSearchItem = {
   baseRefName: "main",
   headRefName: "feature/picker",
 };
+
+beforeAll(async () => {
+  await i18n.changeLanguage("en");
+});
 
 describe("branchPickerOptionId", () => {
   it("distinguishes a local origin-prefixed branch from the origin ref", () => {
@@ -107,16 +112,19 @@ describe("pickerItemToCheckoutRequest", () => {
 describe("buildBranchPickerItems", () => {
   it("keeps a single origin row when local and origin match", () => {
     expect(
-      buildBranchPickerItems([
-        {
-          name: "main",
-          committerDate: 10,
-          hasLocal: true,
-          hasRemote: true,
-          localAhead: 0,
-          localBehind: 0,
-        },
-      ]),
+      buildBranchPickerItems(
+        [
+          {
+            name: "main",
+            committerDate: 10,
+            hasLocal: true,
+            hasRemote: true,
+            localAhead: 0,
+            localBehind: 0,
+          },
+        ],
+        i18n.t,
+      ),
     ).toEqual([
       {
         kind: "branch",
@@ -130,16 +138,19 @@ describe("buildBranchPickerItems", () => {
 
   it("puts the origin row first and disambiguates the local row when the refs differ", () => {
     expect(
-      buildBranchPickerItems([
-        {
-          name: "main",
-          committerDate: 10,
-          hasLocal: true,
-          hasRemote: true,
-          localAhead: 3,
-          localBehind: 2,
-        },
-      ]),
+      buildBranchPickerItems(
+        [
+          {
+            name: "main",
+            committerDate: 10,
+            hasLocal: true,
+            hasRemote: true,
+            localAhead: 3,
+            localBehind: 2,
+          },
+        ],
+        i18n.t,
+      ),
     ).toEqual([
       {
         kind: "branch",
@@ -161,14 +172,17 @@ describe("buildBranchPickerItems", () => {
 
   it("uses an exact origin ref for remote-only branches", () => {
     expect(
-      buildBranchPickerItems([
-        {
-          name: "release",
-          committerDate: 5,
-          hasLocal: false,
-          hasRemote: true,
-        },
-      ]),
+      buildBranchPickerItems(
+        [
+          {
+            name: "release",
+            committerDate: 5,
+            hasLocal: false,
+            hasRemote: true,
+          },
+        ],
+        i18n.t,
+      ),
     ).toEqual([
       {
         kind: "branch",
@@ -182,14 +196,17 @@ describe("buildBranchPickerItems", () => {
 
   it("keeps the plain name for a local-only branch", () => {
     expect(
-      buildBranchPickerItems([
-        {
-          name: "scratch",
-          committerDate: 5,
-          hasLocal: true,
-          hasRemote: false,
-        },
-      ]),
+      buildBranchPickerItems(
+        [
+          {
+            name: "scratch",
+            committerDate: 5,
+            hasLocal: true,
+            hasRemote: false,
+          },
+        ],
+        i18n.t,
+      ),
     ).toEqual([
       {
         kind: "branch",
@@ -203,14 +220,17 @@ describe("buildBranchPickerItems", () => {
 
   it("shows both refs when their divergence is unavailable", () => {
     expect(
-      buildBranchPickerItems([
-        {
-          name: "main",
-          committerDate: 10,
-          hasLocal: true,
-          hasRemote: true,
-        },
-      ]),
+      buildBranchPickerItems(
+        [
+          {
+            name: "main",
+            committerDate: 10,
+            hasLocal: true,
+            hasRemote: true,
+          },
+        ],
+        i18n.t,
+      ),
     ).toEqual([
       {
         kind: "branch",
@@ -230,7 +250,7 @@ describe("buildBranchPickerItems", () => {
   });
 
   it("keeps the legacy unqualified row when provenance is unavailable", () => {
-    expect(buildBranchPickerItems([{ name: "legacy", committerDate: 1 }])).toEqual([
+    expect(buildBranchPickerItems([{ name: "legacy", committerDate: 1 }], i18n.t)).toEqual([
       {
         kind: "branch",
         name: "legacy",
@@ -253,25 +273,37 @@ const mainRow: BranchPickerDetail = {
 
 describe("buildPickerOptionData", () => {
   it("marks origin and keeps an ahead local main explicit", () => {
-    const baseItem = defaultBasePickerItem({
-      currentBranch: "main",
-      upstreamRef: "refs/remotes/origin/main",
+    const baseItem = defaultBasePickerItem(
+      {
+        currentBranch: "main",
+        upstreamRef: "refs/remotes/origin/main",
+      },
+      i18n.t,
+    );
+    const data = buildPickerOptionData({
+      branchDetails: [mainRow],
+      prItems: [],
+      baseItem,
+      t: i18n.t,
     });
-    const data = buildPickerOptionData({ branchDetails: [mainRow], prItems: [], baseItem });
 
     expect(data.options.map((option) => option.label)).toEqual(["main", "main (local)"]);
     expect(data.selectedOptionId).toBe(branchPickerOptionId("refs/remotes/origin/main"));
   });
 
   it("adds and disambiguates a fork upstream absent from branch suggestions", () => {
-    const baseItem = defaultBasePickerItem({
-      currentBranch: "main",
-      upstreamRef: "refs/remotes/upstream/main",
-    });
+    const baseItem = defaultBasePickerItem(
+      {
+        currentBranch: "main",
+        upstreamRef: "refs/remotes/upstream/main",
+      },
+      i18n.t,
+    );
     const data = buildPickerOptionData({
       branchDetails: [{ ...mainRow, localAhead: 0, localBehind: 0 }],
       prItems: [],
       baseItem,
+      t: i18n.t,
     });
 
     expect(data.options.map((option) => option.label)).toEqual(["main (upstream)", "main"]);
@@ -279,11 +311,12 @@ describe("buildPickerOptionData", () => {
   });
 
   it("marks a visible row on an old daemon when local and origin are in sync", () => {
-    const baseItem = defaultBasePickerItem({ currentBranch: "main" });
+    const baseItem = defaultBasePickerItem({ currentBranch: "main" }, i18n.t);
     const data = buildPickerOptionData({
       branchDetails: [{ ...mainRow, localAhead: 0, localBehind: 0 }],
       prItems: [],
       baseItem,
+      t: i18n.t,
     });
 
     expect(data.options.map((option) => option.label)).toEqual(["main (local)", "main"]);
@@ -301,6 +334,7 @@ describe("buildPickerOptionData", () => {
       branchDetails: [mainRow],
       prItems: [],
       baseItem,
+      t: i18n.t,
     });
     const selected = data.itemById.get(data.selectedOptionId) ?? null;
     expect(pickerItemToCheckoutRequest(selected)).toEqual({
@@ -313,30 +347,36 @@ describe("buildPickerOptionData", () => {
 describe("defaultBasePickerItem", () => {
   it("uses origin when the current branch tracks origin", () => {
     expect(
-      defaultBasePickerItem({
-        currentBranch: "main",
-        upstreamRef: "refs/remotes/origin/main",
-      }),
+      defaultBasePickerItem(
+        {
+          currentBranch: "main",
+          upstreamRef: "refs/remotes/origin/main",
+        },
+        i18n.t,
+      ),
     ).toMatchObject({ refName: "refs/remotes/origin/main", name: "main" });
   });
 
   it("uses the exact non-origin upstream", () => {
     expect(
-      defaultBasePickerItem({
-        currentBranch: "main",
-        upstreamRef: "refs/remotes/upstream/main",
-      }),
+      defaultBasePickerItem(
+        {
+          currentBranch: "main",
+          upstreamRef: "refs/remotes/upstream/main",
+        },
+        i18n.t,
+      ),
     ).toMatchObject({ refName: "refs/remotes/upstream/main", name: "main" });
   });
 
   it("keeps old-daemon behavior local", () => {
-    expect(defaultBasePickerItem({ currentBranch: "main" })).toMatchObject({
+    expect(defaultBasePickerItem({ currentBranch: "main" }, i18n.t)).toMatchObject({
       refName: "refs/heads/main",
       name: "main",
     });
   });
 
   it("has no default for detached HEAD", () => {
-    expect(defaultBasePickerItem({ currentBranch: null })).toBeNull();
+    expect(defaultBasePickerItem({ currentBranch: null }, i18n.t)).toBeNull();
   });
 });

@@ -1,4 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useTranslation } from "react-i18next";
 import { Pressable, Text, View, type PointerEvent as RNPointerEvent } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { useReducedMotion } from "react-native-reanimated";
@@ -27,6 +28,7 @@ export const ChatOutlineRail = memo(function ChatOutlineRail({
   activePrompt,
   onJumpToPrompt,
 }: ChatOutlineRailProps) {
+  const { t } = useTranslation();
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const activeSeq = useSyncExternalStore(activePrompt.subscribe, activePrompt.getActiveSeq);
@@ -93,7 +95,11 @@ export const ChatOutlineRail = memo(function ChatOutlineRail({
               index={index}
               seq={prompt.seq}
               preview={prompt.preview}
-              label={`${index + 1} of ${prompts.length}: ${prompt.preview}`}
+              label={t("agentStream.chatOutline.promptLabel", {
+                position: index + 1,
+                total: prompts.length,
+                preview: prompt.preview,
+              })}
               isActive={prompt.seq === activeSeq}
               hasAttention={index === attentionIndex}
               magnification={

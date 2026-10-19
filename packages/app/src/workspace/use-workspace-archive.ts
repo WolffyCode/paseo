@@ -2,11 +2,7 @@ import { useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { getHostRuntimeStore } from "@/runtime/host-runtime";
 import { useToast } from "@/contexts/toast-context";
-import {
-  confirmRiskyWorktreeArchive,
-  DEFAULT_WORKTREE_ARCHIVE_WARNING_LABELS,
-  type WorktreeArchiveWarningLabels,
-} from "@/git/worktree-archive-warning";
+import { confirmRiskyWorktreeArchive } from "@/git/worktree-archive-warning";
 import type { WorkspaceDescriptor } from "@/stores/session-store";
 import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
@@ -27,7 +23,6 @@ export interface ArchiveWorkspaceInput {
   isDirty?: boolean | null;
   aheadOfOrigin?: number | null;
   diffStat?: { additions: number; deletions: number } | null;
-  warningLabels?: WorktreeArchiveWarningLabels;
   onArchiveStarted: () => void;
   onSetHiding?: (hiding: boolean) => void;
 }
@@ -45,7 +40,6 @@ export function useWorkspaceArchive(input: ArchiveWorkspaceInput): WorkspaceArch
     isDirty,
     aheadOfOrigin,
     diffStat,
-    warningLabels = DEFAULT_WORKTREE_ARCHIVE_WARNING_LABELS,
     onArchiveStarted,
     onSetHiding,
   } = input;
@@ -81,30 +75,19 @@ export function useWorkspaceArchive(input: ArchiveWorkspaceInput): WorkspaceArch
   const archive = useCallback(() => {
     void (async () => {
       if (workspaceKind === "worktree") {
-        const confirmed = await confirmRiskyWorktreeArchive(
-          {
-            workspaceName: name,
-            isDirty,
-            aheadOfOrigin,
-            diffStat,
-          },
-          warningLabels,
-        );
+        const confirmed = await confirmRiskyWorktreeArchive({
+          workspaceName: name,
+          isDirty,
+          aheadOfOrigin,
+          diffStat,
+        });
         if (!confirmed) {
           return;
         }
       }
       await archiveWorkspaceRecord();
     })();
-  }, [
-    aheadOfOrigin,
-    archiveWorkspaceRecord,
-    diffStat,
-    isDirty,
-    name,
-    warningLabels,
-    workspaceKind,
-  ]);
+  }, [aheadOfOrigin, archiveWorkspaceRecord, diffStat, isDirty, name, workspaceKind]);
 
   return {
     archive,

@@ -1673,6 +1673,73 @@ test("lists the full agent prompt index", async () => {
   });
 });
 
+async function connectAgentStoragePathsClient() {
+  const mock = createMockTransport();
+  const client = new DaemonClient({
+    url: "ws://test",
+    clientId: "clsk_unit_test",
+    logger: createMockLogger(),
+    reconnect: { enabled: false },
+    transportFactory: () => mock.transport,
+  });
+  clients.push(client);
+  const connectPromise = client.connect();
+  mock.triggerOpen({ features: { agentStoragePaths: true } });
+  await connectPromise;
+  return { client, mock };
+}
+
+test("fetches an agent's record and provider session paths", async () => {
+  const { client, mock } = await connectAgentStoragePathsClient();
+
+  const responsePromise = client.fetchAgentStoragePaths("agent-1", { requestId: "paths-1" });
+
+  expect(parseSentFrame(mock.sent[0])).toEqual({
+    type: "agent.get_storage_paths.request",
+    requestId: "paths-1",
+    agentId: "agent-1",
+  });
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "agent.get_storage_paths.response",
+      payload: {
+        requestId: "paths-1",
+        agentId: "agent-1",
+        recordPath: "/paseo-home/agents/project/agent-1.json",
+        providerSessionPath: null,
+        error: null,
+      },
+    }),
+  );
+
+  await expect(responsePromise).resolves.toEqual({
+    recordPath: "/paseo-home/agents/project/agent-1.json",
+    providerSessionPath: null,
+  });
+});
+
+test("rejects agent storage paths with the daemon's error", async () => {
+  const { client, mock } = await connectAgentStoragePathsClient();
+
+  const responsePromise = client.fetchAgentStoragePaths("missing-agent", {
+    requestId: "paths-missing",
+  });
+  mock.triggerMessage(
+    wrapSessionMessage({
+      type: "agent.get_storage_paths.response",
+      payload: {
+        requestId: "paths-missing",
+        agentId: "missing-agent",
+        recordPath: null,
+        providerSessionPath: null,
+        error: "Agent not found: missing-agent",
+      },
+    }),
+  );
+
+  await expect(responsePromise).rejects.toThrow("Agent not found: missing-agent");
+});
+
 test("honors explicit fetchAgents timeout below the session RPC default", async () => {
   useHeartbeatClock();
   const logger = createMockLogger();

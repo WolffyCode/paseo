@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { i18n } from "@/i18n/i18next";
 import type { WorkspaceDescriptor } from "@/stores/session-store";
 import type { WorkspaceRecoveryModel } from "@/workspace-recovery/model";
 import { resolveWorkspaceRouteState } from "./workspace-route-state";
@@ -28,6 +29,7 @@ function resolve(input: {
   recovery?: WorkspaceRecoveryModel;
 }) {
   return resolveWorkspaceRouteState({
+    t: i18n.t,
     hostName: "Laptop",
     connectionStatus: input.connectionStatus ?? "online",
     lastError: input.connectionStatus === "offline" ? "transport closed" : null,
@@ -51,6 +53,10 @@ const recoverable = {
 } as const satisfies WorkspaceRecoveryModel;
 
 describe("resolveWorkspaceRouteState", () => {
+  beforeAll(async () => {
+    await i18n.changeLanguage("en");
+  });
+
   it("keeps a missing route unreachable while its host is offline", () => {
     expect(resolve({ connectionStatus: "offline" })).toEqual({
       kind: "unreachable",

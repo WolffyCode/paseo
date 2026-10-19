@@ -1268,7 +1268,7 @@ export function Combobox({
   searchPlaceholder,
   emptyText,
   allowCustomValue = false,
-  customValuePrefix = "Use",
+  customValuePrefix,
   customValueDescription,
   customValueKind,
   optionsPosition = "below-search",
@@ -1296,6 +1296,7 @@ export function Combobox({
   const resolvedPlaceholder = placeholder ?? t("common.placeholders.search");
   const resolvedEmptyText = emptyText ?? t("common.empty.noOptionsMatchSearch");
   const resolvedTitle = title ?? t("common.actions.select");
+  const resolvedCustomValuePrefix = customValuePrefix ?? t("common.actions.use");
   const isMobile = useIsCompactFormFactor();
   const floatingLayer = useOverlayLayer("floating");
   const safeAreaInsets = useSafeAreaInsets();
@@ -1431,7 +1432,7 @@ export function Combobox({
         searchQuery,
         searchable,
         allowCustomValue,
-        customValuePrefix,
+        customValuePrefix: resolvedCustomValuePrefix,
         customValueDescription,
         customValueKind,
       }),
@@ -1439,7 +1440,7 @@ export function Combobox({
       allowCustomValue,
       customValueDescription,
       customValueKind,
-      customValuePrefix,
+      resolvedCustomValuePrefix,
       options,
       searchQuery,
       searchable,

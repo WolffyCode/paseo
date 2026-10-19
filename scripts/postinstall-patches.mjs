@@ -38,6 +38,14 @@ const patchedPackages = [
     nodeModulesPath: "node_modules/@mattermost/react-native-paste-input",
     patchPrefix: "@mattermost+react-native-paste-input+",
   },
+  // Downloads Chrome Web Store extensions through Electron's network stack, so they use the
+  // system proxy like the browser pages do (Node's fetch can't reach Google behind one), and
+  // keeps the store page on the library's webstorePrivate: Electron's native one crashes the
+  // main process.
+  {
+    nodeModulesPath: "node_modules/electron-chrome-web-store",
+    patchPrefix: "electron-chrome-web-store+",
+  },
   {
     nodeModulesPath: "packages/server/node_modules/@opencode-ai/sdk",
     patchPrefix: "@opencode-ai+sdk+",

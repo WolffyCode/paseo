@@ -1,3 +1,4 @@
+import { i18n } from "@/i18n/i18next";
 import { normalizeWorkspacePath } from "@/utils/workspace-identity";
 
 export function resolveWorkspaceDirectory(input: {
@@ -16,8 +17,8 @@ export function requireWorkspaceDirectory(input: {
   if (!workspaceDirectory) {
     throw new Error(
       input.workspaceId
-        ? `Workspace directory is missing for workspace ${input.workspaceId}`
-        : "Workspace directory is missing.",
+        ? i18n.t("workspace.directory.missingFor", { workspaceId: input.workspaceId })
+        : i18n.t("workspace.directory.missing"),
     );
   }
   return workspaceDirectory;

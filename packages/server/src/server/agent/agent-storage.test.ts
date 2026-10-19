@@ -514,6 +514,32 @@ describe("AgentStorage", () => {
     expect(dirs[0]).toBe("D-Users-dev-MyProject");
   });
 
+  test("getRecordPath returns the written record file", async () => {
+    await storage.applySnapshot(createManagedAgent({ id: "agent-paths", cwd: "/tmp/project" }));
+
+    const recordPath = await storage.getRecordPath("agent-paths");
+
+    expect(recordPath).toBe(path.join(storagePath, "tmp-project", "agent-paths.json"));
+    expect(JSON.parse(await fs.readFile(recordPath!, "utf8")).id).toBe("agent-paths");
+  });
+
+  test("getRecordPath returns where a record was found on disk", async () => {
+    await storage.applySnapshot(createManagedAgent({ id: "agent-root", cwd: "/tmp/project" }));
+    const record = await storage.get("agent-root");
+    const legacyStoragePath = path.join(tmpDir, "legacy-agents");
+    const rootRecordPath = path.join(legacyStoragePath, "agent-root.json");
+    await fs.mkdir(legacyStoragePath, { recursive: true });
+    await fs.writeFile(rootRecordPath, JSON.stringify(record), "utf8");
+
+    const reloaded = new AgentStorage(legacyStoragePath, logger);
+
+    expect(await reloaded.getRecordPath("agent-root")).toBe(rootRecordPath);
+  });
+
+  test("getRecordPath returns null for an agent without a record", async () => {
+    expect(await storage.getRecordPath("agent-unknown")).toBeNull();
+  });
+
   test("remove deletes all duplicate record files across project directories", async () => {
     const agentId = "agent-duplicate";
 

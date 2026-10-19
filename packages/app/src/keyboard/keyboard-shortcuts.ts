@@ -21,6 +21,8 @@ export interface KeyboardShortcutContext {
   isDesktop: boolean;
   focusScope: KeyboardFocusScope;
   commandCenterOpen: boolean;
+  /** Keyboard focus is in a browser window: one of its pages, its tab strip or its toolbar. */
+  isBrowserFocused: boolean;
 }
 
 export interface KeyboardShortcutInput {
@@ -79,6 +81,8 @@ interface ShortcutWhen {
   commandCenter?: false;
   /** Allowed focus scope or scopes */
   focusScope?: KeyboardFocusScope | readonly KeyboardFocusScope[];
+  /** true = only while keyboard focus is in a browser window */
+  browserFocus?: boolean;
 }
 
 type ShortcutPayloadDef =
@@ -181,8 +185,6 @@ export const SHORTCUT_HELP_ROW_ORDER: Record<ShortcutSectionId, readonly string[
     "workspace-tab-jump-index",
     "workspace-tab-prev",
     "workspace-tab-next",
-    "workspace-pane-split-right",
-    "workspace-pane-split-down",
     "workspace-pane-focus-left",
     "workspace-pane-focus-right",
     "workspace-pane-focus-up",
@@ -221,8 +223,6 @@ const SHORTCUT_HELP_LABEL_KEYS: Record<string, string> = {
   "workspace-next": "settings.shortcuts.help.nextWorkspace",
   "workspace-tab-prev": "settings.shortcuts.help.previousTab",
   "workspace-tab-next": "settings.shortcuts.help.nextTab",
-  "workspace-pane-split-right": "settings.shortcuts.help.splitPaneRight",
-  "workspace-pane-split-down": "settings.shortcuts.help.splitPaneDown",
   "workspace-pane-focus-left": "settings.shortcuts.help.focusPaneLeft",
   "workspace-pane-focus-right": "settings.shortcuts.help.focusPaneRight",
   "workspace-pane-focus-up": "settings.shortcuts.help.focusPaneUp",
@@ -257,6 +257,302 @@ const SHORTCUT_HELP_NOTE_KEYS: Record<string, string> = {
 // --- Binding definitions ---
 
 const SHORTCUT_BINDINGS: readonly ShortcutBinding[] = [
+  // --- Browser tabs ---
+  // Chrome's tab shortcuts while keyboard focus is in a web page. Every page is a column-3 tab,
+  // so the keys that pick a tab pick among column 3's tabs, and ⌘W is column 3's own close.
+  // They come first so they win over the workspace bindings on the same keys.
+  {
+    id: "browser-tab-new-cmd-t-mac",
+    action: "browser.tab.new",
+    combo: "Cmd+T",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-tab-new-ctrl-t-non-mac",
+    action: "browser.tab.new",
+    combo: "Ctrl+T",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-tab-reopen-cmd-shift-t-mac",
+    action: "browser.tab.reopen",
+    combo: "Cmd+Shift+T",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-tab-reopen-ctrl-shift-t-non-mac",
+    action: "browser.tab.reopen",
+    combo: "Ctrl+Shift+T",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-tab-select-index-cmd-digit-mac",
+    action: "workspace.tab.navigate.index",
+    combo: "Cmd+Digit",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+    payload: { type: "index" },
+  },
+  {
+    id: "browser-tab-select-index-ctrl-digit-non-mac",
+    action: "workspace.tab.navigate.index",
+    combo: "Ctrl+Digit",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+    payload: { type: "index" },
+  },
+  {
+    id: "browser-tab-next-ctrl-tab",
+    action: "workspace.tab.navigate.relative",
+    combo: "Ctrl+Tab",
+    when: { browserFocus: true, commandCenter: false },
+    payload: { type: "delta", delta: 1 },
+  },
+  {
+    id: "browser-tab-previous-ctrl-shift-tab",
+    action: "workspace.tab.navigate.relative",
+    combo: "Ctrl+Shift+Tab",
+    when: { browserFocus: true, commandCenter: false },
+    payload: { type: "delta", delta: -1 },
+  },
+  {
+    id: "browser-tab-next-cmd-alt-right-mac",
+    action: "workspace.tab.navigate.relative",
+    combo: "Cmd+Alt+ArrowRight",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+    payload: { type: "delta", delta: 1 },
+  },
+  {
+    id: "browser-tab-previous-cmd-alt-left-mac",
+    action: "workspace.tab.navigate.relative",
+    combo: "Cmd+Alt+ArrowLeft",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+    payload: { type: "delta", delta: -1 },
+  },
+  {
+    id: "browser-tab-next-ctrl-page-down-non-mac",
+    action: "workspace.tab.navigate.relative",
+    combo: "Ctrl+PageDown",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+    payload: { type: "delta", delta: 1 },
+  },
+  {
+    id: "browser-tab-previous-ctrl-page-up-non-mac",
+    action: "workspace.tab.navigate.relative",
+    combo: "Ctrl+PageUp",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+    payload: { type: "delta", delta: -1 },
+  },
+  {
+    id: "browser-tab-next-cmd-shift-right-bracket-mac",
+    action: "workspace.tab.navigate.relative",
+    combo: "Cmd+Shift+]",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+    payload: { type: "delta", delta: 1 },
+  },
+  {
+    id: "browser-tab-previous-cmd-shift-left-bracket-mac",
+    action: "workspace.tab.navigate.relative",
+    combo: "Cmd+Shift+[",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+    payload: { type: "delta", delta: -1 },
+  },
+  // Chrome's 下载内容: ⌥⌘L, which the ⋮ menu shows, and ⇧⌘J from the 窗口 menu.
+  {
+    id: "browser-page-downloads-alt-cmd-l-mac",
+    action: "browser.page.downloads",
+    combo: "Cmd+Alt+L",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-downloads-cmd-shift-j-mac",
+    action: "browser.page.downloads",
+    combo: "Cmd+Shift+J",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-downloads-ctrl-j-non-mac",
+    action: "browser.page.downloads",
+    combo: "Ctrl+J",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  // Chrome's address bar and navigation keys, over Helm's message input and workspace keys.
+  {
+    id: "browser-page-focus-location-cmd-l-mac",
+    action: "browser.page.focus-location",
+    combo: "Cmd+L",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-focus-location-ctrl-l-non-mac",
+    action: "browser.page.focus-location",
+    combo: "Ctrl+L",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-back-cmd-left-bracket-mac",
+    action: "browser.page.back",
+    combo: "Cmd+[",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-back-alt-left-non-mac",
+    action: "browser.page.back",
+    combo: "Alt+ArrowLeft",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-forward-cmd-right-bracket-mac",
+    action: "browser.page.forward",
+    combo: "Cmd+]",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-forward-alt-right-non-mac",
+    action: "browser.page.forward",
+    combo: "Alt+ArrowRight",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-home-cmd-shift-h-mac",
+    action: "browser.page.home",
+    combo: "Cmd+Shift+H",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-home-alt-home-non-mac",
+    action: "browser.page.home",
+    combo: "Alt+Home",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  // Chrome's page commands: find, print, zoom, and developer tools.
+  {
+    id: "browser-page-find-cmd-f-mac",
+    action: "browser.page.find",
+    combo: "Cmd+F",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-find-ctrl-f-non-mac",
+    action: "browser.page.find",
+    combo: "Ctrl+F",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-print-cmd-p-mac",
+    action: "browser.page.print",
+    combo: "Cmd+P",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-print-ctrl-p-non-mac",
+    action: "browser.page.print",
+    combo: "Ctrl+P",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-save-cmd-s-mac",
+    action: "browser.page.save",
+    combo: "Cmd+S",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-save-ctrl-s-non-mac",
+    action: "browser.page.save",
+    combo: "Ctrl+S",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  // Chrome's 删除浏览数据 and 设置 (⌘, is macOS only, from Chrome's menu bar).
+  {
+    id: "browser-page-clear-data-cmd-shift-backspace-mac",
+    action: "browser.page.clear-data",
+    combo: "Cmd+Shift+Backspace",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-clear-data-ctrl-shift-delete-non-mac",
+    action: "browser.page.clear-data",
+    combo: "Ctrl+Shift+Delete",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-settings-cmd-comma-mac",
+    action: "browser.page.settings",
+    combo: "Cmd+,",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  // Chrome's 打开新的窗口 opens another Helm window: a window is where column 3 lives.
+  {
+    id: "browser-window-new-cmd-n-mac",
+    action: "browser.window.new",
+    combo: "Cmd+N",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-window-new-ctrl-n-non-mac",
+    action: "browser.window.new",
+    combo: "Ctrl+N",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-zoom-in-cmd-equal-mac",
+    action: "browser.page.zoom-in",
+    combo: "Cmd+=",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-zoom-in-ctrl-equal-non-mac",
+    action: "browser.page.zoom-in",
+    combo: "Ctrl+=",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-zoom-in-plus-cmd-shift-equal-mac",
+    action: "browser.page.zoom-in",
+    combo: "Cmd+Shift+=",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-zoom-in-plus-ctrl-shift-equal-non-mac",
+    action: "browser.page.zoom-in",
+    combo: "Ctrl+Shift+=",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-zoom-out-cmd-minus-mac",
+    action: "browser.page.zoom-out",
+    combo: "Cmd+-",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-zoom-out-ctrl-minus-non-mac",
+    action: "browser.page.zoom-out",
+    combo: "Ctrl+-",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-zoom-reset-cmd-0-mac",
+    action: "browser.page.zoom-reset",
+    combo: "Cmd+0",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-zoom-reset-ctrl-0-non-mac",
+    action: "browser.page.zoom-reset",
+    combo: "Ctrl+0",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-devtools-cmd-alt-i-mac",
+    action: "browser.page.devtools",
+    combo: "Cmd+Alt+I",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-devtools-ctrl-shift-i-non-mac",
+    action: "browser.page.devtools",
+    combo: "Ctrl+Shift+I",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
+
   // --- Open project ---
   // Open project moved from Cmd+Shift+O to Cmd+O. The binding ids intentionally
   // keep their original "cmd-shift-o" / "ctrl-shift-o" names: user shortcut
@@ -715,28 +1011,6 @@ const SHORTCUT_BINDINGS: readonly ShortcutBinding[] = [
   },
 
   // --- Pane management (mac only) ---
-  {
-    id: "workspace-pane-split-right-cmd-backslash",
-    action: "workspace.pane.split.right",
-    combo: "Cmd+\\",
-    when: { mac: true, commandCenter: false },
-    help: {
-      id: "workspace-pane-split-right",
-      section: "tabs-panes",
-      label: "Split pane right",
-    },
-  },
-  {
-    id: "workspace-pane-split-down-cmd-shift-backslash",
-    action: "workspace.pane.split.down",
-    combo: "Cmd+Shift+\\",
-    when: { mac: true, commandCenter: false },
-    help: {
-      id: "workspace-pane-split-down",
-      section: "tabs-panes",
-      label: "Split pane down",
-    },
-  },
   {
     id: "workspace-pane-focus-left-cmd-shift-left",
     action: "workspace.pane.focus.left",
@@ -1332,6 +1606,9 @@ export function matchesKeyboardShortcutContext(
   }
   if (when.terminal === false && context.focusScope === "terminal") return false;
   if (when.commandCenter === false && context.commandCenterOpen) return false;
+  if (when.browserFocus !== undefined && when.browserFocus !== context.isBrowserFocused) {
+    return false;
+  }
   if (
     when.focusScope !== undefined &&
     !(typeof when.focusScope === "string"

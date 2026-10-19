@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import type { CreatePaseoWorktreeInput } from "@getpaseo/client/internal/daemon-client";
 import type { ForgeSearchItem } from "@getpaseo/protocol/messages";
 import type { ComboboxOptionModel } from "@/components/ui/combobox-options";
@@ -46,24 +47,42 @@ function divergenceLabel(ahead: number, behind: number): string | undefined {
   return parts.length > 0 ? parts.join(" ") : undefined;
 }
 
-function commitCount(count: number): string {
-  return `${count} ${count === 1 ? "commit" : "commits"}`;
-}
-
-function divergenceAccessibility(ahead: number, behind: number, counterpart: string): string {
+// Separate keys for exactly one commit, because locales only carry one/other plural forms and
+// Russian or Arabic would otherwise fall back to English for every other count.
+function divergenceAccessibility(
+  ahead: number,
+  behind: number,
+  counterpart: string,
+  t: TFunction,
+): string {
   if (ahead === 0 && behind === 0) {
-    return `up to date with ${counterpart}`;
+    return t("newWorkspace.refPicker.divergence.upToDate", { counterpart });
   }
   if (ahead > 0 && behind > 0) {
-    return `${commitCount(ahead)} ahead and ${behind} behind ${counterpart}`;
+    const key =
+      ahead === 1
+        ? "newWorkspace.refPicker.divergence.aheadAndBehindOne"
+        : "newWorkspace.refPicker.divergence.aheadAndBehindMany";
+    return t(key, { count: ahead, behind, counterpart });
   }
   if (ahead > 0) {
-    return `${commitCount(ahead)} ahead of ${counterpart}`;
+    const key =
+      ahead === 1
+        ? "newWorkspace.refPicker.divergence.aheadOne"
+        : "newWorkspace.refPicker.divergence.aheadMany";
+    return t(key, { count: ahead, counterpart });
   }
-  return `${commitCount(behind)} behind ${counterpart}`;
+  const key =
+    behind === 1
+      ? "newWorkspace.refPicker.divergence.behindOne"
+      : "newWorkspace.refPicker.divergence.behindMany";
+  return t(key, { count: behind, counterpart });
 }
 
-export function buildBranchPickerItems(details: readonly BranchPickerDetail[]): PickerItem[] {
+export function buildBranchPickerItems(
+  details: readonly BranchPickerDetail[],
+  t: TFunction,
+): PickerItem[] {
   const items: PickerItem[] = [];
 
   for (const detail of details) {
@@ -73,7 +92,9 @@ export function buildBranchPickerItems(details: readonly BranchPickerDetail[]): 
         kind: "branch",
         name: detail.name,
         refName: detail.name,
-        accessibilityLabel: `${detail.name}, branch`,
+        accessibilityLabel: t("newWorkspace.refPicker.branchAccessibility.branch", {
+          name: detail.name,
+        }),
         committerDate: detail.committerDate,
       });
       continue;
@@ -97,7 +118,9 @@ export function buildBranchPickerItems(details: readonly BranchPickerDetail[]): 
         kind: "branch",
         name: detail.name,
         refName: `refs/remotes/origin/${detail.name}`,
-        accessibilityLabel: `${detail.name}, origin branch`,
+        accessibilityLabel: t("newWorkspace.refPicker.branchAccessibility.origin", {
+          name: detail.name,
+        }),
         committerDate: detail.committerDate,
       });
     }
@@ -105,18 +128,29 @@ export function buildBranchPickerItems(details: readonly BranchPickerDetail[]): 
     if (hasLocal && (showsBothRefs || !hasRemote)) {
       const localItem: Extract<PickerItem, { kind: "branch" }> = {
         kind: "branch",
-        name: showsBothRefs ? `${detail.name} (local)` : detail.name,
+        name: showsBothRefs
+          ? t("newWorkspace.refPicker.localRefName", { name: detail.name })
+          : detail.name,
         refName: `refs/heads/${detail.name}`,
-        accessibilityLabel: `${detail.name}, local branch`,
+        accessibilityLabel: t("newWorkspace.refPicker.branchAccessibility.local", {
+          name: detail.name,
+        }),
         committerDate: detail.committerDate,
       };
       if (hasDivergence) {
         localItem.divergenceLabel = divergenceLabel(localAhead, localBehind);
-        localItem.accessibilityLabel += `, ${divergenceAccessibility(
-          localAhead,
-          localBehind,
-          `origin ${detail.name}`,
-        )}`;
+        localItem.accessibilityLabel = t(
+          "newWorkspace.refPicker.branchAccessibility.localWithDivergence",
+          {
+            name: detail.name,
+            divergence: divergenceAccessibility(
+              localAhead,
+              localBehind,
+              `origin ${detail.name}`,
+              t,
+            ),
+          },
+        );
       }
       items.push(localItem);
     }
@@ -142,15 +176,21 @@ function branchNameFromRef(refName: string): string {
   return refName;
 }
 
-// Where a ref lives, for disambiguating two rows that would otherwise read the same.
-function refQualifier(refName: string): string | null {
-  if (refName.startsWith("refs/heads/")) return "local";
-  if (refName.startsWith(REMOTE_TRACKING_PREFIX)) {
-    const remainder = refName.slice(REMOTE_TRACKING_PREFIX.length);
-    const separator = remainder.indexOf("/");
-    return separator === -1 ? null : remainder.slice(0, separator);
+// Names the row after where its ref lives, for disambiguating two rows that would otherwise
+// read the same. Remote names are runtime values, so only the local qualifier is translated.
+function qualifiedRefName(name: string, refName: string, t: TFunction): string | null {
+  if (refName.startsWith("refs/heads/")) {
+    return t("newWorkspace.refPicker.localRefName", { name });
   }
-  return null;
+  if (!refName.startsWith(REMOTE_TRACKING_PREFIX)) {
+    return null;
+  }
+  const remainder = refName.slice(REMOTE_TRACKING_PREFIX.length);
+  const separator = remainder.indexOf("/");
+  if (separator === -1) {
+    return null;
+  }
+  return `${name} (${remainder.slice(0, separator)})`;
 }
 
 // The one owner of "what do we branch off when the user picked nothing". The checkmarked
@@ -160,7 +200,10 @@ function refQualifier(refName: string): string | null {
 // The upstream wins when the branch has one, because branching off the local ref silently
 // carries unpushed commits into the new workspace. The daemon sends the resolved ref rather
 // than a remote name, so a fork tracking upstream/main branches from upstream/main.
-export function defaultBasePickerItem(status: BaseRefCheckoutStatus): PickerItem | null {
+export function defaultBasePickerItem(
+  status: BaseRefCheckoutStatus,
+  t: TFunction,
+): PickerItem | null {
   const currentBranch = status.currentBranch;
   if (!currentBranch) return null;
   // COMPAT(checkoutUpstreamRef): added in v0.2.6, remove after 2027-02-01 once the daemon
@@ -170,11 +213,14 @@ export function defaultBasePickerItem(status: BaseRefCheckoutStatus): PickerItem
   // The upstream branch can be named differently from the local one, so the row reads the
   // ref rather than the branch the user happens to be on.
   const name = branchNameFromRef(refName);
+  const accessibilityKey = status.upstreamRef
+    ? "newWorkspace.refPicker.branchAccessibility.upstream"
+    : "newWorkspace.refPicker.branchAccessibility.local";
   return {
     kind: "branch",
     name,
     refName,
-    accessibilityLabel: status.upstreamRef ? `${name}, upstream branch` : `${name}, local branch`,
+    accessibilityLabel: t(accessibilityKey, { name }),
   };
 }
 
@@ -244,11 +290,12 @@ export function buildPickerOptionData(input: {
   branchDetails: readonly BranchPickerDetail[];
   prItems: readonly ForgeSearchItem[];
   baseItem: PickerItem | null;
+  t: TFunction;
 }): PickerOptionData {
   const itemById = new Map<string, PickerItem>();
   const timedOptions: TimedOption[] = [];
 
-  for (const branch of buildBranchPickerItems(input.branchDetails)) {
+  for (const branch of buildBranchPickerItems(input.branchDetails, input.t)) {
     if (branch.kind !== "branch") continue;
     const id = branchPickerOptionId(branch.refName);
     itemById.set(id, branch);
@@ -276,7 +323,7 @@ export function buildPickerOptionData(input: {
   const selectedOptionId = pickerOptionId(baseItem);
   if (!itemById.has(selectedOptionId)) {
     // The label lives on the item, so the row and the trigger read it from the same place.
-    const labeledItem = disambiguate(baseItem, timedOptions);
+    const labeledItem = disambiguate(baseItem, timedOptions, input.t);
     itemById.set(selectedOptionId, labeledItem);
     timedOptions.push({
       option: { id: selectedOptionId, label: pickerItemLabel(labeledItem) },
@@ -291,17 +338,20 @@ export function buildPickerOptionData(input: {
 
 // Two rows reading "main" would be a coin flip for the user, so the added row says where its
 // ref lives. Only when it collides — a lone row needs no qualifier.
-function disambiguate(item: PickerItem, existing: readonly TimedOption[]): PickerItem {
+function disambiguate(
+  item: PickerItem,
+  existing: readonly TimedOption[],
+  t: TFunction,
+): PickerItem {
   if (item.kind !== "branch") return item;
   if (!existing.some((entry) => entry.option.label === item.name)) return item;
-  const qualifier = refQualifier(item.refName);
-  if (!qualifier) return item;
-  const name = `${item.name} (${qualifier})`;
+  const name = qualifiedRefName(item.name, item.refName, t);
+  if (!name) return item;
   return {
     ...item,
     name,
-    // Accessibility labels are built as `${name}${suffix}`, so re-prefixing keeps the spoken
-    // label and the visible one the same string.
+    // Every locale's accessibility template starts with {{name}}, so re-prefixing keeps the
+    // spoken label and the visible one the same string.
     accessibilityLabel: `${name}${item.accessibilityLabel.slice(item.name.length)}`,
   };
 }

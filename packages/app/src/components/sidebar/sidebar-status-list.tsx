@@ -39,7 +39,6 @@ import {
   CircleDot,
   CircleX,
 } from "lucide-react-native";
-import { useToast } from "@/contexts/toast-context";
 import { WorkspaceRenameModal } from "@/components/workspace-rename-modal";
 import { useWorkspaceClipboardActions } from "@/hooks/use-workspace-clipboard-actions";
 import { redirectIfArchivingActiveWorkspace } from "@/utils/sidebar-workspace-archive-redirect";
@@ -48,7 +47,7 @@ import { toWorktreeArchiveRisk } from "@/git/worktree-archive-warning";
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
-import { useWorkspaceReadState } from "@/hooks/use-workspace-read-state";
+import { useSidebarWorkspaceReadActions } from "@/components/sidebar/use-sidebar-workspace-read-actions";
 import {
   SidebarWorkspaceRowFrame,
   SidebarWorkspaceRowContent,
@@ -216,8 +215,8 @@ export function SidebarStatusWorkspaceList({
       onToggleWorkspacePin={onToggleWorkspacePin}
     />
   );
-  const content = (
-    <>
+  const pinnedSection =
+    pinnedWorkspaces.length === 0 ? null : (
       <View style={styles.pinnedSection} testID="sidebar-pinned-section">
         <PinnedSectionHeader collapsed={pinnedCollapsed} onToggle={togglePinnedCollapsed} />
         {pinnedCollapsed ? null : (
@@ -244,6 +243,10 @@ export function SidebarStatusWorkspaceList({
           </>
         )}
       </View>
+    );
+  const content = (
+    <>
+      {pinnedSection}
       {listHeaderComponent}
       {projectsCollapsed ? null : projectBody}
       {listFooterComponent}
@@ -598,7 +601,6 @@ function StatusWorkspaceRowWithMenu({
   dragHandleProps?: DraggableListDragHandleProps;
 }) {
   const { t } = useTranslation();
-  const toast = useToast();
   const [isHidingWorkspace, setIsHidingWorkspace] = useState(false);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const isArchiving = workspace.archivingAt !== null || isHidingWorkspace;
@@ -646,21 +648,10 @@ function StatusWorkspaceRowWithMenu({
   const onTogglePin = canPin ? handleTogglePin : undefined;
 
   const archiveShortcutKeys = useShortcutKeys("archive-workspace");
-  const { hasClearableAttention, canMarkUnread, clearAttention, markUnread } =
-    useWorkspaceReadState({
-      serverId: workspace.serverId,
-      workspaceId: workspace.workspaceId,
-    });
-  const handleMarkAsRead = useCallback(() => {
-    void clearAttention().catch((error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to mark workspace as read");
-    });
-  }, [clearAttention, toast]);
-  const handleMarkAsUnread = useCallback(() => {
-    void markUnread().catch((error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to mark workspace as unread");
-    });
-  }, [markUnread, toast]);
+  const readActions = useSidebarWorkspaceReadActions({
+    serverId: workspace.serverId,
+    workspaceId: workspace.workspaceId,
+  });
 
   useKeyboardActionHandler({
     handlerId: `workspace-archive-${workspace.workspaceKey}`,
@@ -692,8 +683,8 @@ function StatusWorkspaceRowWithMenu({
         onCopyBranchName={workspace.projectKind === "git" ? handleCopyBranchName : undefined}
         onCopyPath={workspace.purpose === "chat" ? undefined : handleCopyPath}
         onRename={handleOpenRename}
-        onMarkAsRead={hasClearableAttention ? handleMarkAsRead : undefined}
-        onMarkAsUnread={canMarkUnread ? handleMarkAsUnread : undefined}
+        onMarkAsRead={readActions.onMarkAsRead}
+        onMarkAsUnread={readActions.onMarkAsUnread}
         archiveShortcutKeys={selected ? archiveShortcutKeys : null}
         isPinned={isPinned}
         onTogglePin={onTogglePin}

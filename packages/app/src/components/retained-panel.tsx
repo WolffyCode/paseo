@@ -1,7 +1,23 @@
-import React, { createContext, memo, type ReactNode, useContext } from "react";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import React, {
+  createContext,
+  memo,
+  type ReactNode,
+  useContext,
+  useCallback,
+  useLayoutEffect,
+  useState,
+} from "react";
+import { type StyleProp, type ViewStyle } from "react-native";
+import { RetainedPanelSurface } from "./retained-panel-surface";
 
 const RetainedPanelActiveContext = createContext(true);
+const RetainedPanelPaintContext = createContext<(() => () => void) | null>(null);
+
+/** Keep native guest frames paintable while their retained UI is inactive. */
+export function useRetainedPanelPaint(enabled: boolean) {
+  const retain = useContext(RetainedPanelPaintContext);
+  useLayoutEffect(() => (enabled ? retain?.() : undefined), [enabled, retain]);
+}
 
 export function useRetainedPanelActive(): boolean {
   return useContext(RetainedPanelActiveContext);
@@ -12,6 +28,7 @@ interface RetainedPanelProps {
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
   testID?: string;
+  animated?: boolean;
 }
 
 interface RetainedPanelActivityProps {
@@ -39,31 +56,31 @@ export const RetainedPanel = memo(function RetainedPanel({
   children,
   style,
   testID,
+  animated = false,
 }: RetainedPanelProps) {
-  const visibleStyle = StyleSheet.compose<ViewStyle, ViewStyle, ViewStyle>(styles.root, style);
-  const panelStyle = active
-    ? visibleStyle
-    : StyleSheet.compose<ViewStyle, ViewStyle, ViewStyle>(visibleStyle, styles.hidden);
-
+  const retainParent = useContext(RetainedPanelPaintContext);
+  const [paintOwners, setPaintOwners] = useState(0);
+  const retainPaint = useCallback(() => {
+    const releaseParent = retainParent?.();
+    setPaintOwners((count) => count + 1);
+    return () => {
+      setPaintOwners((count) => count - 1);
+      releaseParent?.();
+    };
+  }, [retainParent]);
   return (
-    <RetainedPanelActivity active={active}>
-      <View
-        collapsable={false}
-        pointerEvents={active ? "auto" : "none"}
-        style={panelStyle}
-        testID={testID}
-      >
-        {children}
-      </View>
-    </RetainedPanelActivity>
+    <RetainedPanelPaintContext value={retainPaint}>
+      <RetainedPanelActivity active={active}>
+        <RetainedPanelSurface
+          active={active}
+          animated={animated}
+          preservePaint={paintOwners > 0}
+          style={style}
+          testID={testID}
+        >
+          {children}
+        </RetainedPanelSurface>
+      </RetainedPanelActivity>
+    </RetainedPanelPaintContext>
   );
-});
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  hidden: {
-    display: "none",
-  },
 });

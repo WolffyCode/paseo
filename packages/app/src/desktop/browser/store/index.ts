@@ -1,35 +1,54 @@
+import { useSyncExternalStore } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BrowserAutomationBrowserIdSchema } from "@getpaseo/protocol/browser-automation/rpc-schemas";
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { createValidatedPersistStorage } from "@/storage/validated-persist-storage";
 import {
+  addBrowser,
   applyBrowserPatch,
   BrowserIndexStateSchema,
+  type BrowserClosedEntry,
   type BrowserIndexState,
   type BrowserRecord,
   type BrowserRecordPatch,
   type BrowserViewport,
   createBrowserRecord,
+  deleteBrowserHistory,
   normalizeBrowserIndexState,
   normalizeBrowserUrl,
-  removeBrowserFromIndex,
+  recordBrowserVisit,
+  removeBrowser,
   sanitizeBrowsersForPersist,
+  takeClosedBrowser,
   trimNonEmpty,
 } from "./state";
 
 export {
   createFixedBrowserViewport,
   RESPONSIVE_BROWSER_VIEWPORT,
+  type BrowserClosedEntry,
   type BrowserRecord,
+  type BrowserRecordPatch,
   type BrowserViewport,
 } from "./state";
 
 interface BrowserStoreState extends BrowserIndexState {
-  createBrowser: (input?: { initialUrl?: string }) => string;
+  /** A new page; a reopened one starts with its old title and icon. Returns its id. */
+  createBrowser: (input?: {
+    initialUrl?: string;
+    title?: string;
+    faviconUrl?: string | null;
+  }) => string;
+  /** Forgets a page; one that showed something goes on the recently closed list. */
+  removeBrowser: (browserId: string) => void;
+  /** Takes a page off the recently closed list, the newest by default. */
+  takeClosedBrowser: (closedIndex?: number) => BrowserClosedEntry | null;
   updateBrowser: (browserId: string, patch: BrowserRecordPatch) => void;
   setBrowserViewport: (browserId: string, viewport: BrowserViewport) => void;
-  removeBrowser: (browserId: string) => void;
+  recordVisit: (browserId: string) => void;
+  /** Deletes history and recently closed pages from `since` on. */
+  deleteHistory: (since: number) => void;
 }
 
 function createBrowserId(): string {
@@ -45,24 +64,29 @@ function createBrowserId(): string {
 
 export const useBrowserStore = create<BrowserStoreState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       browsersById: {},
+      closedBrowsers: [],
+      history: [],
       createBrowser: (input) => {
         const browserId = createBrowserId();
-        const record = createBrowserRecord({
-          browserId,
-          initialUrl: input?.initialUrl,
-          now: Date.now(),
-        });
-
-        set((state) => ({
-          browsersById: {
-            ...state.browsersById,
-            [browserId]: record,
-          },
-        }));
-
+        const record: BrowserRecord = {
+          ...createBrowserRecord({ browserId, initialUrl: input?.initialUrl, now: Date.now() }),
+          title: input?.title ?? "",
+          faviconUrl: input?.faviconUrl ?? null,
+        };
+        set((state) => addBrowser(state, record));
         return browserId;
+      },
+      removeBrowser: (browserId) => {
+        set((state) => removeBrowser(state, { browserId, now: Date.now() }));
+      },
+      takeClosedBrowser: (closedIndex = 0) => {
+        const taken = takeClosedBrowser(get(), closedIndex);
+        if (taken.entry) {
+          set({ closedBrowsers: taken.state.closedBrowsers });
+        }
+        return taken.entry;
       },
       updateBrowser: (browserId, patch) => {
         set((state) => applyBrowserPatch(state, browserId, patch));
@@ -70,8 +94,11 @@ export const useBrowserStore = create<BrowserStoreState>()(
       setBrowserViewport: (browserId, viewport) => {
         set((state) => applyBrowserPatch(state, browserId, { viewport }));
       },
-      removeBrowser: (browserId) => {
-        set((state) => removeBrowserFromIndex(state, browserId));
+      recordVisit: (browserId) => {
+        set((state) => recordBrowserVisit(state, browserId, Date.now()));
+      },
+      deleteHistory: (since) => {
+        set((state) => deleteBrowserHistory(state, since));
       },
     }),
     {
@@ -86,24 +113,29 @@ export const useBrowserStore = create<BrowserStoreState>()(
   ),
 );
 
+function subscribeToBrowserStoreHydration(onHydrated: () => void): () => void {
+  return useBrowserStore.persist.onFinishHydration(onHydrated);
+}
+
+function isBrowserStoreHydrated(): boolean {
+  return useBrowserStore.persist.hasHydrated();
+}
+
+/** Saved pages load asynchronously; before that, a missing page is not yet a closed one. */
+export function useBrowserStoreHydrated(): boolean {
+  return useSyncExternalStore(
+    subscribeToBrowserStoreHydration,
+    isBrowserStoreHydrated,
+    isBrowserStoreHydrated,
+  );
+}
+
 export function getBrowserRecord(browserId: string): BrowserRecord | null {
   const normalizedBrowserId = trimNonEmpty(browserId);
   if (!normalizedBrowserId) {
     return null;
   }
   return useBrowserStore.getState().browsersById[normalizedBrowserId] ?? null;
-}
-
-export function createWorkspaceBrowser(input?: { initialUrl?: string }): {
-  browserId: string;
-  url: string;
-} {
-  const browserId = useBrowserStore.getState().createBrowser(input);
-  const record = getBrowserRecord(browserId);
-  return {
-    browserId,
-    url: record?.url ?? normalizeBrowserUrl(input?.initialUrl),
-  };
 }
 
 export function normalizeWorkspaceBrowserUrl(value: string | null | undefined): string {

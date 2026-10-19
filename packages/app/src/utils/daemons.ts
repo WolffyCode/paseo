@@ -1,18 +1,19 @@
+import { i18n } from "@/i18n/i18next";
 import type { HostRuntimeConnectionStatus } from "@/runtime/host-runtime";
 import { assertUnreachable } from "./exhaustive";
 
 export function formatConnectionStatus(status: HostRuntimeConnectionStatus): string {
   switch (status) {
     case "online":
-      return "Online";
+      return i18n.t("common.connectionStatus.online");
     case "connecting":
-      return "Connecting";
+      return i18n.t("common.connectionStatus.connecting");
     case "offline":
-      return "Offline";
+      return i18n.t("common.connectionStatus.offline");
     case "error":
-      return "Error";
+      return i18n.t("common.connectionStatus.error");
     case "idle":
-      return "Idle";
+      return i18n.t("common.connectionStatus.idle");
     default:
       return assertUnreachable(status);
   }

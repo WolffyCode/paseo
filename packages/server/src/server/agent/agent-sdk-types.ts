@@ -804,6 +804,12 @@ export interface AgentClient {
    */
   unarchiveNativeSession?(handle: AgentPersistenceHandle): Promise<void>;
   /**
+   * Locate the file on this host where the provider keeps a durable native session, such as
+   * its transcript. Returns null when the provider keeps no such file for the handle. The
+   * caller checks that the file exists before showing it.
+   */
+  resolveNativeSessionPath?(handle: AgentPersistenceHandle): Promise<string | null>;
+  /**
    * Release any provider-owned resources held by this client (background
    * processes, sockets, cached subprocesses, etc.). Called when the daemon
    * shuts down. Must be idempotent.

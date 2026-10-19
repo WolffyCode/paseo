@@ -1,4 +1,5 @@
 import React, { Component, type ErrorInfo, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { Text } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 
@@ -42,10 +43,16 @@ export class SurfaceErrorBoundary extends Component<
   render() {
     if (this.state.error) {
       if (this.props.renderError) return this.props.renderError(this.state.error);
-      return <Text style={styles.errorText}>Plugin failed: {this.state.error}</Text>;
+      return <SurfaceErrorText error={this.state.error} />;
     }
     return this.props.children;
   }
+}
+
+// A class boundary cannot call hooks, so the translated fallback lives in its own component.
+function SurfaceErrorText({ error }: { error: string }) {
+  const { t } = useTranslation();
+  return <Text style={styles.errorText}>{t("plugins.surfaceFailed", { error })}</Text>;
 }
 
 const styles = StyleSheet.create((theme) => ({

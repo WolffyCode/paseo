@@ -126,6 +126,13 @@ export class AgentStorage {
     return this.cache.get(agentId) ?? null;
   }
 
+  /** The file holding this agent's record, or null when no record has been written. */
+  async getRecordPath(agentId: string): Promise<string | null> {
+    await this.load();
+    await this.waitForPendingWrite(agentId);
+    return this.pathById.get(agentId) ?? null;
+  }
+
   async listByProviderSession(
     provider: string,
     providerHandleId: string,

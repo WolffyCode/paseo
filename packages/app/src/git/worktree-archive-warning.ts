@@ -17,37 +17,12 @@ export interface WorktreeArchiveConfirmationInput extends WorktreeArchiveRisk {
   workspaceName: string;
 }
 
-export interface WorktreeArchiveWarningLabels {
-  title: (workspaceName: string) => string;
-  confirm: string;
-  cancel: string;
-  uncommittedChanges: string;
-  uncommittedChangesWithDiff: (diffStat: string) => string;
-  addedLine: (count: number) => string;
-  deletedLine: (count: number) => string;
-  unpushedCommit: (count: number) => string;
+// Every label is read when the dialog is built, not at module load, so it follows the language
+// the app is in now.
+function countLabel(count: number, oneKey: string, otherKey: string): string {
+  const key = count === 1 ? oneKey : otherKey;
+  return i18n.t(key, { count });
 }
-
-export const DEFAULT_WORKTREE_ARCHIVE_WARNING_LABELS: WorktreeArchiveWarningLabels = {
-  title: (workspaceName) => i18n.t("workspace.git.actions.archiveWarning.title", { workspaceName }),
-  confirm: i18n.t("workspace.git.actions.archiveWarning.confirm"),
-  cancel: i18n.t("workspace.git.actions.archiveWarning.cancel"),
-  uncommittedChanges: i18n.t("workspace.git.actions.archiveWarning.uncommittedChanges"),
-  uncommittedChangesWithDiff: (diffStat) =>
-    i18n.t("workspace.git.actions.archiveWarning.uncommittedChangesWithDiff", { diffStat }),
-  addedLine: (count) =>
-    count === 1
-      ? i18n.t("workspace.git.actions.archiveWarning.addedLine", { count })
-      : i18n.t("workspace.git.actions.archiveWarning.addedLines", { count }),
-  deletedLine: (count) =>
-    count === 1
-      ? i18n.t("workspace.git.actions.archiveWarning.deletedLine", { count })
-      : i18n.t("workspace.git.actions.archiveWarning.deletedLines", { count }),
-  unpushedCommit: (count) =>
-    count === 1
-      ? i18n.t("workspace.git.actions.archiveWarning.unpushedCommit", { count })
-      : i18n.t("workspace.git.actions.archiveWarning.unpushedCommits", { count }),
-};
 
 export function toWorktreeArchiveRisk(input: WorktreeArchiveRiskInput): WorktreeArchiveRisk {
   return {
@@ -57,29 +32,37 @@ export function toWorktreeArchiveRisk(input: WorktreeArchiveRiskInput): Worktree
   };
 }
 
-function formatDiffStat(
-  diffStat: WorktreeArchiveRisk["diffStat"],
-  labels: WorktreeArchiveWarningLabels,
-): string | null {
+function formatDiffStat(diffStat: WorktreeArchiveRisk["diffStat"]): string | null {
   if (!diffStat) {
     return null;
   }
 
   const parts: string[] = [];
   if (diffStat.additions > 0) {
-    parts.push(labels.addedLine(diffStat.additions));
+    parts.push(
+      countLabel(
+        diffStat.additions,
+        "workspace.git.actions.archiveWarning.addedLine",
+        "workspace.git.actions.archiveWarning.addedLines",
+      ),
+    );
   }
   if (diffStat.deletions > 0) {
-    parts.push(labels.deletedLine(diffStat.deletions));
+    parts.push(
+      countLabel(
+        diffStat.deletions,
+        "workspace.git.actions.archiveWarning.deletedLine",
+        "workspace.git.actions.archiveWarning.deletedLines",
+      ),
+    );
   }
 
-  return parts.length > 0 ? parts.join(", ") : null;
+  return parts.length > 0
+    ? parts.join(i18n.t("workspace.git.actions.archiveWarning.diffStatSeparator"))
+    : null;
 }
 
-export function buildWorktreeArchiveRiskReasons(
-  input: WorktreeArchiveRisk,
-  labels: WorktreeArchiveWarningLabels = DEFAULT_WORKTREE_ARCHIVE_WARNING_LABELS,
-): string[] {
+export function buildWorktreeArchiveRiskReasons(input: WorktreeArchiveRisk): string[] {
   const reasons: string[] = [];
   const diffStat = input.diffStat;
   const hasDiffStatChanges = diffStat ? diffStat.additions > 0 || diffStat.deletions > 0 : false;
@@ -87,15 +70,25 @@ export function buildWorktreeArchiveRiskReasons(
     input.isDirty === true || (input.isDirty == null && hasDiffStatChanges);
 
   if (hasUncommittedChanges) {
-    const diffStatLabel = formatDiffStat(diffStat, labels);
+    const diffStatLabel = formatDiffStat(diffStat);
     reasons.push(
-      diffStatLabel ? labels.uncommittedChangesWithDiff(diffStatLabel) : labels.uncommittedChanges,
+      diffStatLabel
+        ? i18n.t("workspace.git.actions.archiveWarning.uncommittedChangesWithDiff", {
+            diffStat: diffStatLabel,
+          })
+        : i18n.t("workspace.git.actions.archiveWarning.uncommittedChanges"),
     );
   }
 
   if ((input.aheadOfOrigin ?? 0) > 0) {
     const aheadOfOrigin = input.aheadOfOrigin ?? 0;
-    reasons.push(labels.unpushedCommit(aheadOfOrigin));
+    reasons.push(
+      countLabel(
+        aheadOfOrigin,
+        "workspace.git.actions.archiveWarning.unpushedCommit",
+        "workspace.git.actions.archiveWarning.unpushedCommits",
+      ),
+    );
   }
 
   return reasons;
@@ -103,9 +96,8 @@ export function buildWorktreeArchiveRiskReasons(
 
 export function buildWorktreeArchiveConfirmationMessage(
   input: WorktreeArchiveConfirmationInput,
-  labels: WorktreeArchiveWarningLabels = DEFAULT_WORKTREE_ARCHIVE_WARNING_LABELS,
 ): string | null {
-  const reasons = buildWorktreeArchiveRiskReasons(input, labels);
+  const reasons = buildWorktreeArchiveRiskReasons(input);
   if (reasons.length === 0) {
     return null;
   }
@@ -115,18 +107,19 @@ export function buildWorktreeArchiveConfirmationMessage(
 
 export async function confirmRiskyWorktreeArchive(
   input: WorktreeArchiveConfirmationInput,
-  labels: WorktreeArchiveWarningLabels = DEFAULT_WORKTREE_ARCHIVE_WARNING_LABELS,
 ): Promise<boolean> {
-  const message = buildWorktreeArchiveConfirmationMessage(input, labels);
+  const message = buildWorktreeArchiveConfirmationMessage(input);
   if (!message) {
     return true;
   }
 
   return await confirmDialog({
-    title: labels.title(input.workspaceName),
+    title: i18n.t("workspace.git.actions.archiveWarning.title", {
+      workspaceName: input.workspaceName,
+    }),
     message,
-    confirmLabel: labels.confirm,
-    cancelLabel: labels.cancel,
+    confirmLabel: i18n.t("workspace.git.actions.archiveWarning.confirm"),
+    cancelLabel: i18n.t("workspace.git.actions.archiveWarning.cancel"),
     destructive: true,
   });
 }

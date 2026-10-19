@@ -3,16 +3,19 @@ import type { SessionInboundMessage, SessionOutboundMessage } from "@getpaseo/pr
 import { getDesktopHost, type DesktopHostBridge } from "@/desktop/host";
 import {
   ensureResidentBrowserWebview as ensureResidentBrowserWebviewDefault,
-  removeResidentBrowserWebview,
   resizeResidentBrowserWebview,
 } from "@/desktop/browser/resident-webviews";
 import {
   createFixedBrowserViewport,
-  createWorkspaceBrowser,
   getBrowserRecord,
   useBrowserStore,
 } from "@/desktop/browser/store";
-import { collectAllTabs, useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
+import {
+  closeBrowserPage,
+  findBrowserTabInLayout,
+  openBrowserInWorkspace,
+} from "@/desktop/browser/workspace-browsers";
+import { useWorkspaceLayoutStore } from "@/stores/workspace-layout-store";
 import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
 
 type BrowserAutomationExecuteRequest = Extract<
@@ -154,11 +157,7 @@ async function handleBrowserAutomationRequest(params: {
     try {
       client.sendBrowserAutomationExecuteResponse({
         type: "browser.automation.execute.response",
-        payload: await closeBrowserTabForRequest({
-          request,
-          serverId,
-          browserHost,
-        }),
+        payload: closeBrowserTabForRequest({ request, serverId, browserHost }),
       });
     } catch (error) {
       client.sendBrowserAutomationExecuteResponse({
@@ -250,11 +249,11 @@ function resizeBrowserTabForRequest(params: {
   };
 }
 
-async function closeBrowserTabForRequest(params: {
+function closeBrowserTabForRequest(params: {
   request: BrowserAutomationExecuteRequest;
   serverId?: string;
   browserHost: DesktopHostBridge["browser"] | undefined;
-}): Promise<BrowserAutomationResponsePayload> {
+}): BrowserAutomationResponsePayload {
   const { request, serverId, browserHost } = params;
   const command = request.command as Extract<
     BrowserAutomationExecuteRequest["command"],
@@ -280,10 +279,7 @@ async function closeBrowserTabForRequest(params: {
     });
   }
 
-  useWorkspaceLayoutStore.getState().closeTab(workspaceTab.workspaceKey, workspaceTab.tabId);
-  useBrowserStore.getState().removeBrowser(browserId);
-  removeResidentBrowserWebview(browserId);
-  await browserHost?.unregisterWorkspaceBrowser?.(browserId);
+  closeBrowserPage({ browserId, browserHost });
 
   return {
     requestId: request.requestId,
@@ -292,6 +288,7 @@ async function closeBrowserTabForRequest(params: {
   };
 }
 
+/** The workspace tab that shows `browserId`. */
 function findWorkspaceBrowserTab(input: {
   serverId: string;
   workspaceId: string | undefined;
@@ -308,14 +305,8 @@ function findWorkspaceBrowserTab(input: {
     return null;
   }
   const layout = useWorkspaceLayoutStore.getState().layoutByWorkspace[workspaceKey];
-  const tab = layout
-    ? collectAllTabs(layout.root).find((candidate) => {
-        return (
-          candidate.target.kind === "browser" && candidate.target.browserId === input.browserId
-        );
-      })
-    : null;
-  return tab ? { workspaceKey, tabId: tab.tabId } : null;
+  const tabId = layout ? findBrowserTabInLayout(layout, input.browserId) : null;
+  return tabId ? { workspaceKey, tabId } : null;
 }
 
 async function openBrowserTabForRequest(params: {
@@ -348,7 +339,6 @@ async function openBrowserTabForRequest(params: {
   }
 
   const url = command.args.url ?? "https://example.com";
-  const { browserId, url: normalizedUrl } = createWorkspaceBrowser({ initialUrl: url });
   const workspaceKey = buildWorkspaceTabPersistenceKey({ serverId, workspaceId });
   if (!workspaceKey) {
     return browserAutomationFailure({
@@ -357,11 +347,17 @@ async function openBrowserTabForRequest(params: {
       message: "Cannot create a browser tab without a workspace context.",
     });
   }
-  useWorkspaceLayoutStore.getState().openTab({
-    workspaceKey,
-    target: { kind: "browser", browserId },
-    intent: "background",
-  });
+  const opened = openBrowserInWorkspace({ workspaceKey, url, activation: "background" });
+  const openedBrowser = opened ? getBrowserRecord(opened.browserId) : null;
+  if (!opened || !openedBrowser) {
+    return browserAutomationFailure({
+      requestId: request.requestId,
+      code: "browser_unsupported",
+      message: "Cannot open a browser tab in this workspace.",
+    });
+  }
+  const { browserId } = opened;
+  const normalizedUrl = openedBrowser.url;
 
   if (browserHost?.executeAutomationCommand) {
     ensureResidentBrowserWebview({ browserId, workspaceId, url: normalizedUrl });

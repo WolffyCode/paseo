@@ -3,6 +3,7 @@ import type { PluginScreenParams, PluginScreenProps } from "@getpaseo/plugin/cli
 import type { PluginTheme } from "@getpaseo/plugin";
 import { X } from "lucide-react-native";
 import { useCallback, useMemo, type ComponentType } from "react";
+import { useTranslation } from "react-i18next";
 import { Text, View } from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { HeaderIconBadge } from "@/components/headers/header-icon-badge";
@@ -128,6 +129,7 @@ function PluginHostFilter({
 }
 
 export function PluginSurfaceScreen() {
+  const { t } = useTranslation();
   const routeParams = useLocalSearchParams<{
     serverId?: string | string[];
     pluginId?: string | string[];
@@ -160,13 +162,15 @@ export function PluginSurfaceScreen() {
       identity ? getPluginSurfaceContributionServerIds(installations, pluginId, identity) : [],
     [identity, installations, pluginId],
   );
-  const title = useMemo(
-    () =>
-      surface
-        ? resolvePluginScreenTitle(surface, sidebarItem, params)
-        : (sidebarItem?.title ?? (pluginId || "Plugin")),
-    [params, pluginId, sidebarItem, surface],
-  );
+  const title = useMemo(() => {
+    if (surface) {
+      return resolvePluginScreenTitle(surface, sidebarItem, params);
+    }
+    if (sidebarItem) {
+      return sidebarItem.title;
+    }
+    return pluginId || t("plugins.surface.fallbackTitle");
+  }, [params, pluginId, sidebarItem, surface, t]);
   const Icon = sidebarItem ? resolvePluginIcon(sidebarItem.icon) : null;
   const close = useCallback(() => {
     if (router.canGoBack()) router.back();
@@ -200,18 +204,18 @@ export function PluginSurfaceScreen() {
           />
         ) : null}
         <HeaderToggleButton
-          accessibilityLabel="Close plugin"
+          accessibilityLabel={t("plugins.surface.close")}
           onPress={close}
           testID="plugin-surface-close"
           tooltipKeys={EMPTY_SHORTCUT_KEYS}
-          tooltipLabel="Close"
+          tooltipLabel={t("common.actions.close")}
           tooltipSide="bottom"
         >
           <ThemedX size={18} uniProps={mutedColorMapping} />
         </HeaderToggleButton>
       </>
     ),
-    [close, contributionServerIds, identity, params, pluginId, serverId],
+    [close, contributionServerIds, identity, params, pluginId, serverId, t],
   );
 
   return (
@@ -235,7 +239,7 @@ export function PluginSurfaceScreen() {
           </SurfaceErrorBoundary>
         ) : (
           <Text style={styles.errorText}>
-            {plugin && surface ? "Plugin host is offline." : "This plugin surface is unavailable."}
+            {plugin && surface ? t("plugins.hostOffline") : t("plugins.surface.unavailable")}
           </Text>
         )}
       </View>

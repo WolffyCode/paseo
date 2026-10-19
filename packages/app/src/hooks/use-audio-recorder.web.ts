@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AttemptCancelledError, AttemptGuard } from "@/utils/attempt-guard";
-import { isElectronRuntime } from "@/desktop/host";
+import { assertMicrophoneEnvironment } from "@/audio/microphone-environment.web";
 
 export interface AudioCaptureConfig {
   sampleRate?: number;
@@ -17,37 +17,6 @@ const MIME_TYPE_CANDIDATES = [
   "audio/ogg;codecs=opus",
   "audio/ogg",
 ];
-
-function assertMicrophoneEnvironment(): void {
-  const missingNavigator =
-    typeof navigator === "undefined" ||
-    !navigator.mediaDevices ||
-    typeof navigator.mediaDevices.getUserMedia !== "function";
-
-  const secureContext =
-    typeof window !== "undefined" && typeof window.isSecureContext === "boolean"
-      ? window.isSecureContext
-      : true;
-  const currentOrigin =
-    typeof window !== "undefined" && window.location ? window.location.origin : "unknown";
-  const isDesktopApp = isElectronRuntime();
-
-  if (missingNavigator) {
-    throw new Error("Microphone capture is not supported in this environment");
-  }
-
-  if (!secureContext && !isDesktopApp) {
-    throw new Error(
-      `Microphone access requires HTTPS or localhost. Current origin: ${currentOrigin}`,
-    );
-  }
-  if (!secureContext && isDesktopApp) {
-    console.warn(
-      "[AudioRecorder][Web] Insecure context reported under Desktop; attempting getUserMedia anyway",
-      { currentOrigin },
-    );
-  }
-}
 
 export function useAudioRecorder(config?: AudioCaptureConfig) {
   const [isRecording, setIsRecording] = useState(false);

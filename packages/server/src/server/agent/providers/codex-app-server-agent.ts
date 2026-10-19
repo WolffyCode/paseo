@@ -54,6 +54,7 @@ import { renderPromptAttachmentAsText } from "../prompt-attachments.js";
 import { composeSystemPromptParts } from "../system-prompt.js";
 import { curateAgentActivity } from "../activity-curator.js";
 import { CodexAsyncQuestions, codexAsyncQuestionToTimeline } from "./codex/async-questions.js";
+import { findCodexRolloutPath } from "./codex/rollout-path.js";
 import {
   mapCodexToolCallEnvelope,
   mapCodexToolCallFromThreadItem,
@@ -7474,6 +7475,13 @@ export class CodexAppServerAgentClient implements AgentClient {
 
   async unarchiveNativeSession(handle: AgentPersistenceHandle): Promise<void> {
     await this.updateNativeThreadArchiveState(handle, "restore");
+  }
+
+  async resolveNativeSessionPath(handle: AgentPersistenceHandle): Promise<string | null> {
+    return await findCodexRolloutPath({
+      codexHome: resolveCodexHomeDir(buildCodexAppServerEnv(this.runtimeSettings)),
+      threadId: handle.nativeHandle ?? handle.sessionId,
+    });
   }
 
   private async updateNativeThreadArchiveState(

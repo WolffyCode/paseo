@@ -51,6 +51,7 @@ import {
   workspaceLabels,
 } from "@/workspace-labels";
 import { getLabelCommandCenterIcon } from "@/workspace-labels/command-center-icon";
+import { isWorkbenchLayout } from "@/workbench/layout";
 import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
 import { getCommandCenterIcon } from "./icon";
 import type { CommandCenterIcon } from "./contributions";
@@ -284,7 +285,8 @@ export function useWorkspaceCommandCenterActions(): void {
         },
         shortcuts: resolveWorkspaceShortcuts(overrides),
         capabilities: {
-          canSplitPanes: supportsDesktopPaneSplits() && !isCompact,
+          canSplitPanes:
+            supportsDesktopPaneSplits() && !isCompact && !(layout && isWorkbenchLayout(layout)),
           canOpenBrowserTabs: getIsElectron(),
           isGit,
           canPin,
@@ -317,6 +319,7 @@ export function useWorkspaceCommandCenterActions(): void {
       gitActions,
       isCompact,
       isGit,
+      layout,
       isPinned,
       keyboardActionDispatcher,
       labelCatalog,

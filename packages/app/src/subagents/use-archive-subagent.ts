@@ -1,4 +1,5 @@
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { useToast } from "@/contexts/toast-context";
 import { useArchiveAgent } from "@/hooks/use-archive-agent";
 import { useSessionStore } from "@/stores/session-store";
@@ -21,6 +22,7 @@ export function useArchiveSubagent(input: UseArchiveSubagentInput): (subagentId:
   const { archiveAgent } = useArchiveAgent();
   const { serverId } = input;
   const toast = useToast();
+  const { t } = useTranslation();
 
   return useCallback(
     (subagentId: string) => {
@@ -34,9 +36,10 @@ export function useArchiveSubagent(input: UseArchiveSubagentInput): (subagentId:
           reportError: (error) => {
             toast.error(toErrorMessage(error));
           },
+          t,
         },
       );
     },
-    [archiveAgent, serverId, toast],
+    [archiveAgent, serverId, t, toast],
   );
 }

@@ -426,16 +426,16 @@ export function StartupSplashScreen({ bootstrapState }: StartupSplashScreenProps
 
           <View style={styles.actionRow}>
             <Button variant="secondary" leftIcon={copyIcon} onPress={handleCopyLogs}>
-              Copy logs
+              {t("startup.actions.copyLogs")}
             </Button>
             <Button variant="outline" leftIcon={warningIcon} onPress={openGithubIssue}>
-              Open GitHub issue
+              {t("startup.actions.openIssue")}
             </Button>
             <Button variant="outline" leftIcon={bookIcon} onPress={openDocs}>
-              Docs
+              {t("startup.actions.docs")}
             </Button>
             <Button variant="default" leftIcon={retryIcon} onPress={bootstrapState.retry}>
-              Retry
+              {t("common.actions.retry")}
             </Button>
           </View>
         </View>

@@ -1,5 +1,6 @@
-import { formatCompactTimeAgoAsProse } from "@/utils/time";
-import { usageCopy } from "./copy";
+import type { UsageProblem } from "@getpaseo/protocol/messages";
+import type { TFunction } from "i18next";
+import { formatTimeAgo } from "@/utils/time";
 import type { UsageDisplayAs } from "./preferences";
 import type { UsageReportEntry, UsageView, UsageWindow } from "./types";
 
@@ -31,9 +32,30 @@ export function usageWindowRowLabel(input: {
   return `${input.pinLabel}, ${summary}`;
 }
 
-/** When a report was fetched, from its compact relative time: "Updated 3m ago". */
-export function formatUsageFreshness(compactTimeAgo: string): string {
-  return `${usageCopy.updated} ${formatCompactTimeAgoAsProse(compactTimeAgo)}`;
+/** When a report was fetched, from its prose relative time: "Updated 3m ago". */
+export function formatUsageFreshness(timeAgo: string, t: TFunction): string {
+  return t("usage.updated", { timeAgo });
+}
+
+/**
+ * Why a source cannot report, and how to fix it: "Login expired 3h ago. Run claude to refresh
+ * it." A source without quota explains itself, so its own detail is shown as is.
+ */
+export function describeUsageProblem(
+  problem: UsageProblem,
+  t: TFunction,
+  locale: string,
+  now: Date = new Date(),
+): string {
+  if (problem.kind === "no_quota") return problem.detail;
+  const remedy = problem.refreshedBy
+    ? t("usage.problem.refreshWith", { command: problem.refreshedBy })
+    : t("usage.problem.signInAgain");
+  if (problem.kind === "rejected") {
+    return t("usage.problem.rejected", { status: problem.status, remedy });
+  }
+  const timeAgo = formatTimeAgo(new Date(problem.expiresAt), t, locale, now);
+  return t("usage.problem.expired", { timeAgo, remedy });
 }
 
 /** A user-requested refresh of one report. The previous report stays on screen throughout. */
@@ -106,11 +128,14 @@ export function resolveUsageView(input: {
   isConnected: boolean;
   supportsUsage: boolean;
   query: UsageQueryState | undefined;
+  t: TFunction;
 }): UsageView {
-  const { hostLabel, isConnected, supportsUsage, query } = input;
-  if (!isConnected) return { kind: "unavailable", message: usageCopy.hostUnavailable(hostLabel) };
+  const { hostLabel, isConnected, supportsUsage, query, t } = input;
+  if (!isConnected) {
+    return { kind: "unavailable", message: t("usage.hostUnavailable", { host: hostLabel }) };
+  }
   if (!supportsUsage) {
-    return { kind: "unavailable", message: usageCopy.hostUpgradeRequired(hostLabel) };
+    return { kind: "unavailable", message: t("usage.hostUpgradeRequired", { host: hostLabel }) };
   }
   if (query?.data) {
     return { kind: "ready", reports: query.data, isRefreshing: query.isFetching };
@@ -134,14 +159,15 @@ export type AgentUsageView =
 export function resolveAgentUsageView(input: {
   canReport: boolean;
   query: UsageQueryState;
+  t: TFunction;
 }): AgentUsageView {
-  const { canReport, query } = input;
+  const { canReport, query, t } = input;
   if (!canReport) return { kind: "none" };
   // A failed request keeps the reports from before it, or those that streamed in before it failed;
   // shown alone they would pass for the agent's complete, current usage.
   if (query.error) {
     const reason = query.error instanceof Error ? query.error.message : String(query.error);
-    return { kind: "error", message: usageCopy.agentError(reason) };
+    return { kind: "error", message: t("usage.loadFailedReason", { reason }) };
   }
   if (query.data) {
     return query.data.length === 0 ? { kind: "none" } : { kind: "ready", reports: query.data };

@@ -1,4 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { i18n } from "@/i18n/i18next";
 import {
   buildBulkCloseConfirmationMessage,
   classifyBulkClosableTabs,
@@ -34,6 +35,10 @@ function makeFileTab(path: string): WorkspaceTabDescriptor {
 }
 
 describe("workspace bulk close helpers", () => {
+  beforeAll(async () => {
+    await i18n.changeLanguage("en");
+  });
+
   it("classifies agent, terminal, and passive tabs for shared bulk close handling", () => {
     const groups = classifyBulkClosableTabs([
       makeAgentTab("a1"),
@@ -64,7 +69,7 @@ describe("workspace bulk close helpers", () => {
       archiveAgentTabs: [{ tabId: "agent_root", agentId: "root" }],
       layoutOnlyAgentTabs: [{ tabId: "agent_child", agentId: "child" }],
     });
-    expect(buildBulkCloseConfirmationMessage(groups)).toBe(
+    expect(buildBulkCloseConfirmationMessage(groups, i18n.t)).toBe(
       "This will archive 1 agent(s) and close 1 tab(s).",
     );
   });
@@ -77,6 +82,7 @@ describe("workspace bulk close helpers", () => {
         makeTerminalTab("t1"),
         makeFileTab("/repo/README.md"),
       ]),
+      i18n.t,
     );
 
     expect(message).toBe(
@@ -87,6 +93,7 @@ describe("workspace bulk close helpers", () => {
   it("keeps terminal-only confirmations explicit about stopping running processes", () => {
     const message = buildBulkCloseConfirmationMessage(
       classifyBulkClosableTabs([makeTerminalTab("t1")]),
+      i18n.t,
     );
 
     expect(message).toBe(

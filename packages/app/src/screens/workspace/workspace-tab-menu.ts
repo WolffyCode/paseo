@@ -1,4 +1,6 @@
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
+import type { TFunction } from "i18next";
+import { browserTabCommands } from "@/desktop/browser/workspace-browsers";
 import { i18n } from "@/i18n/i18next";
 import { encodeFilePathForPathSegment, encodeWorkspaceIdForPathSegment } from "@/utils/host-routes";
 import { buildDeterministicWorkspaceTabId } from "@/workspace-tabs/identity";
@@ -16,26 +18,38 @@ export interface WorkspaceTabMenuLabels {
   closeLeft: string;
   closeRight: string;
   closeOthers: string;
+  newBrowserTabToRight: string;
+  reloadBrowserTab: string;
+  duplicateBrowserTab: string;
   reloadAgent: string;
   reloadAgentTooltip: string;
   close: string;
 }
 
-export const DEFAULT_WORKSPACE_TAB_MENU_LABELS: WorkspaceTabMenuLabels = {
-  copyResumeCommand: i18n.t("workspace.tabs.menu.copyResumeCommand"),
-  copyAgentId: i18n.t("workspace.tabs.menu.copyAgentId"),
-  copyTerminalId: i18n.t("workspace.tabs.menu.copyTerminalId"),
-  copyFilePath: i18n.t("workspace.tabs.menu.copyFilePath"),
-  rename: i18n.t("workspace.tabs.menu.rename"),
-  closeAbove: i18n.t("workspace.tabs.menu.closeAbove"),
-  closeBelow: i18n.t("workspace.tabs.menu.closeBelow"),
-  closeLeft: i18n.t("workspace.tabs.menu.closeLeft"),
-  closeRight: i18n.t("workspace.tabs.menu.closeRight"),
-  closeOthers: i18n.t("workspace.tabs.menu.closeOthers"),
-  reloadAgent: i18n.t("workspace.tabs.menu.reloadAgent"),
-  reloadAgentTooltip: i18n.t("workspace.tabs.menu.reloadAgentTooltip"),
-  close: i18n.t("workspace.tabs.menu.close"),
-};
+/** The menu's labels in the current UI language. */
+export function buildWorkspaceTabMenuLabels(t: TFunction): WorkspaceTabMenuLabels {
+  return {
+    copyResumeCommand: t("workspace.tabs.menu.copyResumeCommand"),
+    copyAgentId: t("workspace.tabs.menu.copyAgentId"),
+    copyTerminalId: t("workspace.tabs.menu.copyTerminalId"),
+    copyFilePath: t("workspace.tabs.menu.copyFilePath"),
+    rename: t("workspace.tabs.menu.rename"),
+    closeAbove: t("workspace.tabs.menu.closeAbove"),
+    closeBelow: t("workspace.tabs.menu.closeBelow"),
+    closeLeft: t("workspace.tabs.menu.closeLeft"),
+    closeRight: t("workspace.tabs.menu.closeRight"),
+    closeOthers: t("workspace.tabs.menu.closeOthers"),
+    newBrowserTabToRight: t("workspace.browser.tabs.menu.newTabToRight"),
+    reloadBrowserTab: t("workspace.browser.tabs.menu.reload"),
+    duplicateBrowserTab: t("workspace.browser.tabs.menu.duplicate"),
+    reloadAgent: t("workspace.tabs.menu.reloadAgent"),
+    reloadAgentTooltip: t("workspace.tabs.menu.reloadAgentTooltip"),
+    close: t("workspace.tabs.menu.close"),
+  };
+}
+
+export const DEFAULT_WORKSPACE_TAB_MENU_LABELS: WorkspaceTabMenuLabels =
+  buildWorkspaceTabMenuLabels(i18n.t);
 
 export type WorkspaceTabMenuEntry =
   | {
@@ -241,6 +255,36 @@ export function buildWorkspaceTabMenuEntries(
         void onCopyFilePath(filePath);
       },
     });
+  }
+
+  // A web page's tab carries the top of Chrome's tab menu.
+  if (tab.target.kind === "browser") {
+    const { browserId } = tab.target;
+    entries.push({
+      kind: "item",
+      key: "browser-new-tab-to-right",
+      label: labels.newBrowserTabToRight,
+      testID: `${menuTestIDBase}-browser-new-tab-to-right`,
+      onSelect: () => browserTabCommands.newTabToRight(browserId),
+    });
+    entries.push({ kind: "separator", key: "browser-new-tab-separator" });
+    entries.push({
+      kind: "item",
+      key: "browser-reload",
+      label: labels.reloadBrowserTab,
+      icon: "rotate-cw",
+      testID: `${menuTestIDBase}-browser-reload`,
+      onSelect: () => browserTabCommands.reload(browserId),
+    });
+    entries.push({
+      kind: "item",
+      key: "browser-duplicate",
+      label: labels.duplicateBrowserTab,
+      icon: "copy",
+      testID: `${menuTestIDBase}-browser-duplicate`,
+      onSelect: () => browserTabCommands.duplicate(browserId),
+    });
+    entries.push({ kind: "separator", key: "browser-separator" });
   }
 
   if (tab.target.kind === "agent" || tab.target.kind === "terminal") {

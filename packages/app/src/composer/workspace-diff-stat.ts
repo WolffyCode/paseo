@@ -7,14 +7,18 @@ export function useVisibleWorkspaceDiffStat(
   serverId: string,
   workspaceId: string,
 ): DiffStat | null {
-  const diffStat = useWorkspaceFields(serverId, workspaceId, (workspace) => workspace.diffStat);
+  const diffStat = useWorkspaceFields(serverId, workspaceId, (workspace) =>
+    workspace.purpose === "chat" ? null : workspace.diffStat,
+  );
   return hasDiffStatChanges(diffStat) ? diffStat : null;
 }
 
 export function useWorkspaceHasDiffStat(serverId: string, workspaceId: string): boolean {
   return (
-    useWorkspaceFields(serverId, workspaceId, (workspace) =>
-      hasDiffStatChanges(workspace.diffStat),
+    useWorkspaceFields(
+      serverId,
+      workspaceId,
+      (workspace) => workspace.purpose !== "chat" && hasDiffStatChanges(workspace.diffStat),
     ) ?? false
   );
 }

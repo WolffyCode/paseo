@@ -39,6 +39,7 @@ function shortcutContext(
     isDesktop: false,
     focusScope: "other",
     commandCenterOpen: false,
+    isBrowserFocused: false,
     ...overrides,
   };
 }
@@ -259,18 +260,6 @@ describe("keyboard-shortcuts", () => {
       action: "command-center.toggle",
     },
     {
-      name: "matches Cmd+Backslash to split pane right on macOS",
-      event: { key: "\\", code: "Backslash", metaKey: true },
-      context: { isMac: true },
-      action: "workspace.pane.split.right",
-    },
-    {
-      name: "matches Cmd+Shift+Backslash to split pane down on macOS",
-      event: { key: "|", code: "Backslash", metaKey: true, shiftKey: true },
-      context: { isMac: true },
-      action: "workspace.pane.split.down",
-    },
-    {
       name: "matches Cmd+Shift+ArrowRight to focus pane right on macOS",
       event: { key: "ArrowRight", code: "ArrowRight", metaKey: true, shiftKey: true },
       context: { isMac: true },
@@ -311,6 +300,13 @@ describe("keyboard-shortcuts", () => {
       event: { key: ".", code: "KeyE", metaKey: true },
       context: { isMac: true },
       action: "sidebar.toggle.both",
+    },
+    {
+      name: "routes Mod+D to dictation in column 2 instead of splitting",
+      event: { key: "d", code: "KeyD", metaKey: true },
+      context: { isMac: true },
+      action: "message-input.action",
+      payload: { kind: "dictation-toggle" },
     },
     {
       name: "routes Mod+D to message-input action outside terminal",
@@ -618,8 +614,194 @@ describe("keyboard-shortcuts", () => {
   it("resolves a browser-origin shortcut with browser focus instead of host focus", () => {
     expectShortcutResolution({
       event: { key: "t", code: "KeyT", ctrlKey: true },
-      context: { isDesktop: true, focusScope: "browser" },
+      context: { isDesktop: true, focusScope: "browser", isBrowserFocused: true },
+      action: "browser.tab.new",
+    });
+  });
+
+  it("gives Chrome's tab keys to a focused page, picking among column 3's tabs, and the workspace keys elsewhere", () => {
+    const inPage = {
+      isMac: true,
+      isDesktop: true,
+      focusScope: "browser",
+      isBrowserFocused: true,
+    } as const;
+    expectShortcutResolution({
+      event: { key: "t", code: "KeyT", metaKey: true },
+      context: inPage,
+      action: "browser.tab.new",
+    });
+    expectShortcutResolution({
+      event: { key: "w", code: "KeyW", metaKey: true },
+      context: inPage,
+      action: "workspace.tab.close.current",
+    });
+    expectShortcutResolution({
+      event: { key: "T", code: "KeyT", metaKey: true, shiftKey: true },
+      context: inPage,
+      action: "browser.tab.reopen",
+    });
+    expectShortcutResolution({
+      event: { key: "2", code: "Digit2", metaKey: true },
+      context: inPage,
+      action: "workspace.tab.navigate.index",
+      payload: { index: 2 },
+    });
+    expectShortcutResolution({
+      event: { key: "Tab", code: "Tab", ctrlKey: true },
+      context: inPage,
+      action: "workspace.tab.navigate.relative",
+      payload: { delta: 1 },
+    });
+    expectShortcutResolution({
+      event: { key: "ArrowLeft", code: "ArrowLeft", metaKey: true, altKey: true },
+      context: inPage,
+      action: "workspace.tab.navigate.relative",
+      payload: { delta: -1 },
+    });
+    expectShortcutResolution({
+      event: { key: "t", code: "KeyT", metaKey: true },
+      context: { isMac: true, isDesktop: true, focusScope: "other", isBrowserFocused: false },
       action: "workspace.tab.menu.open",
+    });
+  });
+
+  it("gives Chrome's page commands to a focused browser window", () => {
+    const inPage = {
+      isMac: true,
+      isDesktop: true,
+      focusScope: "browser",
+      isBrowserFocused: true,
+    } as const;
+    expectShortcutResolution({
+      event: { key: "f", code: "KeyF", metaKey: true },
+      context: inPage,
+      action: "browser.page.find",
+    });
+    expectShortcutResolution({
+      event: { key: "p", code: "KeyP", metaKey: true },
+      context: inPage,
+      action: "browser.page.print",
+    });
+    expectShortcutResolution({
+      event: { key: "+", code: "Equal", metaKey: true, shiftKey: true },
+      context: inPage,
+      action: "browser.page.zoom-in",
+    });
+    expectShortcutResolution({
+      event: { key: "-", code: "Minus", metaKey: true },
+      context: inPage,
+      action: "browser.page.zoom-out",
+    });
+    expectShortcutResolution({
+      event: { key: "0", code: "Digit0", metaKey: true },
+      context: inPage,
+      action: "browser.page.zoom-reset",
+    });
+    expectShortcutResolution({
+      event: { key: "i", code: "KeyI", metaKey: true, altKey: true },
+      context: inPage,
+      action: "browser.page.devtools",
+    });
+  });
+
+  it("gives Chrome's address and navigation keys to a focused browser window and Helm's keys elsewhere", () => {
+    const inPage = {
+      isMac: true,
+      isDesktop: true,
+      focusScope: "browser",
+      isBrowserFocused: true,
+    } as const;
+    expectShortcutResolution({
+      event: { key: "l", code: "KeyL", metaKey: true },
+      context: inPage,
+      action: "browser.page.focus-location",
+    });
+    expectShortcutResolution({
+      event: { key: "[", code: "BracketLeft", metaKey: true },
+      context: inPage,
+      action: "browser.page.back",
+    });
+    expectShortcutResolution({
+      event: { key: "]", code: "BracketRight", metaKey: true },
+      context: inPage,
+      action: "browser.page.forward",
+    });
+    expectShortcutResolution({
+      event: { key: "H", code: "KeyH", metaKey: true, shiftKey: true },
+      context: inPage,
+      action: "browser.page.home",
+    });
+    expectShortcutResolution({
+      event: { key: "{", code: "BracketLeft", metaKey: true, shiftKey: true },
+      context: inPage,
+      action: "workspace.tab.navigate.relative",
+      payload: { delta: -1 },
+    });
+    expectShortcutResolution({
+      event: { key: "}", code: "BracketRight", metaKey: true, shiftKey: true },
+      context: inPage,
+      action: "workspace.tab.navigate.relative",
+      payload: { delta: 1 },
+    });
+
+    const inPageOffMac = { ...inPage, isMac: false } as const;
+    expectShortcutResolution({
+      event: { key: "l", code: "KeyL", ctrlKey: true },
+      context: inPageOffMac,
+      action: "browser.page.focus-location",
+    });
+    expectShortcutResolution({
+      event: { key: "ArrowLeft", code: "ArrowLeft", altKey: true },
+      context: inPageOffMac,
+      action: "browser.page.back",
+    });
+    expectShortcutResolution({
+      event: { key: "ArrowRight", code: "ArrowRight", altKey: true },
+      context: inPageOffMac,
+      action: "browser.page.forward",
+    });
+    expectShortcutResolution({
+      event: { key: "Home", code: "Home", altKey: true },
+      context: inPageOffMac,
+      action: "browser.page.home",
+    });
+
+    const elsewhere = {
+      isMac: true,
+      isDesktop: true,
+      focusScope: "other",
+      isBrowserFocused: false,
+    } as const;
+    expectShortcutResolution({
+      event: { key: "l", code: "KeyL", metaKey: true },
+      context: elsewhere,
+      action: "message-input.action",
+      payload: { kind: "focus" },
+    });
+    expectShortcutResolution({
+      event: { key: "[", code: "BracketLeft", metaKey: true },
+      context: elsewhere,
+      action: "workspace.navigate.relative",
+      payload: { delta: -1 },
+    });
+  });
+
+  it("keeps Chrome's tab shortcuts in the address bar without taking its text editing keys", () => {
+    const inAddressBar = {
+      isMac: true,
+      isDesktop: true,
+      focusScope: "editable",
+      isBrowserFocused: true,
+    } as const;
+    expectShortcutResolution({
+      event: { key: "w", code: "KeyW", metaKey: true },
+      context: inAddressBar,
+      action: "workspace.tab.close.current",
+    });
+    expectNoShortcutResolution({
+      event: { key: "ArrowLeft", code: "ArrowLeft", metaKey: true, shiftKey: true },
+      context: inAddressBar,
     });
   });
 
@@ -706,7 +888,6 @@ describe("keyboard-shortcut help sections", () => {
         "workspace-jump-index": ["alt", "1-9"],
         "workspace-tab-jump-index": ["alt", "shift", "1-9"],
         "workspace-tab-close-current": ["alt", "shift", "W"],
-        "workspace-pane-split-right": ["mod", "\\"],
         "workspace-pane-close": ["mod", "shift", "W"],
         "cycle-agent-mode": ["shift", "Tab"],
       },
@@ -725,7 +906,6 @@ describe("keyboard-shortcut help sections", () => {
         // `formatShortcut` renders both as ⌘, so the badge is unchanged — see
         // the render assertion below.
         "workspace-tab-close-current": ["mod", "W"],
-        "workspace-pane-split-right": ["mod", "\\"],
         "workspace-pane-close": ["mod", "shift", "W"],
       },
     },

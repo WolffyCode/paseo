@@ -1,4 +1,5 @@
-import { webContents as allWebContents, type WebContents } from "electron";
+import path from "node:path";
+import { webContents as allWebContents, type Session, type WebContents } from "electron";
 import { PASEO_BROWSER_PROFILE_PARTITION } from "../browser-profile.js";
 import {
   BROWSER_NEW_TAB_REQUEST_EVENT,
@@ -181,6 +182,17 @@ function preventUnsafeBrowserWebviewNavigation(
   if (!isAllowedBrowserWebviewUrl(url)) {
     event.preventDefault();
   }
+}
+
+const VIEWPORT_PRELOAD_ID = "paseo-browser-viewport";
+
+/** Every page and frame of the browser profile sees its own viewport as its window size. */
+export function registerBrowserViewportPreload(profileSession: Session): void {
+  profileSession.registerPreloadScript({
+    id: VIEWPORT_PRELOAD_ID,
+    type: "frame",
+    filePath: path.join(__dirname, "viewport-preload.js"),
+  });
 }
 
 export function registerBrowserWebviewNavigationGuards(contents: WebContents): void {

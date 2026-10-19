@@ -37,6 +37,7 @@ import { useToast } from "@/contexts/toast-context";
 import { useCheckoutGitActionsStore } from "@/git/actions-store";
 import { isNative } from "@/constants/platform";
 import { useIsCompactFormFactor } from "@/constants/layout";
+import { useTimeAgo } from "@/hooks/use-time-ago";
 import {
   PaneContentToolbar,
   paneContentToolbarIconSize,
@@ -714,7 +715,7 @@ function ActivityKebab({
           ) : null}
           {activity.body.trim() !== "" ? (
             <DropdownMenuItem leading={COPY_MENU_ICON} onSelect={handleCopy}>
-              Copy
+              {t("common.actions.copy")}
             </DropdownMenuItem>
           ) : null}
           <DropdownMenuItem leading={OPEN_MENU_ICON} onSelect={handleOpen}>
@@ -798,11 +799,17 @@ function ActivityHeader({
       </Text>
       <ActivityVerb activity={activity} />
       <View style={styles.headerTrailing}>
-        <Text style={styles.ageText}>{activity.age}</Text>
+        <ActivityAge createdAt={activity.createdAt} />
         {children}
       </View>
     </>
   );
+}
+
+/** Its own component so the relative-time clock re-renders one `<Text>`, not the card. */
+function ActivityAge({ createdAt }: { createdAt: number }) {
+  const age = useTimeAgo(new Date(createdAt));
+  return <Text style={styles.ageText}>{age}</Text>;
 }
 
 function SingleActivityCard({

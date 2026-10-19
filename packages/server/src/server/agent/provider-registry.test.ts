@@ -57,6 +57,7 @@ const mockState = vi.hoisted(() => {
     runtimeModels: new Map<string, AgentModelDefinition[]>(),
     cursorListFeaturesConfigs: [] as AgentSessionConfig[],
     codexNativeArchiveCalls: [] as Array<{ state: "archive" | "restore"; handle: unknown }>,
+    codexNativeSessionPathHandles: [] as unknown[],
     reset() {
       this.constructorArgs.claude = [];
       this.constructorArgs.codex = [];
@@ -71,6 +72,7 @@ const mockState = vi.hoisted(() => {
       this.runtimeModels.clear();
       this.cursorListFeaturesConfigs = [];
       this.codexNativeArchiveCalls = [];
+      this.codexNativeSessionPathHandles = [];
     },
   };
 });
@@ -175,6 +177,11 @@ vi.mock("./providers/codex-app-server-agent.js", () => ({
 
     async unarchiveNativeSession(handle: unknown): Promise<void> {
       mockState.codexNativeArchiveCalls.push({ state: "restore", handle });
+    }
+
+    async resolveNativeSessionPath(handle: unknown): Promise<string> {
+      mockState.codexNativeSessionPathHandles.push(handle);
+      return "/codex-home/sessions/rollout-thread-1.jsonl";
     }
 
     async isAvailable(): Promise<boolean> {
@@ -640,6 +647,19 @@ test("new provider extending codex archives and unarchives its native sessions",
     { state: "archive", handle: { ...handle, provider: "codex" } },
     { state: "restore", handle: { ...handle, provider: "codex" } },
   ]);
+});
+
+test("new provider extending codex resolves its native session path", async () => {
+  const registry = buildProviderRegistry(logger, {
+    providerOverrides: { "my-codex": { extends: "codex", label: "My Codex" } },
+  });
+  const client = registry["my-codex"].createClient(logger);
+  const handle = { provider: "my-codex", sessionId: "thread-1", nativeHandle: "thread-1" };
+
+  await expect(client.resolveNativeSessionPath?.(handle)).resolves.toBe(
+    "/codex-home/sessions/rollout-thread-1.jsonl",
+  );
+  expect(mockState.codexNativeSessionPathHandles).toEqual([{ ...handle, provider: "codex" }]);
 });
 
 test("built-in OMP override keeps the real OMP adapter enabled and launchable", async () => {

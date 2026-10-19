@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { i18n } from "@/i18n/i18next";
 import type { UsagePreferences } from "./preferences";
 import {
   choosePinnedUsageLayout,
@@ -7,6 +8,8 @@ import {
   type PinnedUsageWindow,
 } from "./pinned";
 import type { UsageReportEntry, UsageWindow } from "./types";
+
+const englishT = i18n.getFixedT("en");
 
 function report(input: {
   sourceId: string;
@@ -42,7 +45,7 @@ const codex = report({
 });
 
 function windows(reports: UsageReportEntry[], prefs: UsagePreferences): PinnedUsageWindow[] {
-  return resolvePinnedUsage(reports, prefs).flatMap((source) => source.windows);
+  return resolvePinnedUsage(reports, prefs, englishT).flatMap((source) => source.windows);
 }
 
 function preferences(
@@ -128,6 +131,7 @@ describe("resolvePinnedUsage", () => {
         { sourceId: "codex", windowId: "weekly" },
         { sourceId: "claude", windowId: "five-hour" },
       ]),
+      englishT,
     );
 
     const windowKeys = (source: PinnedUsageSource) => source.windows.map((window) => window.key);
@@ -269,5 +273,5 @@ it("keeps unavailable and error reports out of the sidebar summary", () => {
     ...codex,
     report: { status: "error", error: "Store deleted" },
   };
-  expect(resolvePinnedUsage([expired, failed], preferences(null))).toEqual([]);
+  expect(resolvePinnedUsage([expired, failed], preferences(null), englishT)).toEqual([]);
 });

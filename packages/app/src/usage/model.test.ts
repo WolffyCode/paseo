@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { i18n } from "@/i18n/i18next";
 import {
+  describeUsageProblem,
   displayPercent,
   formatUsageFreshness,
   resolveAgentUsageView,
@@ -15,6 +17,8 @@ import {
   type UsageQueryState,
 } from "./model";
 import type { UsageReportEntry, UsageWindow } from "./types";
+
+const englishT = i18n.getFixedT("en");
 
 function entry(input: {
   windows?: UsageWindow[];
@@ -49,6 +53,7 @@ describe("resolveUsageView", () => {
         isConnected: true,
         supportsUsage: false,
         query: ready([entry({})]),
+        t: englishT,
       }),
     ).toEqual({ kind: "unavailable", message: "Update Laptop to see usage" });
   });
@@ -60,12 +65,13 @@ describe("resolveUsageView", () => {
         isConnected: false,
         supportsUsage: false,
         query: undefined,
+        t: englishT,
       }),
     ).toEqual({ kind: "unavailable", message: "Connect to Laptop to see usage" });
   });
 
   it("moves from loading to ready to error", () => {
-    const base = { hostLabel: "Laptop", isConnected: true, supportsUsage: true };
+    const base = { hostLabel: "Laptop", isConnected: true, supportsUsage: true, t: englishT };
     expect(resolveUsageView({ ...base, query: undefined })).toEqual({ kind: "loading" });
     expect(
       resolveUsageView({ ...base, query: { data: [], error: null, isFetching: true } }),
@@ -186,9 +192,32 @@ describe("displayPercent", () => {
 
 describe("formatUsageFreshness", () => {
   it("says when the report was fetched", () => {
-    expect(formatUsageFreshness("now")).toBe("Updated just now");
-    expect(formatUsageFreshness("3m")).toBe("Updated 3m ago");
-    expect(formatUsageFreshness("Jan 15")).toBe("Updated Jan 15");
+    expect(formatUsageFreshness("just now", englishT)).toBe("Updated just now");
+    expect(formatUsageFreshness("3m ago", englishT)).toBe("Updated 3m ago");
+    expect(formatUsageFreshness("Jan 15", englishT)).toBe("Updated Jan 15");
+  });
+});
+
+describe("describeUsageProblem", () => {
+  it.each([
+    [
+      { kind: "expired", expiresAt: "2026-10-01T09:00:00Z", refreshedBy: "claude" },
+      "Login expired 3h ago. Run claude to refresh it.",
+    ],
+    [
+      { kind: "expired", expiresAt: "2026-10-01T09:00:00Z" },
+      "Login expired 3h ago. Sign in again.",
+    ],
+    [
+      { kind: "rejected", status: 403, refreshedBy: "codex" },
+      "Login rejected (HTTP 403). Run codex to refresh it.",
+    ],
+    [{ kind: "rejected", status: 401 }, "Login rejected (HTTP 401). Sign in again."],
+    [{ kind: "no_quota", detail: "No active coding plan" }, "No active coding plan"],
+  ] as const)("words %j", (problem, sentence) => {
+    expect(describeUsageProblem(problem, englishT, "en", new Date("2026-10-01T12:00:00Z"))).toBe(
+      sentence,
+    );
   });
 });
 
@@ -265,14 +294,15 @@ describe("settleReports", () => {
 describe("resolveAgentUsageView", () => {
   const report = entry({ sourceId: "claude" });
   const idle: UsageQueryState = { data: undefined, error: null, isFetching: false };
+  const t = englishT;
 
   it("shows nothing on a host that cannot report usage", () => {
-    expect(resolveAgentUsageView({ canReport: false, query: idle })).toEqual({ kind: "none" });
+    expect(resolveAgentUsageView({ canReport: false, query: idle, t })).toEqual({ kind: "none" });
   });
 
   it("loads until the first report streams in", () => {
     expect(
-      resolveAgentUsageView({ canReport: true, query: { ...idle, isFetching: true } }),
+      resolveAgentUsageView({ canReport: true, query: { ...idle, isFetching: true }, t }),
     ).toEqual({ kind: "loading" });
   });
 
@@ -281,12 +311,13 @@ describe("resolveAgentUsageView", () => {
       resolveAgentUsageView({
         canReport: true,
         query: { data: [report], error: null, isFetching: true },
+        t,
       }),
     ).toEqual({ kind: "ready", reports: [report] });
   });
 
   it("shows nothing for an agent with no account to report", () => {
-    expect(resolveAgentUsageView({ canReport: true, query: { ...idle, data: [] } })).toEqual({
+    expect(resolveAgentUsageView({ canReport: true, query: { ...idle, data: [] }, t })).toEqual({
       kind: "none",
     });
   });
@@ -296,6 +327,7 @@ describe("resolveAgentUsageView", () => {
       resolveAgentUsageView({
         canReport: true,
         query: { ...idle, error: new Error("Unknown agent") },
+        t,
       }),
     ).toEqual({ kind: "error", message: "Unable to load usage: Unknown agent" });
   });
@@ -305,6 +337,7 @@ describe("resolveAgentUsageView", () => {
       resolveAgentUsageView({
         canReport: true,
         query: { data: [report], error: new Error("Unknown agent"), isFetching: false },
+        t,
       }),
     ).toEqual({ kind: "error", message: "Unable to load usage: Unknown agent" });
   });

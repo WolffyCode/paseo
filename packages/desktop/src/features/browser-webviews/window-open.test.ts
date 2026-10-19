@@ -12,7 +12,11 @@ describe("browser webview window-open requests", () => {
       hasPostBody: false,
     });
 
-    expect(result).toEqual({ kind: "workspace-tab", url: "https://example.com/target" });
+    expect(result).toEqual({
+      kind: "workspace-tab",
+      url: "https://example.com/target",
+      isActive: true,
+    });
   });
 
   it("keeps script-opened windows as real popups", () => {
@@ -50,7 +54,11 @@ describe("browser webview window-open requests", () => {
         hasPostBody: false,
       });
 
-      expect(result).toEqual({ kind: "workspace-tab", url: "https://example.com/target" });
+      expect(result).toEqual({
+        kind: "workspace-tab",
+        url: "https://example.com/target",
+        isActive: true,
+      });
     },
   );
 
@@ -63,7 +71,11 @@ describe("browser webview window-open requests", () => {
       hasPostBody: false,
     });
 
-    expect(result).toEqual({ kind: "workspace-tab", url: "https://example.com/target" });
+    expect(result).toEqual({
+      kind: "workspace-tab",
+      url: "https://example.com/target",
+      isActive: true,
+    });
   });
 
   it.each(["noopener", "noreferrer", "attributionsrc=https://example.com/register", "popup=false"])(
@@ -77,7 +89,11 @@ describe("browser webview window-open requests", () => {
         hasPostBody: false,
       });
 
-      expect(result).toEqual({ kind: "workspace-tab", url: "https://example.com/target" });
+      expect(result).toEqual({
+        kind: "workspace-tab",
+        url: "https://example.com/target",
+        isActive: true,
+      });
     },
   );
 
@@ -127,7 +143,11 @@ describe("browser webview window-open requests", () => {
       hasPostBody: false,
     });
 
-    expect(result).toEqual({ kind: "workspace-tab", url: "https://example.com/target" });
+    expect(result).toEqual({
+      kind: "workspace-tab",
+      url: "https://example.com/target",
+      isActive: true,
+    });
   });
 
   it("keeps POST-backed foreground tabs as real popups", () => {
@@ -140,6 +160,22 @@ describe("browser webview window-open requests", () => {
     });
 
     expect(result).toEqual({ kind: "popup" });
+  });
+
+  it("opens extension pages as tabs", () => {
+    const result = decideBrowserWindowOpenRequest({
+      url: "chrome-extension://mhloojimgilafopcmlcikiidgbbnelip/options.html",
+      disposition: "foreground-tab",
+      frameName: "_blank",
+      features: "",
+      hasPostBody: false,
+    });
+
+    expect(result).toEqual({
+      kind: "workspace-tab",
+      url: "chrome-extension://mhloojimgilafopcmlcikiidgbbnelip/options.html",
+      isActive: true,
+    });
   });
 
   it("denies unsupported window-open requests", () => {
@@ -155,20 +191,41 @@ describe("browser webview window-open requests", () => {
   });
 });
 
+describe("background tabs", () => {
+  it("opens a ⌘-clicked or middle-clicked link behind its page, as Chrome does", () => {
+    const result = decideBrowserWindowOpenRequest({
+      url: "https://example.com/target",
+      disposition: "background-tab",
+      frameName: "",
+      features: "",
+      hasPostBody: false,
+    });
+
+    expect(result).toEqual({
+      kind: "workspace-tab",
+      url: "https://example.com/target",
+      isActive: false,
+    });
+  });
+});
+
 describe("pending browser window-open requests", () => {
   it("holds early workspace-tab requests until browser identity registration", () => {
     const pending = new PendingBrowserWindowOpenRequests();
-    pending.add(101, "https://example.com/first");
-    pending.add(101, "file:///etc/passwd");
-    pending.add(101, "https://example.com/second");
+    pending.add(101, { url: "https://example.com/first", isActive: true });
+    pending.add(101, { url: "file:///etc/passwd", isActive: true });
+    pending.add(101, { url: "https://example.com/second", isActive: false });
 
-    expect(pending.take(101)).toEqual(["https://example.com/first", "https://example.com/second"]);
+    expect(pending.take(101)).toEqual([
+      { url: "https://example.com/first", isActive: true },
+      { url: "https://example.com/second", isActive: false },
+    ]);
     expect(pending.take(101)).toEqual([]);
   });
 
   it("drops pending workspace-tab requests when an unregistered guest is destroyed", () => {
     const pending = new PendingBrowserWindowOpenRequests();
-    pending.add(202, "https://example.com/target");
+    pending.add(202, { url: "https://example.com/target", isActive: true });
     pending.delete(202);
 
     expect(pending.take(202)).toEqual([]);

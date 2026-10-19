@@ -1,4 +1,6 @@
 import { describe, expect, test } from "vitest";
+import { createFileEditorRegistry } from "./registry";
+import type { LiveFileSession } from "../live-file/model";
 import type { FileVersion, FileWriteResult } from "@getpaseo/protocol/messages";
 import {
   FileEditorModel,
@@ -129,6 +131,54 @@ function observeVersion(model: FileEditorModel, version: FileEditorObservation):
 }
 
 describe("FileEditorModel", () => {
+  test("shares one document across canonical views, isolates hosts, and retains unsaved edits", async () => {
+    const registry = createFileEditorRegistry();
+    const clock = new TestClock();
+    const file = { content: "one", hasBom: false, version: ready() };
+    const writes = new FileSession(file);
+    const session: FileEditorSession & LiveFileSession = {
+      write: (input) => writes.write(input),
+      subscribe: async () => ({ initial: ready(), unsubscribe() {} }),
+      read: async () => ({
+        bytes: new TextEncoder().encode("one"),
+        mime: "text/plain",
+        kind: "text",
+        path: "file.ts",
+        size: 3,
+        modifiedAt: ready().modifiedAt,
+      }),
+    };
+    const input = {
+      serverId: "host-one",
+      cwd: "/workspace",
+      path: "file.ts",
+      file,
+      session,
+      clock,
+    };
+    const first = registry.open(input);
+    const releaseFirst = first.retain(session);
+    const second = registry.open({ ...input, path: "/workspace/file.ts" });
+    const releaseSecond = second.retain(session);
+    expect(second.model).toBe(first.model);
+    expect(registry.open({ ...input, serverId: "host-two" }).model).not.toBe(first.model);
+    await Promise.resolve();
+    await Promise.resolve();
+    first.model.edit("shared edit");
+    expect(second.model.getSnapshot().content).toBe("shared edit");
+    releaseFirst();
+    second.model.edit("still editing");
+    releaseSecond();
+    await Promise.resolve();
+    const reopened = registry.open(input);
+    expect(reopened.model.getSnapshot().content).toBe("still editing");
+    const releaseReopened = reopened.retain(session);
+    await reopened.model.save();
+    expect(writes.writes).toHaveLength(1);
+    expect(writes.writes[0].content).toBe("still editing");
+    releaseReopened();
+    registry.dispose();
+  });
   test("tracks whether the current buffer differs from persisted content", async () => {
     const { model } = makeModel();
 

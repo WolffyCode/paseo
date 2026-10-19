@@ -7,7 +7,8 @@ interface HostNavigationOwner {
   openAgent(input: { serverId: string; agentId: string }): void;
   openWorkspace(input: NavigateToWorkspaceInput): void;
   resolveWorkspace(input: { serverId: string; workspaceId: string }): string | null;
-  createBrowser(input: { initialUrl: string }): { browserId: string };
+  /** Opens the URL as a tab of the workspace's browser window. */
+  openBrowserPage(input: { serverId: string; workspaceId: string; url: string }): void;
 }
 
 export function createPluginHostNavigation(
@@ -30,11 +31,14 @@ export function createPluginHostNavigation(
           });
           if (!destinationWorkspaceId)
             throw new Error("Workspace is unavailable on the requested host.");
-          const { browserId } = owner.createBrowser({ initialUrl: url });
+          owner.openBrowserPage({
+            serverId: destinationServerId,
+            workspaceId: destinationWorkspaceId,
+            url,
+          });
           owner.openWorkspace({
             serverId: destinationServerId,
             workspaceId: destinationWorkspaceId,
-            target: { kind: "browser", browserId },
           });
         }
       : undefined,

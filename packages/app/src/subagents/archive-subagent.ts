@@ -1,40 +1,47 @@
+import type { TFunction } from "i18next";
 import type { Agent } from "@/stores/session-store";
 import type { ConfirmDialogInput } from "@/utils/confirm-dialog";
+import { resolveRowLabel } from "./track-presentation";
 
 export interface ResolveArchiveSubagentDialogInput {
   title: Agent["title"] | null | undefined;
   status: Agent["status"] | null | undefined;
 }
 
-function resolveSubagentLabel(title: Agent["title"] | null | undefined): string | null {
-  if (typeof title !== "string") {
-    return null;
-  }
-  const normalized = title.trim();
-  if (!normalized) {
-    return null;
-  }
-  if (normalized.toLowerCase() === "new agent") {
-    return null;
-  }
-  return normalized;
-}
-
 export function resolveArchiveSubagentDialog(
+  t: TFunction,
   input: ResolveArchiveSubagentDialogInput,
 ): ConfirmDialogInput {
-  const subagentLabel = resolveSubagentLabel(input.title) ?? "this subagent";
   const isRunning = input.status === "running";
+  const subagentLabel = resolveRowLabel(input.title);
 
   return {
-    title: isRunning ? "Archive running subagent?" : "Archive subagent?",
-    message: isRunning
-      ? `${subagentLabel} is still running. Archiving it will stop the subagent and remove it from the track.`
-      : `Remove ${subagentLabel} from the track. The subagent will be archived.`,
-    confirmLabel: "Archive",
-    cancelLabel: "Cancel",
+    title: isRunning
+      ? t("subagents.archiveDialog.runningTitle")
+      : t("subagents.archiveDialog.title"),
+    message: resolveArchiveSubagentMessage(t, { isRunning, subagentLabel }),
+    confirmLabel: t("subagents.archiveDialog.confirm"),
+    cancelLabel: t("common.actions.cancel"),
     destructive: true,
   };
+}
+
+// The unnamed variants are whole sentences so each locale can place and inflect "this subagent".
+function resolveArchiveSubagentMessage(
+  t: TFunction,
+  input: { isRunning: boolean; subagentLabel: string | null },
+): string {
+  const { isRunning, subagentLabel } = input;
+  if (isRunning && subagentLabel) {
+    return t("subagents.archiveDialog.runningMessage", { label: subagentLabel });
+  }
+  if (isRunning) {
+    return t("subagents.archiveDialog.runningMessageUnnamed");
+  }
+  if (subagentLabel) {
+    return t("subagents.archiveDialog.message", { label: subagentLabel });
+  }
+  return t("subagents.archiveDialog.messageUnnamed");
 }
 
 export interface ArchiveSubagentDeps {
@@ -42,6 +49,7 @@ export interface ArchiveSubagentDeps {
   confirm: (input: ConfirmDialogInput) => Promise<boolean>;
   archiveAgent: (input: { serverId: string; agentId: string }) => Promise<void>;
   reportError: (error: unknown) => void;
+  t: TFunction;
 }
 
 export interface RequestArchiveSubagentInput {
@@ -55,7 +63,7 @@ export async function requestArchiveSubagent(
 ): Promise<void> {
   const subagent = deps.getSubagent(input.subagentId);
   const confirmed = await deps.confirm(
-    resolveArchiveSubagentDialog({
+    resolveArchiveSubagentDialog(deps.t, {
       title: subagent?.title,
       status: subagent?.status,
     }),

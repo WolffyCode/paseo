@@ -130,7 +130,8 @@ function useBuiltInRows(open: boolean): {
   workspaces: CommandCenterWorkspaceResult[];
   agents: CommandCenterAgentResult[];
 } {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const locale = i18n.language;
   const { agents } = useAggregatedAgents({ demand: open });
   const { projects } = useProjects({ enabled: open });
   const showHost = useHosts().length > 1;
@@ -177,7 +178,7 @@ function useBuiltInRows(open: boolean): {
           subtitle: joinSubtitleParts([
             showHost ? agent.serverLabel : null,
             workspaceTitle ?? shortenPath(agent.cwd),
-            formatTimeAgo(agent.lastActivityAt),
+            formatTimeAgo(agent.lastActivityAt, t, locale),
           ]),
           run: () => {
             clearCommandCenterFocusRestoreElement();
@@ -187,7 +188,7 @@ function useBuiltInRows(open: boolean): {
       })
       .sort((left, right) => sortAgents(left.agent, right.agent));
     return { workspaces: allWorkspaces, agents: agentRows };
-  }, [agents, open, projects, showHost, t]);
+  }, [agents, locale, open, projects, showHost, t]);
 }
 
 function useBuiltInSections(open: boolean, query: string): CommandCenterResultSection[] {

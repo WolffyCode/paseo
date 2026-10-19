@@ -10,6 +10,7 @@ interface BrowserPaneProps {
   cwd: string | null;
   isInteractive?: boolean;
   onFocusPane?: () => void;
+  focusAddressOnMount?: boolean;
 }
 
 export function BrowserPane({ browserId }: BrowserPaneProps) {

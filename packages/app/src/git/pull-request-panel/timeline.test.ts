@@ -9,7 +9,7 @@ function activity(overrides: Partial<PrPaneActivity> & { id: string }): PrPaneAc
     author: "alice",
     avatarColor: "#8b5cf6",
     body: "body",
-    age: "1h ago",
+    createdAt: Date.UTC(2026, 0, 1, 12, 0, 0),
     url: "https://github.com/acme/app/pull/1#comment",
     ...overrides,
   };

@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
 import type { WorkspaceTabDescriptor } from "@/screens/workspace/workspace-tabs-types";
 import { i18n } from "@/i18n/i18next";
@@ -8,31 +9,6 @@ export interface BulkClosableTabGroups {
   terminalTabs: Array<{ tabId: string; terminalId: string }>;
   otherTabs: Array<{ tabId: string; target: WorkspaceTabDescriptor["target"] }>;
 }
-
-export interface BulkCloseConfirmationLabels {
-  all: (input: { agents: number; terminals: number; tabs: number }) => string;
-  agentsAndTerminals: (input: { agents: number; terminals: number }) => string;
-  terminalsAndTabs: (input: { terminals: number; tabs: number }) => string;
-  agentsAndTabs: (input: { agents: number; tabs: number }) => string;
-  terminals: (input: { terminals: number }) => string;
-  tabs: (input: { tabs: number }) => string;
-  agents: (input: { agents: number }) => string;
-}
-
-export const DEFAULT_BULK_CLOSE_CONFIRMATION_LABELS: BulkCloseConfirmationLabels = {
-  all: ({ agents, terminals, tabs }) =>
-    `This will archive ${agents} agent(s), close ${terminals} terminal(s), and close ${tabs} tab(s). Any running process in a closed terminal will be stopped immediately.`,
-  agentsAndTerminals: ({ agents, terminals }) =>
-    `This will archive ${agents} agent(s) and close ${terminals} terminal(s). Any running process in a closed terminal will be stopped immediately.`,
-  terminalsAndTabs: ({ terminals, tabs }) =>
-    `This will close ${terminals} terminal(s) and close ${tabs} tab(s). Any running process in a closed terminal will be stopped immediately.`,
-  agentsAndTabs: ({ agents, tabs }) =>
-    `This will archive ${agents} agent(s) and close ${tabs} tab(s).`,
-  terminals: ({ terminals }) =>
-    `This will close ${terminals} terminal(s). Any running process in a closed terminal will be stopped immediately.`,
-  tabs: ({ tabs }) => `This will close ${tabs} tab(s).`,
-  agents: ({ agents }) => `This will archive ${agents} agent(s).`,
-};
 
 interface CloseWorkspaceTabWithCleanupInput {
   tabId: string;
@@ -82,42 +58,42 @@ export function classifyBulkClosableTabs(
 
 export function buildBulkCloseConfirmationMessage(
   input: BulkClosableTabGroups,
-  labels: BulkCloseConfirmationLabels = DEFAULT_BULK_CLOSE_CONFIRMATION_LABELS,
+  t: TFunction,
 ): string {
   const { archiveAgentTabs, layoutOnlyAgentTabs, terminalTabs, otherTabs } = input;
   const tabCount = layoutOnlyAgentTabs.length + otherTabs.length;
   if (archiveAgentTabs.length > 0 && terminalTabs.length > 0 && tabCount > 0) {
-    return labels.all({
+    return t("workspace.tabs.confirmations.bulk.all", {
       agents: archiveAgentTabs.length,
       terminals: terminalTabs.length,
       tabs: tabCount,
     });
   }
   if (archiveAgentTabs.length > 0 && terminalTabs.length > 0) {
-    return labels.agentsAndTerminals({
+    return t("workspace.tabs.confirmations.bulk.agentsAndTerminals", {
       agents: archiveAgentTabs.length,
       terminals: terminalTabs.length,
     });
   }
   if (terminalTabs.length > 0 && tabCount > 0) {
-    return labels.terminalsAndTabs({
+    return t("workspace.tabs.confirmations.bulk.terminalsAndTabs", {
       terminals: terminalTabs.length,
       tabs: tabCount,
     });
   }
   if (archiveAgentTabs.length > 0 && tabCount > 0) {
-    return labels.agentsAndTabs({
+    return t("workspace.tabs.confirmations.bulk.agentsAndTabs", {
       agents: archiveAgentTabs.length,
       tabs: tabCount,
     });
   }
   if (terminalTabs.length > 0) {
-    return labels.terminals({ terminals: terminalTabs.length });
+    return t("workspace.tabs.confirmations.bulk.terminals", { terminals: terminalTabs.length });
   }
   if (tabCount > 0) {
-    return labels.tabs({ tabs: tabCount });
+    return t("workspace.tabs.confirmations.bulk.tabs", { tabs: tabCount });
   }
-  return labels.agents({ agents: archiveAgentTabs.length });
+  return t("workspace.tabs.confirmations.bulk.agents", { agents: archiveAgentTabs.length });
 }
 
 export async function closeBulkWorkspaceTabs(input: CloseBulkWorkspaceTabsInput): Promise<void> {

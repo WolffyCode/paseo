@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
+import { i18n } from "@/i18n/i18next";
 import {
   backAddProjectPage,
   chooseAddProjectHost,
@@ -111,16 +112,25 @@ describe("Add Project navigation", () => {
 });
 
 describe("Add Project options", () => {
+  beforeAll(async () => {
+    if (!i18n.isInitialized) {
+      await i18n.init();
+    }
+    await i18n.changeLanguage("en");
+  });
+
   it("hides every mutating method when the host lacks stable project identity", () => {
     const outdatedHost = { ...HOST, canAddProject: false };
 
-    expect(buildAddProjectMethods(outdatedHost)).toEqual([]);
-    expect(addProjectMethodEmptyText(outdatedHost)).toBe("Update the host to use Add Project.");
+    expect(buildAddProjectMethods(i18n.t, outdatedHost)).toEqual([]);
+    expect(addProjectMethodEmptyText(i18n.t, outdatedHost)).toBe(
+      "Update the host to use Add Project.",
+    );
   });
 
   it("keeps host-upgrade methods discoverable while hiding local-only Browse", () => {
     expect(
-      buildAddProjectMethods({
+      buildAddProjectMethods(i18n.t, {
         ...HOST,
         canBrowse: false,
         canCloneGithubRepositories: false,
@@ -149,23 +159,34 @@ describe("Add Project options", () => {
   });
 
   it("offers manual URL and protocol-specific owner/repo clone choices", () => {
-    expect(buildManualGithubRepositoryChoices("git@github.com:getpaseo/paseo.git")).toEqual([
+    expect(buildManualGithubRepositoryChoices(i18n.t, "git@github.com:getpaseo/paseo.git")).toEqual(
+      [
+        expect.objectContaining({
+          id: "manual:git@github.com:getpaseo/paseo.git",
+          nameWithOwner: "getpaseo/paseo",
+          cloneUrl: "git@github.com:getpaseo/paseo.git",
+          description: "Clone this repository URL",
+        }),
+      ],
+    );
+    expect(buildManualGithubRepositoryChoices(i18n.t, "getpaseo/paseo")).toEqual([
       expect.objectContaining({
-        id: "manual:git@github.com:getpaseo/paseo.git",
-        nameWithOwner: "getpaseo/paseo",
-        cloneUrl: "git@github.com:getpaseo/paseo.git",
+        cloneProtocol: "https",
+        cloneUrl: "getpaseo/paseo",
+        description: "Clone owner/repo via HTTPS",
+      }),
+      expect.objectContaining({
+        cloneProtocol: "ssh",
+        cloneUrl: "getpaseo/paseo",
+        description: "Clone owner/repo via SSH",
       }),
     ]);
-    expect(buildManualGithubRepositoryChoices("getpaseo/paseo")).toEqual([
-      expect.objectContaining({ cloneProtocol: "https", cloneUrl: "getpaseo/paseo" }),
-      expect.objectContaining({ cloneProtocol: "ssh", cloneUrl: "getpaseo/paseo" }),
-    ]);
-    expect(buildManualGithubRepositoryChoices("paseo")).toEqual([]);
+    expect(buildManualGithubRepositoryChoices(i18n.t, "paseo")).toEqual([]);
   });
 
   it("shows final clone paths while retaining parent paths as values", () => {
     expect(
-      buildCloneLocationOptions({
+      buildCloneLocationOptions(i18n.t, {
         parents: ["~/dev", "~/workspace"],
         repositoryName: "paseo",
         existingPaths: ["~/workspace/paseo"],
@@ -190,7 +211,7 @@ describe("Add Project options", () => {
 
   it("shows equivalent absolute-home and tilde destinations only once", () => {
     expect(
-      buildCloneLocationOptions({
+      buildCloneLocationOptions(i18n.t, {
         parents: ["/Users/moboudra/dev", "~/dev"],
         repositoryName: "dotfiles",
         existingPaths: [],

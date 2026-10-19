@@ -9,13 +9,44 @@ export type ToolCallDisplayInput = Pick<
   cwd?: string;
 };
 
+/** The fixed tool kinds whose name is product wording rather than a provider's tool name. */
+export type ToolCallDisplayLabel =
+  | "shell"
+  | "read"
+  | "edit"
+  | "write"
+  | "search"
+  | "fetch"
+  | "worktreeSetup"
+  | "task"
+  | "plan"
+  | "thinking"
+  | "terminal";
+
+const LABEL_DISPLAY_NAMES: Record<ToolCallDisplayLabel, string> = {
+  shell: "Shell",
+  read: "Read",
+  edit: "Edit",
+  write: "Write",
+  search: "Search",
+  fetch: "Fetch",
+  worktreeSetup: "Worktree setup",
+  task: "Task",
+  plan: "Plan",
+  thinking: "Thinking",
+  terminal: "Terminal",
+};
+
 export interface ToolCallDisplayModel {
   displayName: string;
+  /** Set when `displayName` is a fixed label, so a client can show it in its own language. */
+  label?: ToolCallDisplayLabel;
   summary?: string;
   errorText?: string;
 }
 
 interface DetailDisplay {
+  label?: ToolCallDisplayLabel;
   displayName?: string;
   summary?: string;
 }
@@ -70,12 +101,12 @@ function formatErrorText(error: unknown): string | undefined {
 }
 
 function buildFilePathDisplay(
-  displayName: string,
+  label: ToolCallDisplayLabel,
   filePath: string,
   cwd: string | undefined,
 ): DetailDisplay {
   return {
-    displayName,
+    label,
     summary: stripCwdPrefix(filePath, cwd),
   };
 }
@@ -84,42 +115,45 @@ function buildCanonicalDetailDisplay(input: ToolCallDisplayInput): DetailDisplay
   switch (input.detail.type) {
     case "shell":
       return {
-        displayName: "Shell",
+        label: "shell",
         summary: input.detail.command,
       };
     case "read":
-      return buildFilePathDisplay("Read", input.detail.filePath, input.cwd);
+      return buildFilePathDisplay("read", input.detail.filePath, input.cwd);
     case "edit":
-      return buildFilePathDisplay("Edit", input.detail.filePath, input.cwd);
+      return buildFilePathDisplay("edit", input.detail.filePath, input.cwd);
     case "write":
-      return buildFilePathDisplay("Write", input.detail.filePath, input.cwd);
+      return buildFilePathDisplay("write", input.detail.filePath, input.cwd);
     case "search":
       return {
-        displayName: "Search",
+        label: "search",
         summary: input.detail.query,
       };
     case "fetch":
       return {
-        displayName: "Fetch",
+        label: "fetch",
         summary: input.detail.url,
       };
     case "worktree_setup":
       return {
-        displayName: "Worktree setup",
+        label: "worktreeSetup",
         summary: input.detail.branchName,
       };
-    case "sub_agent":
-      return {
-        displayName: readString(input.detail.subAgentType) ?? "Task",
-        summary: readString(input.detail.description),
-      };
+    case "sub_agent": {
+      const summary = readString(input.detail.description);
+      const subAgentType = readString(input.detail.subAgentType);
+      if (subAgentType) {
+        return { displayName: subAgentType, summary };
+      }
+      return { label: "task", summary };
+    }
     case "plain_text":
       return {
         summary: input.detail.label,
       };
     case "plan":
       return {
-        displayName: "Plan",
+        label: "plan",
       };
     case "unknown":
       return {};
@@ -132,36 +166,46 @@ function buildUnknownDetailOverride(input: ToolCallDisplayInput): DetailDisplay 
   const lowerName = input.name.trim().toLowerCase();
   if (input.detail.type === "unknown" && lowerName === "task") {
     return {
-      displayName: "Task",
+      label: "task",
       summary: isRecord(input.metadata) ? readString(input.metadata.subAgentActivity) : undefined,
     };
   }
   if (input.detail.type === "unknown" && lowerName === "thinking") {
     return {
-      displayName: "Thinking",
+      label: "thinking",
     };
   }
   if (lowerName === "terminal") {
     return {
-      displayName: "Terminal",
+      label: "terminal",
       summary: input.detail.type === "plain_text" ? readString(input.detail.label) : undefined,
     };
   }
   return {};
 }
 
+function resolveName(
+  input: ToolCallDisplayInput,
+  override: DetailDisplay,
+  canonical: DetailDisplay,
+): Pick<ToolCallDisplayModel, "displayName" | "label"> {
+  const overrideNamesTool = override.label !== undefined || override.displayName !== undefined;
+  const named = overrideNamesTool ? override : canonical;
+  if (named.label) {
+    return { displayName: LABEL_DISPLAY_NAMES[named.label], label: named.label };
+  }
+  return { displayName: named.displayName ?? humanizeToolName(input.name) };
+}
+
 export function buildToolCallDisplayModel(input: ToolCallDisplayInput): ToolCallDisplayModel {
   const canonicalDisplay = buildCanonicalDetailDisplay(input);
   const unknownDetailOverride = buildUnknownDetailOverride(input);
-  const displayName =
-    unknownDetailOverride.displayName ??
-    canonicalDisplay.displayName ??
-    humanizeToolName(input.name);
+  const name = resolveName(input, unknownDetailOverride, canonicalDisplay);
   const summary = unknownDetailOverride.summary ?? canonicalDisplay.summary;
   const errorText = input.status === "failed" ? formatErrorText(input.error) : undefined;
 
   return {
-    displayName,
+    ...name,
     ...(summary ? { summary } : {}),
     ...(errorText ? { errorText } : {}),
   };

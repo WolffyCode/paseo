@@ -17,7 +17,7 @@ function activity(id: string, overrides: Partial<PrPaneActivity> = {}): PrPaneAc
     author: "octocat",
     avatarColor: "#0ea5e9",
     body: "Looks good.",
-    age: "3d ago",
+    createdAt: Date.UTC(2026, 0, 1, 12, 0, 0),
     url: `https://github.com/getpaseo/paseo/pull/42#${id}`,
     ...overrides,
   };

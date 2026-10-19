@@ -1,12 +1,17 @@
 import type { CheckoutCheckDetails } from "@getpaseo/protocol/messages";
 import type { PullRequestContextAttachment } from "@/attachments/types";
 import { type Forge, getForgePresentation } from "@/git/forge";
+import { i18n } from "@/i18n/i18next";
+import { formatTimeAgo } from "@/utils/time";
 import {
   formatPullRequestActivityLocation,
   formatPullRequestThreadPath,
 } from "./activity-location";
 import type { PrPaneActivity, PrPaneCheck, PullRequestProviderMetadata, ReviewState } from "./data";
 import type { PrThreadEntry } from "./timeline";
+
+// The context is written for the agent, which reads it in English whatever language the app uses.
+const AGENT_CONTEXT_LOCALE = "en";
 
 export interface PullRequestContextMetadata {
   number: number;
@@ -102,7 +107,9 @@ export function buildPullRequestThreadContextAttachment(
   const presentation = getForgePresentation(input.forge);
   const noun = capitalizeFirst(presentation.changeRequestNoun);
   const location = input.thread.location;
-  const threadTitle = location ? formatPullRequestThreadPath(location) : "Discussion thread";
+  const threadTitle = location
+    ? formatPullRequestThreadPath(location)
+    : i18n.t("workspace.git.pr.thread.discussion");
   const lines = [
     `${presentation.brandLabel} ${presentation.changeRequestNoun} review thread`,
     `${noun}: ${presentation.numberPrefix}${input.pullRequest.number} ${input.pullRequest.title}`,
@@ -120,7 +127,8 @@ export function buildPullRequestThreadContextAttachment(
   }
 
   const conversation = comments.map(
-    (comment) => `${comment.author} (${comment.age}):\n${comment.body.trim()}`,
+    (comment) =>
+      `${comment.author} (${formatAgentContextAge(comment.createdAt)}):\n${comment.body.trim()}`,
   );
 
   return {
@@ -277,9 +285,7 @@ function formatActivityContextText({
   if (reviewState) {
     lines.push(`State: ${reviewState}`);
   }
-  if (activity.age) {
-    lines.push(`Created: ${activity.age}`);
-  }
+  lines.push(`Created: ${formatAgentContextAge(activity.createdAt)}`);
   if (activity.location) {
     lines.push(`Location: ${formatPullRequestActivityLocation(activity)}`);
   }
@@ -290,6 +296,11 @@ function formatActivityContextText({
   }
 
   return [...lines, "", body].join("\n");
+}
+
+function formatAgentContextAge(createdAt: number): string {
+  const englishT = i18n.getFixedT(AGENT_CONTEXT_LOCALE);
+  return formatTimeAgo(new Date(createdAt), englishT, AGENT_CONTEXT_LOCALE);
 }
 
 function formatPullRequestSubtitle(pullRequest: PullRequestContextMetadata, forge: Forge): string {

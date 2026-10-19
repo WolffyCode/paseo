@@ -16,6 +16,7 @@ import {
   BrowserWindow,
   ClipboardItem,
   clipboard,
+  dialog,
   Menu,
   ipcMain,
   nativeImage,
@@ -33,14 +34,14 @@ import {
   applyDesktopWindowChromeMode,
   registerWindowManager,
   getMainWindowChromeOptions,
-  getWindowBackgroundColor,
+  systemWindowMaterialOptions,
+  observeWindowMaterial,
   resolveSystemWindowTheme,
   resolveWindowBounds,
   setupWindowResizeEvents,
   setupWindowStatePersistence,
   setupDefaultContextMenu,
   setupDragDropPrevention,
-  buildStandardContextMenuItems,
 } from "./window/window-manager.js";
 import { setupDarwinCompositorWatchdog } from "./window/compositor-watchdog/index.js";
 import { resolveDesktopWindowChromeMode, windowChromeModeArgument } from "./window/chrome.js";
@@ -54,6 +55,13 @@ import { createBrowserCaptureService } from "./features/browser-capture.js";
 import { registerEditorTargetHandlers } from "./features/editor-targets/ipc.js";
 import { resolveAppIconPath } from "./features/stamped-icon.js";
 import { setupApplicationMenu } from "./features/menu.js";
+import { registerNativeMenuIpc } from "./features/native-menu.js";
+import {
+  BrowserPageMenu,
+  buildBrowserPageMenuTemplate,
+  type BrowserPageMenuActions,
+} from "./features/browser-page-menu/index.js";
+import { presentBrowserSessionAsChrome } from "./features/browser-identity/index.js";
 import {
   BROWSER_NEW_TAB_REQUEST_EVENT,
   decideBrowserWindowOpenRequest,
@@ -64,9 +72,11 @@ import {
   isPaseoBrowserWebviewAttach,
   preparePaseoBrowserWebContents,
   PendingBrowserWindowOpenRequests,
+  registerBrowserViewportPreload,
   registerBrowserWebviewNavigationGuards,
   unregisterPaseoBrowserFromHost,
   registerAttachedPaseoBrowser,
+  getWorkspaceActivePaseoBrowserIdForHostWindow,
   setWorkspaceActivePaseoBrowserId,
   unregisterPaseoBrowserHost,
 } from "./features/browser-webviews/index.js";
@@ -79,6 +89,9 @@ import {
   listPaseoBrowserProfileGuests,
   readLegacyPaseoBrowserIds,
 } from "./features/browser-profile.js";
+import { BrowserDownloads } from "./features/browser-downloads/index.js";
+import { registerBrowsingDataIpc } from "./features/browser-clear-data/index.js";
+import { BrowserExtensions } from "./features/browser-extensions/index.js";
 import { parseOpenProjectPathFromArgv } from "./open-project-routing.js";
 import {
   createDesktopWindowOwner,
@@ -98,6 +111,7 @@ import {
 } from "./daemon/quit-lifecycle.js";
 import { runDesktopStartup } from "./desktop-startup.js";
 import { registerBrowserAutomationIpc } from "./features/browser-automation/ipc.js";
+import { registerChromeImportIpc } from "./features/chrome-import/index.js";
 import { BrowserKeyboard } from "./features/browser-keyboard/index.js";
 import { installAppUpdateOnQuit } from "./features/auto-updater.js";
 import {
@@ -185,39 +199,108 @@ function readActiveBrowserInput(
 
 const browserKeyboard = new BrowserKeyboard(getPaseoBrowserWebviewRegistry());
 browserKeyboard.registerIpc();
+// Started during bootstrap, before the first window can attach a page.
+let browserExtensions: BrowserExtensions | null = null;
 
+/** Extensions see the page a window shows as its active tab, once that page has attached. */
+function selectActiveBrowserForExtensions(
+  hostWebContentsId: number,
+  activeBrowserId: string | null,
+): void {
+  const activeGuest = activeBrowserId
+    ? getPaseoBrowserWebContentsForHostWindow(activeBrowserId, hostWebContentsId)
+    : null;
+  if (activeGuest) {
+    browserExtensions?.selectBrowser(activeGuest);
+  }
+}
+
+const browserPageMenu = new BrowserPageMenu();
+browserPageMenu.registerIpc();
+
+// Characters macOS and Windows don't allow in a file name.
+const UNSAFE_FILE_NAME_CHARACTERS = /[\\/:*?"<>|]/g;
+
+/** Chrome's "Save As…": asks where, then saves the page with its resources beside it. */
+async function savePageAs(win: BrowserWindow, contents: Electron.WebContents): Promise<void> {
+  const title = contents.getTitle().replace(UNSAFE_FILE_NAME_CHARACTERS, "_").trim() || "page";
+  const { canceled, filePath } = await dialog.showSaveDialog(win, {
+    defaultPath: path.join(app.getPath("downloads"), `${title}.html`),
+  });
+  if (canceled || !filePath) {
+    return;
+  }
+  await contents.savePage(filePath, "HTMLComplete");
+}
+
+function pageMenuActions(input: {
+  win: BrowserWindow;
+  contents: Electron.WebContents;
+  sourceBrowserId: string | null;
+}): BrowserPageMenuActions {
+  const { win, contents, sourceBrowserId } = input;
+  const requestNewTab = (request: { url: string } | { searchTerms: string }, isActive: boolean) => {
+    if (!sourceBrowserId || win.isDestroyed()) {
+      return;
+    }
+    win.webContents.send(BROWSER_NEW_TAB_REQUEST_EVENT, { sourceBrowserId, isActive, ...request });
+  };
+  return {
+    goBack: () => contents.navigationHistory.goBack(),
+    goForward: () => contents.navigationHistory.goForward(),
+    reload: () => contents.reload(),
+    savePage: () => {
+      void savePageAs(win, contents).catch((error: unknown) => {
+        log.warn("[browser-page-menu] save page failed", error);
+      });
+    },
+    print: () => contents.print(),
+    // Chrome opens 在新标签页中打开链接 behind the page and a search in front of it.
+    openInNewTab: (url) => requestNewTab({ url }, false),
+    searchInNewTab: (searchTerms) => requestNewTab({ searchTerms }, true),
+    download: (url) => contents.downloadURL(url),
+    copyText: (text) => clipboard.writeText(text),
+    copyImageAt: (x, y) => contents.copyImageAt(x, y),
+    inspectAt: (x, y) => {
+      contents.openDevTools({ mode: "detach" });
+      contents.inspectElement(x, y);
+    },
+    replaceMisspelling: (word) => contents.replaceMisspelling(word),
+    addToDictionary: (word) => contents.session.addWordToSpellCheckerDictionary(word),
+    undo: () => contents.undo(),
+    redo: () => contents.redo(),
+    cut: () => contents.cut(),
+    copy: () => contents.copy(),
+    paste: () => contents.paste(),
+    pasteAndMatchStyle: () => contents.pasteAndMatchStyle(),
+    selectAll: () => contents.selectAll(),
+  };
+}
+
+/** Chrome's context menu for a page of the browser, in the window's language. */
 function showBrowserWebviewContextMenu(
   win: BrowserWindow,
   contents: Electron.WebContents,
   params: Electron.ContextMenuParams,
 ): void {
-  const menu = Menu.buildFromTemplate([
-    ...buildStandardContextMenuItems(contents, params),
-    ...(app.isPackaged
-      ? []
-      : [
-          { type: "separator" as const },
-          {
-            label: "Inspect Element",
-            click: () => {
-              log.info("[browser-devtools] inspect-element.request", {
-                webContentsId: contents.id,
-                browserId: getPaseoBrowserIdForWebContents(contents),
-                x: params.x,
-                y: params.y,
-                isDevToolsOpened: contents.isDevToolsOpened(),
-              });
-              contents.openDevTools({ mode: "detach" });
-              contents.inspectElement(params.x, params.y);
-              log.info("[browser-devtools] inspect-element.done", {
-                webContentsId: contents.id,
-                isDevToolsOpened: contents.isDevToolsOpened(),
-              });
-            },
-          },
-        ]),
-  ]);
-  menu.popup({ window: win });
+  const labels = browserPageMenu.currentLabels();
+  if (!labels) {
+    // The window sends its labels as soon as it starts; a click before that gets no menu.
+    log.warn("[browser-page-menu] no labels from the window yet");
+    return;
+  }
+  const sourceBrowserId = getPaseoBrowserIdForWebContents(contents);
+  const extensionItems = browserExtensions?.contextMenuItems(contents, params) ?? [];
+  const template = buildBrowserPageMenuTemplate({
+    labels,
+    params,
+    actions: pageMenuActions({ win, contents, sourceBrowserId }),
+    canGoBack: contents.navigationHistory.canGoBack(),
+    canGoForward: contents.navigationHistory.canGoForward(),
+    canOpenTabs: sourceBrowserId !== null,
+    extensionItems,
+  });
+  Menu.buildFromTemplate(template).popup({ window: win });
 }
 
 function getBrowserPopupWindowOptions(
@@ -272,9 +355,13 @@ function installBrowserWindowOpenHandler(input: {
       mainWindow.webContents.send(BROWSER_NEW_TAB_REQUEST_EVENT, {
         sourceBrowserId,
         url: decision.url,
+        isActive: decision.isActive,
       });
     } else {
-      pendingBrowserWindowOpenRequests.add(sourceContents.id, decision.url);
+      pendingBrowserWindowOpenRequests.add(sourceContents.id, {
+        url: decision.url,
+        isActive: decision.isActive,
+      });
     }
     return { action: "deny" };
   });
@@ -405,15 +492,23 @@ ipcMain.handle("paseo:browser:register-attached", (event, rawInput: unknown) => 
     throw new Error("Attached browser guest disappeared after registration");
   }
   browserKeyboard.attach({ contents: guest, hostContents: event.sender });
+  const hostWindow = BrowserWindow.fromWebContents(event.sender);
+  if (hostWindow) {
+    browserExtensions?.attachBrowser({ browserId: input.browserId, guest, hostWindow });
+    selectActiveBrowserForExtensions(
+      event.sender.id,
+      getWorkspaceActivePaseoBrowserIdForHostWindow(input.workspaceId, event.sender.id),
+    );
+  }
   log.info("[browser-webview] registered", {
     browserId: input.browserId,
     webContentsId: input.webContentsId,
     registeredBrowserIds: listRegisteredPaseoBrowserIds(),
   });
-  for (const url of pendingBrowserWindowOpenRequests.take(input.webContentsId)) {
+  for (const request of pendingBrowserWindowOpenRequests.take(input.webContentsId)) {
     event.sender.send(BROWSER_NEW_TAB_REQUEST_EVENT, {
       sourceBrowserId: input.browserId,
-      url,
+      ...request,
     });
   }
 });
@@ -449,9 +544,11 @@ ipcMain.handle("paseo:browser:unregister-workspace-browser", async (event, brows
 
 ipcMain.handle("paseo:browser:set-workspace-active-browser", (event, rawInput: unknown) => {
   const input = readActiveBrowserInput(rawInput);
-  if (input) {
-    setWorkspaceActivePaseoBrowserId({ ...input, hostWebContentsId: event.sender.id });
+  if (!input) {
+    return;
   }
+  setWorkspaceActivePaseoBrowserId({ ...input, hostWebContentsId: event.sender.id });
+  selectActiveBrowserForExtensions(event.sender.id, input.browserId);
 });
 
 ipcMain.handle("paseo:browser:focus", (event, browserId: unknown): boolean => {
@@ -464,6 +561,22 @@ ipcMain.handle("paseo:browser:focus", (event, browserId: unknown): boolean => {
   }
   contents.focus();
   return true;
+});
+
+// Chrome's back and forward menus (BackForwardMenuModel) list the page's session history.
+ipcMain.handle("paseo:browser:navigation-history", (event, browserId: unknown) => {
+  if (typeof browserId !== "string") {
+    return null;
+  }
+  const contents = getPaseoBrowserWebContentsForHostWindow(browserId, event.sender.id);
+  if (!contents) {
+    return null;
+  }
+  const history = contents.navigationHistory;
+  return {
+    activeIndex: history.getActiveIndex(),
+    entries: history.getAllEntries().map((entry) => ({ url: entry.url, title: entry.title })),
+  };
 });
 
 ipcMain.handle("paseo:browser:open-devtools", (event, browserId: unknown) => {
@@ -505,6 +618,18 @@ ipcMain.handle("paseo:browser:open-devtools", (event, browserId: unknown) => {
   };
   log.info("[browser-devtools] open-devtools.done", result);
   return result;
+});
+
+ipcMain.handle("paseo:browser:save-page", async (event, browserId: unknown) => {
+  if (typeof browserId !== "string") {
+    return;
+  }
+  const contents = getPaseoBrowserWebContentsForHostWindow(browserId, event.sender.id);
+  const win = BrowserWindow.fromWebContents(event.sender);
+  if (!contents || !win) {
+    return;
+  }
+  await savePageAs(win, contents);
 });
 
 ipcMain.handle("paseo:browser:clear-profile", async (_event, rawLegacyBrowserIds: unknown) => {
@@ -692,7 +817,7 @@ async function createWindow(
     title,
     ...resolveWindowBounds(restoredWindowState),
     show: false,
-    backgroundColor: getWindowBackgroundColor(systemTheme),
+    ...systemWindowMaterialOptions(systemTheme),
     ...(iconPath ? { icon: iconPath } : {}),
     ...getMainWindowChromeOptions({
       mode: DESKTOP_WINDOW_CHROME_MODE,
@@ -706,6 +831,7 @@ async function createWindow(
     },
   });
   applyDesktopWindowChromeMode({ win: mainWindow, mode: DESKTOP_WINDOW_CHROME_MODE });
+  observeWindowMaterial(mainWindow, systemTheme);
 
   const webContentsId = mainWindow.webContents.id;
   options.onCreated?.(webContentsId);
@@ -918,6 +1044,36 @@ async function runCliPassthroughIfRequested(): Promise<boolean> {
   return true;
 }
 
+async function startBrowserProfile(): Promise<void> {
+  const profileSession = session.fromPartition(PASEO_BROWSER_PROFILE_PARTITION);
+  presentBrowserSessionAsChrome(profileSession, app.getName());
+  registerBrowserViewportPreload(profileSession);
+  const extensions = new BrowserExtensions(profileSession, {
+    browserIdForWebContents: (contents) => getPaseoBrowserIdForWebContents(contents),
+    activeBrowserIdForHostWindow: (hostWebContentsId) =>
+      getPaseoBrowserWebviewRegistry().getActiveBrowserIdForHostWindow(hostWebContentsId),
+  });
+  try {
+    await extensions.start();
+    browserExtensions = extensions;
+  } catch (error) {
+    // Pages still load without extension support; only the extension features are missing.
+    log.error("[browser-extensions] failed to start; the browser runs without extensions", error);
+  }
+  const downloads = new BrowserDownloads(profileSession, {
+    browserIdForWebContents: (contents) => getPaseoBrowserIdForWebContents(contents),
+    webContentsForBrowser: (browserId, hostWebContentsId) =>
+      getPaseoBrowserWebContentsForHostWindow(browserId, hostWebContentsId),
+  });
+  registerBrowsingDataIpc(profileSession);
+  try {
+    await downloads.start();
+  } catch (error) {
+    // Downloads still work through Electron's save dialog; only Chrome's downloads UI is missing.
+    log.error("[browser-downloads] failed to start; downloads ask where to save", error);
+  }
+}
+
 async function bootstrap(): Promise<void> {
   if (!setupSingleInstanceLock()) {
     return;
@@ -960,6 +1116,7 @@ async function bootstrap(): Promise<void> {
       });
     },
   });
+  registerNativeMenuIpc();
   ensureNotificationCenterRegistration();
   registerDaemonManager();
   registerWindowManager({ mode: DESKTOP_WINDOW_CHROME_MODE });
@@ -969,6 +1126,8 @@ async function bootstrap(): Promise<void> {
   ipcMain.handle("paseo:opener:openUrl", (_event, value: unknown) => openExternalUrl(value));
   registerEditorTargetHandlers();
   registerBrowserAutomationIpc();
+  registerChromeImportIpc();
+  await startBrowserProfile();
 
   // In-app "Open in new window": opens a window that lands on the given project
   // via the same open-project flow as a CLI launch (no move, no ownership).

@@ -28,7 +28,7 @@ describe("question form card core", () => {
     expect(areQuestionsAnswered(questions, {}, {})).toBe(true);
     expect(buildQuestionFormAnswers(questions, {}, {})).toEqual({ Response: "" });
     expect(shouldSubmitEmptyOnDismiss(questions)).toBe(true);
-    expect(resolveDismissLabel(questions)).toBe("Skip");
+    expect(resolveDismissLabel(questions, "Dismiss")).toBe("Skip");
   });
 
   test("requires a selection for option-only questions", () => {

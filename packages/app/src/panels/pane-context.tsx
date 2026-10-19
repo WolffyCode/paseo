@@ -10,6 +10,7 @@ export interface PaneContextValue {
   serverId: string;
   workspaceId: string;
   host: PaneHost;
+  paneId: string | null;
   tabId: string;
   target: WorkspaceTabTarget;
   state?: JsonValue;

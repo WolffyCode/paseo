@@ -1,6 +1,7 @@
 import { Alert } from "react-native";
 import { getDesktopHost, type DesktopDialogAskOptions } from "@/desktop/host";
 import { isNative } from "@/constants/platform";
+import { i18n } from "@/i18n/i18next";
 
 export interface ConfirmDialogInput {
   title: string;
@@ -17,8 +18,8 @@ interface ConfirmButtonConfig {
 
 function resolveButtonLabels(input: ConfirmDialogInput): ConfirmButtonConfig {
   return {
-    confirmLabel: input.confirmLabel ?? "Confirm",
-    cancelLabel: input.cancelLabel ?? "Cancel",
+    confirmLabel: input.confirmLabel ?? i18n.t("common.actions.confirm"),
+    cancelLabel: input.cancelLabel ?? i18n.t("common.actions.cancel"),
   };
 }
 

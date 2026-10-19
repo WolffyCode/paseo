@@ -3,6 +3,7 @@ import {
   parseGitHubRemoteUrl,
   parseGitRemoteLocation,
 } from "@getpaseo/protocol/git-remote";
+import type { TFunction } from "i18next";
 import { shortenPath } from "@/utils/shorten-path";
 import type { AddProjectHost, GithubRepositoryChoice } from "./model";
 
@@ -33,52 +34,55 @@ export function filterAddProjectHosts(hosts: AddProjectHost[], query: string): A
   );
 }
 
-export function buildAddProjectMethods(host: AddProjectHost): AddProjectMethodOption[] {
+export function buildAddProjectMethods(
+  t: TFunction,
+  host: AddProjectHost,
+): AddProjectMethodOption[] {
   if (!host.canAddProject) return [];
   const options: AddProjectMethodOption[] = [];
   options.push({
     id: "directory-search",
-    label: "Search for directory",
-    description: `Find a directory on ${host.label}`,
+    label: t("addProject.directorySearch.title"),
+    description: t("addProject.directorySearch.description", { host: host.label }),
   });
   if (host.canBrowse) {
     options.push({
       id: "browse",
-      label: "Browse",
-      description: "Choose or create a directory in Finder",
+      label: t("addProject.browse.title"),
+      description: t("addProject.browse.description"),
     });
   }
   options.push({
     id: "github",
-    label: "Clone from GitHub",
-    description: githubMethodDescription(host),
+    label: t("addProject.github.title"),
+    description: githubMethodDescription(t, host),
     disabled: !host.canCloneGithubRepositories,
   });
   options.push({
     id: "new-directory",
-    label: "New directory",
+    label: t("addProject.newDirectory.title"),
     description: host.canCreateDirectory
-      ? `Create an empty directory on ${host.label}`
-      : "Update this host to create directories",
+      ? t("addProject.newDirectory.description", { host: host.label })
+      : t("addProject.newDirectory.updateHost"),
     disabled: !host.canCreateDirectory,
   });
   return options;
 }
 
-export function addProjectMethodEmptyText(host: AddProjectHost | null): string {
+export function addProjectMethodEmptyText(t: TFunction, host: AddProjectHost | null): string {
   return host?.canAddProject === false
-    ? "Update the host to use Add Project."
-    : "No matching options";
+    ? t("addProject.updateHost")
+    : t("addProject.noMatchingOptions");
 }
 
-function githubMethodDescription(host: AddProjectHost): string {
+function githubMethodDescription(t: TFunction, host: AddProjectHost): string {
   if (!host.canCloneGithubRepositories) {
-    return "Update this host to clone GitHub repositories";
+    return t("addProject.github.updateHost");
   }
   if (host.canSearchGithubRepositories) {
-    return "Search projects available to your GitHub account";
+    return t("addProject.github.searchDescription");
   }
-  return "Enter a GitHub URL or owner/repo";
+  return t("addProject.github.enterRepository");
 }
 
 export function pathBaseName(path: string): string {
@@ -87,7 +91,10 @@ export function pathBaseName(path: string): string {
   return parts[parts.length - 1] ?? trimmed;
 }
 
-export function buildManualGithubRepositoryChoices(query: string): GithubRepositoryChoice[] {
+export function buildManualGithubRepositoryChoices(
+  t: TFunction,
+  query: string,
+): GithubRepositoryChoice[] {
   const repo = query.trim();
   if (!repo) return [];
 
@@ -100,7 +107,7 @@ export function buildManualGithubRepositoryChoices(query: string): GithubReposit
         id: `manual:${repo}`,
         nameWithOwner: identity?.repo ?? remoteName,
         cloneUrl: repo,
-        description: "Clone this repository URL",
+        description: t("addProject.github.cloneUrl"),
         updatedAt: null,
       },
     ];
@@ -114,7 +121,7 @@ export function buildManualGithubRepositoryChoices(query: string): GithubReposit
     nameWithOwner,
     cloneUrl: nameWithOwner,
     cloneProtocol,
-    description: `Clone owner/repo via ${cloneProtocol.toUpperCase()}`,
+    description: t("addProject.github.cloneShorthand", { protocol: cloneProtocol.toUpperCase() }),
     updatedAt: null,
   }));
 }
@@ -149,11 +156,14 @@ export function buildSuggestedParentDirectories(projectPaths: string[]): string[
   return [...new Set(values)];
 }
 
-export function buildCloneLocationOptions(input: {
-  parents: string[];
-  repositoryName: string;
-  existingPaths: string[];
-}): AddProjectPathOption[] {
+export function buildCloneLocationOptions(
+  t: TFunction,
+  input: {
+    parents: string[];
+    repositoryName: string;
+    existingPaths: string[];
+  },
+): AddProjectPathOption[] {
   const existing = new Set(input.existingPaths.map(pathIdentity));
   const seen = new Set<string>();
   return input.parents.flatMap((parent) => {
@@ -167,7 +177,9 @@ export function buildCloneLocationOptions(input: {
         id: parent,
         path: parent,
         displayPath: path,
-        secondaryText: pathExists ? "Already exists" : `Parent directory: ${parent}`,
+        secondaryText: pathExists
+          ? t("addProject.destination.alreadyExists")
+          : t("addProject.destination.parentDirectory", { path: parent }),
         disabled: pathExists,
       },
     ];

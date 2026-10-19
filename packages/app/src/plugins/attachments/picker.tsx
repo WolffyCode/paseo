@@ -1,4 +1,6 @@
+import type { TFunction } from "i18next";
 import { useCallback, useMemo, useState, type ReactElement, type RefObject } from "react";
+import { useTranslation } from "react-i18next";
 import { View } from "react-native";
 import { withUnistyles } from "react-native-unistyles";
 import type { DaemonClient } from "@getpaseo/client/internal/daemon-client";
@@ -45,10 +47,10 @@ interface PluginAttachmentPickerBinding {
   picker: ReactElement | null;
 }
 
-function searchEmptyText(error: unknown, isFetching: boolean): string {
+function searchEmptyText(t: TFunction, error: unknown, isFetching: boolean): string {
   if (error instanceof Error) return error.message;
   if (error) return String(error);
-  return isFetching ? "Searching..." : "No results";
+  return isFetching ? t("plugins.attachments.searching") : t("plugins.attachments.noResults");
 }
 
 function installedAttachmentSources(
@@ -77,6 +79,7 @@ function attachmentOptions(items: PluginAttachmentItem[]): ComboboxOption[] {
 export function usePluginAttachmentPicker(
   input: PluginAttachmentPickerInput,
 ): PluginAttachmentPickerBinding {
+  const { t } = useTranslation();
   const plugins = useInstalledPlugins();
   const sources = useMemo(
     () => installedAttachmentSources(plugins, input.serverId),
@@ -96,7 +99,7 @@ export function usePluginAttachmentPicker(
         trimmedQuery,
       ],
       queryFn: async () => {
-        if (!input.client || !active) throw new Error("Plugin host is offline");
+        if (!input.client || !active) throw new Error(t("plugins.attachments.hostOffline"));
         const client = input.client;
         return searchPluginAttachments(
           active.source,
@@ -149,12 +152,12 @@ export function usePluginAttachmentPicker(
         const Icon = resolvePluginIcon(source.icon);
         return {
           id: `plugin:${key}`,
-          label: `Attach ${source.title}`,
+          label: t("plugins.attachments.attach", { source: source.title }),
           icon: <ThemedSourceIcon Icon={Icon} uniProps={iconColorMapping} />,
           onSelect: () => setActiveKey(key),
         };
       }),
-    [sources],
+    [sources, t],
   );
   if (!active) return { menuItems, picker: null };
   return {
@@ -172,7 +175,7 @@ export function usePluginAttachmentPicker(
         onSearchQueryChange={setQuery}
         desktopPlacement="top-start"
         anchorRef={input.anchorRef}
-        emptyText={searchEmptyText(search.error, search.isFetching)}
+        emptyText={searchEmptyText(t, search.error, search.isFetching)}
       />
     ),
   };

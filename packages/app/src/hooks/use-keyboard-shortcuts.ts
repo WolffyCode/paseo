@@ -13,7 +13,7 @@ import {
   buildEffectiveBindings,
   getWorkspaceIndexJumpModifierKey,
 } from "@/keyboard/keyboard-shortcuts";
-import { resolveKeyboardFocusScope } from "@/keyboard/focus-scope";
+import { isBrowserFocusTarget, resolveKeyboardFocusScope } from "@/keyboard/focus-scope";
 import {
   buildBrowserKeyboardPolicy,
   parseBrowserShortcutInput,
@@ -247,6 +247,7 @@ export function useKeyboardShortcuts({
   const resolveAndPerformShortcut = (input: {
     event: KeyboardShortcutInput;
     focusScope: KeyboardFocusScope;
+    isBrowserFocused: boolean;
     domEvent: KeyboardEvent | null;
     browserFocusRestoreElement?: HTMLElement | null;
   }) => {
@@ -259,6 +260,7 @@ export function useKeyboardShortcuts({
         isDesktop: isDesktopApp,
         focusScope: input.focusScope,
         commandCenterOpen: store.commandCenterOpen,
+        isBrowserFocused: input.isBrowserFocused,
       },
       chordState: chordStateRef.current,
       onChordReset: () => {
@@ -358,6 +360,7 @@ export function useKeyboardShortcuts({
     resolveAndPerformShortcut({
       event,
       focusScope,
+      isBrowserFocused: isBrowserFocusTarget(event.target),
       domEvent: event,
     });
   });
@@ -377,6 +380,7 @@ export function useKeyboardShortcuts({
     resolveAndPerformShortcut({
       event: input,
       focusScope: "browser",
+      isBrowserFocused: true,
       domEvent: null,
       browserFocusRestoreElement: getResidentBrowserWebview(input.browserId),
     });

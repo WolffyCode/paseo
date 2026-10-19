@@ -93,6 +93,52 @@ function expectResidentWebviewParking(webview: HTMLElement): void {
   expect(webview.style.zIndex).toBe("0");
 }
 
+const paneFixtures: HTMLElement[] = [];
+
+function mountPane(
+  bounds: { left: number; top: number; width: number; height: number },
+  content = bounds,
+) {
+  const clip = document.createElement("div");
+  Object.assign(clip.style, {
+    position: "fixed",
+    left: `${bounds.left}px`,
+    top: `${bounds.top}px`,
+    width: `${bounds.width}px`,
+    height: `${bounds.height}px`,
+    overflow: "hidden",
+  });
+  const anchor = document.createElement("div");
+  Object.assign(anchor.style, {
+    position: "absolute",
+    left: `${content.left - bounds.left}px`,
+    top: `${content.top - bounds.top}px`,
+    width: content === bounds ? "100%" : `${content.width}px`,
+    height: content === bounds ? "100%" : `${content.height}px`,
+  });
+  clip.appendChild(anchor);
+  document.body.prepend(clip);
+  paneFixtures.push(clip);
+  return { anchor, clip };
+}
+
+function expectBounds(
+  element: HTMLElement,
+  bounds: { left: number; top: number; width: number; height: number },
+) {
+  const actual = element.getBoundingClientRect();
+  expect({
+    left: actual.left,
+    top: actual.top,
+    width: actual.width,
+    height: actual.height,
+  }).toEqual(bounds);
+}
+
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => requestAnimationFrame(() => resolve()));
+}
+
 describe("resident browser webviews", () => {
   beforeEach(() => {
     attachedBrowsers.length = 0;
@@ -100,6 +146,7 @@ describe("resident browser webviews", () => {
 
   afterEach(() => {
     clearResidentBrowserWebviewsForTests();
+    for (const fixture of paneFixtures.splice(0)) fixture.remove();
   });
 
   it("parks a browser webview in the permanent paintable 1x1 host", () => {
@@ -126,14 +173,7 @@ describe("resident browser webviews", () => {
       workspaceId: "workspace-stable-parent",
       url: "https://example.com",
     });
-    const anchor = document.createElement("div");
-    const clip = document.createElement("div");
-    Object.defineProperty(anchor, "getBoundingClientRect", {
-      value: () => ({ left: 40, top: 60, width: 640, height: 480 }),
-    });
-    Object.defineProperty(clip, "getBoundingClientRect", {
-      value: () => ({ left: 40, top: 60, width: 640, height: 480 }),
-    });
+    const { anchor, clip } = mountPane({ left: 40, top: 60, width: 640, height: 480 });
     if (!webview?.parentElement) {
       throw new Error("Expected resident browser surface");
     }
@@ -143,15 +183,13 @@ describe("resident browser webviews", () => {
       mode: "responsive",
     });
     expect(webview.parentElement).toBe(permanentParent);
-    expect(permanentParent.style.left).toBe("40px");
-    expect(permanentParent.style.top).toBe("60px");
-    expect(permanentParent.style.width).toBe("640px");
-    expect(permanentParent.style.height).toBe("480px");
+    expectBounds(permanentParent, { left: 40, top: 60, width: 640, height: 480 });
     expect(permanentParent.style.pointerEvents).toBe("auto");
     expect(permanentParent.getAttribute("aria-hidden")).toBe("false");
-    expect(webview.style.flex).toBe("0 0 auto");
-    expect(webview.style.width).toBe("640px");
-    expect(webview.style.height).toBe("480px");
+    expect(anchor.contains(webview)).toBe(true);
+    expect(getComputedStyle(webview).position).toBe("relative");
+    expect(getComputedStyle(permanentParent).position).toBe("relative");
+    expectBounds(webview, { left: 40, top: 60, width: 640, height: 480 });
 
     releaseResidentBrowserWebview("browser-stable-parent", webview);
     expect(webview.parentElement).toBe(permanentParent);
@@ -172,14 +210,10 @@ describe("resident browser webviews", () => {
     if (!webview?.parentElement) {
       throw new Error("Expected resident browser surface");
     }
-    const anchor = document.createElement("div");
-    const clip = document.createElement("div");
-    Object.defineProperty(anchor, "getBoundingClientRect", {
-      value: () => ({ left: -800, top: -300, width: 2560, height: 1440 }),
-    });
-    Object.defineProperty(clip, "getBoundingClientRect", {
-      value: () => ({ left: 100, top: 150, width: 800, height: 600 }),
-    });
+    const { anchor, clip } = mountPane(
+      { left: 100, top: 150, width: 800, height: 600 },
+      { left: -800, top: -300, width: 2560, height: 1440 },
+    );
 
     presentBrowserWebview("browser-oversized", webview, anchor, clip, {
       mode: "fixed",
@@ -187,21 +221,130 @@ describe("resident browser webviews", () => {
       height: 1440,
     });
 
-    expect(webview.parentElement.style.left).toBe("100px");
-    expect(webview.parentElement.style.top).toBe("150px");
-    expect(webview.parentElement.style.width).toBe("800px");
-    expect(webview.parentElement.style.height).toBe("600px");
-    expect(webview.style.left).toBe("-900px");
-    expect(webview.style.top).toBe("-450px");
-    expect(webview.style.width).toBe("2560px");
-    expect(webview.style.height).toBe("1440px");
+    expect(clip.contains(webview)).toBe(true);
+    expectBounds(webview, { left: -800, top: -300, width: 2560, height: 1440 });
+    expect(document.elementFromPoint(90, 160)).not.toBe(webview);
+    expect(document.elementFromPoint(110, 160)).toBe(webview);
 
     resizeResidentBrowserWebview({ browserId: "browser-oversized", width: 2560, height: 1440 });
+    expect(clip.contains(webview)).toBe(true);
+    expectBounds(webview, { left: -800, top: -300, width: 2560, height: 1440 });
+  });
 
-    expect(webview.style.left).toBe("-900px");
-    expect(webview.style.top).toBe("-450px");
-    expect(webview.parentElement.style.width).toBe("800px");
-    expect(webview.parentElement.style.height).toBe("600px");
+  it("follows a moving pane without a size change or a new presentation call", async () => {
+    const clip = document.createElement("div");
+    Object.assign(clip.style, {
+      position: "fixed",
+      left: "100px",
+      top: "120px",
+      width: "640px",
+      height: "480px",
+    });
+    const anchor = document.createElement("div");
+    Object.assign(anchor.style, { width: "100%", height: "100%" });
+    clip.appendChild(anchor);
+    document.body.prepend(clip);
+    try {
+      const webview = ensureTestBrowser({
+        browserId: "browser-moving",
+        workspaceId: "workspace-moving",
+        url: "https://example.com",
+      });
+      if (!webview?.parentElement) throw new Error("Expected resident browser surface");
+      const surface = webview.parentElement;
+      presentBrowserWebview("browser-moving", webview, anchor, clip, { mode: "responsive" });
+      expect(webview.getBoundingClientRect().left).toBe(anchor.getBoundingClientRect().left);
+      clip.style.transform = "translate(140px, 35px)";
+      await nextFrame();
+      expect(surface.getBoundingClientRect().left).toBe(clip.getBoundingClientRect().left);
+      expect(surface.getBoundingClientRect().top).toBe(clip.getBoundingClientRect().top);
+      expect(webview.getBoundingClientRect().left).toBe(anchor.getBoundingClientRect().left);
+      expect(webview.getBoundingClientRect().top).toBe(anchor.getBoundingClientRect().top);
+      expect(webview.parentElement).toBe(surface);
+    } finally {
+      clip.remove();
+    }
+  });
+
+  it("resizes with its pane and preserves the last viewport through hiding and parking", async () => {
+    const { anchor, clip } = mountPane({ left: 40, top: 60, width: 640, height: 480 });
+    const webview = ensureTestBrowser({
+      browserId: "browser-resizing",
+      workspaceId: "workspace-resizing",
+      url: "https://example.com",
+    });
+    if (!webview?.parentElement) throw new Error("Expected resident browser surface");
+    const surface = webview.parentElement;
+    presentBrowserWebview("browser-resizing", webview, anchor, clip, { mode: "responsive" });
+    clip.style.width = "720px";
+    clip.style.height = "500px";
+    await nextFrame();
+    await nextFrame();
+    expectBounds(surface, { left: 40, top: 60, width: 720, height: 500 });
+    expectBounds(webview, { left: 40, top: 60, width: 720, height: 500 });
+    clip.style.display = "none";
+    expect(surface.getBoundingClientRect().width).toBe(0);
+    expect(document.elementFromPoint(50, 70)).not.toBe(webview);
+    releaseResidentBrowserWebview("browser-resizing", webview);
+    expect(webview.style.width).toBe("720px");
+    expect(webview.style.height).toBe("500px");
+    clip.style.display = "block";
+    clip.style.left = "180px";
+    presentBrowserWebview("browser-resizing", webview, anchor, clip, { mode: "responsive" });
+    expectBounds(webview, { left: 180, top: 60, width: 720, height: 500 });
+    expect(webview.parentElement).toBe(surface);
+  });
+
+  it("keeps an inactive retained browser under its pane instead of parking it over the app", () => {
+    const { anchor, clip } = mountPane({ left: 300, top: 100, width: 600, height: 400 });
+    const webview = ensureTestBrowser({
+      browserId: "inline-retained",
+      workspaceId: "inline-retained",
+      url: "https://example.com",
+    });
+    if (!webview) throw new Error("Expected browser");
+    presentBrowserWebview("inline-retained", webview, anchor, clip, { mode: "responsive" });
+    const parent = webview.parentElement;
+    clip.style.display = "none";
+    applyInactiveBrowserWebviewViewport("inline-retained", webview, { mode: "responsive" });
+    expect(anchor.contains(webview)).toBe(true);
+    expect(webview.parentElement).toBe(parent);
+    expect(document.elementFromPoint(350, 150)).not.toBe(webview);
+    clip.style.left = "450px";
+    clip.style.display = "block";
+    presentBrowserWebview("inline-retained", webview, anchor, clip, { mode: "responsive" });
+    expect(webview.parentElement).toBe(parent);
+    expectBounds(webview, { left: 450, top: 100, width: 600, height: 400 });
+  });
+
+  it("keeps a background browser paintable on its first attachment to a retained pane", () => {
+    const { anchor, clip } = mountPane({ left: 0, top: 0, width: 1, height: 1 });
+    const webview = ensureTestBrowser({
+      browserId: "inline-background",
+      workspaceId: "inline-background",
+      url: "https://example.com",
+    });
+    if (!webview) throw new Error("Expected browser");
+    presentBrowserWebview(
+      "inline-background",
+      webview,
+      anchor,
+      clip,
+      { mode: "responsive" },
+      false,
+    );
+    expect(anchor.contains(webview)).toBe(true);
+    expect(webview.getBoundingClientRect().width).toBe(1280);
+    expect(webview.getBoundingClientRect().height).toBe(800);
+    expect(document.elementFromPoint(100, 100)).not.toBe(webview);
+    expect(
+      ensureTestBrowser({
+        browserId: "inline-background",
+        workspaceId: "inline-background",
+        url: "https://example.com",
+      }),
+    ).toBe(webview);
+    expect(anchor.contains(webview)).toBe(true);
   });
 
   it("creates a resident webview for an agent-created unfocused tab", () => {
@@ -345,14 +488,7 @@ describe("resident browser webviews", () => {
 
   it("applies an exact fixed viewport without a flex width override", () => {
     const webview = document.createElement("webview");
-    const anchor = document.createElement("div");
-    const clip = document.createElement("div");
-    Object.defineProperty(anchor, "getBoundingClientRect", {
-      value: () => ({ left: 0, top: 0, width: 640, height: 480 }),
-    });
-    Object.defineProperty(clip, "getBoundingClientRect", {
-      value: () => ({ left: 0, top: 0, width: 640, height: 480 }),
-    });
+    const { anchor, clip } = mountPane({ left: 0, top: 0, width: 640, height: 480 });
 
     presentBrowserWebview("browser-fixed", webview, anchor, clip, {
       mode: "fixed",

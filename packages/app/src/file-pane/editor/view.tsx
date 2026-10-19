@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import type { HighlightStyle } from "@getpaseo/highlight";
@@ -23,9 +24,10 @@ export function FileEditorView(_props: {
   onCursorChange(position: { line: number; column: number }): void;
   onVimModeChange(mode: string | null): void;
 }) {
+  const { t } = useTranslation();
   return (
     <View style={styles.container}>
-      <Text style={styles.text}>Source editing is available on web and desktop.</Text>
+      <Text style={styles.text}>{t("panels.file.editor.webOnly")}</Text>
     </View>
   );
 }

@@ -6,7 +6,8 @@ import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store"
 import { navigateToAgent } from "@/utils/navigate-to-agent";
 
 import { getIsElectron } from "@/constants/platform";
-import { createWorkspaceBrowser } from "@/desktop/browser/store";
+import { openBrowserInWorkspace } from "@/desktop/browser/workspace-browsers";
+import { buildWorkspaceTabPersistenceKey } from "@/workspace-tabs/model";
 import { createPluginHostNavigation } from "./host-navigation-model";
 
 export function usePluginHostNavigation(
@@ -18,7 +19,16 @@ export function usePluginHostNavigation(
         browserAvailable: getIsElectron(),
         openAgent: navigateToAgent,
         openWorkspace: navigateToWorkspace,
-        createBrowser: createWorkspaceBrowser,
+        openBrowserPage: ({ serverId: targetServerId, workspaceId, url }) => {
+          const workspaceKey = buildWorkspaceTabPersistenceKey({
+            serverId: targetServerId,
+            workspaceId,
+          });
+          if (!workspaceKey) {
+            return;
+          }
+          openBrowserInWorkspace({ workspaceKey, url, activation: "focus" });
+        },
         resolveWorkspace: ({ serverId: targetServerId, workspaceId }) =>
           resolveWorkspaceMapKeyByIdentity({
             workspaces: useSessionStore.getState().sessions[targetServerId]?.workspaces,

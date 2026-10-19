@@ -124,7 +124,7 @@ import { Shortcut } from "@/components/ui/shortcut";
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import { useShortcutKeys } from "@/hooks/use-shortcut-keys";
 import { useKeyboardActionHandler } from "@/hooks/use-keyboard-action-handler";
-import { useWorkspaceReadState } from "@/hooks/use-workspace-read-state";
+import { useSidebarWorkspaceReadActions } from "@/components/sidebar/use-sidebar-workspace-read-actions";
 import type { PrHint } from "@/git/use-pr-status-query";
 import {
   buildSidebarProjectRowModel,
@@ -537,6 +537,8 @@ function ProjectMenuItems({
 }) {
   const { t } = useTranslation();
   const toast = useToast();
+  // projectPath is already the local host's copy of the project, so it lives on this daemon.
+  const localDaemonServerId = useLocalDaemonServerId();
   const handleOpenProjectSettings = useCallback(() => {
     if (!settingsTarget) return;
     router.navigate(buildProjectSettingsRoute(settingsTarget.serverId, settingsTarget.projectId));
@@ -577,6 +579,7 @@ function ProjectMenuItems({
       ) : null}
       <OpenInFileManagerMenuItem
         surface={surface}
+        serverId={localDaemonServerId ?? ""}
         path={projectPath}
         testID={`sidebar-project-menu-open-folder-${projectViewKey}`}
       />
@@ -1240,7 +1243,6 @@ function WorkspaceRowWithMenu({
   isCreating?: boolean;
 }) {
   const { t } = useTranslation();
-  const toast = useToast();
   const [isHidingWorkspace, setIsHidingWorkspace] = useState(false);
   const [isRenameOpen, setIsRenameOpen] = useState(false);
   const isArchiving = workspace.archivingAt !== null || isHidingWorkspace;
@@ -1293,21 +1295,10 @@ function WorkspaceRowWithMenu({
   const onTogglePin = canPin ? handleTogglePin : undefined;
 
   const archiveShortcutKeys = useShortcutKeys("archive-workspace");
-  const { hasClearableAttention, canMarkUnread, clearAttention, markUnread } =
-    useWorkspaceReadState({
-      serverId: workspace.serverId,
-      workspaceId: workspace.workspaceId,
-    });
-  const handleMarkAsRead = useCallback(() => {
-    void clearAttention().catch((error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to mark workspace as read");
-    });
-  }, [clearAttention, toast]);
-  const handleMarkAsUnread = useCallback(() => {
-    void markUnread().catch((error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to mark workspace as unread");
-    });
-  }, [markUnread, toast]);
+  const readActions = useSidebarWorkspaceReadActions({
+    serverId: workspace.serverId,
+    workspaceId: workspace.workspaceId,
+  });
 
   useKeyboardActionHandler({
     handlerId: `workspace-archive-${workspace.workspaceKey}`,
@@ -1344,8 +1335,8 @@ function WorkspaceRowWithMenu({
         onCopyBranchName={canCopyBranchName ? handleCopyBranchName : undefined}
         onCopyPath={workspace.purpose === "chat" ? undefined : handleCopyPath}
         onRename={handleOpenRename}
-        onMarkAsRead={hasClearableAttention ? handleMarkAsRead : undefined}
-        onMarkAsUnread={canMarkUnread ? handleMarkAsUnread : undefined}
+        onMarkAsRead={readActions.onMarkAsRead}
+        onMarkAsUnread={readActions.onMarkAsUnread}
         archiveShortcutKeys={selected ? archiveShortcutKeys : null}
         isPinned={isPinned}
         onTogglePin={onTogglePin}
@@ -2449,8 +2440,8 @@ function ProjectModeList({
     );
 
   const visibleProjectBody = sidebarFilterEmpty ? <SidebarFilterEmptyState /> : projectBody;
-  const content = (
-    <>
+  const pinnedSection =
+    pinnedChats.length === 0 ? null : (
       <View style={styles.pinnedSection} testID="sidebar-pinned-section">
         <PinnedSectionHeader collapsed={pinnedCollapsed} onToggle={togglePinnedCollapsed} />
         {pinnedCollapsed ? null : (
@@ -2479,6 +2470,10 @@ function ProjectModeList({
           </>
         )}
       </View>
+    );
+  const content = (
+    <>
+      {pinnedSection}
       {listHeaderComponent}
       {projectsCollapsed ? null : visibleProjectBody}
       {listFooterComponent}

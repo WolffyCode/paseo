@@ -635,6 +635,7 @@ export function WorkspaceDraftAgentTab({
       ) : (
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.configScrollContent}>
           <View style={styles.configSection}>
+            {isWeb ? <Text style={styles.welcomeTitle}>{t("newWorkspace.title")}</Text> : null}
             {formErrorMessage ? (
               <View style={styles.errorContainer}>
                 <Text style={styles.errorText}>{formErrorMessage}</Text>
@@ -699,7 +700,7 @@ const styles = StyleSheet.create((theme) => ({
   container: {
     flex: 1,
     width: "100%",
-    backgroundColor: theme.colors.surface0,
+    backgroundColor: isWeb ? "transparent" : theme.colors.surface0,
   },
   contentContainer: {
     flex: 1,
@@ -711,12 +712,20 @@ const styles = StyleSheet.create((theme) => ({
     flex: 1,
   },
   configScrollContent: {
+    flexGrow: 1,
+    justifyContent: "center",
     paddingHorizontal: theme.spacing[4],
     paddingTop: theme.spacing[4],
     paddingBottom: theme.spacing[6],
   },
   configSection: {
     gap: theme.spacing[3],
+  },
+  welcomeTitle: {
+    fontSize: theme.fontSize["2xl"],
+    fontWeight: "500",
+    color: theme.colors.foreground,
+    textAlign: "center",
   },
   importPillRow: {
     width: "100%",

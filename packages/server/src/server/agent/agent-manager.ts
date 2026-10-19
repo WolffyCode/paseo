@@ -90,7 +90,7 @@ import {
   type ProviderSubagentStoreEvent,
 } from "./provider-subagents/store.js";
 import { withTimeout } from "../../utils/promise-timeout.js";
-import { extractAttention } from "../persistence-hooks.js";
+import { extractAttention, toAgentPersistenceHandle } from "../persistence-hooks.js";
 
 const RELOAD_SESSION_CLOSE_TIMEOUT_MS = 3_000;
 const INTERRUPT_SESSION_TIMEOUT_MS = 2_000;
@@ -160,6 +160,24 @@ async function assertUsableWorkingDirectory(cwd: string): Promise<void> {
     }
     throw new Error(`Failed to access working directory: ${cwd}`, { cause: error });
   }
+}
+
+async function isExistingFile(filePath: string): Promise<boolean> {
+  try {
+    return (await stat(filePath)).isFile();
+  } catch (error) {
+    if (isMissingPathError(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
+function isMissingPathError(error: unknown): boolean {
+  if (!(error instanceof Error) || !("code" in error)) {
+    return false;
+  }
+  return error.code === "ENOENT" || error.code === "ENOTDIR";
 }
 
 interface PreparedSessionConfig {
@@ -1168,6 +1186,35 @@ export class AgentManager {
   getAgent(id: string): ManagedAgent | null {
     const agent = this.agents.get(id);
     return agent ? { ...agent } : null;
+  }
+
+  /**
+   * The file where the agent's provider keeps its native session, when the provider keeps one
+   * and it is on disk. A stored agent answers from its record without resuming its session.
+   */
+  async findNativeSessionPath(agentId: string): Promise<string | null> {
+    const persistence = await this.findPersistenceHandle(agentId);
+    if (!persistence) {
+      return null;
+    }
+    const client = this.clients.get(persistence.provider);
+    const sessionPath = await client?.resolveNativeSessionPath?.(persistence);
+    if (!sessionPath) {
+      return null;
+    }
+    return (await isExistingFile(sessionPath)) ? sessionPath : null;
+  }
+
+  private async findPersistenceHandle(agentId: string): Promise<AgentPersistenceHandle | null> {
+    const liveAgent = this.agents.get(agentId);
+    if (liveAgent) {
+      return liveAgent.persistence;
+    }
+    const record = this.registry ? await this.registry.get(agentId) : null;
+    if (!record) {
+      throw new Error(`Agent not found: ${agentId}`);
+    }
+    return toAgentPersistenceHandle(this.getRegisteredProviderIds(), record.persistence);
   }
 
   async waitForAgentClose(agentId: string): Promise<void> {

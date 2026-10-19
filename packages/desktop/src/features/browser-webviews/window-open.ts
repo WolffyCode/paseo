@@ -10,7 +10,14 @@ export type BrowserWindowOpenDisposition =
 export type BrowserWindowOpenDecision =
   | { kind: "deny" }
   | { kind: "popup" }
-  | { kind: "workspace-tab"; url: string };
+  /** `isActive` false for a background tab: a ⌘-click or a middle click on a link. */
+  | { kind: "workspace-tab"; url: string; isActive: boolean };
+
+/** A new-tab request that waits for its page to register. */
+export interface PendingBrowserNewTab {
+  url: string;
+  isActive: boolean;
+}
 
 const MAX_PENDING_WINDOW_OPEN_REQUESTS_PER_GUEST = 20;
 const POPUP_WINDOW_GEOMETRY_FEATURE_NAMES = new Set([
@@ -43,30 +50,34 @@ const NON_POPUP_WINDOW_FEATURE_NAMES = new Set([
 ]);
 
 export class PendingBrowserWindowOpenRequests {
-  private readonly urlsByWebContentsId = new Map<number, string[]>();
+  private readonly requestsByWebContentsId = new Map<number, PendingBrowserNewTab[]>();
 
-  public add(webContentsId: number, url: string): void {
-    if (!isAllowedBrowserWebviewUrl(url)) {
+  public add(webContentsId: number, request: PendingBrowserNewTab): void {
+    if (!isAllowedBrowserWebviewUrl(request.url)) {
       return;
     }
-    const urls = this.urlsByWebContentsId.get(webContentsId) ?? [];
-    if (urls.length >= MAX_PENDING_WINDOW_OPEN_REQUESTS_PER_GUEST) {
+    const requests = this.requestsByWebContentsId.get(webContentsId) ?? [];
+    if (requests.length >= MAX_PENDING_WINDOW_OPEN_REQUESTS_PER_GUEST) {
       return;
     }
-    urls.push(url);
-    this.urlsByWebContentsId.set(webContentsId, urls);
+    requests.push(request);
+    this.requestsByWebContentsId.set(webContentsId, requests);
   }
 
-  public take(webContentsId: number): string[] {
-    const urls = this.urlsByWebContentsId.get(webContentsId) ?? [];
-    this.urlsByWebContentsId.delete(webContentsId);
-    return urls;
+  public take(webContentsId: number): PendingBrowserNewTab[] {
+    const requests = this.requestsByWebContentsId.get(webContentsId) ?? [];
+    this.requestsByWebContentsId.delete(webContentsId);
+    return requests;
   }
 
   public delete(webContentsId: number): void {
-    this.urlsByWebContentsId.delete(webContentsId);
+    this.requestsByWebContentsId.delete(webContentsId);
   }
 }
+
+// Extension pages (a new tab page, an options page) are tabs too, as in Chrome, and so is a
+// page's source (view-source:).
+const BROWSER_PAGE_PROTOCOLS = new Set(["http:", "https:", "chrome-extension:", "view-source:"]);
 
 export function isAllowedBrowserWebviewUrl(value: string | undefined): boolean {
   if (!value) {
@@ -74,9 +85,7 @@ export function isAllowedBrowserWebviewUrl(value: string | undefined): boolean {
   }
   try {
     const parsed = new URL(value);
-    return (
-      parsed.protocol === "http:" || parsed.protocol === "https:" || parsed.href === "about:blank"
-    );
+    return BROWSER_PAGE_PROTOCOLS.has(parsed.protocol) || parsed.href === "about:blank";
   } catch {
     return false;
   }
@@ -107,7 +116,11 @@ export function decideBrowserWindowOpenRequest(input: {
     return { kind: "popup" };
   }
 
-  return { kind: "workspace-tab", url: input.url };
+  return {
+    kind: "workspace-tab",
+    url: input.url,
+    isActive: input.disposition !== "background-tab",
+  };
 }
 
 function getBrowserWindowFeatureIntent(features: string): {

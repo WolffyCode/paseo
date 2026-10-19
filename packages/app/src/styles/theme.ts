@@ -1,5 +1,7 @@
 import { Platform } from "react-native";
 import { darkHighlightColors, lightHighlightColors } from "@getpaseo/highlight";
+import { CHROME_DARK_COLORS, CHROME_LIGHT_COLORS } from "@/desktop/browser/chrome-theme";
+import { WEBUI_DARK_COLORS, WEBUI_LIGHT_COLORS } from "@/desktop/browser/webui/theme";
 
 export const baseColors = {
   // Base colors
@@ -260,6 +262,10 @@ const lightTerminalAnsi = {
 
 export function buildLightSemanticColors(tint: LightThemeConfig) {
   return {
+    workbenchWindow: "rgba(233, 237, 235, 0.62)",
+    workbenchSurface: "rgba(255, 255, 255, 0.72)",
+    workbenchEdge: "rgba(255, 255, 255, 0.70)",
+    workbenchSelected: "rgba(220, 229, 220, 0.65)",
     surface0: tint.surface0,
     surface1: tint.surface1,
     surface2: tint.surface2,
@@ -391,6 +397,10 @@ export function buildDarkSemanticColors(tint: DarkThemeConfig) {
   const foreground = tint.foreground ?? "#fafafa";
   const ring = tint.ring ?? "#d4d4d8";
   return {
+    workbenchWindow: "rgba(22, 24, 25, 0.45)",
+    workbenchSurface: "rgba(32, 34, 35, 0.78)",
+    workbenchEdge: "rgba(255, 255, 255, 0.08)",
+    workbenchSelected: "rgba(74, 84, 65, 0.60)",
     surface0: tint.surface0,
     surface1: tint.surface1,
     surface2: tint.surface2,
@@ -707,6 +717,8 @@ export function buildDarkTheme(semanticColors: ReturnType<typeof buildDarkSemant
       syntax: darkHighlightColors,
     },
     shadow: darkShadow,
+    chrome: CHROME_DARK_COLORS,
+    webui: WEBUI_DARK_COLORS,
     ...commonTheme,
   } as const;
 }
@@ -769,6 +781,8 @@ export function buildLightTheme(semanticColors: ReturnType<typeof buildLightSema
       syntax: lightHighlightColors,
     },
     shadow: lightShadow,
+    chrome: CHROME_LIGHT_COLORS,
+    webui: WEBUI_LIGHT_COLORS,
     ...commonTheme,
   } as const;
 }

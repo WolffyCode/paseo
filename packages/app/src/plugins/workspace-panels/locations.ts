@@ -51,9 +51,11 @@ export function panelTargetSupportsHost(
   host: PaneHost,
 ): boolean {
   if (target.kind !== "plugin") return panelSupportsHost(target.kind, host);
+  if (host === "conversations" || host === "files") return false;
   const panel = findPluginPanel(serverId, target);
   // Preserve a persisted unavailable panel where the user left it until its plugin loads again.
   if (!panel) return true;
+  if (host === "content") return true;
   const location: PluginPanelLocation = host === "explorer" ? "explorer" : "workspace";
   return pluginPanelSupportsLocation(panel, location);
 }

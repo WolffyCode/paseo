@@ -110,12 +110,16 @@ contextBridge.exposeInMainWorld("paseoDesktop", {
   menu: {
     showContextMenu: (input?: Record<string, unknown>) =>
       ipcRenderer.invoke("paseo:menu:showContextMenu", input),
+    popup: (input: Record<string, unknown>) =>
+      ipcRenderer.invoke("paseo:menu:popup", input) as Promise<string | null>,
     setCapturingShortcut: (capturing: boolean) =>
       ipcRenderer.invoke("paseo:menu:set-capturing-shortcut", capturing),
   },
   browser: {
     setShortcutPolicy: (input: BrowserKeyboardPolicy) =>
       ipcRenderer.invoke("paseo:browser:set-shortcut-policy", input),
+    setPageMenuLabels: (labels: Record<string, string>) =>
+      ipcRenderer.invoke("paseo:browser:set-page-menu-labels", labels),
     profilePartition: PASEO_BROWSER_PROFILE_PARTITION,
     registerAttachedBrowser: (input: AttachedBrowserRegistration) =>
       ipcRenderer.invoke("paseo:browser:register-attached", input),
@@ -126,6 +130,14 @@ contextBridge.exposeInMainWorld("paseoDesktop", {
     focus: (browserId: string) => ipcRenderer.invoke("paseo:browser:focus", browserId),
     openDevTools: (browserId: string) =>
       ipcRenderer.invoke("paseo:browser:open-devtools", browserId),
+    savePage: (browserId: string) => ipcRenderer.invoke("paseo:browser:save-page", browserId),
+    browsingData: {
+      counts: () => ipcRenderer.invoke("paseo:browser:browsing-data:counts"),
+      clear: (request: { siteData: boolean; cache: boolean; origins: string[] | null }) =>
+        ipcRenderer.invoke("paseo:browser:browsing-data:clear", request),
+    },
+    getNavigationHistory: (browserId: string) =>
+      ipcRenderer.invoke("paseo:browser:navigation-history", browserId),
     clearProfile: (legacyBrowserIds: string[]) =>
       ipcRenderer.invoke("paseo:browser:clear-profile", legacyBrowserIds),
     executeAutomationCommand: (request: Record<string, unknown>) =>
@@ -136,5 +148,89 @@ contextBridge.exposeInMainWorld("paseoDesktop", {
     ) => ipcRenderer.invoke("paseo:browser:capture-element", browserId, rect),
     copyElement: (payload: { text?: string; imageDataUrl?: string }) =>
       ipcRenderer.invoke("paseo:browser:copy-element", payload),
+    chromeImport: {
+      listProfiles: () => ipcRenderer.invoke("paseo:browser:chrome-import:profiles"),
+      read: (directory: string, uiLocale: string) =>
+        ipcRenderer.invoke("paseo:browser:chrome-import:read", directory, uiLocale),
+    },
+    downloads: {
+      list: () => ipcRenderer.invoke("paseo:browser:downloads:list"),
+      pause: (downloadId: string) =>
+        ipcRenderer.invoke("paseo:browser:downloads:pause", downloadId),
+      resume: (downloadId: string) =>
+        ipcRenderer.invoke("paseo:browser:downloads:resume", downloadId),
+      cancel: (downloadId: string) =>
+        ipcRenderer.invoke("paseo:browser:downloads:cancel", downloadId),
+      retry: (downloadId: string) =>
+        ipcRenderer.invoke("paseo:browser:downloads:retry", downloadId),
+      open: (downloadId: string) => ipcRenderer.invoke("paseo:browser:downloads:open", downloadId),
+      showInFolder: (downloadId: string) =>
+        ipcRenderer.invoke("paseo:browser:downloads:show-in-folder", downloadId),
+      remove: (downloadId: string) =>
+        ipcRenderer.invoke("paseo:browser:downloads:remove", downloadId),
+      clearAll: () => ipcRenderer.invoke("paseo:browser:downloads:clear-all"),
+      undoRemove: () => ipcRenderer.invoke("paseo:browser:downloads:undo-remove"),
+      setOpenWhenDone: (downloadId: string, openWhenDone: boolean) =>
+        ipcRenderer.invoke("paseo:browser:downloads:set-open-when-done", downloadId, openWhenDone),
+      setOpensTypeAutomatically: (downloadId: string, opensType: boolean) =>
+        ipcRenderer.invoke(
+          "paseo:browser:downloads:set-opens-type-automatically",
+          downloadId,
+          opensType,
+        ),
+      fileIcon: (downloadId: string) =>
+        ipcRenderer.invoke("paseo:browser:downloads:file-icon", downloadId),
+      downloadNamed: (browserId: string, url: string, fileName: string) =>
+        ipcRenderer.invoke("paseo:browser:downloads:download-named", browserId, url, fileName),
+      deleteHistory: (since: number) =>
+        ipcRenderer.invoke("paseo:browser:downloads:delete-history", since),
+    },
+    extensions: {
+      list: () => ipcRenderer.invoke("paseo:browser:extensions:list"),
+      getNewTabUrl: () =>
+        ipcRenderer.invoke("paseo:browser:extensions:new-tab-url") as Promise<string | null>,
+      install: (extensionId: string) =>
+        ipcRenderer.invoke("paseo:browser:extensions:install", extensionId),
+      remove: (extensionId: string) =>
+        ipcRenderer.invoke("paseo:browser:extensions:remove", extensionId) as Promise<boolean>,
+      setEnabled: (extensionId: string, isEnabled: boolean) =>
+        ipcRenderer.invoke("paseo:browser:extensions:set-enabled", extensionId, isEnabled),
+      reportCreatedTab: (input: { requestId: number; browserId: string | null }) =>
+        ipcRenderer.invoke("paseo:browser:extensions:tab-created", input),
+      decideInstall: (input: { requestId: number; isAllowed: boolean }) =>
+        ipcRenderer.invoke("paseo:browser:extensions:install-decision", input),
+      // electron-chrome-extensions serves extension toolbar buttons to a host UI over these
+      // "remote" channels; its own <browser-action-list> element uses the same ones.
+      getActionState: () =>
+        ipcRenderer.invoke(
+          "crx-msg-remote",
+          PASEO_BROWSER_PROFILE_PARTITION,
+          "browserAction.getState",
+        ),
+      activateAction: (details: Record<string, unknown>) =>
+        ipcRenderer.invoke(
+          "crx-msg-remote",
+          PASEO_BROWSER_PROFILE_PARTITION,
+          "browserAction.activate",
+          details,
+        ),
+      observeActions: (listener: () => void): (() => void) => {
+        const handler = () => listener();
+        ipcRenderer.on("browserAction.update", handler);
+        void ipcRenderer.invoke(
+          "crx-msg-remote",
+          PASEO_BROWSER_PROFILE_PARTITION,
+          "browserAction.addObserver",
+        );
+        return () => {
+          ipcRenderer.removeListener("browserAction.update", handler);
+          void ipcRenderer.invoke(
+            "crx-msg-remote",
+            PASEO_BROWSER_PROFILE_PARTITION,
+            "browserAction.removeObserver",
+          );
+        };
+      },
+    },
   },
 });

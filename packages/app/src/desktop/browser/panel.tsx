@@ -1,61 +1,38 @@
 import { useMemo } from "react";
-import { Image } from "react-native";
 import { useTranslation } from "react-i18next";
-import { Globe } from "lucide-react-native";
 import invariant from "tiny-invariant";
 import { BrowserPane } from "@/desktop/browser/pane";
+import { BrowserPageIcon, browserPageLabel } from "@/desktop/browser/page-presentation";
+import { useBrowserStore } from "@/desktop/browser/store";
 import { usePaneContext, usePaneFocus } from "@/panels/pane-context";
 import { definePanel, type PanelDescriptor, type PanelIconProps } from "@/panels/panel-registry";
-import { isBrowserStartUrl } from "@/desktop/browser/start-page";
-import { useBrowserStore } from "@/desktop/browser/store";
 import { useWorkspaceDirectory } from "@/stores/session-store-hooks";
 
-function getBrowserLabel(input: { title: string; url: string }): string {
-  const title = input.title.trim();
-  if (title) {
-    return title;
-  }
-
-  try {
-    const parsed = new URL(input.url);
-    return parsed.hostname || input.url;
-  } catch {
-    return input.url;
-  }
-}
-
-function createBrowserTabIcon(faviconUrl: string | null) {
-  return function BrowserTabIcon({ size, color }: PanelIconProps) {
-    const source = useMemo(() => (faviconUrl ? { uri: faviconUrl } : undefined), []);
-    const imageStyle = useMemo(() => ({ width: size, height: size, borderRadius: 3 }), [size]);
-
-    if (faviconUrl) {
-      return <Image accessibilityIgnoresInvertColors source={source} style={imageStyle} />;
-    }
-
-    return <Globe size={size} color={color} />;
-  };
-}
-
+/** A web page is a column-3 tab: it shows the page's icon and title, as a Chrome tab does. */
 function useBrowserPanelDescriptor(target: {
   kind: "browser";
   browserId: string;
 }): PanelDescriptor {
   const { t } = useTranslation();
   const browser = useBrowserStore((state) => state.browsersById[target.browserId] ?? null);
-  const url = browser?.url ?? "https://example.com";
-  const isStartPage = isBrowserStartUrl(url);
-  const icon = createBrowserTabIcon(isStartPage ? null : (browser?.faviconUrl ?? null));
-  const label = isStartPage
-    ? t("workspace.tabs.actions.newTab")
-    : getBrowserLabel({ title: browser?.title ?? "", url });
+  const faviconUrl = browser?.faviconUrl ?? null;
+  const pageUrl = browser?.url ?? "";
+  const icon = useMemo(
+    () =>
+      function BrowserTabIcon(props: PanelIconProps) {
+        return <BrowserPageIcon {...props} faviconUrl={faviconUrl} pageUrl={pageUrl} />;
+      },
+    [faviconUrl, pageUrl],
+  );
+  const label = browserPageLabel(browser, t);
 
   return {
     label,
-    subtitle: isStartPage ? label : url,
-    tooltip: isStartPage ? label : url || label,
+    subtitle: pageUrl,
+    tooltip: label,
     titleState: "ready",
     icon,
+    // Chrome swaps a loading tab's icon for its throbber.
     statusBucket: browser?.isLoading ? "running" : null,
   };
 }

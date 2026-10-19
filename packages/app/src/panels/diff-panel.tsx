@@ -16,7 +16,7 @@ import { useAppSettings } from "@/hooks/use-settings";
 import { usePaneContext } from "@/panels/pane-context";
 import { definePanel, type PanelDescriptor, type PanelPresentation } from "@/panels/panel-registry";
 import { useAddFileToChat } from "@/panels/use-add-file-to-chat";
-import { useWorkspaceDirectory } from "@/stores/session-store-hooks";
+import { useWorkspace, useWorkspaceDirectory } from "@/stores/session-store-hooks";
 import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
 import { defaultChangesState, changesStateSchema } from "@/panels/changes/state";
 import { usePanelState } from "@/panels/use-panel-state";
@@ -91,6 +91,7 @@ function ChangesPanel() {
   const [changesState, setChangesState] = usePanelState(changesStateSchema, defaultChangesState);
   const { preferences } = useChangesPreferences();
   const cwd = useWorkspaceDirectory(serverId, workspaceId);
+  const workspace = useWorkspace(serverId, workspaceId);
   const isActive = useRetainedPanelActive();
   const { addFile, canAddToChat } = useAddFileToChat({ serverId, workspaceId });
   invariant(
@@ -118,6 +119,9 @@ function ChangesPanel() {
     [openTargetToSide],
   );
 
+  if (workspace?.purpose === "chat") {
+    return <PanelState message={t("workbench.context.noWorkspace")} />;
+  }
   if (!cwd) {
     return <PanelState message={t("panels.diff.directoryMissing")} />;
   }

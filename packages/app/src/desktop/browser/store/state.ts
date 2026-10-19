@@ -1,4 +1,9 @@
 import { z } from "zod";
+import {
+  BROWSER_START_URL,
+  isBrowserStartUrl,
+  type BrowserRecentSite,
+} from "@/desktop/browser/start-page";
 
 export type BrowserViewport =
   | { mode: "responsive" }
@@ -21,9 +26,30 @@ export interface BrowserRecord {
 
 export type BrowserRecordPatch = Partial<Omit<BrowserRecord, "browserId" | "createdAt">>;
 
+export interface BrowserHistoryEntry {
+  url: string;
+  title: string;
+  faviconUrl: string | null;
+  visitedAt: number;
+}
+
+/** A page closed in column 3, kept so ⇧⌘T and the history menu can reopen it. */
+export interface BrowserClosedEntry {
+  url: string;
+  title: string;
+  faviconUrl: string | null;
+  closedAt: number;
+}
+
 export interface BrowserIndexState {
   browsersById: Record<string, BrowserRecord>;
+  /** Newest first, across every conversation, as Chrome's recently closed list is per profile. */
+  closedBrowsers: BrowserClosedEntry[];
+  history: BrowserHistoryEntry[];
 }
+
+// Chrome's tab restore service keeps the 25 most recently closed entries.
+const CLOSED_BROWSER_LIMIT = 25;
 
 const BrowserViewportSchema = z.discriminatedUnion("mode", [
   z.strictObject({ mode: z.literal("responsive") }),
@@ -47,8 +73,29 @@ const BrowserRecordSchema = z.strictObject({
   createdAt: z.number(),
 });
 
-export const BrowserIndexStateSchema: z.ZodType<BrowserIndexState> = z.strictObject({
+const BrowserClosedEntrySchema = z.strictObject({
+  url: z.string(),
+  title: z.string(),
+  faviconUrl: z.string().nullable(),
+  closedAt: z.number(),
+});
+
+// Not strict: a record saved while browsers lived in windows still carries `windowsById`, and
+// rejecting it would throw away the history along with it.
+export const BrowserIndexStateSchema: z.ZodType<BrowserIndexState> = z.object({
   browsersById: z.record(z.string(), BrowserRecordSchema),
+  closedBrowsers: z.array(BrowserClosedEntrySchema).optional().default([]),
+  history: z
+    .array(
+      z.strictObject({
+        url: z.string(),
+        title: z.string(),
+        faviconUrl: z.string().nullable(),
+        visitedAt: z.number(),
+      }),
+    )
+    .optional()
+    .default([]),
 });
 
 export function createFixedBrowserViewport(width: number, height: number): BrowserViewport {
@@ -76,7 +123,10 @@ function browserViewportsEqual(left: BrowserViewport, right: BrowserViewport): b
 
 export function normalizeBrowserIndexState(value: unknown): BrowserIndexState {
   const result = BrowserIndexStateSchema.safeParse(value);
-  return result.success ? result.data : { browsersById: {} };
+  if (!result.success) {
+    return { browsersById: {}, closedBrowsers: [], history: [] };
+  }
+  return result.data;
 }
 
 export function trimNonEmpty(value: string | null | undefined): string | null {
@@ -90,7 +140,7 @@ export function trimNonEmpty(value: string | null | undefined): string | null {
 export function normalizeBrowserUrl(value: string | null | undefined): string {
   const trimmed = trimNonEmpty(value);
   if (!trimmed) {
-    return "https://example.com";
+    return BROWSER_START_URL;
   }
   if (/^(localhost|\d{1,3}(?:\.\d{1,3}){3}|\[[\da-fA-F:.]+])(?::\d+)?(?:[/?#]|$)/.test(trimmed)) {
     return `http://${trimmed}`;
@@ -162,6 +212,18 @@ export function applyBrowserPatch<S extends BrowserIndexState>(
 
   return {
     ...state,
+    history:
+      patch.title !== undefined || patch.faviconUrl !== undefined
+        ? state.history.map((entry) =>
+            entry.url === nextRecord.url
+              ? {
+                  ...entry,
+                  title: nextRecord.title || entry.title,
+                  faviconUrl: nextRecord.faviconUrl,
+                }
+              : entry,
+          )
+        : state.history,
     browsersById: {
       ...state.browsersById,
       [normalizedBrowserId]: nextRecord,
@@ -169,26 +231,106 @@ export function applyBrowserPatch<S extends BrowserIndexState>(
   };
 }
 
-export function removeBrowserFromIndex<S extends BrowserIndexState>(
-  state: S,
-  browserId: string,
-): S {
-  const normalizedBrowserId = trimNonEmpty(browserId);
-  if (!normalizedBrowserId) {
-    return state;
+/** The web page a browser shows; null on its start page, after a failed load, or on a non-web URL. */
+export function browserPage(browser: BrowserRecord): BrowserRecentSite | null {
+  if (browser.lastError) return null;
+  let url: URL;
+  try {
+    url = new URL(browser.url);
+  } catch {
+    // An address that does not parse is not a page to remember.
+    return null;
   }
-  if (!state.browsersById[normalizedBrowserId]) {
-    return state;
-  }
-  const next = { ...state.browsersById };
-  delete next[normalizedBrowserId];
-  return { ...state, browsersById: next };
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  return {
+    url: browser.url,
+    title: browser.title.trim() || url.host,
+    faviconUrl: browser.faviconUrl,
+  };
 }
 
-export function sanitizeBrowsersForPersist(state: BrowserIndexState): {
-  browsersById: Record<string, BrowserRecord>;
-} {
+export function recordBrowserVisit<S extends BrowserIndexState>(
+  state: S,
+  browserId: string,
+  now: number,
+): S {
+  const browser = state.browsersById[browserId];
+  if (!browser) return state;
+  const page = browserPage(browser);
+  if (!page) return state;
+  const entry: BrowserHistoryEntry = { ...page, visitedAt: now };
   return {
+    ...state,
+    history: [entry, ...state.history.filter((site) => site.url !== entry.url)].slice(0, 100),
+  };
+}
+
+export function addBrowser<S extends BrowserIndexState>(state: S, record: BrowserRecord): S {
+  return { ...state, browsersById: { ...state.browsersById, [record.browserId]: record } };
+}
+
+/** Forgets a page; a page that showed something goes on the recently closed list. */
+export function removeBrowser<S extends BrowserIndexState>(
+  state: S,
+  input: { browserId: string; now: number },
+): S {
+  const browser = state.browsersById[input.browserId];
+  if (!browser) {
+    return state;
+  }
+  const browsersById = { ...state.browsersById };
+  delete browsersById[input.browserId];
+  // Chrome's tab restore service skips tabs that only showed the new tab page.
+  if (isBrowserStartUrl(browser.url)) {
+    return { ...state, browsersById };
+  }
+  const closedEntry: BrowserClosedEntry = {
+    url: browser.url,
+    title: browser.title,
+    faviconUrl: browser.faviconUrl,
+    closedAt: input.now,
+  };
+  return {
+    ...state,
+    browsersById,
+    closedBrowsers: [closedEntry, ...state.closedBrowsers].slice(0, CLOSED_BROWSER_LIMIT),
+  };
+}
+
+/**
+ * 删除浏览数据's 浏览记录: visits at or after `since` go, and the recently closed pages with
+ * them, as Chrome's history deletion also clears the tab restore list for the range.
+ */
+export function deleteBrowserHistory<S extends BrowserIndexState>(state: S, since: number): S {
+  return {
+    ...state,
+    history: state.history.filter((entry) => entry.visitedAt < since),
+    closedBrowsers: state.closedBrowsers.filter((entry) => entry.closedAt < since),
+  };
+}
+
+/** Takes a closed page off the list to reopen it: the newest by default (⇧⌘T). */
+export function takeClosedBrowser<S extends BrowserIndexState>(
+  state: S,
+  closedIndex: number,
+): { state: S; entry: BrowserClosedEntry | null } {
+  const entry = state.closedBrowsers[closedIndex] ?? null;
+  if (!entry) {
+    return { state, entry };
+  }
+  return {
+    state: {
+      ...state,
+      closedBrowsers: state.closedBrowsers.filter((_, index) => index !== closedIndex),
+    },
+    entry,
+  };
+}
+
+export function sanitizeBrowsersForPersist(state: BrowserIndexState): BrowserIndexState {
+  return {
+    history: state.history,
+    closedBrowsers: state.closedBrowsers,
     browsersById: Object.fromEntries(
       Object.entries(state.browsersById).map(([browserId, browser]) => [
         browserId,

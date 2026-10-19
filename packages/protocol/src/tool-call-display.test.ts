@@ -17,6 +17,7 @@ describe("shared tool-call display mapping", () => {
 
     expect(display).toEqual({
       displayName: "Read",
+      label: "read",
       summary: "src/index.ts",
     });
   });
@@ -82,6 +83,7 @@ describe("shared tool-call display mapping", () => {
 
     expect(display).toEqual({
       displayName: "Worktree setup",
+      label: "worktreeSetup",
       summary: "feature-branch",
     });
   });
@@ -114,6 +116,7 @@ describe("shared tool-call display mapping", () => {
 
     expect(display).toEqual({
       displayName: "Terminal",
+      label: "terminal",
     });
   });
 
@@ -131,6 +134,7 @@ describe("shared tool-call display mapping", () => {
 
     expect(display).toEqual({
       displayName: "Terminal",
+      label: "terminal",
       summary: "npm run test",
     });
   });
@@ -188,6 +192,32 @@ describe("shared tool-call display mapping", () => {
 
     expect(display).toEqual({
       displayName: "Plan",
+      label: "plan",
     });
+  });
+
+  it("labels fixed tool kinds and leaves provider tool names unlabeled", () => {
+    const shell = buildToolCallDisplayModel({
+      name: "Bash",
+      status: "running",
+      error: null,
+      detail: { type: "shell", command: "ls" },
+    });
+    const thinking = buildToolCallDisplayModel({
+      name: "thinking",
+      status: "completed",
+      error: null,
+      detail: { type: "unknown", input: null, output: null },
+    });
+    const providerTool = buildToolCallDisplayModel({
+      name: "todo_write",
+      status: "completed",
+      error: null,
+      detail: { type: "unknown", input: null, output: null },
+    });
+
+    expect(shell).toMatchObject({ displayName: "Shell", label: "shell" });
+    expect(thinking).toMatchObject({ displayName: "Thinking", label: "thinking" });
+    expect(providerTool).toEqual({ displayName: "Todo write" });
   });
 });
