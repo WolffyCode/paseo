@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { StyleSheet, useUnistyles } from "react-native-unistyles";
 import { EditingTextInput as TextInput } from "@/components/ui/text-input";
 import { BROWSER_START_URL, openBrowserStartPage } from "@/desktop/browser/start-page";
-import { SEARCH_ENGINE_NAME } from "@/desktop/browser/address-input";
+import { useDefaultSearchEngine } from "@/desktop/browser/search-engines";
 
 interface BrowserPaneProps {
   browserId: string;
@@ -18,6 +18,7 @@ interface BrowserPaneProps {
 
 export function BrowserPane({ browserId }: BrowserPaneProps) {
   const { t } = useTranslation();
+  const engineName = useDefaultSearchEngine().name;
   const { theme } = useUnistyles();
   const [page] = useState(() => openBrowserStartPage({ browserId, url: BROWSER_START_URL }));
   const snapshot = useSyncExternalStore(page.subscribe, page.getSnapshot, page.getSnapshot);
@@ -49,7 +50,7 @@ export function BrowserPane({ browserId }: BrowserPaneProps) {
           initialValue={snapshot.draft}
           onChangeText={page.editDraft}
           onSubmitEditing={submitDraft}
-          placeholder={t("workspace.browser.omnibox.placeholder", { engine: SEARCH_ENGINE_NAME })}
+          placeholder={t("workspace.browser.omnibox.placeholder", { engine: engineName })}
           placeholderTextColor={theme.colors.foregroundMuted}
           style={inputStyle}
         />

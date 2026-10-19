@@ -1,5 +1,6 @@
 import type { ShortcutKey } from "@/utils/format-shortcut";
 import type { ChromeIconName } from "../chrome-icons";
+import type { ChromeAvatarId } from "../profile/avatar-ids";
 
 /**
  * One row of a Views menu (ui/menus/simple_menu_model.h): Chrome builds its ⋮ menu as data and
@@ -20,8 +21,11 @@ export type ChromeMenuEntry =
       label: string;
       icon?: ChromeIconName;
       entries: readonly ChromeMenuEntry[];
-      /** The profile row: its own tinted, rounded background (app_menu.cc PopulateMenu). */
-      isProfileRow?: boolean;
+      /**
+       * The profile row: its own tinted, rounded background (app_menu.cc PopulateMenu) and the
+       * profile's avatar in a 24 dip circle, or `icon` while the profile has none picked.
+       */
+      profileRow?: { avatarId: ChromeAvatarId | null };
     }
   /** A heading inside a submenu, such as 保存 or 分享; it can't be chosen. */
   | { kind: "title"; label: string }

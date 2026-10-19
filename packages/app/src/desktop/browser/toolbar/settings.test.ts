@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  fixupHomePageUrl,
   homePageAddress,
   isDefaultToolbar,
   pinnedActionsAfterMove,
@@ -110,5 +111,45 @@ describe("homePageAddress", () => {
     expect(homePageAddress({ isNewTabPage: true, url: "https://example.com/" })).toBeNull();
     expect(homePageAddress({ isNewTabPage: false, url: "  " })).toBeNull();
     expect(homePageAddress({ isNewTabPage: false, url: " example.com " })).toBe("example.com");
+  });
+});
+
+describe("fixupHomePageUrl", () => {
+  it("adds http:// to an address typed without a scheme, as Chrome's URL fixer does", () => {
+    expect(fixupHomePageUrl("baidu.com")).toBe("http://baidu.com/");
+    expect(fixupHomePageUrl(" https://example.com/a?b=1 ")).toBe("https://example.com/a?b=1");
+    expect(fixupHomePageUrl("localhost:8080")).toBe("http://localhost:8080/");
+  });
+
+  it("keeps an empty address, which opens the new tab page", () => {
+    expect(fixupHomePageUrl("   ")).toBe("");
+  });
+
+  it("rejects text that can't be an address", () => {
+    expect(fixupHomePageUrl("two words")).toBeNull();
+    expect(fixupHomePageUrl("http://")).toBeNull();
+  });
+
+  it("escapes spaces in the path, which only a host can't have", () => {
+    expect(fixupHomePageUrl("baidu.com/x y")).toBe("http://baidu.com/x%20y");
+  });
+});
+
+describe("setHomePage", () => {
+  beforeEach(() => {
+    useBrowserToolbarSettingsStore.setState(FRESH_PROFILE);
+  });
+
+  it("switches between the new tab page and an address", () => {
+    useBrowserToolbarSettingsStore.getState().setHomePage({ url: "http://baidu.com/" });
+    expect(useBrowserToolbarSettingsStore.getState().homePage).toEqual({
+      isNewTabPage: true,
+      url: "http://baidu.com/",
+    });
+    useBrowserToolbarSettingsStore.getState().setHomePage({ isNewTabPage: false });
+    expect(useBrowserToolbarSettingsStore.getState().homePage).toEqual({
+      isNewTabPage: false,
+      url: "http://baidu.com/",
+    });
   });
 });

@@ -60,6 +60,8 @@ export interface ChromeToolbarSettings {
 interface BrowserToolbarSettingsState extends BrowserToolbarSettings {
   setShowHomeButton: (isShown: boolean) => void;
   setShowForwardButton: (isShown: boolean) => void;
+  /** Chrome's homepage_is_newtabpage and homepage prefs; each changes on its own. */
+  setHomePage: (change: Partial<BrowserToolbarSettings["homePage"]>) => void;
   /** Pinning adds the button at the end, as Chrome's pinned actions model does. */
   setActionPinned: (action: BrowserPinnableAction, isPinned: boolean) => void;
   /** Moves a pinned button to `toIndex` among the pinned buttons this browser shows. */
@@ -77,6 +79,7 @@ export const useBrowserToolbarSettingsStore = create<BrowserToolbarSettingsState
       ...DEFAULT_TOOLBAR_SETTINGS,
       setShowHomeButton: (isShown) => set({ showHomeButton: isShown }),
       setShowForwardButton: (isShown) => set({ showForwardButton: isShown }),
+      setHomePage: (change) => set((state) => ({ homePage: { ...state.homePage, ...change } })),
       setActionPinned: (action, isPinned) => {
         set((state) => {
           const others = state.pinnedActions.filter((pinned) => pinned !== action);
@@ -132,6 +135,38 @@ export function homePageAddress(homePage: BrowserToolbarSettings["homePage"]): s
     return null;
   }
   return address;
+}
+
+// An address typed with its scheme (host:port is not one); anything else gets http://, as
+// url_formatter::FixupURL adds.
+const HAS_SCHEME = /^([a-z][a-z\d+.-]*:\/\/|(about|data|mailto|view-source):)/i;
+// What an address names its host with: everything between scheme:// and the path, query or
+// fragment.
+const AUTHORITY = /^[a-z][a-z\d+.-]*:\/\/([^/?#]*)/i;
+
+/**
+ * The 主页 address settings' field saves for typed text: Chrome's fixed-up URL, an empty one for
+ * the new tab page, or null when the text can't be an address (its 无效).
+ */
+export function fixupHomePageUrl(text: string): string | null {
+  const trimmed = text.trim();
+  if (trimmed === "") {
+    return "";
+  }
+  const candidate = HAS_SCHEME.test(trimmed) ? trimmed : `http://${trimmed}`;
+  // GURL, which Chrome's fixer builds, rejects whitespace in a host; the renderer's URL parser
+  // escapes it instead, so it is checked here. A path keeps its spaces, escaped.
+  const host = AUTHORITY.exec(candidate)?.[1] ?? "";
+  if (/\s/.test(host)) {
+    return null;
+  }
+  try {
+    const url = new URL(candidate);
+    return url.hostname || url.protocol === "file:" ? url.href : null;
+  } catch {
+    // Text that doesn't parse as a URL is no address.
+    return null;
+  }
 }
 
 /** The pinned buttons this browser can show, in pin order. */

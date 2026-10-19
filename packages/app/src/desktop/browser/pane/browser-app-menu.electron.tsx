@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { profileDisplayName, useBrowserProfileStore } from "@/desktop/browser/profile/store";
 import { useBrowserStore } from "@/desktop/browser/store";
 import { getShortcutOs } from "@/utils/shortcut-platform";
 import { ChromeMenu } from "../chrome-menu/chrome-menu.electron";
@@ -20,9 +21,18 @@ export function BrowserAppMenu({
 }) {
   const { t } = useTranslation();
   const recentlyClosed = useBrowserStore((state) => state.closedBrowsers);
+  const profileName = useBrowserProfileStore((state) => state.name);
+  const avatarId = useBrowserProfileStore((state) => state.avatarId);
   const entries = useMemo(
-    () => buildAppMenuEntries({ t, os: getShortcutOs(), zoomFactor, recentlyClosed }),
-    [recentlyClosed, t, zoomFactor],
+    () =>
+      buildAppMenuEntries({
+        t,
+        os: getShortcutOs(),
+        zoomFactor,
+        recentlyClosed,
+        profile: { name: profileDisplayName(profileName, t), avatarId },
+      }),
+    [avatarId, profileName, recentlyClosed, t, zoomFactor],
   );
   const handleSelect = useCallback(
     (id: string) => {

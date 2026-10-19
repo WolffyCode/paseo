@@ -32,6 +32,40 @@ export function takeAddressFocusRequest(browserId: string): boolean {
   return browsersAwaitingAddressFocus.delete(browserId);
 }
 
+// Addresses other tabs send a page, as 设置 chosen in any tab's ⋮ menu goes to the settings tab
+// already open. The page loads them itself, so its address bar and history follow as for any
+// navigation; one sent before the page mounted waits for it.
+const pendingNavigationByBrowser = new Map<string, string>();
+const navigationListenerByBrowser = new Map<string, (url: string) => void>();
+
+/** Sends `browserId` to `url` from another tab. */
+export function requestBrowserNavigation(browserId: string, url: string): void {
+  const navigate = navigationListenerByBrowser.get(browserId);
+  if (navigate) {
+    navigate(url);
+    return;
+  }
+  pendingNavigationByBrowser.set(browserId, url);
+}
+
+/** Lets the page `browserId` load what other tabs send it, a waiting address first. */
+export function subscribeBrowserNavigation(
+  browserId: string,
+  navigate: (url: string) => void,
+): () => void {
+  navigationListenerByBrowser.set(browserId, navigate);
+  const pendingUrl = pendingNavigationByBrowser.get(browserId);
+  if (pendingUrl !== undefined) {
+    pendingNavigationByBrowser.delete(browserId);
+    navigate(pendingUrl);
+  }
+  return () => {
+    if (navigationListenerByBrowser.get(browserId) === navigate) {
+      navigationListenerByBrowser.delete(browserId);
+    }
+  };
+}
+
 function browserTarget(browserId: string): WorkspaceTabTarget {
   return { kind: "browser", browserId };
 }
@@ -211,6 +245,7 @@ export function disposeBrowserPage(input: {
   browserHost: DesktopBrowserBridge | undefined;
 }): void {
   removeResidentBrowserWebview(input.browserId);
+  pendingNavigationByBrowser.delete(input.browserId);
   void input.browserHost?.unregisterWorkspaceBrowser?.(input.browserId).catch((error: unknown) => {
     console.error("[browser-page] unregister failed", { browserId: input.browserId, error });
   });

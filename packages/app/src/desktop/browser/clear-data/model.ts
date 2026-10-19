@@ -71,12 +71,12 @@ const DEFAULT_EXPANDED_TYPES: ReadonlySet<ClearDataType> = new Set([
   "cache",
 ]);
 
-// The browser.clear_data.* prefs' defaults: history, site data and cache ticked.
+// The browser.clear_data.* prefs' defaults: every type this browser keeps starts ticked.
 export const DEFAULT_CHECKED_TYPES: Record<ClearDataType, boolean> = {
   history: true,
   siteData: true,
   cache: true,
-  downloads: false,
+  downloads: true,
 };
 
 /** setUpDataTypeOptionLists_: which rows show at once and which wait behind 显示更多. */
@@ -91,9 +91,18 @@ export function splitDataTypes(checked: Record<ClearDataType, boolean>): {
   };
 }
 
-/** The site an address belongs to, as Chrome groups data: its registrable domain. */
+// An IPv4 address, or an IPv6 one as URL.hostname writes it, in brackets.
+const IP_ADDRESS_HOST = /^(\d{1,3}(\.\d{1,3}){3}|\[[\da-f:.]+\])$/i;
+
+/**
+ * The site an address belongs to, as Chrome groups data: its registrable domain, or the host
+ * itself for an IP address or a name with no registry, as GetDomainAndRegistry leaves those.
+ */
 export function siteOf(host: string): string {
   const bareHost = host.replace(/^\./, "").toLowerCase();
+  if (IP_ADDRESS_HOST.test(bareHost)) {
+    return bareHost;
+  }
   return psl.get(bareHost) ?? bareHost;
 }
 

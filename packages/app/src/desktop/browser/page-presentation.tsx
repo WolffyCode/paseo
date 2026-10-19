@@ -3,6 +3,7 @@ import { Image } from "react-native";
 import { Globe } from "lucide-react-native";
 import type { TFunction } from "i18next";
 import { ChromeIcon } from "@/desktop/browser/chrome-icons";
+import { settingsPageTitle } from "@/desktop/browser/chrome-settings/titles";
 import { browserInternalPage } from "@/desktop/browser/internal-pages";
 import { isBrowserStartUrl } from "@/desktop/browser/start-page";
 import type { BrowserRecord } from "@/desktop/browser/store";
@@ -26,6 +27,9 @@ export function browserPageLabel(
   }
   if (internalPage === "downloads") {
     return t("workspace.browser.downloads.page.title");
+  }
+  if (internalPage === "settings") {
+    return settingsPageTitle(url, t);
   }
   const title = browser?.title.trim() ?? "";
   if (title) {
@@ -57,6 +61,9 @@ export function BrowserPageIcon({
   }
   if (internalPage === "downloads") {
     return <ChromeIcon name="download" size={size} color={color} />;
+  }
+  if (internalPage === "settings") {
+    return <ChromeIcon name="settings" size={size} color={color} />;
   }
   // A page can declare an empty icon (`data:,`) or one that fails to load; both show the globe.
   if (faviconUrl && faviconUrl !== brokenFaviconUrl) {

@@ -1,17 +1,14 @@
 import { useCallback } from "react";
-import { Pressable, Text, View } from "react-native";
+import { View } from "react-native";
 import { useTranslation } from "react-i18next";
-import { StyleSheet, withUnistyles } from "react-native-unistyles";
+import { StyleSheet } from "react-native-unistyles";
 import { CHROME_FONT_FAMILY } from "@/desktop/browser/chrome-theme";
 import { CrLinkedText, LINK_SLOT } from "@/desktop/browser/webui/controls";
-import { ChromeWebStoreIcon, WebUiIcon, WebUiProductLogo } from "@/desktop/browser/webui/icons";
-import { WEBUI_LAYOUT, webUiColorProps } from "@/desktop/browser/webui/theme";
+import { ChromeWebStoreIcon } from "@/desktop/browser/webui/icons";
+import { CrDrawer, CrNavMenuItem, CrNavMenuSeparator } from "@/desktop/browser/webui/nav-menu";
+import { WEBUI_LAYOUT } from "@/desktop/browser/webui/theme";
 
-const ThemedWebUiIcon = withUnistyles(WebUiIcon);
-const selectedIconMapping = webUiColorProps("navSelectedIcon");
 const WEB_STORE_ICON_SIZE = 24;
-// cr-drawer's header row.
-const DRAWER_HEADER_HEIGHT = 56;
 
 /**
  * The extensions page sidebar (extensions-sidebar): "My extensions", always the page shown here,
@@ -23,19 +20,14 @@ export function ExtensionsSidebar({ onOpenWebStore }: { onOpenWebStore: () => vo
   return (
     <View style={styles.sidebar} testID="browser-extensions-sidebar">
       <View style={styles.menu}>
-        <View style={[styles.navItem, styles.navItemSelected]} aria-current="page">
-          <ThemedWebUiIcon
-            name="myExtensions"
-            size={WEBUI_LAYOUT.iconSize}
-            uniProps={selectedIconMapping}
-          />
-          <Text style={[styles.navLabel, styles.navLabelSelected]}>
-            {t("workspace.browser.extensions.page.sidebarExtensions")}
-          </Text>
-        </View>
+        <CrNavMenuItem
+          icon="myExtensions"
+          label={t("workspace.browser.extensions.page.sidebarExtensions")}
+          isSelected
+        />
       </View>
-      <View style={styles.separator} />
-      <View style={styles.navItem}>
+      <CrNavMenuSeparator variant="extensions" />
+      <View style={styles.discoverRow}>
         <View style={styles.webStoreIcon}>
           <ChromeWebStoreIcon size={WEB_STORE_ICON_SIZE} />
         </View>
@@ -50,7 +42,7 @@ export function ExtensionsSidebar({ onOpenWebStore }: { onOpenWebStore: () => vo
   );
 }
 
-/** cr-drawer: the sidebar of a narrow page, sliding in over it from the start edge. */
+/** The extensions page's sidebar in a drawer, for a narrow page. */
 export function ExtensionsDrawer({
   onClose,
   onOpenWebStore,
@@ -64,23 +56,13 @@ export function ExtensionsDrawer({
     onOpenWebStore();
   }, [onClose, onOpenWebStore]);
   return (
-    <View style={styles.drawerLayer} testID="browser-extensions-drawer">
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t("common.actions.close")}
-        onPress={onClose}
-        style={styles.drawerBackdrop}
-      />
-      <View style={styles.drawer}>
-        <View style={styles.drawerHeader}>
-          <View style={styles.drawerLogo}>
-            <WebUiProductLogo />
-          </View>
-          <Text style={styles.drawerHeading}>{t("workspace.browser.extensions.page.title")}</Text>
-        </View>
-        <ExtensionsSidebar onOpenWebStore={openWebStore} />
-      </View>
-    </View>
+    <CrDrawer
+      heading={t("workspace.browser.extensions.page.title")}
+      onClose={onClose}
+      testID="browser-extensions-drawer"
+    >
+      <ExtensionsSidebar onOpenWebStore={openWebStore} />
+    </CrDrawer>
   );
 }
 
@@ -93,7 +75,8 @@ const styles = StyleSheet.create((theme) => {
     menu: {
       paddingTop: 8,
     },
-    navItem: {
+    // The web store line sits in a .cr-nav-menu-item box that isn't a link itself.
+    discoverRow: {
       minHeight: 40,
       flexDirection: "row",
       alignItems: "center",
@@ -103,26 +86,6 @@ const styles = StyleSheet.create((theme) => {
       paddingRight: 16,
       marginLeft: 1,
       marginRight: 2,
-      borderTopRightRadius: 100,
-      borderBottomRightRadius: 100,
-    },
-    navItemSelected: {
-      backgroundColor: colors.navSelected,
-    },
-    navLabel: {
-      fontFamily: CHROME_FONT_FAMILY,
-      fontSize: 14,
-      fontWeight: "500",
-      lineHeight: 14,
-      color: colors.navText,
-    },
-    navLabelSelected: {
-      color: colors.navSelectedText,
-    },
-    separator: {
-      marginVertical: 8,
-      borderTopWidth: 1,
-      borderTopColor: colors.separator,
     },
     webStoreIcon: {
       marginLeft: -2,
@@ -135,46 +98,6 @@ const styles = StyleSheet.create((theme) => {
       fontSize: 14,
       lineHeight: 19,
       color: colors.textSecondary,
-    },
-    drawerLayer: {
-      position: "absolute",
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-      zIndex: 2,
-    },
-    drawerBackdrop: {
-      position: "absolute",
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-      backgroundColor: colors.drawerBackdrop,
-    },
-    drawer: {
-      position: "absolute",
-      top: 0,
-      bottom: 0,
-      left: 0,
-      width: WEBUI_LAYOUT.sidebarWidth,
-      backgroundColor: colors.drawer,
-    },
-    drawerHeader: {
-      minHeight: DRAWER_HEADER_HEIGHT,
-      flexDirection: "row",
-      alignItems: "center",
-      paddingLeft: 24,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.separator,
-    },
-    drawerLogo: {
-      marginRight: 16,
-    },
-    drawerHeading: {
-      fontFamily: CHROME_FONT_FAMILY,
-      fontSize: 16,
-      color: colors.text,
     },
   };
 });

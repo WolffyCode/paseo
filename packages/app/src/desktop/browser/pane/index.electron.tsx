@@ -58,8 +58,13 @@ import {
   internalPageRecord,
   settingsUrl,
 } from "@/desktop/browser/internal-pages";
-import { CLEAR_BROWSER_DATA_ROUTE } from "@/desktop/browser/chrome-settings/routes";
+import {
+  CLEAR_BROWSER_DATA_ROUTE,
+  IMPORT_DATA_ROUTE,
+  settingsSubpageRoute,
+} from "@/desktop/browser/chrome-settings/routes";
 import { resolveAddressInput } from "@/desktop/browser/address-input";
+import { defaultSearchEngine } from "@/desktop/browser/search-engines";
 import { ChromeToolbarButton } from "@/desktop/browser/chrome-controls";
 import { ChromeIcon } from "@/desktop/browser/chrome-icons";
 import { CHROME_LAYOUT, chromeColorProps } from "@/desktop/browser/chrome-theme";
@@ -68,7 +73,9 @@ import {
   findBrowserOnInternalPage,
   openBrowserFromPage,
   reopenClosedBrowser,
+  requestBrowserNavigation,
   revealBrowserPage,
+  subscribeBrowserNavigation,
   takeAddressFocusRequest,
 } from "@/desktop/browser/workspace-browsers";
 import { DEFAULT_ZOOM_FACTOR, nextZoomFactor } from "@/desktop/browser/zoom";
@@ -99,7 +106,6 @@ import { BrowserPinnedActionsToolbar } from "../toolbar/pinned-actions-toolbar.e
 import { BrowserSidePanelLayout } from "../side-panel/layout.electron";
 import { useBrowserSidePanelStore, type CustomizeChromePage } from "../side-panel/store";
 import { CustomizeChromeContent } from "../customize/customize-chrome.electron";
-import { ChromeImportDialog } from "../import/import-dialog.electron";
 import { menuAnchorBelow } from "../menu-anchor.electron";
 import { ChromeToast, useChromeToasts } from "../chrome-toast.electron";
 import {
@@ -108,8 +114,11 @@ import {
   type BrowserClickDisposition,
 } from "../click-disposition";
 import { BrowserExtensionsPage } from "../extensions/extensions-page";
+import { BrowserSettingsPage } from "../chrome-settings/settings-page.electron";
 import type { BrowserAppMenuChoice, BrowserCommand } from "./app-menu";
 import { BrowserAppMenu } from "./browser-app-menu.electron";
+import { AvatarToolbarButton } from "../profile/avatar-toolbar-button.electron";
+import { ProfileMenu } from "../profile/profile-menu.electron";
 import { QrCodeBubble } from "../qr-code/qr-code-bubble.electron";
 import { deviceSizeIdForViewport, viewportForDeviceSize, type DeviceSizeId } from "./device-sizes";
 import { BrowserFindBar } from "./find-bar.electron";
@@ -527,6 +536,7 @@ const PAGE_SHORTCUT_COMMANDS = {
   "browser.page.save": "savePage",
   "browser.page.clear-data": "clearBrowsingData",
   "browser.page.settings": "showSettings",
+  "browser.page.avatar-menu": "showAvatarMenu",
   "browser.window.new": "newWindow",
   "browser.page.zoom-in": "zoomIn",
   "browser.page.zoom-out": "zoomOut",
@@ -951,7 +961,7 @@ export function BrowserPane({
 
   const navigate = useCallback(
     (nextUrl: string) => {
-      const normalizedUrl = resolveAddressInput(nextUrl);
+      const normalizedUrl = resolveAddressInput(nextUrl, defaultSearchEngine());
       // The new tab page has no address of its own. An extension's new tab page loads in the
       // guest under the start address; without one Helm draws its start page, like its own pages.
       const extensionNewTabUrl = newTabUrlRef.current;
@@ -1006,6 +1016,8 @@ export function BrowserPane({
     },
     [browserErrorLabels, startPage, syncNavigationState],
   );
+
+  useEffect(() => subscribeBrowserNavigation(browserId, navigate), [browserId, navigate]);
 
   const applyNavigationIntent = useCallback(
     (intent: BrowserNavigationIntent | null) => {
@@ -1515,11 +1527,6 @@ export function BrowserPane({
     [browserId, setBrowserViewport],
   );
 
-  // Chrome opens its import dialog over the Settings page; this browser has none, so over the tab.
-  const [isImportDialogOpen, setIsImportDialogOpen] = useState(false);
-  const openImportDialog = useCallback(() => setIsImportDialogOpen(true), []);
-  const closeImportDialog = useCallback(() => setIsImportDialogOpen(false), []);
-
   // Chrome's find bar belongs to the tab and remembers the last search when it reopens.
   const [isFindBarOpen, setIsFindBarOpen] = useState(false);
   const lastFindQueryRef = useRef("");
@@ -1558,6 +1565,8 @@ export function BrowserPane({
   }, []);
   const [isQrCodeOpen, setIsQrCodeOpen] = useState(false);
   const closeQrCode = useCallback(() => setIsQrCodeOpen(false), []);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const closeProfileMenu = useCallback(() => setIsProfileMenuOpen(false), []);
 
   const openInNewTab = useCallback((url: string) => {
     openBrowserFromPage({ sourceBrowserId: browserIdRef.current, url, isActive: true });
@@ -1572,7 +1581,7 @@ export function BrowserPane({
         url,
       });
       if (existingBrowserId) {
-        updateBrowser(existingBrowserId, internalPageRecord(url));
+        requestBrowserNavigation(existingBrowserId, url);
         revealBrowserPage(existingBrowserId);
         return;
       }
@@ -1582,7 +1591,7 @@ export function BrowserPane({
       }
       openInNewTab(url);
     },
-    [isOnNewTabPage, navigate, openInNewTab, updateBrowser],
+    [isOnNewTabPage, navigate, openInNewTab],
   );
   // What each of Chrome's commands does on this page; the ⋮ menu and the shortcuts share it.
   const browserCommands = useMemo<Record<BrowserCommand, () => void>>(
@@ -1597,7 +1606,7 @@ export function BrowserPane({
       back: handleBack,
       forward: handleForward,
       home: handleHome,
-      importSettings: openImportDialog,
+      importSettings: () => showSingletonPage(settingsUrl(IMPORT_DATA_ROUTE)),
       manageExtensions: () => showSingletonPage(BROWSER_EXTENSIONS_URL),
       visitWebStore: () => openInNewTab(CHROME_WEB_STORE_HOME_URL),
       zoomIn: () => zoomPage(1),
@@ -1608,7 +1617,11 @@ export function BrowserPane({
       savePage: () => void getDesktopHost()?.browser?.savePage?.(browserIdRef.current),
       copyLink: copyPageLink,
       createQrCode: () => setIsQrCodeOpen(true),
-      customizeChrome: () => showCustomizeChrome("overview"),
+      // IDC_CUSTOMIZE_CHROME, the profile's 自定义您的 Chrome, opens settings' 自定义个人资料; the
+      // side panel is 更多工具's 自定义 Chrome.
+      customizeChrome: () => showSingletonPage(settingsUrl(settingsSubpageRoute("manageProfile"))),
+      showCustomizeChromeSidePanel: () => showCustomizeChrome("overview"),
+      showAvatarMenu: () => setIsProfileMenuOpen(true),
       find: openFindBar,
       cut: () => webviewRef.current?.cut?.(),
       copy: () => webviewRef.current?.copy?.(),
@@ -1624,7 +1637,6 @@ export function BrowserPane({
       handleForward,
       handleHome,
       handleOpenDevTools,
-      openImportDialog,
       openFindBar,
       openInNewTab,
       showCustomizeChrome,
@@ -1654,6 +1666,7 @@ export function BrowserPane({
   );
 
   const appMenuButtonRef = useRef<View | null>(null);
+  const avatarButtonRef = useRef<View | null>(null);
   const pageToolsButtonRef = useRef<View | null>(null);
   // The page's zoom while the ⋮ menu is open, null while it is closed.
   const [appMenuZoomFactor, setAppMenuZoomFactor] = useState<number | null>(null);
@@ -1801,6 +1814,16 @@ export function BrowserPane({
         onNavigate={openUrlInTab}
       />
     );
+  } else if (internalPage === "settings") {
+    pageContent = (
+      <BrowserSettingsPage
+        browserId={browserId}
+        url={browser?.url ?? ""}
+        isPresented={isPresented}
+        onNavigate={openUrlInTab}
+        onCustomizeToolbar={customizeToolbar}
+      />
+    );
   } else if (showStartPage) {
     pageContent = (
       <BrowserStartPage
@@ -1942,6 +1965,11 @@ export function BrowserPane({
               uniProps={toolbarIconMapping}
             />
           </ChromeToolbarButton>
+          <AvatarToolbarButton
+            ref={avatarButtonRef}
+            isMenuOpen={isProfileMenuOpen}
+            onPress={browserCommands.showAvatarMenu}
+          />
           <ChromeToolbarButton
             ref={appMenuButtonRef}
             label={t("workspace.browser.appMenu.button", { product: PRODUCT_NAME })}
@@ -1975,6 +2003,13 @@ export function BrowserPane({
             onClose={closeAppMenu}
           />
         ) : null}
+        {isPresented && isProfileMenuOpen ? (
+          <ProfileMenu
+            anchor={elementOf(avatarButtonRef.current)}
+            onCustomizeProfile={browserCommands.customizeChrome}
+            onClose={closeProfileMenu}
+          />
+        ) : null}
         {isPresented && isQrCodeOpen && browser?.url ? (
           <QrCodeBubble
             anchor={elementOf(appMenuButtonRef.current)}
@@ -1982,9 +2017,6 @@ export function BrowserPane({
             url={browser.url}
             onClose={closeQrCode}
           />
-        ) : null}
-        {isPresented && isImportDialogOpen ? (
-          <ChromeImportDialog onClose={closeImportDialog} />
         ) : null}
         {shownChromeToast ? (
           <ChromeToast

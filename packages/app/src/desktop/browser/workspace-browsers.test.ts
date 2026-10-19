@@ -10,6 +10,8 @@ import {
   openBrowserFromPage,
   openBrowserInWorkspace,
   reopenClosedBrowser,
+  requestBrowserNavigation,
+  subscribeBrowserNavigation,
   takeAddressFocusRequest,
 } from "./workspace-browsers";
 
@@ -138,5 +140,27 @@ describe("workspace browser pages", () => {
     expect(
       findBrowserOnInternalPage({ sourceBrowserId: source, url: BROWSER_EXTENSIONS_URL }),
     ).toBe(extensions);
+  });
+});
+
+describe("navigation another tab asks a page for", () => {
+  it("reaches a page that is already showing, once", () => {
+    const visited: string[] = [];
+    const unsubscribe = subscribeBrowserNavigation("browser-a", (url) => visited.push(url));
+    requestBrowserNavigation("browser-a", "paseo://settings");
+    unsubscribe();
+    requestBrowserNavigation("browser-a", "paseo://settings/help");
+
+    expect(visited).toEqual(["paseo://settings"]);
+  });
+
+  it("waits for a page that hasn't mounted yet", () => {
+    requestBrowserNavigation("browser-b", "paseo://downloads");
+    const visited: string[] = [];
+    const unsubscribe = subscribeBrowserNavigation("browser-b", (url) => visited.push(url));
+    unsubscribe();
+    subscribeBrowserNavigation("browser-b", (url) => visited.push(url))();
+
+    expect(visited).toEqual(["paseo://downloads"]);
   });
 });

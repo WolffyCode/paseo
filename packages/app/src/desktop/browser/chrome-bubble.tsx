@@ -6,6 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { getOverlayRoot, useOverlayLayer } from "@/lib/overlay-root";
 import { ChromeIcon } from "./chrome-icons";
 import { CHROME_LAYOUT, chromeColorProps } from "./chrome-theme";
+import { useEscapeKey } from "./escape-key";
 import { useElementBounds } from "./use-element-bounds";
 
 // Chrome hangs a bubble just under its button, lined up with the button's outer edge.
@@ -63,20 +64,7 @@ export function ChromeBubble({
     };
   }, [isModal, onClose]);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [onClose]);
+  useEscapeKey(onClose, "capture");
 
   if (!anchorBounds) {
     return null;

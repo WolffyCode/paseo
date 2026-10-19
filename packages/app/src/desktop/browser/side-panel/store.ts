@@ -87,3 +87,27 @@ export const useSidePanelWidthStore = create<SidePanelWidthState>()(
     },
   ),
 );
+
+const SidePanelPositionSchema = z.object({
+  isRightAligned: z.boolean(),
+});
+
+interface SidePanelPositionState {
+  isRightAligned: boolean;
+  setIsRightAligned: (isRightAligned: boolean) => void;
+}
+
+/** Chrome's side_panel.is_right_aligned: settings' 侧边栏位置, right by default. */
+export const useSidePanelPositionStore = create<SidePanelPositionState>()(
+  persist(
+    (set) => ({
+      isRightAligned: true,
+      setIsRightAligned: (isRightAligned) => set({ isRightAligned }),
+    }),
+    {
+      name: "browser-side-panel-position",
+      storage: createValidatedPersistStorage(AsyncStorage, SidePanelPositionSchema),
+      partialize: (state) => ({ isRightAligned: state.isRightAligned }),
+    },
+  ),
+);

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, type ReactNode } from "react";
+import { useMemo, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Image, Text, View } from "react-native";
 import { StyleSheet } from "react-native-unistyles";
 import { getOverlayRoot, useOverlayLayer } from "@/lib/overlay-root";
 import { CHROME_FONT_FAMILY, CHROME_LAYOUT } from "./chrome-theme";
+import { useEscapeKey } from "./escape-key";
 import { useElementBounds } from "./use-element-bounds";
 import { useBrowserDialogHost } from "./pane/dialog-host";
 
@@ -37,20 +38,7 @@ export function ChromeDialog({
   const layer = useOverlayLayer("modal");
   const iconSource = useMemo(() => (iconUri ? { uri: iconUri } : null), [iconUri]);
 
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") {
-        return;
-      }
-      event.preventDefault();
-      event.stopPropagation();
-      onEscape();
-    };
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown, true);
-    };
-  }, [onEscape]);
+  useEscapeKey(onEscape, "capture");
 
   if (!hostBounds) {
     return null;

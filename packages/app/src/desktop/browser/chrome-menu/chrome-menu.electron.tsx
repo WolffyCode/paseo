@@ -1,12 +1,20 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Pressable, ScrollView, Text, View, type PressableStateCallbackType } from "react-native";
+import {
+  Image,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+  type PressableStateCallbackType,
+} from "react-native";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { getOverlayRoot, useOverlayLayer, useWebOverlayRegistration } from "@/lib/overlay-root";
 import { formatShortcut } from "@/utils/format-shortcut";
 import { getShortcutOs } from "@/utils/shortcut-platform";
 import { ChromeIcon, type ChromeIconName } from "../chrome-icons";
 import { CHROME_FONT_FAMILY, CHROME_LAYOUT, chromeColorProps } from "../chrome-theme";
+import { chromeAvatarImage } from "../profile/avatars";
 import { useElementBounds, type ElementBounds } from "../use-element-bounds";
 import {
   entryKeys,
@@ -608,7 +616,7 @@ function MenuRow({
     <View
       ref={setRowNode}
       onPointerEnter={handlePointerEnter}
-      style={entry.kind === "submenu" && entry.isProfileRow ? styles.profileRowFrame : null}
+      style={entry.kind === "submenu" && entry.profileRow ? styles.profileRowFrame : null}
     >
       <ActionRow
         entry={entry}
@@ -676,7 +684,7 @@ function ActionRow({
 }) {
   const isEnabled = entry.kind === "submenu" || entry.isEnabled !== false;
   const isLit = isEnabled && (isSelected || isSubmenuOpen);
-  const isProfileRow = entry.kind === "submenu" && entry.isProfileRow === true;
+  const isProfileRow = entry.kind === "submenu" && entry.profileRow !== undefined;
   const shortcut =
     entry.kind === "item" && entry.shortcut
       ? formatShortcut([...entry.shortcut], getShortcutOs())
@@ -696,9 +704,7 @@ function ActionRow({
       ]}
       testID={`chrome-menu-${entry.id}`}
     >
-      {entry.icon ? (
-        <RowIcon icon={entry.icon} isProfileRow={isProfileRow} isEnabled={isEnabled} />
-      ) : null}
+      <RowLeadingIcon entry={entry} isEnabled={isEnabled} />
       <Text
         numberOfLines={1}
         style={[styles.label, !entry.icon && labelInset, !isEnabled && styles.labelDisabled]}
@@ -725,21 +731,32 @@ function ActionRow({
   );
 }
 
-/** A row's 16 dip icon, or the profile row's 24 dip avatar. */
-function RowIcon({
-  icon,
-  isProfileRow,
+/**
+ * What leads a row: its 16 dip icon, or on the profile row a 24 dip avatar, the picked one cropped
+ * to a circle or the row's own glyph while the profile has none (app_menu_model.cc keeps it for a
+ * placeholder avatar).
+ */
+function RowLeadingIcon({
+  entry,
   isEnabled,
 }: {
-  icon: ChromeIconName;
-  isProfileRow: boolean;
+  entry: Extract<ChromeMenuEntry, { kind: "item" | "submenu" }>;
   isEnabled: boolean;
 }) {
+  const profileRow = entry.kind === "submenu" ? entry.profileRow : undefined;
+  if (profileRow && profileRow.avatarId !== null) {
+    return (
+      <View style={[styles.iconSlot, styles.profileAvatarSlot]}>
+        <Image source={chromeAvatarImage(profileRow.avatarId)} style={styles.profileAvatar} />
+      </View>
+    );
+  }
+  if (!entry.icon) return null;
   return (
-    <View style={[styles.iconSlot, isProfileRow && styles.profileAvatarSlot]}>
+    <View style={[styles.iconSlot, profileRow && styles.profileAvatarSlot]}>
       <ThemedChromeIcon
-        name={icon}
-        size={isProfileRow ? PROFILE_AVATAR_SIZE : CHROME_LAYOUT.menuIconSize}
+        name={entry.icon}
+        size={profileRow ? PROFILE_AVATAR_SIZE : CHROME_LAYOUT.menuIconSize}
         uniProps={isEnabled ? menuIconMapping : menuIconDisabledMapping}
       />
     </View>
@@ -865,6 +882,11 @@ const styles = StyleSheet.create((theme) => {
     profileAvatarSlot: {
       width: PROFILE_AVATAR_SIZE,
       height: PROFILE_AVATAR_SIZE,
+    },
+    profileAvatar: {
+      width: PROFILE_AVATAR_SIZE,
+      height: PROFILE_AVATAR_SIZE,
+      borderRadius: PROFILE_AVATAR_SIZE / 2,
     },
     label: {
       ...textBase,

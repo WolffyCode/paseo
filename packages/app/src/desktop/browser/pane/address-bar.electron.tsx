@@ -30,7 +30,8 @@ import {
   type AddressSecurity,
   type AddressSegment,
 } from "../address-display";
-import { isAddressInput, SEARCH_ENGINE_NAME } from "../address-input";
+import { isAddressInput } from "../address-input";
+import { useDefaultSearchEngine } from "../search-engines";
 import type {
   BrowserNavigationIntent,
   BrowserRecentSite,
@@ -134,6 +135,7 @@ export function BrowserAddressBar({
   onNavigate,
 }: BrowserAddressBarProps) {
   const { t } = useTranslation();
+  const engineName = useDefaultSearchEngine().name;
   const listId = useId();
   const anchorRef = useRef<View | null>(null);
   const popupRef = useRef<HTMLDivElement | null>(null);
@@ -303,7 +305,7 @@ export function BrowserAddressBar({
         {showsPlaceholder ? (
           <View pointerEvents="none" style={styles.overlayText} aria-hidden>
             <Text numberOfLines={1} style={styles.placeholder}>
-              {t("workspace.browser.omnibox.placeholder", { engine: SEARCH_ENGINE_NAME })}
+              {t("workspace.browser.omnibox.placeholder", { engine: engineName })}
             </Text>
           </View>
         ) : null}
@@ -436,6 +438,7 @@ function TypedTextRow({
   onChoose: () => void;
 }) {
   const { t } = useTranslation();
+  const engineName = useDefaultSearchEngine().name;
   const isAddress = isAddressInput(draft);
   return (
     <Pressable
@@ -461,7 +464,7 @@ function TypedTextRow({
         {isAddress ? null : (
           <Text style={styles.rowSecondary}>
             {DESCRIPTION_SEPARATOR}
-            {t("workspace.browser.omnibox.searchDescription", { engine: SEARCH_ENGINE_NAME })}
+            {t("workspace.browser.omnibox.searchDescription", { engine: engineName })}
           </Text>
         )}
       </Text>

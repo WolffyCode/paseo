@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   app,
   BrowserWindow,
+  dialog,
   ipcMain,
   shell,
   type DownloadItem,
@@ -79,6 +80,19 @@ interface DownloadsFile {
   downloads: StoredDownload[];
   /** Extensions the user ticked 总是打开此类文件 for. */
   alwaysOpenExtensions: string[];
+  /** Chrome's download.default_directory: where downloads go; null for the system folder. */
+  defaultDirectory: string | null;
+  /** Chrome's download.prompt_for_download: 下载前询问每个文件的保存位置. */
+  promptForDownload: boolean;
+  /** Chrome's download_bubble.partial_view_enabled: 下载完成后显示下载内容. */
+  partialViewEnabled: boolean;
+}
+
+/** The download preferences settings' 下载内容 page shows. */
+export interface BrowserDownloadSettings {
+  directory: string;
+  promptForDownload: boolean;
+  partialViewEnabled: boolean;
 }
 
 interface BrowserLookup {
@@ -197,6 +211,9 @@ export class BrowserDownloads {
   private readonly suggestedNames = new Map<string, string>();
   private readonly lastReportTimes = new Map<string, number>();
   private alwaysOpenExtensions = new Set<string>();
+  private defaultDirectory: string | null = null;
+  private promptForDownload = false;
+  private partialViewEnabled = true;
   // Entries taken off the list, newest batch last, for the downloads page's 撤销 and ⌘Z.
   private readonly removedBatches: StoredDownload[][] = [];
   // Saves run one after another so two writes never share the temporary file.
@@ -227,16 +244,24 @@ export class BrowserDownloads {
   private track(item: DownloadItem, contents: WebContents | undefined): void {
     const id = randomUUID();
     const startTime = new Date();
-    const savePath = uniqueDownloadPath({
-      directory: app.getPath("downloads"),
-      fileName: this.takeSuggestedName(item.getURL()) ?? (item.getFilename() || DEFAULT_FILE_NAME),
-      startTime,
-      isInUse: (candidate) => this.reservedPaths.has(candidate) || existsSync(candidate),
-    });
-    // Without a free name Electron asks where to save, as Chrome does.
+    const directory = this.downloadDirectory();
+    const fileName =
+      this.takeSuggestedName(item.getURL()) ?? (item.getFilename() || DEFAULT_FILE_NAME);
+    const savePath = this.promptForDownload
+      ? null
+      : uniqueDownloadPath({
+          directory,
+          fileName,
+          startTime,
+          isInUse: (candidate) => this.reservedPaths.has(candidate) || existsSync(candidate),
+        });
+    // Asked to, or without a free name, Electron asks where to save, as Chrome does, starting in
+    // the download folder.
     if (savePath) {
       item.setSavePath(savePath);
       this.reservedPaths.add(savePath);
+    } else {
+      item.setSaveDialogOptions({ defaultPath: path.join(directory, fileName) });
     }
     this.liveItems.set(id, item);
     this.records.set(id, {
@@ -281,7 +306,7 @@ export class BrowserDownloads {
     // An interrupted download that can resume is not done yet.
     const isDone = record !== undefined && !(record.state === "interrupted" && record.canResume);
     const isAllDone = [...this.liveItems.values()].every((item) => item.isPaused());
-    if (!isDone || !isAllDone) {
+    if (!this.partialViewEnabled || !isDone || !isAllDone) {
       return;
     }
     const window =
@@ -517,6 +542,35 @@ export class BrowserDownloads {
     void this.save();
   }
 
+  private downloadDirectory(): string {
+    return this.defaultDirectory ?? app.getPath("downloads");
+  }
+
+  private settings(): BrowserDownloadSettings {
+    return {
+      directory: this.downloadDirectory(),
+      promptForDownload: this.promptForDownload,
+      partialViewEnabled: this.partialViewEnabled,
+    };
+  }
+
+  /** Settings' 位置 › 更改: a folder panel opening on the current folder. */
+  private async chooseDirectory(owner: BrowserWindow | null): Promise<BrowserDownloadSettings> {
+    const options: Electron.OpenDialogOptions = {
+      defaultPath: this.downloadDirectory(),
+      properties: ["openDirectory", "createDirectory"],
+    };
+    const result = owner
+      ? await dialog.showOpenDialog(owner, options)
+      : await dialog.showOpenDialog(options);
+    const [chosen] = result.filePaths;
+    if (!result.canceled && chosen) {
+      this.defaultDirectory = chosen;
+      void this.save();
+    }
+    return this.settings();
+  }
+
   /** Chrome's 总是打开此类文件 for the download's type, shown on every download of that type. */
   private setOpensTypeAutomatically(id: string, opensType: boolean): void {
     const record = this.records.get(id);
@@ -645,6 +699,32 @@ export class BrowserDownloads {
       const id = readDownloadId(rawId);
       return id ? this.fileIcon(id) : null;
     });
+    ipcMain.handle("paseo:browser:downloads:settings", () => this.settings());
+    ipcMain.handle("paseo:browser:downloads:choose-directory", (event) =>
+      this.chooseDirectory(BrowserWindow.fromWebContents(event.sender)),
+    );
+    ipcMain.handle(
+      "paseo:browser:downloads:set-prompt-for-download",
+      (_event, rawPrompt: unknown) => {
+        if (typeof rawPrompt !== "boolean") {
+          return this.settings();
+        }
+        this.promptForDownload = rawPrompt;
+        void this.save();
+        return this.settings();
+      },
+    );
+    ipcMain.handle(
+      "paseo:browser:downloads:set-partial-view-enabled",
+      (_event, rawEnabled: unknown) => {
+        if (typeof rawEnabled !== "boolean") {
+          return this.settings();
+        }
+        this.partialViewEnabled = rawEnabled;
+        void this.save();
+        return this.settings();
+      },
+    );
   }
 
   /**
@@ -708,6 +788,10 @@ export class BrowserDownloads {
     this.alwaysOpenExtensions = new Set(
       extensions.filter((extension): extension is string => typeof extension === "string"),
     );
+    this.defaultDirectory =
+      typeof file.defaultDirectory === "string" ? file.defaultDirectory : null;
+    this.promptForDownload = file.promptForDownload === true;
+    this.partialViewEnabled = file.partialViewEnabled !== false;
   }
 
   private save(): Promise<void> {
@@ -719,6 +803,9 @@ export class BrowserDownloads {
     const file: DownloadsFile = {
       downloads: [...this.records.values()],
       alwaysOpenExtensions: [...this.alwaysOpenExtensions],
+      defaultDirectory: this.defaultDirectory,
+      promptForDownload: this.promptForDownload,
+      partialViewEnabled: this.partialViewEnabled,
     };
     // Write then rename, so a crash mid-write leaves the previous file intact.
     const temporaryPath = `${this.filePath}.tmp`;

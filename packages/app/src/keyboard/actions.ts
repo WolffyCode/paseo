@@ -68,6 +68,7 @@ export type KeyboardActionId =
   | "browser.page.save"
   | "browser.page.clear-data"
   | "browser.page.settings"
+  | "browser.page.avatar-menu"
   | "browser.window.new"
   | "browser.page.zoom-in"
   | "browser.page.zoom-out"

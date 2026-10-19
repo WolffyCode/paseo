@@ -184,6 +184,12 @@ contextBridge.exposeInMainWorld("paseoDesktop", {
         ipcRenderer.invoke("paseo:browser:downloads:download-named", browserId, url, fileName),
       deleteHistory: (since: number) =>
         ipcRenderer.invoke("paseo:browser:downloads:delete-history", since),
+      settings: () => ipcRenderer.invoke("paseo:browser:downloads:settings"),
+      chooseDirectory: () => ipcRenderer.invoke("paseo:browser:downloads:choose-directory"),
+      setPromptForDownload: (promptForDownload: boolean) =>
+        ipcRenderer.invoke("paseo:browser:downloads:set-prompt-for-download", promptForDownload),
+      setPartialViewEnabled: (isEnabled: boolean) =>
+        ipcRenderer.invoke("paseo:browser:downloads:set-partial-view-enabled", isEnabled),
     },
     extensions: {
       list: () => ipcRenderer.invoke("paseo:browser:extensions:list"),

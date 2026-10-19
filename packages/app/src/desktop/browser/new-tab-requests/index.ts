@@ -3,7 +3,7 @@ import { getDesktopHost, type DesktopBrowserNewTabRequestEvent } from "@/desktop
 import { findBrowserTabInLayout, openBrowserFromPage } from "@/desktop/browser/workspace-browsers";
 import type { WorkspaceLayout } from "@/stores/workspace-layout-store";
 import { getIsElectron } from "@/constants/platform";
-import { googleSearchUrl } from "@/desktop/browser/address-input";
+import { defaultSearchEngine, searchUrl } from "@/desktop/browser/search-engines";
 import { useStableEvent } from "@/hooks/use-stable-event";
 
 export type BrowserNewTabRequest = DesktopBrowserNewTabRequestEvent;
@@ -36,7 +36,7 @@ function readDesktopBrowserNewTabRequest(payload: unknown): BrowserNewTabRequest
   if (typeof candidate.searchTerms === "string" && candidate.searchTerms.trim()) {
     return {
       sourceBrowserId: candidate.sourceBrowserId,
-      url: googleSearchUrl(candidate.searchTerms.trim()),
+      url: searchUrl(defaultSearchEngine(), candidate.searchTerms.trim()),
       isActive: candidate.isActive,
     };
   }

@@ -3,12 +3,12 @@ import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 import { getIsElectron } from "@/constants/platform";
 import { getDesktopHost, type DesktopBrowserPageMenuLabels } from "@/desktop/host";
-import { SEARCH_ENGINE_NAME } from "./address-input";
+import { useDefaultSearchEngine } from "./search-engines";
 
 // The main process puts the selected text here when it shows "Search Google for …".
 const SEARCH_TERMS_SLOT = "{{terms}}";
 
-function pageMenuLabels(t: TFunction): DesktopBrowserPageMenuLabels {
+function pageMenuLabels(t: TFunction, engineName: string): DesktopBrowserPageMenuLabels {
   return {
     back: t("workspace.browser.pageMenu.back"),
     forward: t("workspace.browser.pageMenu.forward"),
@@ -27,7 +27,7 @@ function pageMenuLabels(t: TFunction): DesktopBrowserPageMenuLabels {
     copyImageAddress: t("workspace.browser.pageMenu.copyImageAddress"),
     copy: t("workspace.browser.pageMenu.copy"),
     searchWebFor: t("workspace.browser.pageMenu.searchWebFor", {
-      engine: SEARCH_ENGINE_NAME,
+      engine: engineName,
       terms: SEARCH_TERMS_SLOT,
       interpolation: { escapeValue: false },
     }),
@@ -43,17 +43,19 @@ function pageMenuLabels(t: TFunction): DesktopBrowserPageMenuLabels {
 
 /**
  * Hands the main process Chrome's page menu labels in the app's language, again whenever the
- * language changes. The main process shows that menu but has no translations of its own.
+ * language or the default search engine changes. The main process shows that menu but has no
+ * translations of its own.
  */
 export function useBrowserPageMenuLabels(): void {
   const { t, i18n } = useTranslation();
+  const engineName = useDefaultSearchEngine().name;
   useEffect(() => {
     const setPageMenuLabels = getDesktopHost()?.browser?.setPageMenuLabels;
     if (!getIsElectron() || !setPageMenuLabels) {
       return;
     }
-    void setPageMenuLabels(pageMenuLabels(t)).catch((error: unknown) => {
+    void setPageMenuLabels(pageMenuLabels(t, engineName)).catch((error: unknown) => {
       console.error("[browser-page-menu] sending labels failed", error);
     });
-  }, [t, i18n.language]);
+  }, [engineName, t, i18n.language]);
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ScrollView, View, type LayoutChangeEvent } from "react-native";
 import { useTranslation } from "react-i18next";
 import { StyleSheet } from "react-native-unistyles";
@@ -77,10 +77,6 @@ export function BrowserExtensionsPage({
   );
   const showList = useCallback(() => onNavigate(BROWSER_EXTENSIONS_URL), [onNavigate]);
   const openDrawer = useCallback(() => setIsDrawerOpen(true), []);
-  const drawerMenu = useMemo(
-    () => ({ label: t("workspace.browser.extensions.page.mainMenu"), onPress: openDrawer }),
-    [openDrawer, t],
-  );
   const closeDrawer = useCallback(() => setIsDrawerOpen(false), []);
   const closeRemoval = useCallback(() => setExtensionPendingRemoval(null), []);
 
@@ -113,8 +109,7 @@ export function BrowserExtensionsPage({
       <CrToolbar
         title={t("workspace.browser.extensions.page.title")}
         searchLabel={t("workspace.browser.extensions.page.search")}
-        clearSearchLabel={t("workspace.browser.extensions.page.clearSearch")}
-        menu={drawerMenu}
+        onMenuPress={openDrawer}
         isNarrow={isNarrow}
         onSearchChange={setQuery}
       />

@@ -1,23 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import {
-  Pressable,
-  ScrollView,
-  Text,
-  View,
-  type LayoutChangeEvent,
-  type PressableStateCallbackType,
-} from "react-native";
+import { ScrollView, Text, View, type LayoutChangeEvent } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useTranslation } from "react-i18next";
 import { StyleSheet } from "react-native-unistyles";
 import { getDesktopHost, type DesktopBrowserDownload } from "@/desktop/host";
-import { getOverlayRoot, useOverlayLayer } from "@/lib/overlay-root";
 import { CHROME_FONT_FAMILY } from "../chrome-theme";
 import { CrButton } from "../webui/controls";
 import { NoDownloadsIllustration } from "../webui/icons";
+import { CrActionMenu } from "../webui/action-menu.electron";
+import { CrToast } from "../webui/toast";
 import { CrToolbar } from "../webui/toolbar";
-import { WEBUI_LAYOUT } from "../webui/theme";
 import { DownloadCard } from "./download-card.electron";
 import { pageDateHeader } from "./format";
 import {
@@ -30,8 +22,6 @@ import {
 } from "./page-model";
 import { useBrowserDownloadsStore } from "./store";
 
-type HoverState = PressableStateCallbackType & { hovered?: boolean };
-
 // cr-toolbar folds its search field below 900 dip on this page (cr_toolbar.ts narrowThreshold).
 const NARROW_WIDTH = 900;
 // manager.css: cards are clamp(550px, 80%, 680px) wide.
@@ -40,10 +30,6 @@ const CARD_MAX_WIDTH = 680;
 const CARD_WIDTH_SHARE = 0.8;
 const CARD_SIDE_MARGIN = 48;
 const EMPTY_ILLUSTRATION_HEIGHT = 144;
-const MENU_ITEM_HEIGHT = 36;
-const TOAST_HEIGHT = 52;
-const TOAST_MIN_WIDTH = 288;
-const TOAST_EDGE = 24;
 
 const MENU_LABEL_KEYS = {
   pause: "workspace.browser.downloads.page.pause",
@@ -205,6 +191,16 @@ export function BrowserDownloadsPage({ isPresented }: { isPresented: boolean }) 
     },
     [menu, runMenuAction],
   );
+  const menuItems = useMemo(
+    () =>
+      menu
+        ? cardMenuActions(menu.download).map((action) => ({
+            id: action,
+            label: t(MENU_LABEL_KEYS[action]),
+          }))
+        : [],
+    [menu, t],
+  );
   const dismissToast = useCallback(() => setToast(null), []);
   const cardColumn = useMemo(() => ({ width: cardWidth }), [cardWidth]);
 
@@ -213,7 +209,6 @@ export function BrowserDownloadsPage({ isPresented }: { isPresented: boolean }) 
       <CrToolbar
         title={t("workspace.browser.downloads.page.title")}
         searchLabel={t("workspace.browser.downloads.page.search")}
-        clearSearchLabel={t("workspace.browser.downloads.page.clearSearch")}
         trailing={clearAllButton}
         isNarrow={isNarrow}
         onSearchChange={setQuery}
@@ -242,14 +237,13 @@ export function BrowserDownloadsPage({ isPresented }: { isPresented: boolean }) 
         </ScrollView>
       )}
       {menu ? (
-        <ActionMenu
+        <CrActionMenu
           anchor={menu.anchor}
-          items={cardMenuActions(menu.download).map((action) => ({
-            action,
-            label: t(MENU_LABEL_KEYS[action]),
-          }))}
+          placement="overAnchor"
+          items={menuItems}
           onChoose={chooseMenuAction}
           onClose={closeMenu}
+          testID="downloads-action-menu"
         />
       ) : null}
       {toast ? (
@@ -265,66 +259,7 @@ export function BrowserDownloadsPage({ isPresented }: { isPresented: boolean }) 
   );
 }
 
-/** cr-action-menu: its top-right corner sits on the ⋮ button's top-right corner. */
-function ActionMenu({
-  anchor,
-  items,
-  onChoose,
-  onClose,
-}: {
-  anchor: HTMLElement;
-  items: readonly { action: DownloadMenuAction; label: string }[];
-  onChoose: (action: DownloadMenuAction) => void;
-  onClose: () => void;
-}) {
-  const layer = useOverlayLayer("floating");
-  const bounds = anchor.getBoundingClientRect();
-  useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKeyDown, true);
-    return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [onClose]);
-  const position = { top: bounds.top, right: window.innerWidth - bounds.right };
-  return createPortal(
-    <View style={[styles.menuLayer, { zIndex: layer }]}>
-      <Pressable style={styles.menuBackdrop} onPress={onClose} />
-      <View style={[styles.menu, position]} accessibilityRole="menu" testID="downloads-action-menu">
-        {items.map((item) => (
-          <ActionMenuItem key={item.action} item={item} onChoose={onChoose} />
-        ))}
-      </View>
-    </View>,
-    getOverlayRoot(),
-  );
-}
-
-function ActionMenuItem({
-  item,
-  onChoose,
-}: {
-  item: { action: DownloadMenuAction; label: string };
-  onChoose: (action: DownloadMenuAction) => void;
-}) {
-  const handlePress = useCallback(() => onChoose(item.action), [item.action, onChoose]);
-  return (
-    <Pressable
-      accessibilityRole="menuitem"
-      onPress={handlePress}
-      style={menuItemStyle}
-      testID={`downloads-menu-${item.action}`}
-    >
-      <Text style={styles.menuItemText}>{item.label}</Text>
-    </Pressable>
-  );
-}
-
-function menuItemStyle({ hovered }: HoverState) {
-  return [styles.menuItem, hovered && styles.menuItemHovered];
-}
-
-/** cr-toast at the bottom left; it stays until the next click anywhere (manager.html.ts). */
+/** The page's cr-toast; it stays until the next click anywhere (manager.html.ts). */
 function PageToastView({
   toast,
   maxWidth,
@@ -339,6 +274,7 @@ function PageToastView({
   onDismiss: () => void;
 }) {
   const toastRef = useRef<View | null>(null);
+  const undoAction = useMemo(() => ({ label: undoLabel, onPress: onUndo }), [onUndo, undoLabel]);
   useEffect(() => {
     const handlePointerDown = (event: PointerEvent) => {
       const node: unknown = toastRef.current;
@@ -349,24 +285,14 @@ function PageToastView({
     window.addEventListener("pointerdown", handlePointerDown, true);
     return () => window.removeEventListener("pointerdown", handlePointerDown, true);
   }, [onDismiss]);
-  const widthStyle = useMemo(() => ({ maxWidth }), [maxWidth]);
   return (
-    <View
+    <CrToast
       ref={toastRef}
-      style={[styles.toast, widthStyle]}
-      role="alert"
-      accessibilityLiveRegion="polite"
+      text={toast.text}
+      action={toast.canUndo ? undoAction : undefined}
+      maxWidth={maxWidth}
       testID="downloads-toast"
-    >
-      <Text numberOfLines={1} style={styles.toastText}>
-        {toast.text}
-      </Text>
-      {toast.canUndo ? (
-        <Pressable accessibilityRole="button" onPress={onUndo} style={styles.toastButton}>
-          <Text style={styles.toastButtonText}>{undoLabel}</Text>
-        </Pressable>
-      ) : null}
-    </View>
+    />
   );
 }
 
@@ -410,71 +336,6 @@ const styles = StyleSheet.create((theme) => {
       fontSize: 16,
       fontWeight: "500",
       color: colors.emptyMessage,
-    },
-    menuLayer: {
-      position: "absolute",
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-    },
-    menuBackdrop: {
-      position: "absolute",
-      top: 0,
-      right: 0,
-      bottom: 0,
-      left: 0,
-    },
-    menu: {
-      position: "absolute",
-      paddingVertical: 8,
-      borderRadius: 4,
-      backgroundColor: colors.actionMenu,
-      boxShadow: WEBUI_LAYOUT.cardShadow,
-    },
-    menuItem: {
-      height: MENU_ITEM_HEIGHT,
-      justifyContent: "center",
-      paddingHorizontal: 24,
-    },
-    menuItemHovered: {
-      backgroundColor: colors.hover,
-    },
-    menuItemText: {
-      fontFamily: CHROME_FONT_FAMILY,
-      fontSize: WEBUI_LAYOUT.fontSize,
-      lineHeight: WEBUI_LAYOUT.lineHeight,
-      color: colors.actionMenuText,
-    },
-    toast: {
-      position: "absolute",
-      left: TOAST_EDGE,
-      bottom: TOAST_EDGE,
-      minWidth: TOAST_MIN_WIDTH,
-      height: TOAST_HEIGHT,
-      flexDirection: "row",
-      alignItems: "center",
-      paddingHorizontal: 16,
-      borderRadius: 8,
-      backgroundColor: colors.toast,
-      boxShadow: "0 2px 4px rgba(0,0,0,0.28)",
-    },
-    toastText: {
-      flexShrink: 1,
-      fontFamily: CHROME_FONT_FAMILY,
-      fontSize: WEBUI_LAYOUT.fontSize,
-      color: colors.toastText,
-    },
-    toastButton: {
-      height: 36,
-      marginLeft: 32,
-      justifyContent: "center",
-    },
-    toastButtonText: {
-      fontFamily: CHROME_FONT_FAMILY,
-      fontSize: WEBUI_LAYOUT.fontSize,
-      fontWeight: "500",
-      color: colors.toastButton,
     },
   };
 });

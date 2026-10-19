@@ -6,6 +6,7 @@ import {
   formatBytesMbOrHigher,
   historyCounter,
   originsVisitedSince,
+  siteOf,
   splitDataTypes,
   timePeriodChips,
   DEFAULT_CHECKED_TYPES,
@@ -35,12 +36,38 @@ describe("the time range", () => {
 });
 
 describe("the data types", () => {
-  it("shows history, site data and cache, and anything else once it is ticked", () => {
+  it("ticks every type a fresh profile keeps, download history included", () => {
+    expect(DEFAULT_CHECKED_TYPES).toEqual({
+      history: true,
+      siteData: true,
+      cache: true,
+      downloads: true,
+    });
     expect(splitDataTypes(DEFAULT_CHECKED_TYPES)).toEqual({
+      expanded: ["history", "siteData", "cache", "downloads"],
+      more: [],
+    });
+  });
+
+  it("moves an unticked type outside the default list behind 展开", () => {
+    expect(splitDataTypes({ ...DEFAULT_CHECKED_TYPES, downloads: false })).toEqual({
       expanded: ["history", "siteData", "cache"],
       more: ["downloads"],
     });
-    expect(splitDataTypes({ ...DEFAULT_CHECKED_TYPES, downloads: true }).more).toEqual([]);
+    expect(splitDataTypes({ ...DEFAULT_CHECKED_TYPES, cache: false }).expanded).toContain("cache");
+  });
+});
+
+describe("the site of a host", () => {
+  it("is the registrable domain of a name", () => {
+    expect(siteOf("mail.google.com")).toBe("google.com");
+    expect(siteOf(".news.bbc.co.uk")).toBe("bbc.co.uk");
+  });
+
+  it("is the host itself for an address or a name without a registry", () => {
+    expect(siteOf("127.0.0.1")).toBe("127.0.0.1");
+    expect(siteOf("[::1]")).toBe("[::1]");
+    expect(siteOf("localhost")).toBe("localhost");
   });
 });
 

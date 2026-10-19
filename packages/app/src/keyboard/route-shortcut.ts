@@ -77,6 +77,7 @@ const PASSTHROUGH_DISPATCH: Record<string, KeyboardActionDefinition> = {
   "browser.page.save": { id: "browser.page.save", scope: "workspace" },
   "browser.page.clear-data": { id: "browser.page.clear-data", scope: "workspace" },
   "browser.page.settings": { id: "browser.page.settings", scope: "workspace" },
+  "browser.page.avatar-menu": { id: "browser.page.avatar-menu", scope: "workspace" },
   "browser.window.new": { id: "browser.window.new", scope: "workspace" },
   "browser.page.zoom-in": { id: "browser.page.zoom-in", scope: "workspace" },
   "browser.page.zoom-out": { id: "browser.page.zoom-out", scope: "workspace" },

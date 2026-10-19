@@ -1,15 +1,33 @@
 import Svg, { ClipPath, Defs, Ellipse, G, LinearGradient, Path, Stop } from "react-native-svg";
 import { withUnistyles } from "react-native-unistyles";
 import { PaseoLogo } from "@/components/icons/paseo-logo";
-import { webUiColorProps } from "./theme";
+import { webUiColorProps, type WebUiColors } from "./theme";
 
 const ThemedPaseoLogo = withUnistyles(PaseoLogo);
-const productLogoMapping = webUiColorProps("toolbarText");
 const PRODUCT_LOGO_SIZE = 24;
+const productLogoMappings = new Map<keyof WebUiColors, ReturnType<typeof webUiColorProps>>();
 
-/** The product logo cr-toolbar and cr-drawer put before the page title, where Chrome's is. */
-export function WebUiProductLogo() {
-  return <ThemedPaseoLogo size={PRODUCT_LOGO_SIZE} uniProps={productLogoMapping} />;
+function productLogoMapping(color: keyof WebUiColors) {
+  let mapping = productLogoMappings.get(color);
+  if (!mapping) {
+    mapping = webUiColorProps(color);
+    productLogoMappings.set(color, mapping);
+  }
+  return mapping;
+}
+
+/**
+ * The product's mark where Chrome draws its own (cr:chrome-product): before the title of
+ * cr-toolbar and cr-drawer, and as the glyph of settings' 关于 item.
+ */
+export function WebUiProductLogo({
+  size = PRODUCT_LOGO_SIZE,
+  color = "toolbarText",
+}: {
+  size?: number;
+  color?: keyof WebUiColors;
+}) {
+  return <ThemedPaseoLogo size={size} uniProps={productLogoMapping(color)} />;
 }
 
 interface WebUiIconDefinition {
@@ -81,6 +99,73 @@ const WEBUI_ICONS = {
   draftFilled: {
     viewBox: "0 0 24 24",
     d: "M6 2c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z",
+  },
+  // Settings (chrome://settings in Chrome 155, which draws the Material Symbols set): its left
+  // menu, cr:delete for 删除浏览数据, and open_in_new_old.svg after the extensions link.
+  // settings:person, Chromium's 我与 Google icon; Google Chrome's own builds draw the Google G.
+  settingsPerson: {
+    viewBox: "0 -960 960 960",
+    d: "M480-480q-66 0-113-47t-47-113q0-66 47-113t113-47q66 0 113 47t47 113q0 66-47 113t-113 47ZM160-160v-112q0-34 17.5-62.5T224-378q62-31 126-46.5T480-440q66 0 130 15.5T736-378q29 15 46.5 43.5T800-272v112H160Zm80-80h480v-32q0-11-5.5-20T700-306q-54-27-109-40.5T480-360q-56 0-111 13.5T260-306q-9 5-14.5 14t-5.5 20v32Zm240-320q33 0 56.5-23.5T560-640q0-33-23.5-56.5T480-720q-33 0-56.5 23.5T400-640q0 33 23.5 56.5T480-560Zm0-80Zm0 400Z",
+  },
+  // .subpage-arrow (//resources/images/arrow_right.svg): a row that opens a settings subpage.
+  subpageArrow: {
+    viewBox: "0 0 24 24",
+    d: "m10 7 5 5-5 5z",
+  },
+  settingsSecurity: {
+    viewBox: "0 -960 960 960",
+    d: "M480-96q-135-33-223.5-153T168-515v-229l312-120 312 120v229q0 146-88.5 266T480-96Zm0-75q97-30 161.5-115.5T717-480H480v-307l-240 92v180q0 9 1 17.5t2 17.5h237v309Z",
+  },
+  settingsPalette: {
+    viewBox: "0 -960 960 960",
+    d: "M480-96q-79 0-149-30t-122.5-82.5Q156-261 126-331T96-480q0-80 30.5-149.5t84-122Q264-804 335.5-834T488-864q78 0 146.5 27T754-763q51 47 80.5 110T864-518q0 96-67 163t-163 67h-68q-8 0-14 5t-6 13q0 15 15 25t15 53q0 37-27 66.5T480-96Zm0-384Zm-216 36q25 0 42.5-17.5T324-504q0-25-17.5-42.5T264-564q-25 0-42.5 17.5T204-504q0 25 17.5 42.5T264-444Zm120-144q25 0 42.5-17.5T444-648q0-25-17.5-42.5T384-708q-25 0-42.5 17.5T324-648q0 25 17.5 42.5T384-588Zm192 0q25 0 42.5-17.5T636-648q0-25-17.5-42.5T576-708q-25 0-42.5 17.5T516-648q0 25 17.5 42.5T576-588Zm120 144q25 0 42.5-17.5T756-504q0-25-17.5-42.5T696-564q-25 0-42.5 17.5T636-504q0 25 17.5 42.5T696-444ZM480-168q11 0 17.5-8.5T504-192q0-16-15-28t-15-50q0-38 26.5-64t64.5-26h69q66 0 112-46t46-112q0-115-88.5-194.5T488-792q-134 0-227 91t-93 221q0 130 91 221t221 91Z",
+  },
+  settingsSearch: {
+    viewBox: "0 -960 960 960",
+    d: "M765-144 526-383q-30 22-65.79 34.5-35.79 12.5-76.18 12.5Q284-336 214-406t-70-170q0-100 70-170t170-70q100 0 170 70t70 170.03q0 40.39-12.5 76.18Q599-464 577-434l239 239-51 51ZM384-408q70 0 119-49t49-119q0-70-49-119t-119-49q-70 0-119 49t-49 119q0 70 49 119t119 49Z",
+  },
+  settingsDownload: {
+    viewBox: "0 -960 960 960",
+    d: "M480-336 288-528l51-51 105 105v-342h72v342l105-105 51 51-192 192ZM263.72-192Q234-192 213-213.15T192-264v-72h72v72h432v-72h72v72q0 29.7-21.16 50.85Q725.68-192 695.96-192H263.72Z",
+  },
+  settingsRestartAlt: {
+    viewBox: "0 -960 960 960",
+    d: "M444-144q-107-14-179.5-94.5T192-430q0-61 23-113.5t63-91.5l51 51q-30 29-47.5 69T264-430q0 81 51.5 140T444-217v73Zm72 0v-73q77-13 128.5-72.5T696-430q0-90-63-153t-153-63h-7l46 46-51 50-132-132 132-132 51 51-45 45h6q120 0 204 84t84 204q0 111-72.5 192T516-144Z",
+  },
+  settingsChromeExtension: {
+    viewBox: "0 -960 960 960",
+    d: "M216-144q-29.7 0-50.85-21.15Q144-186.3 144-216v-168q40-2 68-29.5t28-66.5q0-39-28-66.5T144-576v-168q0-29.7 21.15-50.85Q186.3-816 216-816h168q0-40 27.77-68 27.78-28 68-28Q520-912 548-884.16q28 27.84 28 68.16h168q29.7 0 50.85 21.15Q816-773.7 816-744v168q40 0 68 27.77 28 27.78 28 68Q912-440 884.16-412q-27.84 28-68.16 28v168q0 29.7-21.15 50.85Q773.7-144 744-144H216Zm0-72h528v-528H216v112q45 20 70.5 61.5T312-480q0 50.21-25.5 91.6Q261-347 216-328v112Zm264-264Z",
+  },
+  settingsDelete: {
+    viewBox: "0 -960 960 960",
+    d: "M309.37-135.87q-34.48 0-58.74-24.26-24.26-24.26-24.26-58.74v-474.5h-53.5v-83H378.5v-53.5h202.52v53.5h206.11v83h-53.5v474.07q0 35.21-24.26 59.32t-58.74 24.11H309.37Zm341.26-557.5H309.37v474.5h341.26v-474.5ZM379.7-288.24h77.5v-336h-77.5v336Zm123.1 0h77.5v-336h-77.5v336ZM309.37-693.37v474.5-474.5Z",
+  },
+  openInNewOld: {
+    viewBox: "0 0 24 24",
+    d: "M19 19H5V5h7V3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z",
+  },
+  // The 删除浏览数据 dialog: the selected chip's cr:check, the 更多 chip's cr:arrow-drop-down,
+  // 展开's cr:keyboard-arrow-down and cr-checkbox's mark.
+  check: {
+    viewBox: "0 0 24 24",
+    d: "M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z",
+  },
+  arrowDropDown: {
+    viewBox: "0 0 24 24",
+    d: "M7 10l5 5 5-5z",
+  },
+  keyboardArrowDown: {
+    viewBox: "0 0 24 24",
+    d: "M16.59 8.59L12 13.17 7.41 8.59 6 10l6 6 6-6z",
+  },
+  checkboxMark: {
+    viewBox: "0 0 12 12",
+    d: "m10.192 2.121-6.01 6.01-2.121-2.12L1 7.07l2.121 2.121.707.707.354.354 7.071-7.071-1.06-1.06Z",
+  },
+  // A site without a favicon: Chrome's default favicon, the globe.
+  defaultFavicon: {
+    viewBox: "0 0 24 24",
+    d: "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z",
   },
 } as const satisfies Record<string, WebUiIconDefinition>;
 

@@ -334,6 +334,19 @@ export interface DesktopBrowserDownloadsBridge {
   downloadNamed: (browserId: string, url: string, fileName: string) => Promise<void>;
   /** 删除浏览数据: takes entries started at or after `since` off the list. */
   deleteHistory: (since: number) => Promise<void>;
+  /** Settings' 下载内容: the download folder and whether each download asks where to save. */
+  settings: () => Promise<DesktopBrowserDownloadSettings>;
+  /** Lets the user pick the download folder; resolves to the settings afterwards. */
+  chooseDirectory: () => Promise<DesktopBrowserDownloadSettings>;
+  setPromptForDownload: (promptForDownload: boolean) => Promise<DesktopBrowserDownloadSettings>;
+  /** 下载完成后显示下载内容: whether finished downloads open the partial view. */
+  setPartialViewEnabled: (isEnabled: boolean) => Promise<DesktopBrowserDownloadSettings>;
+}
+
+export interface DesktopBrowserDownloadSettings {
+  directory: string;
+  promptForDownload: boolean;
+  partialViewEnabled: boolean;
 }
 
 /** The profile's site data and cache, for Chrome's 删除浏览数据. */

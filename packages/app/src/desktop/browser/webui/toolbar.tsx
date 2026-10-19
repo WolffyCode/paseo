@@ -1,5 +1,6 @@
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, Text, View, type PressableStateCallbackType } from "react-native";
+import { useTranslation } from "react-i18next";
 import { StyleSheet, withUnistyles } from "react-native-unistyles";
 import { EditingTextInput, type EditingTextInputHandle } from "@/components/ui/text-input";
 import { CHROME_FONT_FAMILY } from "@/desktop/browser/chrome-theme";
@@ -22,6 +23,8 @@ const TITLE_SIZE = 22.1;
 const NARROW_SEARCH_BOX_WIDTH = 44;
 const NARROW_SEARCH_BOX_HEIGHT = 40;
 const NARROW_SEARCH_ICON_INSET = 18;
+// --cr-toolbar-center-basis: the search field's column, centered on the page by default.
+const DEFAULT_CENTER_BASIS = 680;
 
 /**
  * cr-toolbar: the page title on the left, a search field in the middle, the page's own buttons
@@ -31,22 +34,29 @@ const NARROW_SEARCH_ICON_INSET = 18;
 export function CrToolbar({
   title,
   searchLabel,
-  clearSearchLabel,
-  menu,
+  onMenuPress,
   trailing,
+  leftSpacerWidth,
+  centerBasis = DEFAULT_CENTER_BASIS,
   isNarrow,
   onSearchChange,
 }: {
   title: string;
   searchLabel: string;
-  clearSearchLabel: string;
-  /** The sidebar's menu button, for pages that have a sidebar. */
-  menu?: { label: string; onPress: () => void };
+  /**
+   * --cr-toolbar-left-spacer-width and --cr-toolbar-center-basis: settings line the title up
+   * with its menu and the search field with its cards.
+   */
+  leftSpacerWidth?: number;
+  centerBasis?: number;
+  /** Opens the sidebar's drawer, for pages that have a sidebar. */
+  onMenuPress?: () => void;
   /** The page's buttons at the right end, as 全部清除 on chrome://downloads. */
   trailing?: ReactNode;
   isNarrow: boolean;
   onSearchChange: (query: string) => void;
 }) {
+  const { t } = useTranslation();
   const inputRef = useRef<EditingTextInputHandle | null>(null);
   const [query, setQuery] = useState("");
   const [isNarrowSearchOpen, setIsNarrowSearchOpen] = useState(false);
@@ -63,6 +73,16 @@ export function CrToolbar({
     handleChangeText("");
     inputRef.current?.focus();
   }, [handleChangeText]);
+  // cr-toolbar-search-field: Esc clears the search and leaves the field.
+  const handleKeyPress = useCallback(
+    (event: { nativeEvent: { key: string } }) => {
+      if (event.nativeEvent.key !== "Escape") return;
+      inputRef.current?.replaceText("");
+      handleChangeText("");
+      inputRef.current?.blur();
+    },
+    [handleChangeText],
+  );
   const focusSearch = useCallback(() => {
     setIsNarrowSearchOpen(true);
     inputRef.current?.focus();
@@ -73,6 +93,14 @@ export function CrToolbar({
     // An empty narrow search folds back into its icon, as Chrome's does.
     if (!inputRef.current?.getText()) setIsNarrowSearchOpen(false);
   }, []);
+  const leftWidthStyle = useMemo(
+    () => (leftSpacerWidth && !isNarrow ? { minWidth: leftSpacerWidth } : null),
+    [isNarrow, leftSpacerWidth],
+  );
+  const centerBasisStyle = useMemo(
+    () => (isNarrow ? null : { flexBasis: centerBasis }),
+    [centerBasis, isNarrow],
+  );
   const isSearchCollapsed = isNarrow && !isNarrowSearchOpen;
   const isNarrowSearchShowing = isNarrow && isNarrowSearchOpen;
   const fieldStyle = useCallback(
@@ -89,27 +117,29 @@ export function CrToolbar({
   return (
     <View style={styles.toolbar} testID="webui-toolbar">
       {isNarrowSearchShowing ? null : (
-        <View style={[styles.left, isNarrow && styles.leftNarrow]}>
-          {isNarrow && menu ? (
-            <View style={styles.menuButton}>
-              <CrIconButton
-                icon="menu"
-                label={menu.label}
-                onPress={menu.onPress}
-                testID="webui-menu"
-              />
-            </View>
-          ) : (
-            <View style={styles.logo}>
-              <WebUiProductLogo />
-            </View>
-          )}
-          <Text numberOfLines={1} style={[styles.title, isNarrow && styles.titleNarrow]}>
-            {title}
-          </Text>
+        <View style={[styles.left, isNarrow && styles.leftNarrow, leftWidthStyle]}>
+          <View style={[styles.leftSpacer, isNarrow && styles.leftSpacerNarrow]}>
+            {isNarrow && onMenuPress ? (
+              <View style={styles.menuButton}>
+                <CrIconButton
+                  icon="menu"
+                  label={t("workspace.browser.webui.mainMenu")}
+                  onPress={onMenuPress}
+                  testID="webui-menu"
+                />
+              </View>
+            ) : (
+              <View style={styles.logo}>
+                <WebUiProductLogo />
+              </View>
+            )}
+            <Text numberOfLines={1} style={[styles.title, isNarrow && styles.titleNarrow]}>
+              {title}
+            </Text>
+          </View>
         </View>
       )}
-      <View style={[styles.center, isNarrow && styles.centerNarrow]}>
+      <View style={[styles.center, centerBasisStyle, isNarrow && styles.centerNarrow]}>
         <Pressable
           accessibilityRole={isSearchCollapsed ? "button" : "search"}
           accessibilityLabel={searchLabel}
@@ -138,6 +168,7 @@ export function CrToolbar({
                 onChangeText={handleChangeText}
                 onFocus={handleFocus}
                 onBlur={handleBlur}
+                onKeyPress={handleKeyPress}
                 style={styles.searchInput}
                 testID="webui-search-input"
               />
@@ -153,7 +184,7 @@ export function CrToolbar({
           {query ? (
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel={clearSearchLabel}
+              accessibilityLabel={t("workspace.browser.webui.clearSearch")}
               onPress={clearSearch}
               style={clearButtonStyle}
               testID="webui-search-clear"
@@ -167,11 +198,9 @@ export function CrToolbar({
           ) : null}
         </Pressable>
       </View>
-      {isNarrow ? (
-        trailing
-      ) : (
-        <View style={[styles.right, trailing ? styles.rightWithButtons : null]}>{trailing}</View>
-      )}
+      <View style={[styles.right, isNarrow && styles.rightNarrow]}>
+        <View style={styles.rightSpacer}>{trailing}</View>
+      </View>
     </View>
   );
 }
@@ -188,17 +217,23 @@ const styles = StyleSheet.create((theme) => {
       flexDirection: "row",
       alignItems: "center",
     },
+    // #leftContent and #rightContent split the room left by the search field's column from no
+    // basis at all; their padding sits on the spacers inside, so it takes no share of that room.
     left: {
       flexGrow: 1,
       flexShrink: 1,
       flexBasis: 0,
-      flexDirection: "row",
-      alignItems: "center",
-      paddingLeft: 21,
     },
     leftNarrow: {
       flexGrow: 0,
       flexBasis: "auto",
+    },
+    leftSpacer: {
+      flexDirection: "row",
+      alignItems: "center",
+      paddingLeft: 21,
+    },
+    leftSpacerNarrow: {
       paddingLeft: 18,
     },
     menuButton: {
@@ -223,7 +258,6 @@ const styles = StyleSheet.create((theme) => {
     center: {
       flexGrow: 1,
       flexShrink: 1,
-      flexBasis: 680,
       flexDirection: "row",
       justifyContent: "center",
     },
@@ -235,12 +269,17 @@ const styles = StyleSheet.create((theme) => {
       flexGrow: 1,
       flexShrink: 1,
       flexBasis: 0,
-      paddingRight: 12,
     },
-    rightWithButtons: {
+    // Narrow, #rightContent stops sharing the room and keeps only its buttons and spacer.
+    rightNarrow: {
+      flexGrow: 0,
+      flexBasis: "auto",
+    },
+    rightSpacer: {
       flexDirection: "row",
       justifyContent: "flex-end",
       alignItems: "center",
+      paddingRight: 12,
     },
     searchField: {
       flex: 1,

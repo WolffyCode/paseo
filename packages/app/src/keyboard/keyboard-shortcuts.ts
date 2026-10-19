@@ -479,6 +479,19 @@ const SHORTCUT_BINDINGS: readonly ShortcutBinding[] = [
     combo: "Cmd+,",
     when: { mac: true, browserFocus: true, commandCenter: false },
   },
+  // Chrome's IDC_SHOW_AVATAR_MENU, a key no menu shows: it opens the profile menu.
+  {
+    id: "browser-page-avatar-menu-cmd-shift-m-mac",
+    action: "browser.page.avatar-menu",
+    combo: "Cmd+Shift+M",
+    when: { mac: true, browserFocus: true, commandCenter: false },
+  },
+  {
+    id: "browser-page-avatar-menu-ctrl-shift-m-non-mac",
+    action: "browser.page.avatar-menu",
+    combo: "Ctrl+Shift+M",
+    when: { mac: false, browserFocus: true, commandCenter: false },
+  },
   // Chrome's 打开新的窗口 opens another Helm window: a window is where column 3 lives.
   {
     id: "browser-window-new-cmd-n-mac",

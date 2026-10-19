@@ -4,6 +4,7 @@ import type { BrowserClosedEntry } from "@/desktop/browser/store";
 import { PRODUCT_NAME } from "@/constants/product";
 import type { ShortcutOs } from "@/utils/format-shortcut";
 import type { ChromeMenuEntry } from "../chrome-menu/model";
+import type { ChromeAvatarId } from "../profile/avatar-ids";
 import { nextZoomFactor, zoomPercent } from "../zoom";
 
 /** Chrome's browser commands (IDC_*) that this browser has: the menu and shortcuts run them. */
@@ -32,6 +33,8 @@ export const BROWSER_COMMANDS = [
   "copy",
   "paste",
   "customizeChrome",
+  "showCustomizeChromeSidePanel",
+  "showAvatarMenu",
   "devTools",
   "clearBrowsingData",
   "showSettings",
@@ -61,6 +64,25 @@ const DEV_TOOLS_SHORTCUT: Record<ShortcutOs, string[]> = {
   mac: ["alt", "mod", "I"],
   "non-mac": ["ctrl", "shift", "I"],
 };
+// kAppMenuMaximumCharacterLength: how much of the profile's name its row shows.
+const PROFILE_NAME_MAX_LENGTH = 30;
+const ELLIPSIS = "…";
+
+/**
+ * The profile row's label: gfx::TruncateString with CHARACTER_BREAK, which ends a longer name in
+ * an ellipsis after the whole characters that fit before it.
+ */
+export function appMenuProfileName(name: string): string {
+  if (name.length <= PROFILE_NAME_MAX_LENGTH) {
+    return name;
+  }
+  let kept = "";
+  for (const { segment } of new Intl.Segmenter().segment(name)) {
+    if (kept.length + segment.length > PROFILE_NAME_MAX_LENGTH - ELLIPSIS.length) break;
+    kept += segment;
+  }
+  return `${kept}${ELLIPSIS}`;
+}
 
 function recentTabsEntries(
   t: TFunction,
@@ -100,8 +122,10 @@ export function buildAppMenuEntries(input: {
   os: ShortcutOs;
   zoomFactor: number;
   recentlyClosed: readonly BrowserClosedEntry[];
+  /** The profile's name as it shows (its default name included) and its picked avatar. */
+  profile: { name: string; avatarId: ChromeAvatarId | null };
 }): ChromeMenuEntry[] {
-  const { t, os, zoomFactor } = input;
+  const { t, os, zoomFactor, profile } = input;
   const product = { product: PRODUCT_NAME };
   return [
     {
@@ -119,12 +143,14 @@ export function buildAppMenuEntries(input: {
       shortcut: ["mod", "N"],
     },
     { kind: "separator" },
+    // ProfileSubMenuModel with no Google sign-in and one profile: 关闭此个人资料 would close every
+    // window, and the other-profile rows need profiles this browser doesn't have.
     {
       kind: "submenu",
       id: "profile",
-      label: t("workspace.browser.customizeChrome.yourChrome", product),
+      label: appMenuProfileName(profile.name),
       icon: "menuProfile",
-      isProfileRow: true,
+      profileRow: { avatarId: profile.avatarId },
       entries: [
         {
           kind: "item",
@@ -282,7 +308,7 @@ export function buildAppMenuEntries(input: {
       entries: [
         {
           kind: "item",
-          id: "customizeChrome",
+          id: "showCustomizeChromeSidePanel",
           label: t("workspace.browser.customizeChrome.title", product),
           icon: "menuCustomize",
         },

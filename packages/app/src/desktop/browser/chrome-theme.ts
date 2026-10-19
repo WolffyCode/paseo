@@ -71,6 +71,10 @@ export const CHROME_LIGHT_COLORS = {
   menuProfileRowHovered: "#DEE4EC",
   bubble: "#FFFFFF",
   bubbleText: "#1F1F1F",
+  // The profile menu's identity card (kColorSysSurface3) and the placeholder avatar's glyph, which
+  // Chrome derives from the frame color.
+  profileIdentityCard: "#EFF3FA",
+  avatarPlaceholder: "#0952C8",
   bubbleTextSecondary: "#474747",
   findBarIcon: "#626262",
   findBarIconDisabled: "rgba(98,98,98,0.376)",
@@ -193,6 +197,8 @@ export const CHROME_DARK_COLORS: ChromeColors = {
   menuProfileRowHovered: "#4B4E51",
   bubble: "#1F1F1F",
   bubbleText: "#E3E3E3",
+  profileIdentityCard: "#333438",
+  avatarPlaceholder: "#C7C7C7",
   bubbleTextSecondary: "#C7C7C7",
   findBarIcon: "#A9A9AA",
   findBarIconDisabled: "rgba(169,169,170,0.376)",

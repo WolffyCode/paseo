@@ -72,7 +72,7 @@ function downloadsCounterText(t: TFunction, begin: number): string {
       (download) => download.state !== "in_progress" && download.startTime >= begin,
     ).length;
   return count === 0
-    ? t("workspace.browser.clearData.none")
+    ? t("workspace.browser.clearData.noDownloadItems")
     : t("workspace.browser.clearData.downloadItems", { count });
 }
 
@@ -86,7 +86,7 @@ function siteDataCounterText(
     : cookieDomains;
   const count = cookieSiteCount(domains);
   return count === 0
-    ? t("workspace.browser.clearData.none")
+    ? t("workspace.browser.clearData.noCookieSites")
     : t("workspace.browser.clearData.cookieSites", { count });
 }
 

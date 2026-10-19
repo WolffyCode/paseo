@@ -12,7 +12,12 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { PRIMARY_MOUSE_BUTTON } from "../chrome-controls";
 import { ChromeIcon } from "../chrome-icons";
 import { CHROME_FONT_FAMILY, chromeColorProps } from "../chrome-theme";
-import { SIDE_PANEL_BORDER, sidePanelWidth, useSidePanelWidthStore } from "./store";
+import {
+  SIDE_PANEL_BORDER,
+  sidePanelWidth,
+  useSidePanelPositionStore,
+  useSidePanelWidthStore,
+} from "./store";
 
 // side_panel_animations.cc: the panel slides in from the window's edge in 350 ms
 // (ACCEL_45_DECEL_88). The page's shadow fades in over 150–250 ms of the opening and out over
@@ -41,8 +46,8 @@ const HIDDEN_PAGE_SHADOW = "0 0 4px 0 rgba(0,0,0,0), 0 2px 6px 0 rgba(0,0,0,0)";
 
 /**
  * Chrome's content-height side panel beside the page: the panel slides in at the window's right
- * edge, below the toolbar, and the page becomes a rounded box beside it. With no panel the page
- * fills the area under the toolbar's separator line.
+ * edge, or its left one when settings put it there, below the toolbar, and the page becomes a
+ * rounded box beside it. With no panel the page fills the area under the toolbar's separator line.
  */
 export function BrowserSidePanelLayout({
   panel,
@@ -56,6 +61,7 @@ export function BrowserSidePanelLayout({
   children: ReactNode;
 }) {
   const isOpen = panel?.isOpen ?? false;
+  const isRightAligned = useSidePanelPositionStore((state) => state.isRightAligned);
   const [isShown, setIsShown] = useState(isOpen);
   // The panel stays shown while it slides out.
   if (isOpen && !isShown) {
@@ -73,16 +79,20 @@ export function BrowserSidePanelLayout({
     [onPageElement],
   );
   const hasPanel = isShown && panel !== null;
+  const pageBoxEdge = isRightAligned ? styles.pageBoxAtLeftEdge : styles.pageBoxAtRightEdge;
   let pageStyle;
   if (!hasPanel) {
     pageStyle = styles.page;
   } else if (isOpen) {
-    pageStyle = [styles.page, styles.pageBox, styles.pageBoxShadow];
+    pageStyle = [styles.page, styles.pageBox, pageBoxEdge, styles.pageBoxShadow];
   } else {
-    pageStyle = [styles.page, styles.pageBox, styles.pageBoxShadowHidden];
+    pageStyle = [styles.page, styles.pageBox, pageBoxEdge, styles.pageBoxShadowHidden];
   }
   return (
-    <View style={styles.area} onLayout={handleAreaLayout}>
+    <View
+      style={[styles.area, !isRightAligned && styles.areaPanelLeft]}
+      onLayout={handleAreaLayout}
+    >
       <View ref={setPageNode} style={pageStyle}>
         {children}
       </View>
@@ -90,6 +100,7 @@ export function BrowserSidePanelLayout({
         <SlidingSidePanel
           title={panel.title}
           isOpen={isOpen}
+          isRightAligned={isRightAligned}
           areaWidth={areaWidth}
           onClose={panel.onClose}
           onSlidOut={handleSlidOut}
@@ -104,6 +115,7 @@ export function BrowserSidePanelLayout({
 function SlidingSidePanel({
   title,
   isOpen,
+  isRightAligned,
   areaWidth,
   onClose,
   onSlidOut,
@@ -111,6 +123,7 @@ function SlidingSidePanel({
 }: {
   title: string;
   isOpen: boolean;
+  isRightAligned: boolean;
   areaWidth: number;
   onClose: () => void;
   onSlidOut: () => void;
@@ -121,7 +134,7 @@ function SlidingSidePanel({
   const width = sidePanelWidth({ rememberedWidth, windowWidth: areaWidth });
   const wrapperRef = useRef<View | null>(null);
 
-  // The wrapper's width runs from 0 to the panel's, so the panel enters from the right edge.
+  // The wrapper's width runs from 0 to the panel's, so the panel enters from the window's edge.
   useLayoutEffect(() => {
     const node: unknown = wrapperRef.current;
     if (!(node instanceof HTMLElement)) {
@@ -143,7 +156,10 @@ function SlidingSidePanel({
   }, [isOpen, onSlidOut]);
 
   return (
-    <View ref={wrapperRef} style={[styles.panelWrapper, { width }]}>
+    <View
+      ref={wrapperRef}
+      style={[styles.panelWrapper, !isRightAligned && styles.panelWrapperLeft, { width }]}
+    >
       <View style={[styles.panel, { width }]}>
         <View style={styles.header}>
           <Text numberOfLines={1} style={styles.headerTitle}>
@@ -155,7 +171,7 @@ function SlidingSidePanel({
           />
         </View>
         <View style={styles.content}>{children}</View>
-        <SidePanelResizeArea width={width} areaWidth={areaWidth} />
+        <SidePanelResizeArea width={width} areaWidth={areaWidth} isRightAligned={isRightAligned} />
       </View>
     </View>
   );
@@ -198,7 +214,15 @@ function SidePanelHeaderButton({ label, onPress }: { label: string; onPress: () 
  * The panel's border next to the page: dragging it, or ← and → while it has focus, resizes the
  * panel. Chrome remembers the width while it changes.
  */
-function SidePanelResizeArea({ width, areaWidth }: { width: number; areaWidth: number }) {
+function SidePanelResizeArea({
+  width,
+  areaWidth,
+  isRightAligned,
+}: {
+  width: number;
+  areaWidth: number;
+  isRightAligned: boolean;
+}) {
   const { t } = useTranslation();
   const setRememberedWidth = useSidePanelWidthStore((state) => state.setCustomizeChromeWidth);
   const areaRef = useRef<View | null>(null);
@@ -236,8 +260,9 @@ function SidePanelResizeArea({ width, areaWidth }: { width: number; areaWidth: n
         return;
       }
       event.preventDefault();
-      // The panel is on the right, so moving its edge left widens it.
-      const step = event.key === "ArrowLeft" ? KEYBOARD_RESIZE_STEP : -KEYBOARD_RESIZE_STEP;
+      // Moving the edge toward the page widens the panel: left for a panel on the right.
+      const widensKey = isRightAligned ? "ArrowLeft" : "ArrowRight";
+      const step = event.key === widensKey ? KEYBOARD_RESIZE_STEP : -KEYBOARD_RESIZE_STEP;
       resizeTo(width + step);
     }
     const handlePointerEnter = () => setIsHovered(true);
@@ -258,7 +283,7 @@ function SidePanelResizeArea({ width, areaWidth }: { width: number; areaWidth: n
       element.removeEventListener("focus", handleFocus);
       element.removeEventListener("blur", handleBlur);
     };
-  }, [resizeTo, width]);
+  }, [isRightAligned, resizeTo, width]);
 
   useEffect(() => {
     if (!drag) {
@@ -268,7 +293,10 @@ function SidePanelResizeArea({ width, areaWidth }: { width: number; areaWidth: n
     const cursorBeforeDrag = document.body.style.cursor;
     document.body.style.cursor = RESIZE_CURSOR;
     function handlePointerMove(event: PointerEvent) {
-      resizeTo(activeDrag.widthStart + activeDrag.pointerStartX - event.clientX);
+      const movedTowardPage = isRightAligned
+        ? activeDrag.pointerStartX - event.clientX
+        : event.clientX - activeDrag.pointerStartX;
+      resizeTo(activeDrag.widthStart + movedTowardPage);
     }
     function handlePointerUp() {
       setDrag(null);
@@ -282,7 +310,7 @@ function SidePanelResizeArea({ width, areaWidth }: { width: number; areaWidth: n
       window.removeEventListener("pointerup", handlePointerUp);
       window.removeEventListener("pointercancel", handlePointerUp);
     };
-  }, [drag, resizeTo]);
+  }, [drag, isRightAligned, resizeTo]);
 
   const isHandleShown = isHovered || isFocused || drag !== null;
   return (
@@ -292,9 +320,16 @@ function SidePanelResizeArea({ width, areaWidth }: { width: number; areaWidth: n
       aria-label={t("workspace.browser.customizeChrome.resizeSidePanel")}
       aria-valuenow={width}
       focusable
-      style={styles.resizeArea}
+      style={[styles.resizeArea, isRightAligned ? styles.resizeAreaLeft : styles.resizeAreaRight]}
     >
-      {isHandleShown ? <View style={styles.resizeHandle} /> : null}
+      {isHandleShown ? (
+        <View
+          style={[
+            styles.resizeHandle,
+            isRightAligned ? styles.resizeHandleLeft : styles.resizeHandleRight,
+          ]}
+        />
+      ) : null}
     </View>
   );
 }
@@ -312,6 +347,9 @@ const styles = StyleSheet.create((theme) => {
       flexDirection: "row",
       backgroundColor: chrome.toolbar,
     },
+    areaPanelLeft: {
+      flexDirection: "row-reverse",
+    },
     page: {
       flex: 1,
       minWidth: 0,
@@ -320,12 +358,17 @@ const styles = StyleSheet.create((theme) => {
       borderTopColor: chrome.contentSeparator,
     },
     pageBox: {
-      marginLeft: PAGE_BOX_INSET,
       marginBottom: PAGE_BOX_INSET,
       marginTop: 1,
       borderTopWidth: 0,
       borderRadius: PAGE_BOX_RADIUS,
       overflow: "hidden",
+    },
+    pageBoxAtLeftEdge: {
+      marginLeft: PAGE_BOX_INSET,
+    },
+    pageBoxAtRightEdge: {
+      marginRight: PAGE_BOX_INSET,
     },
     pageBoxShadow: {
       boxShadow: chrome.sidePanelPageShadow,
@@ -341,6 +384,10 @@ const styles = StyleSheet.create((theme) => {
     panelWrapper: {
       flexShrink: 0,
       overflow: "hidden",
+    },
+    // A panel on the left keeps its right edge on the page as the wrapper opens.
+    panelWrapperLeft: {
+      alignItems: "flex-end",
     },
     panel: {
       flex: 1,
@@ -387,18 +434,28 @@ const styles = StyleSheet.create((theme) => {
     },
     resizeArea: {
       position: "absolute",
-      left: 0,
       top: 0,
       bottom: 0,
       width: SIDE_PANEL_BORDER,
       justifyContent: "center",
     },
+    resizeAreaLeft: {
+      left: 0,
+    },
+    resizeAreaRight: {
+      right: 0,
+    },
     resizeHandle: {
       width: RESIZE_HANDLE_WIDTH,
       height: RESIZE_HANDLE_HEIGHT,
-      marginLeft: RESIZE_HANDLE_INSET,
       borderRadius: RESIZE_HANDLE_WIDTH / 2,
       backgroundColor: chrome.sidePanelResizeHandle,
+    },
+    resizeHandleLeft: {
+      marginLeft: RESIZE_HANDLE_INSET,
+    },
+    resizeHandleRight: {
+      marginLeft: SIDE_PANEL_BORDER - RESIZE_HANDLE_INSET - RESIZE_HANDLE_WIDTH,
     },
   };
 });
