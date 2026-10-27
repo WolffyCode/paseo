@@ -131,6 +131,11 @@ contextBridge.exposeInMainWorld("paseoDesktop", {
     openDevTools: (browserId: string) =>
       ipcRenderer.invoke("paseo:browser:open-devtools", browserId),
     savePage: (browserId: string) => ipcRenderer.invoke("paseo:browser:save-page", browserId),
+    taskManager: {
+      open: (request: unknown) => ipcRenderer.invoke("paseo:browser:task-manager:open", request),
+      setAppearance: (appearance: unknown) =>
+        ipcRenderer.invoke("paseo:browser:task-manager:set-appearance", appearance),
+    },
     browsingData: {
       counts: () => ipcRenderer.invoke("paseo:browser:browsing-data:counts"),
       clear: (request: { siteData: boolean; cache: boolean; origins: string[] | null }) =>

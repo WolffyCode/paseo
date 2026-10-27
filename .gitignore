@@ -2,6 +2,8 @@
 node_modules/
 
 # Build outputs
+/app-initial-*.js
+/app-main-*.js
 build/
 dist/
 .next/
@@ -41,6 +43,7 @@ tsconfig.tsbuildinfo
 
 # Testing
 coverage/
+**/.vitest-attachments/
 
 # Playwright
 test-results/

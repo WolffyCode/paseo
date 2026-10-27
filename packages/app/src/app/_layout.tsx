@@ -81,6 +81,7 @@ import { shouldUseDesktopDaemon } from "@/desktop/daemon/desktop-daemon";
 import { AgentNavigationListener } from "@/desktop/agent-navigation";
 import { useBrowserDownloadsSync } from "@/desktop/browser/downloads/store";
 import { useBrowserPageLifetime } from "@/desktop/browser/workspace-browsers";
+import { BrowserTaskManagerSync } from "@/desktop/browser/task-manager";
 import { useBrowserPageMenuLabels } from "@/desktop/browser/page-menu-labels";
 import {
   useBrowserExtensionRequests,
@@ -1022,6 +1023,7 @@ function AppShell() {
       <HorizontalScrollProvider>
         <OpenProjectListener />
         <AgentNavigationListener />
+        <BrowserTaskManagerSync />
         <AppWithSidebar>
           <WorkspaceRouteNavigationBridge />
           <RootStack />

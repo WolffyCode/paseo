@@ -66,3 +66,14 @@ export function buildWorkspaceTabPersistenceKey(input: {
   }
   return `${serverId}:${workspaceId}`;
 }
+
+/** The host and workspace a persistence key names; null for a key this module didn't build. */
+export function parseWorkspaceTabPersistenceKey(
+  key: string,
+): { serverId: string; workspaceId: string } | null {
+  const separatorIndex = key.indexOf(":");
+  if (separatorIndex <= 0 || separatorIndex === key.length - 1) {
+    return null;
+  }
+  return { serverId: key.slice(0, separatorIndex), workspaceId: key.slice(separatorIndex + 1) };
+}

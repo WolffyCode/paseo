@@ -43,6 +43,18 @@ Run the shared browser profile fixture with:
 PASEO_CAPTURE_HARNESS_GROUP=browser-profile npm run capture-harness --workspace=@getpaseo/desktop
 ```
 
+Run the task manager against a real browser guest with:
+
+```bash
+PASEO_CAPTURE_HARNESS_GROUP=browser-task-manager npm run capture-harness --workspace=@getpaseo/desktop
+```
+
+This group uses a temporary Electron profile and the production preload, task manager,
+and browser registration. It checks singleton reuse, selection through filters, appearance,
+activation, terminating and reloading a guest, protected host processes, persisted view,
+and keyboard navigation. Windows stay inactive. The existing Linux desktop CI job runs
+this group under Xvfb and includes its screenshots in browser diagnostics.
+
 On macOS, test native titlebar dragging after scrolling with:
 
 ```bash

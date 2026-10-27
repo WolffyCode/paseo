@@ -492,19 +492,6 @@ const SHORTCUT_BINDINGS: readonly ShortcutBinding[] = [
     combo: "Ctrl+Shift+M",
     when: { mac: false, browserFocus: true, commandCenter: false },
   },
-  // Chrome's 打开新的窗口 opens another Helm window: a window is where column 3 lives.
-  {
-    id: "browser-window-new-cmd-n-mac",
-    action: "browser.window.new",
-    combo: "Cmd+N",
-    when: { mac: true, browserFocus: true, commandCenter: false },
-  },
-  {
-    id: "browser-window-new-ctrl-n-non-mac",
-    action: "browser.window.new",
-    combo: "Ctrl+N",
-    when: { mac: false, browserFocus: true, commandCenter: false },
-  },
   {
     id: "browser-page-zoom-in-cmd-equal-mac",
     action: "browser.page.zoom-in",

@@ -8,7 +8,8 @@ import {
   type WorkspaceLayout,
   type WorkspaceTabPlacement,
 } from "@/stores/workspace-layout-store";
-import type { WorkspaceTabTarget } from "@/workspace-tabs/model";
+import { navigateToWorkspace } from "@/stores/navigation-active-workspace-store";
+import { parseWorkspaceTabPersistenceKey, type WorkspaceTabTarget } from "@/workspace-tabs/model";
 import { browserInternalPage } from "./internal-pages";
 import { reloadResidentBrowserWebview, removeResidentBrowserWebview } from "./resident-webviews";
 import { useBrowserStore, useBrowserStoreHydrated, type BrowserClosedEntry } from "./store";
@@ -237,6 +238,17 @@ export function revealBrowserPage(browserId: string): void {
   if (shownTab) {
     useWorkspaceLayoutStore.getState().focusTab(shownTab.workspaceKey, shownTab.tabId);
   }
+}
+
+/**
+ * Brings a page forward from outside its conversation, as Chrome's task manager activates a tab
+ * and its window: the conversation showing the page opens on its tab.
+ */
+export function activateBrowserPage(browserId: string): void {
+  const shownTab = findShownBrowserTab(browserId);
+  const workspace = shownTab ? parseWorkspaceTabPersistenceKey(shownTab.workspaceKey) : null;
+  if (!workspace) return;
+  navigateToWorkspace({ ...workspace, target: { kind: "browser", browserId } });
 }
 
 /** Releases a page: its webview, its registration with the desktop, and its record. */

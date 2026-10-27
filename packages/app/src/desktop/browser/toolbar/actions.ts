@@ -13,6 +13,7 @@ interface PinnableActionPresentation {
     | "workspace.browser.downloads.name"
     | "workspace.browser.toolbarActions.print"
     | "workspace.browser.toolbarActions.copyLink"
+    | "workspace.browser.taskManager.menuItem"
     | "workspace.browser.toolbarActions.devTools";
   /** The toolbar icon, drawn at 20 dip. */
   icon: ChromeIconName;
@@ -41,6 +42,13 @@ export const PINNABLE_ACTION_PRESENTATION: Record<
     labelKey: "workspace.browser.toolbarActions.copyLink",
     icon: "copyLink",
     smallIcon: "copyLinkSmall",
+  },
+  // table_chart.icon has only its 16 dip drawing; the toolbar scales it to 20, as Chrome does.
+  kActionTaskManager: {
+    category: "toolsAndActions",
+    labelKey: "workspace.browser.taskManager.menuItem",
+    icon: "menuTaskManager",
+    smallIcon: "menuTaskManager",
   },
   kActionDevTools: {
     category: "toolsAndActions",

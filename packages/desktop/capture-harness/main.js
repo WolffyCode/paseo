@@ -39,6 +39,12 @@ const REPEAT_COUNT = 5;
 const FRESH_REPEAT_COUNT = 3;
 const SOAK_MS = Number(process.env.PASEO_CAPTURE_HARNESS_SOAK_MS || 75000);
 const HARNESS_GROUP = process.env.PASEO_CAPTURE_HARNESS_GROUP || "permanent-parking";
+if (HARNESS_GROUP === "browser-task-manager") {
+  const isolatedProfile = fs.mkdtempSync(
+    path.join(require("node:os").tmpdir(), "helm-task-manager-"),
+  );
+  app.setPath("userData", isolatedProfile);
+}
 const BROWSER_PROFILE_PHASE = process.env.PASEO_CAPTURE_HARNESS_PHASE || "";
 const BROWSER_PROFILE_ORIGIN_FILE = path.join(OUT_DIR, "browser-profile-origin.txt");
 const BROWSER_PROFILE_VALUE_FILE = path.join(OUT_DIR, "browser-profile-value.txt");
@@ -2647,9 +2653,17 @@ async function main() {
       "automation",
       "browser-profile",
       "titlebar-drag",
+      "browser-task-manager",
     ].includes(HARNESS_GROUP)
   ) {
     fail(`unknown harness group ${HARNESS_GROUP}`);
+  }
+
+  if (HARNESS_GROUP === "browser-task-manager") {
+    const { runBrowserTaskManagerGroup } = require("./browser-task-manager.js");
+    await runBrowserTaskManagerGroup(OUT_DIR);
+    pass(`capture harness browser-task-manager complete output=${OUT_DIR}`);
+    return;
   }
 
   if (HARNESS_GROUP === "titlebar-drag") {

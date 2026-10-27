@@ -58,7 +58,6 @@ export type KeyboardActionId =
   | "browser.page.clear-data"
   | "browser.page.settings"
   | "browser.page.avatar-menu"
-  | "browser.window.new"
   | "browser.page.zoom-in"
   | "browser.page.zoom-out"
   | "browser.page.zoom-reset"
@@ -134,7 +133,6 @@ export type KeyboardActionDefinition =
   | { id: "browser.page.clear-data"; scope: KeyboardActionScope }
   | { id: "browser.page.settings"; scope: KeyboardActionScope }
   | { id: "browser.page.avatar-menu"; scope: KeyboardActionScope }
-  | { id: "browser.window.new"; scope: KeyboardActionScope }
   | { id: "browser.page.zoom-in"; scope: KeyboardActionScope }
   | { id: "browser.page.zoom-out"; scope: KeyboardActionScope }
   | { id: "browser.page.zoom-reset"; scope: KeyboardActionScope }

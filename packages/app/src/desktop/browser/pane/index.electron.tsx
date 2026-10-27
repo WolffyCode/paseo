@@ -119,6 +119,8 @@ import type { BrowserAppMenuChoice, BrowserCommand } from "./app-menu";
 import { BrowserAppMenu } from "./browser-app-menu.electron";
 import { AvatarToolbarButton } from "../profile/avatar-toolbar-button.electron";
 import { ProfileMenu } from "../profile/profile-menu.electron";
+import { BrowserSadTab } from "./sad-tab";
+import { openTaskManager } from "../task-manager";
 import { QrCodeBubble } from "../qr-code/qr-code-bubble.electron";
 import { deviceSizeIdForViewport, viewportForDeviceSize, type DeviceSizeId } from "./device-sizes";
 import { BrowserFindBar } from "./find-bar.electron";
@@ -537,7 +539,6 @@ const PAGE_SHORTCUT_COMMANDS = {
   "browser.page.clear-data": "clearBrowsingData",
   "browser.page.settings": "showSettings",
   "browser.page.avatar-menu": "showAvatarMenu",
-  "browser.window.new": "newWindow",
   "browser.page.zoom-in": "zoomIn",
   "browser.page.zoom-out": "zoomOut",
   "browser.page.zoom-reset": "zoomReset",
@@ -562,6 +563,7 @@ const PINNED_ACTION_COMMANDS = {
   kActionShowDownloads: "showDownloads",
   kActionPrint: "print",
   kActionCopyUrl: "copyLink",
+  kActionTaskManager: "taskManager",
   kActionDevTools: "devTools",
 } as const satisfies Record<BrowserPinnableAction, BrowserCommand>;
 
@@ -624,6 +626,9 @@ export function BrowserPane({
   const webviewRef = useRef<ElectronWebview | null>(null);
   const webviewHostRef = useRef<HTMLDivElement | null>(null);
   const webviewClipRef = useRef<HTMLElement | null>(null);
+  // The exit code of the page's renderer once it ended other than cleanly: Chrome's sad tab shows
+  // until the page loads again.
+  const [crashedExitCode, setCrashedExitCode] = useState<number | null>(null);
   const urlInputRef = useRef<EditingTextInputHandle | null>(null);
   const browserIdRef = useRef(browserId);
   browserIdRef.current = browserId;
@@ -789,6 +794,7 @@ export function BrowserPane({
     );
 
     const handleStartLoading = () => {
+      setCrashedExitCode(null);
       selectorControllerRef.current?.stopForWebview(webview);
       updateBrowser(browserId, { isLoading: true, lastError: null });
       syncNavigationState({ syncUrl: false });
@@ -864,6 +870,14 @@ export function BrowserPane({
       });
       startPage.observeNavigation({ isLoading: false });
     };
+    // SadTab::ShouldShow: every end but a clean exit, such as the task manager's SIGTERM.
+    const handleRenderProcessGone = (event: Event) => {
+      const details = (event as Event & { details?: { reason?: string; exitCode?: number } })
+        .details;
+      if (details?.reason === "clean-exit") return;
+      setCrashedExitCode(details?.exitCode ?? 0);
+      updateBrowserRef.current(browserIdRef.current, { isLoading: false });
+    };
     const handleDomReady = () => {
       syncNavigationState();
       // The previous page's overlay is gone after a load; re-apply markers for
@@ -893,6 +907,7 @@ export function BrowserPane({
     webview.addEventListener("page-favicon-updated", handleFaviconUpdated);
     webview.addEventListener("did-fail-load", handleLoadFailed);
     webview.addEventListener("dom-ready", handleDomReady);
+    webview.addEventListener("render-process-gone", handleRenderProcessGone);
     webview.addEventListener("focus", handleWebviewFocus);
     webview.addEventListener("mousedown", handleWebviewFocus);
 
@@ -916,6 +931,7 @@ export function BrowserPane({
       webview.removeEventListener("page-favicon-updated", handleFaviconUpdated);
       webview.removeEventListener("did-fail-load", handleLoadFailed);
       webview.removeEventListener("dom-ready", handleDomReady);
+      webview.removeEventListener("render-process-gone", handleRenderProcessGone);
       webview.removeEventListener("focus", handleWebviewFocus);
       webview.removeEventListener("mousedown", handleWebviewFocus);
       const browserStillExists = Boolean(
@@ -1599,7 +1615,6 @@ export function BrowserPane({
       // Chrome's new tab opens right after the current one; here that is the next column-3 tab.
       newTab: () =>
         openBrowserFromPage({ sourceBrowserId: browserIdRef.current, url: null, isActive: true }),
-      newWindow: () => void getDesktopHost()?.window?.openNew?.(),
       reopenClosedTab: () => reopenClosedBrowser({ sourceBrowserId: browserIdRef.current }),
       showDownloads: () => showSingletonPage(BROWSER_DOWNLOADS_URL),
       focusLocation: focusUrlBar,
@@ -1622,6 +1637,12 @@ export function BrowserPane({
       customizeChrome: () => showSingletonPage(settingsUrl(settingsSubpageRoute("manageProfile"))),
       showCustomizeChromeSidePanel: () => showCustomizeChrome("overview"),
       showAvatarMenu: () => setIsProfileMenuOpen(true),
+      taskManager: () => {
+        void openTaskManager(browserIdRef.current).catch((error: unknown) => {
+          console.error("[browser-task-manager] open failed", error);
+          toastRef.current?.error(t("workspace.browser.taskManager.openFailed"));
+        });
+      },
       find: openFindBar,
       cut: () => webviewRef.current?.cut?.(),
       copy: () => webviewRef.current?.copy?.(),
@@ -1643,6 +1664,7 @@ export function BrowserPane({
       showSingletonPage,
       toggleWindowFullscreen,
       zoomPage,
+      t,
     ],
   );
   const runPinnedAction = useCallback(
@@ -1768,6 +1790,9 @@ export function BrowserPane({
     [isResponsiveDevice],
   );
 
+  const reloadCrashedPage = useCallback(() => {
+    webviewRef.current?.reload?.();
+  }, []);
   const setWebviewHostNode = useCallback((node: HTMLDivElement | null) => {
     webviewHostRef.current = node;
   }, []);
@@ -1843,6 +1868,9 @@ export function BrowserPane({
           ref: setWebviewHostNode,
           style: webviewHostStyle,
         })}
+        {crashedExitCode !== null ? (
+          <BrowserSadTab exitCode={crashedExitCode} onReload={reloadCrashedPage} />
+        ) : null}
         {pendingSelection ? (
           <BrowserElementAnnotationCard
             anchor={webviewClipRef.current}

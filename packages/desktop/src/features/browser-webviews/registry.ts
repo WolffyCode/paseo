@@ -72,6 +72,14 @@ export class PaseoBrowserWebviewRegistry {
     );
   }
 
+  /** Every attached page: its guest, the page it shows and the window hosting it. */
+  public listRegistrations(): Array<BrowserWebContentsRegistration & { webContentsId: number }> {
+    return Array.from(this.registrationsByWebContentsId, ([webContentsId, registration]) => ({
+      webContentsId,
+      ...registration,
+    }));
+  }
+
   public listBrowserIds(): string[] {
     return Array.from(
       new Set(Array.from(this.registrationsByWebContentsId.values(), ({ browserId }) => browserId)),

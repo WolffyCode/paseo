@@ -90,6 +90,7 @@ import {
   readLegacyPaseoBrowserIds,
 } from "./features/browser-profile.js";
 import { BrowserDownloads } from "./features/browser-downloads/index.js";
+import { BrowserTaskManager } from "./features/browser-task-manager/index.js";
 import { registerBrowsingDataIpc } from "./features/browser-clear-data/index.js";
 import { BrowserExtensions } from "./features/browser-extensions/index.js";
 import { parseOpenProjectPathFromArgv } from "./open-project-routing.js";
@@ -1066,6 +1067,12 @@ async function startBrowserProfile(): Promise<void> {
       getPaseoBrowserWebContentsForHostWindow(browserId, hostWebContentsId),
   });
   registerBrowsingDataIpc(profileSession);
+  try {
+    await new BrowserTaskManager(profileSession).start();
+  } catch (error) {
+    // The browser runs without its task manager; pages and their processes are unaffected.
+    log.error("[browser-task-manager] failed to start", error);
+  }
   try {
     await downloads.start();
   } catch (error) {

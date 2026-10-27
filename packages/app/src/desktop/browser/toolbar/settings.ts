@@ -14,6 +14,7 @@ export const BROWSER_PINNABLE_ACTIONS = [
   "kActionShowDownloads",
   "kActionPrint",
   "kActionCopyUrl",
+  "kActionTaskManager",
   "kActionDevTools",
 ] as const;
 export type BrowserPinnableAction = (typeof BROWSER_PINNABLE_ACTIONS)[number];

@@ -389,6 +389,59 @@ export interface DesktopBrowserPageMenuLabels {
   addToDictionary: string;
 }
 
+/** The words the task manager window shows, in Helm's UI language. */
+export interface DesktopTaskManagerStrings {
+  locale: string;
+  title: string;
+  categories: { tabsAndExtensions: string; browser: string; all: string };
+  searchPlaceholder: string;
+  searchAccessibleName: string;
+  clearSearch: string;
+  endTask: string;
+  endTaskAccessibleName: string;
+  tasksEnded: string;
+  tasksNotEnded: string;
+  columns: {
+    task: string;
+    profile: string;
+    memory: string;
+    cpu: string;
+    network: string;
+    processId: string;
+    idleWakeups: string;
+  };
+  /** Row title templates; `$1` is the name the main process fills in. */
+  titles: {
+    browser: string;
+    gpu: string;
+    renderer: string;
+    utility: string;
+    tab: string;
+    subframe: string;
+    extension: string;
+    serviceWorker: string;
+  };
+  notAvailable: string;
+  byteUnits: { bytes: string; kilobytes: string; megabytes: string; gigabytes: string };
+  profileName: string;
+}
+
+/** How the task manager window speaks and looks, set by the Helm window that opens it. */
+export interface DesktopTaskManagerAppearance {
+  strings: DesktopTaskManagerStrings;
+  colorScheme: "light" | "dark";
+  productLogo: { viewBox: string; d: string };
+}
+
+export interface DesktopTaskManagerBridge {
+  /** Opens Chrome's task manager window, or brings it forward with `browserId`'s row selected. */
+  open: (request: {
+    browserId: string | null;
+    appearance: DesktopTaskManagerAppearance;
+  }) => Promise<void>;
+  setAppearance: (appearance: DesktopTaskManagerAppearance) => Promise<void>;
+}
+
 export interface DesktopBrowserBridge {
   setShortcutPolicy?: (input: BrowserKeyboardPolicy) => Promise<void>;
   setPageMenuLabels?: (labels: DesktopBrowserPageMenuLabels) => Promise<void>;
@@ -403,6 +456,7 @@ export interface DesktopBrowserBridge {
   openDevTools?: (browserId: string) => Promise<unknown>;
   /** Chrome's 网页另存为…: asks where, then saves the page with its resources. */
   savePage?: (browserId: string) => Promise<void>;
+  taskManager?: DesktopTaskManagerBridge;
   browsingData?: DesktopBrowsingDataBridge;
   /** The page's session history, for Chrome's back and forward menus. */
   getNavigationHistory?: (browserId: string) => Promise<DesktopBrowserNavigationHistory | null>;

@@ -10,7 +10,6 @@ import { nextZoomFactor, zoomPercent } from "../zoom";
 /** Chrome's browser commands (IDC_*) that this browser has: the menu and shortcuts run them. */
 export const BROWSER_COMMANDS = [
   "newTab",
-  "newWindow",
   "reopenClosedTab",
   "showDownloads",
   "focusLocation",
@@ -35,6 +34,7 @@ export const BROWSER_COMMANDS = [
   "customizeChrome",
   "showCustomizeChromeSidePanel",
   "showAvatarMenu",
+  "taskManager",
   "devTools",
   "clearBrowsingData",
   "showSettings",
@@ -115,7 +115,8 @@ function recentTabsEntries(
 /**
  * Chrome's ⋮ menu (AppMenuModel::Build) with the rows this browser has, in Chrome's order and
  * with its icons and macOS shortcuts. Rows for what Helm can't do — signing in to Google, Gemini,
- * Lens, casting, sending to a device — are left out rather than shown dead.
+ * Lens, casting, sending to a device — are left out rather than shown dead, and so is 打开新的窗口:
+ * a page is a column-3 tab, with no browser window of its own to open another of.
  */
 export function buildAppMenuEntries(input: {
   t: TFunction;
@@ -134,13 +135,6 @@ export function buildAppMenuEntries(input: {
       label: t("workspace.browser.appMenu.newTab"),
       icon: "menuNewTab",
       shortcut: ["mod", "T"],
-    },
-    {
-      kind: "item",
-      id: "newWindow",
-      label: t("workspace.browser.appMenu.newWindow"),
-      icon: "menuNewWindow",
-      shortcut: ["mod", "N"],
     },
     { kind: "separator" },
     // ProfileSubMenuModel with no Google sign-in and one profile: 关闭此个人资料 would close every
@@ -311,6 +305,13 @@ export function buildAppMenuEntries(input: {
           id: "showCustomizeChromeSidePanel",
           label: t("workspace.browser.customizeChrome.title", product),
           icon: "menuCustomize",
+        },
+        // Chrome ends the browser-tools block with 任务管理器, just before 开发者工具's separator.
+        {
+          kind: "item",
+          id: "taskManager",
+          label: t("workspace.browser.taskManager.menuItem"),
+          icon: "menuTaskManager",
         },
         { kind: "separator" },
         {
